@@ -1,5 +1,6 @@
 //! Sistema de arquivos real, com escrita atômica (D20) e sem seguir symlink (R05).
 
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::ports::Fs;
@@ -26,6 +27,16 @@ impl StdFs {
             _ => Ok(()),
         }
     }
+
+    /// Nome do staging `*.tmp` ao lado do destino (mesmo diretório — D20).
+    fn staging_path(path: &Path) -> Result<PathBuf> {
+        let file_name = path
+            .file_name()
+            .ok_or_else(|| Error::invalid_input(format!("caminho sem nome: {}", path.display())))?;
+        let mut staging_name = file_name.to_os_string();
+        staging_name.push(".tmp");
+        Ok(path.with_file_name(staging_name))
+    }
 }
 
 impl Fs for StdFs {
@@ -36,15 +47,39 @@ impl Fs for StdFs {
 
     fn write_atomic(&self, path: &Path, data: &[u8]) -> Result<()> {
         Self::reject_symlink(path)?;
-        let file_name = path
-            .file_name()
-            .ok_or_else(|| Error::invalid_input(format!("caminho sem nome: {}", path.display())))?;
-        let mut staging_name = file_name.to_os_string();
-        staging_name.push(".tmp");
-        let staging = path.with_file_name(staging_name);
+        let staging = Self::staging_path(path)?;
         Self::reject_symlink(&staging)?;
         std::fs::write(&staging, data).map_err(|e| Error::io(&staging, e))?;
         std::fs::rename(&staging, path).map_err(|e| Error::io(path, e))
+    }
+
+    fn append(&self, path: &Path, data: &[u8]) -> Result<()> {
+        Self::reject_symlink(path)?;
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+            .map_err(|e| Error::io(path, e))?;
+        file.write_all(data).map_err(|e| Error::io(path, e))
+    }
+
+    fn create_exclusive(&self, path: &Path, data: &[u8]) -> Result<()> {
+        Self::reject_symlink(path)?;
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(path)
+        {
+            Ok(mut file) => file.write_all(data).map_err(|e| Error::io(path, e)),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                Err(Error::conflict(format!("já existe: {}", path.display())))
+            }
+            Err(e) => Err(Error::io(path, e)),
+        }
+    }
+
+    fn rename(&self, from: &Path, to: &Path) -> Result<()> {
+        std::fs::rename(from, to).map_err(|e| Error::io(from, e))
     }
 
     fn list_dir(&self, path: &Path) -> Result<Vec<PathBuf>> {
@@ -64,12 +99,48 @@ impl Fs for StdFs {
         path.symlink_metadata().is_ok()
     }
 
+    fn is_dir(&self, path: &Path) -> bool {
+        path.is_dir()
+    }
+
     fn create_dir_all(&self, path: &Path) -> Result<()> {
         std::fs::create_dir_all(path).map_err(|e| Error::io(path, e))
     }
 
     fn remove_file(&self, path: &Path) -> Result<()> {
-        std::fs::remove_file(path).map_err(|e| Error::io(path, e))
+        match std::fs::remove_file(path) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(Error::io(path, e)),
+        }
+    }
+
+    fn remove_dir_all(&self, path: &Path) -> Result<()> {
+        match std::fs::remove_dir_all(path) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(Error::io(path, e)),
+        }
+    }
+
+    fn sync(&self, path: &Path) -> Result<()> {
+        let file = std::fs::File::open(path).map_err(|e| Error::io(path, e))?;
+        file.sync_all().map_err(|e| Error::io(path, e))
+    }
+
+    #[allow(
+        clippy::disallowed_methods,
+        reason = "adaptador de FS real; lê mtime do arquivo (a porta é a única a tocar o SO)"
+    )]
+    fn modified_ms(&self, path: &Path) -> Result<Option<i64>> {
+        let meta = path.symlink_metadata().map_err(|e| Error::io(path, e))?;
+        let Ok(modified) = meta.modified() else {
+            return Ok(None);
+        };
+        let Ok(elapsed) = modified.duration_since(std::time::UNIX_EPOCH) else {
+            return Ok(None);
+        };
+        Ok(Some(i64::try_from(elapsed.as_millis()).unwrap_or(i64::MAX)))
     }
 }
 
@@ -94,6 +165,21 @@ mod tests {
 
         let _ignored = std::fs::remove_file(&link);
         let _ignored = std::fs::remove_file(&target);
+        Ok(())
+    }
+
+    #[test]
+    fn exclusive_create_conflicts() -> Result<()> {
+        let dir = std::env::temp_dir().join("knudge-fs-exclusive-test");
+        std::fs::create_dir_all(&dir).map_err(|e| Error::io(&dir, e))?;
+        let path = dir.join("lock");
+        let _ignored = std::fs::remove_file(&path);
+
+        let fs = StdFs::new();
+        fs.create_exclusive(&path, b"1")?;
+        let second = fs.create_exclusive(&path, b"2");
+        assert!(matches!(second, Err(Error::Conflict(_))));
+        let _ignored = std::fs::remove_file(&path);
         Ok(())
     }
 }

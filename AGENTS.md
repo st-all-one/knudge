@@ -55,6 +55,8 @@ módulos. Onde mexer:
 |---|---|
 | schema/tipos/IDs/hash | `knudge-core/src/schema/` |
 | parser/emissor TOON | `knudge-core/src/toon/` |
+| notas, eventos, lock, rebuild | `knudge-core/src/store/` |
+| JSONL/JSON | `knudge-core/src/jsonl/` |
 | erros e exit codes | `knudge-core/src/error.rs` |
 | tempo determinístico | `knudge-core/src/time.rs` |
 | redação de segredos | `knudge-core/src/logging.rs` |

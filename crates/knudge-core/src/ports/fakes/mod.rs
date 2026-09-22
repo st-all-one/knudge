@@ -1,15 +1,18 @@
 //! Fakes determinísticos das portas, para testes sem tocar o sistema operacional (D65).
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Mutex;
 
+use crate::Result;
 use crate::error::lock_or_recover;
 use crate::logging::Redactor;
 use crate::time::Timestamp;
-use crate::{Error, Result};
 
-use super::fs::Fs;
+pub mod fs;
+
+pub use fs::{FaultyFs, MemFs};
+
 use super::logger::{Level, LogRecord, Logger};
 use super::{Clock, Env, Git, HookOutput, HookRunner, Rng};
 
@@ -135,65 +138,6 @@ impl Git for FakeGit {
     }
 }
 
-/// Sistema de arquivos em memória.
-#[derive(Debug, Default)]
-pub struct MemFs {
-    /// Arquivos por caminho.
-    files: Mutex<BTreeMap<PathBuf, Vec<u8>>>,
-}
-
-impl MemFs {
-    /// Cria um FS vazio.
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Insere um arquivo diretamente (atalho de teste).
-    pub fn insert(&self, path: impl Into<PathBuf>, data: impl Into<Vec<u8>>) {
-        lock_or_recover(&self.files).insert(path.into(), data.into());
-    }
-}
-
-impl Fs for MemFs {
-    fn read(&self, path: &Path) -> Result<Vec<u8>> {
-        lock_or_recover(&self.files)
-            .get(path)
-            .cloned()
-            .ok_or_else(|| Error::not_found(path.display().to_string()))
-    }
-
-    fn write_atomic(&self, path: &Path, data: &[u8]) -> Result<()> {
-        lock_or_recover(&self.files).insert(path.to_path_buf(), data.to_vec());
-        Ok(())
-    }
-
-    fn list_dir(&self, path: &Path) -> Result<Vec<PathBuf>> {
-        let files = lock_or_recover(&self.files);
-        let mut out: Vec<PathBuf> = files
-            .keys()
-            .filter(|p| p.parent() == Some(path))
-            .cloned()
-            .collect();
-        out.sort();
-        Ok(out)
-    }
-
-    fn exists(&self, path: &Path) -> bool {
-        let files = lock_or_recover(&self.files);
-        files.contains_key(path) || files.keys().any(|p| p.starts_with(path))
-    }
-
-    fn create_dir_all(&self, _path: &Path) -> Result<()> {
-        Ok(())
-    }
-
-    fn remove_file(&self, path: &Path) -> Result<()> {
-        lock_or_recover(&self.files).remove(path);
-        Ok(())
-    }
-}
-
 /// Hook runner que não faz nada.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct NoopHookRunner;
@@ -242,6 +186,14 @@ impl RecordingLogger {
     #[must_use]
     pub fn records(&self) -> Vec<Record> {
         lock_or_recover(&self.records).clone()
+    }
+
+    /// `true` se algum registro contém o texto (útil em testes de varredura).
+    #[must_use]
+    pub fn contains(&self, needle: &str) -> bool {
+        lock_or_recover(&self.records)
+            .iter()
+            .any(|r| r.message.contains(needle))
     }
 }
 

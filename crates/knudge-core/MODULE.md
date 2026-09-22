@@ -15,7 +15,8 @@ existem no mesmo crate, mas o domínio **nunca** as importa — só as portas.
 | `adapters` | Implementações reais (`std`) das portas — **não** usadas pelo domínio. |
 | `schema` | Schema canônico, tipos, IDs (E02). |
 | `toon` | Parser/emissor TOON próprio (E02). |
-| `jsonl` | Leitura/escrita JSONL com streaming (E03). |
+| `jsonl` | Leitura/escrita JSONL e codec JSON canônico (E03). |
+| `store` | Notas, eventos, lock, rebuild, purge e sweep (E03). |
 | `git` | Regras de worktree/persistência (E04). |
 | `retrieval` | BM25, âncoras, RRF (E06). |
 | `lifecycle` | Decay, confiança derivada, clusters (E10). |

@@ -211,6 +211,16 @@
 
 ---
 
+## T. Persistência e eventos (D96)
+
+> Fecha o contrato do log de eventos e a semântica de `revision`. Implementado em E03.
+
+| # | Decisão final |
+|---|---|
+| **D96** ✅ | **Evento** = `{id, op, note_id?, at, actor?, data?}` em `eventos/events.jsonl`; `id = evt_<base36(8)>` derivado do conteúdo (D95) e usado como chave de **dedup on-read**. Leitura tolerante (linha ruim → skip + warning). Rotação por tamanho: segmento ativo `events.jsonl` → `events-NNNN.jsonl`; checkpoint derivado em `.idx/events.checkpoint`. `revision` é **contador de versões** (default 1; cada `update` incrementa), não CAS. |
+
+---
+
 ## Impactos no panorama (já propagados)
 
 | Decisão | Onde mudou |
@@ -237,6 +247,7 @@
 | D93 | `task` ganha `scope` fechado (`plan\|epic\|issue\|task`) e hierarquia máx. 4. |
 | D94 | `strict` vira config de projeto (`[behavior] strict`), sem flag. |
 | D95 | Fixa o hash curto (SHA-256→u32), a chave do `id` e a gramática TOON v1 (`TOON.md`). |
+| D96 | Fixa o registro de evento (`id` derivado + dedup on-read), rotação por tamanho e a semântica de `revision`. |
 
 ## Pendências / pontos de atenção
 

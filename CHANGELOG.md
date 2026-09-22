@@ -7,6 +7,25 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 ### Adicionado
 - **AGENTS.md** — guia de contribuição do repositório: padrões de desenvolvimento, erros,
   logs, testes, contrato de bytes e checklist de conclusão.
+- **E03 — Store, notas e eventos** (Fase 0, concluído):
+  - `jsonl`: codec JSON próprio (`encode`/`decode` canônicos, chaves ordenadas e sem
+    dependência externa) e leitor de linhas tolerante a CRLF/linhas em branco.
+  - `store`: `Note` (frontmatter + corpo) com render/parse byte-exato, `Store` (write atômico,
+    list, read, `update` com `revision`, `remove`) e ordem de commit **nota → evento** (D21).
+  - `store/events`: `Event` com `id` derivado do conteúdo (`evt_<base36(8)>`), `EventLog`
+    append-only com **dedup on-read** (D26/D28), tolerância a linha malformada, rotação por
+    tamanho (`events-NNNN.jsonl`), checkpoint derivado (`.idx/events.checkpoint`) e `history`.
+  - `store/lock`: lock advisory por arquivo-alvo (`create_exclusive`), stale 30 s, reclaim por
+    rename sidecar e liberação RAII (D23–D25/R05).
+  - `store/rebuild`: `Staging` double-buffer (`.idx.new/` + rename atômico — D27).
+  - `store/purge`: `purge_derived` remove o id de `*.jsonl` e `index.json` em toda remoção
+    (D84), usado por `Store::remove`.
+  - `store/sweep`: varredura de resíduos `*.tmp`/`*.lock`/`*.stale` por idade, com `warn`
+    (R10), **sem** remover lock fresco de processo vivo.
+  - Porta `Fs` estendida com `append`, `create_exclusive`, `rename`, `sync`, `modified_ms`,
+    `is_dir` e `remove_dir_all`; `MemFs` virou um FS fiel (tmp+rename, diretórios implícitos) e
+    `FaultyFs` injeta falhas para testes de crash.
+  - `ARCHITECTURE.md` §5 documenta a persistência; decisão **D96** registrada.
 - **E02 — Contrato de bytes: TOON, schema e IDs** (Fase 0, concluído):
   - `schema/types`: enums fechados `NoteType` (11), `Scope`, `Classification`, `Status`.
   - `schema/hash`: hash curto `SHA-256 → u32`, `hex8` e `base36(8)` (D95).
@@ -40,9 +59,12 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 - **D88** ajustada: `rewind` emite `context_id`; `kd rewind --resume <id>`.
 - **D93**: `task` com `scope` fechado (`plan|epic|issue|task`), hierarquia máx. 4.
 - **D94**: `strict` é config de projeto (`[behavior] strict`), sem flag.
+- **D95**: hash curto `SHA-256 → u32`; chave/derivação de `id` e gramática TOON v1 (`TOON.md`).
+- **D96**: registro de evento (`id` derivado + dedup on-read), rotação por tamanho e
+  semântica de `revision`.
 
 ### Testes
-- 56 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
-  schema/hash/ID, TOON com proptest de round-trip).
+- 82 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
+  schema/hash/ID, TOON, JSONL/JSON, store: commit/lock/events/rebuild/purge/sweep).
 - 8 testes de integração do binário (`--help`, `kd == kd prime`, `--json`, exit codes,
   EPIPE, comando desconhecido).

@@ -131,6 +131,8 @@ Um épico só fecha quando:
 | D65–D70 (arquitetura, distribuição) | E01, E12 |
 | D71–D73 (saída e erros) | E12 |
 | D76–D78, D82, D84, D86–D88, D91–D92 | E03, E08, E09, E13 |
+| D95 (hash/IDs, gramática TOON) | E02 |
+| D96 (registro de evento, rotação, `revision`) | E03 |
 
 ---
 

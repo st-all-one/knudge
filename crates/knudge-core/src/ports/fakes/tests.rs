@@ -1,5 +1,9 @@
 //! Testes dos fakes das portas.
 
+use std::path::Path;
+
+use crate::ports::Fs;
+
 use super::*;
 
 #[test]

@@ -37,7 +37,7 @@ conveniência, mas só `cli`/`mcp` o importam.
 | `Clock` | instante UTC (`Timestamp`) | `FixedClock` |
 | `Rng` | aleatoriedade (só jitter) | `SeqRng` |
 | `Env` | variáveis e argumentos | `FakeEnv` |
-| `Fs` | leitura/escrita atômica | `MemFs` |
+| `Fs` | leitura/escrita atômica, append, create-exclusive, rename, `fsync`, mtime | `MemFs`, `FaultyFs` |
 | `Git` | worktree, status, `--common-dir` | `FakeGit` |
 | `HookRunner` | hooks externos (sem shell) | `NoopHookRunner` |
 | `Logger` | log estruturado (stderr) | `RecordingLogger` |
@@ -53,13 +53,34 @@ conveniência, mas só `cli`/`mcp` o importam.
 | `adapters` | implementações `std` | E01+ |
 | `schema` | schema canônico, tipos, IDs | E02 |
 | `toon` | parser/emissor TOON | E02 |
-| `jsonl` | eventos append-only, streaming | E03 |
+| `jsonl` | leitura/escrita JSONL + codec JSON canônico | E03 |
+| `store` | notas (`notas/`), eventos, lock, rebuild, purge, sweep | E03 |
 | `git` | worktree, persistência, `sync` | E04 |
 | `retrieval` | BM25, âncoras, RRF | E06 |
 | `lifecycle` | decay, confiança derivada, clusters | E10 |
 | `embeddings` | provedor plugável e fila lazy | E11 |
 
-## 5. Fluxo de uma operação
+## 5. Persistência (E03)
+
+`notas/` é a verdade; `eventos/` é auditoria; `.idx/` é derivado e reconstruível.
+
+| Peça | Regra |
+|---|---|
+| Escrita de nota | tmp + rename no mesmo diretório (D20); `fsync` em batch (D22) |
+| Ordem de commit | **nota antes do evento** (D21); crash deixa nota sem evento |
+| Lock | advisory por arquivo-alvo, stale 30 s, reclaim por rename (D23–D25) |
+| Evento | `{id, op, note_id?, at, actor?, data?}`; `id` derivado do conteúdo |
+| Dedup | on-read por `id` (D26/D28), idempotente sob `merge=union` (D31) |
+| Rotação | `eventos/events.jsonl` ativo → `events-NNNN.jsonl` acima de `max_bytes` (R13) |
+| Checkpoint | `.idx/events.checkpoint` guarda o último evento processado |
+| Remoção | canônico primeiro, depois purga do derivado (D84) |
+| Rebuild | double-buffer `.idx.new/` + rename atômico (D27) |
+| Resíduos | `*.tmp`/`*.lock` velhos removidos no start, com `warn` (R10) |
+
+`revision` é **contador de versões** (default 1; cada `update` incrementa) — sinal de
+volatilidade, não CAS (D48).
+
+## 6. Fluxo de uma operação
 
 ```
 kd <verbo>
@@ -70,7 +91,7 @@ kd <verbo>
   → exit code = ErrorKind::exit_code() (101 reservado a panic)
 ```
 
-## 6. Invariantes de engenharia
+## 7. Invariantes de engenharia
 
 - `#![forbid(unsafe_code)]` em `core`/`cli`/`mcp` (R01).
 - Sem `Rc`/`RefCell` no core; estado compartilhado via `Arc<Mutex<_>>` (R03).
@@ -78,9 +99,10 @@ kd <verbo>
 - Arquivos de produção ≤ 300 linhas (D92).
 - `clippy -D warnings` lendo `clippy.toml` (R44); perfis e supply chain (R40–R43).
 
-## 7. Referências
+## 8. Referências
 
 - Visão: `plan/00_panorama.md`
-- Decisões: `plan/03_decisoes-fechadas.md` (D01–D94)
+- Decisões: `plan/03_decisoes-fechadas.md` (D01–D96)
+- Contrato de bytes: `TOON.md`
 - Políticas de engenharia: `plan/implementation/14_revisao_tecnica.md` (R01–R44)
 - Superfície CLI: `plan/implementation/16_cli_surface.md`

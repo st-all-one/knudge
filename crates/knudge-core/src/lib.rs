@@ -22,8 +22,10 @@ pub mod logging;
 pub mod ports;
 pub mod retrieval;
 pub mod schema;
+pub mod store;
 pub mod time;
 pub mod toon;
 
 pub use error::{Error, ErrorKind, Result, lock_or_recover};
+pub use store::{Event, EventLog, Note, Store};
 pub use time::Timestamp;
