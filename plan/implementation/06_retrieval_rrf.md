@@ -72,7 +72,8 @@ E02, E05.
 - **Objetivo:** o retrieval não estoura memória nem aborta por causa de um canal.
 - **Entregáveis:** limiar documentado de índice (acima → mmap/streaming ou aviso); `try_reserve`
   e `Cow<'_, str>` no parsing; canais ausentes/falhos retornam **resultado parcial + `warnings[]`**
-  (nunca aborta); `--strict` promove warning a erro; `doctor` reporta tamanho do `.idx/`.
+  (nunca aborta); **`strict` (config, D94) promove warning a erro**; `doctor` reporta tamanho do
+  `.idx/`.
 - **Decisões:** D39, D81. **Políticas:** R04, R14, R15, R33.
 - **Aceite:** canal desligado retorna resultados + warning; índice acima do limiar não OOM.
 

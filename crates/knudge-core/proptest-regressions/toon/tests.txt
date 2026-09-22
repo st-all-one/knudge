@@ -1,0 +1,9 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc de3ed78991214ffa3a445dd6cb7376774cdd8f094c271f96f4561ffa0cded373 # shrinks to items = []
+cc e37c9ccb035e8e3293377fe9f07ed3330e4c77d17ee6f3a9ef339c1e6a49308d # shrinks to items = []
+cc 75cbb5071919646b05cf54fab5eba9414f892535ea73735e8e836e3832c1393b # shrinks to items = [Str("\u{2000}")]

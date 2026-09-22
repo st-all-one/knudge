@@ -1,0 +1,99 @@
+//! Sistema de arquivos real, com escrita atômica (D20) e sem seguir symlink (R05).
+
+use std::path::{Path, PathBuf};
+
+use crate::ports::Fs;
+use crate::{Error, Result};
+
+/// Implementação de [`Fs`] sobre `std::fs`.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct StdFs;
+
+impl StdFs {
+    /// Cria o adaptador.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self
+    }
+
+    /// Rejeita symlink no caminho (R05): nada em `.knudge/` deve escapar do projeto.
+    fn reject_symlink(path: &Path) -> Result<()> {
+        match path.symlink_metadata() {
+            Ok(meta) if meta.file_type().is_symlink() => Err(Error::UnsafeBlocked(format!(
+                "symlink não permitido em .knudge/: {}",
+                path.display()
+            ))),
+            _ => Ok(()),
+        }
+    }
+}
+
+impl Fs for StdFs {
+    fn read(&self, path: &Path) -> Result<Vec<u8>> {
+        Self::reject_symlink(path)?;
+        std::fs::read(path).map_err(|e| Error::io(path, e))
+    }
+
+    fn write_atomic(&self, path: &Path, data: &[u8]) -> Result<()> {
+        Self::reject_symlink(path)?;
+        let file_name = path
+            .file_name()
+            .ok_or_else(|| Error::invalid_input(format!("caminho sem nome: {}", path.display())))?;
+        let mut staging_name = file_name.to_os_string();
+        staging_name.push(".tmp");
+        let staging = path.with_file_name(staging_name);
+        Self::reject_symlink(&staging)?;
+        std::fs::write(&staging, data).map_err(|e| Error::io(&staging, e))?;
+        std::fs::rename(&staging, path).map_err(|e| Error::io(path, e))
+    }
+
+    fn list_dir(&self, path: &Path) -> Result<Vec<PathBuf>> {
+        let entries = std::fs::read_dir(path).map_err(|e| Error::io(path, e))?;
+        let mut out = Vec::new();
+        for entry in entries {
+            let entry = entry.map_err(|e| Error::io(path, e))?;
+            out.push(entry.path());
+        }
+        out.sort();
+        Ok(out)
+    }
+
+    fn exists(&self, path: &Path) -> bool {
+        // `symlink_metadata` não segue o link: um symlink em `.knudge/` conta como presente,
+        // mas a leitura/escrita real deve rejeitá-lo (R05).
+        path.symlink_metadata().is_ok()
+    }
+
+    fn create_dir_all(&self, path: &Path) -> Result<()> {
+        std::fs::create_dir_all(path).map_err(|e| Error::io(path, e))
+    }
+
+    fn remove_file(&self, path: &Path) -> Result<()> {
+        std::fs::remove_file(path).map_err(|e| Error::io(path, e))
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_symlink() -> Result<()> {
+        use std::os::unix::fs::symlink;
+
+        let dir = std::env::temp_dir().join("knudge-fs-symlink-test");
+        std::fs::create_dir_all(&dir).map_err(|e| Error::io(&dir, e))?;
+        let target = dir.join("target.md");
+        let link = dir.join("link.md");
+        let _ignored = std::fs::remove_file(&link);
+        std::fs::write(&target, b"x").map_err(|e| Error::io(&target, e))?;
+        symlink(&target, &link).map_err(|e| Error::io(&link, e))?;
+
+        let fs = StdFs::new();
+        assert!(matches!(fs.read(&link), Err(Error::UnsafeBlocked(_))));
+
+        let _ignored = std::fs::remove_file(&link);
+        let _ignored = std::fs::remove_file(&target);
+        Ok(())
+    }
+}

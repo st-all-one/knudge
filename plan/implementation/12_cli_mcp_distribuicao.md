@@ -4,7 +4,7 @@
 > **`--json`** para máquinas, mensagens de erro **congeladas**, MCP **reativo a comportamento**,
 > hooks de ciclo de vida e a distribuição em binário estático.
 >
-> **Decisões:** D57, D59, D60, D68, D69, D71, D72, D73.
+> **Decisões:** D57, D59, D60, D68, D69, D71, D72, D73, D88, D93, D94.
 > **Políticas:** R12, R20, R21, R22, R23, R31, R33, R35 (ver [`14_revisao_tecnica.md`](14_revisao_tecnica.md)).
 
 ## Objetivo do épico
@@ -18,14 +18,16 @@ E08, E09.
 
 ## Tarefas
 
-### E12-T01 ☐ CLI `kd` completa
-- **Objetivo:** expor todos os verbos (`recall`, `get`, `expand`, `write`, `update`, `link`,
-  `forget`, `restore`, `prime`, `diff`, `learn`, `plan`, `compact`, `audit`, `doctor`, `sync`,
-  `onboard`, `config`, `eval`, `embed`), com **pipe** (LLM) e **`--json`**
-  (`{success, command, error}`) para máquinas e exit codes.
-- **Entregáveis:** parsing e dispatch; dois formatos por comando.
-- **Decisões:** D71.
-- **Aceite:** matriz de aceite (E13-T06) verde; exit codes consistentes; JSON válido.
+### E12-T01 ☐ CLI `kd` completa (superfície v2)
+- **Objetivo:** expor a superfície congelada em [`16_cli_surface.md`](16_cli_surface.md) —
+  `kd` (= `prime`), `init`, `prime`, `rewind`, `ask`, `write`, `task`, `maintenance`, `config`,
+  `forget`, `sync`, `self` — com **pipe** (LLM) e **`--json`** (`{success, command, data?,
+  error?, warnings?}`) para máquinas e exit codes.
+- **Entregáveis:** parsing e dispatch; dois formatos por comando; `--link` em `write`; `task`
+  com `scope` fechado (D93); `strict` lido do config (D94).
+- **Decisões:** D57, D69, D71, D88, D93, D94.
+- **Aceite:** matriz de aceite (E13-T06) verde; `kd` sem args == `kd prime`; exit codes
+  consistentes; JSON válido; nenhuma flag `--strict`.
 
 ### E12-T02 ☐ Catálogo de mensagens e EPIPE
 - **Objetivo:** catálogo de mensagens de erro/sucesso **congelado por teste**; **EPIPE → exit 0**
@@ -36,7 +38,8 @@ E08, E09.
 
 ### E12-T03 ☐ MCP proativo (estreito)
 - **Objetivo:** 3 gatilhos — pré-`write` (quase-duplicados, 1ª prioridade), pré-edição de
-  arquivo (`prime(files)` contínuo), fim de sessão (`learn()?` se houve diff e zero writes);
+  arquivo (`kd rewind --files` contínuo), fim de sessão (`kd maintenance learn?` se houve diff e
+  zero writes);
   hint é **ponteiro** (`id + statement + score`), cap **3**, dedup por sessão, **modo
   observação** por N sessões.
 - **Entregáveis:** `knudge-mcp`; gatilhos; contador de seguimento.
@@ -53,14 +56,14 @@ E08, E09.
   hook pode bloquear a operação.
 
 ### E12-T05 ☐ Distribuição
-- **Objetivo:** binário **estático**, `completions`, `setup` (recipes `claude`/`cursor`/
-  `codex`/`pi`), `upgrade`.
+- **Objetivo:** binário **estático**, `kd self completions`, `kd self setup` (recipes
+  `claude`/`cursor`/`codex`/`pi`), `kd self upgrade`.
 - **Entregáveis:** pipeline de build; scripts.
 - **Decisões:** D69.
 - **Aceite:** instalar/atualizar em máquina limpa; completions geradas.
 
-### E12-T06 ☐ `onboard` na CLI
-- **Objetivo:** `kd onboard` aplica marcadores idempotentes + version marker e grava o
+### E12-T06 ☐ `init` na CLI
+- **Objetivo:** `kd init` aplica marcadores idempotentes + version marker e grava o
   `AGENTS.md` (integra E04-T04).
 - **Entregáveis:** subcomando.
 - **Decisões:** D57, D60.
@@ -77,8 +80,8 @@ E08, E09.
 ### E12-T08 ☐ Envelope de erro, warnings e mapa de exit
 - **Objetivo:** máquina e humano entendem a falha sem parsear prosa.
 - **Entregáveis:** `error: { code, message, retryable, details? }` + `warnings[]`; código
-  estável → exit code (101 reservado a panic); `--strict` promove warning a erro; `--json`
-  documentado quanto a panic/abort.
+  estável → exit code (101 reservado a panic); **`strict` (config de projeto, D94) promove
+  warning a erro**; `--json` documentado quanto a panic/abort.
 - **Decisões:** D71, D72, D73. **Políticas:** R31, R33, R35.
 - **Aceite:** matriz código×exit; agente distingue `retryable`; warning não aborta.
 

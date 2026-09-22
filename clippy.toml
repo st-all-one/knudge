@@ -1,0 +1,194 @@
+# =============================================================================
+# knudge — clippy.toml (rigor máximo · Rust 1.97 / Edition 2024)
+# Valores de configuração do Clippy. Os NÍVEIS de lint ficam em
+# [workspace.lints] no Cargo.toml — ver 15_clippy_config.md §5.
+# Referências: políticas R01–R44 em 14_revisao_tecnica.md.
+# =============================================================================
+
+# ------------------------------------------------------------------- unsafe --
+# O comentário // SAFETY: deve ficar colado ao bloco (R01).
+accept-comment-above-attributes = false
+accept-comment-above-statement  = false
+
+# ----------------------------------------------- unwrap/expect/panic (D92) ---
+# Sem atalhos, nem em const nem em testes.
+allow-expect-in-consts = false
+allow-expect-in-tests  = false
+allow-unwrap-in-consts = false
+allow-unwrap-in-tests  = false
+allow-panic-in-tests   = false
+allow-unwrap-types     = []
+
+# ------------------------------------------------------------------- testes --
+allow-dbg-in-tests               = false
+allow-print-in-tests             = false
+allow-useless-vec-in-tests       = false
+allow-indexing-slicing-in-tests  = false
+allow-large-stack-frames-in-tests = true   # fixtures grandes são legítimas
+
+# --------------------------------------------- estilo / padronização global --
+allow-mixed-uninlined-format-args = false
+allow-one-hash-in-raw-strings     = false
+unreadable-literal-lint-fractions = true
+upper-case-acronyms-aggressive    = true
+enforce-iter-loop-reborrow        = true
+lint-commented-code               = true
+semicolon-inside-block-ignore-singleline = false
+semicolon-outside-block-ignore-multiline = false
+module-items-ordered-within-groupings    = "all"
+warn-on-all-wildcard-imports      = true
+allowed-wildcard-imports          = []
+
+# ----------------------------------------------- complexidade / tamanho -------
+cognitive-complexity-threshold = 15
+type-complexity-threshold      = 150
+too-many-lines-threshold       = 60
+too-many-arguments-threshold   = 5
+excessive-nesting-threshold    = 3          # 0 = desligado
+max-trait-bounds               = 3
+max-suggested-slice-pattern-length = 3
+single-char-binding-names-threshold = 2
+min-ident-chars-threshold      = 2
+allowed-idents-below-min-chars = [
+  "i", "j", "x", "y", "z", "w", "n",
+  "id", "io", "fs", "db", "ui", "ok", "err", "ty", "kv", "..",
+]
+
+# ------------------------------------------------- bools / API / tamanhos ----
+max-fn-params-bools        = 0             # flags viram enum
+max-struct-bools           = 1
+enum-variant-size-threshold = 128
+enum-variant-name-threshold = 3
+struct-field-name-threshold = 3
+large-error-threshold      = 128
+unnecessary-box-size       = 128
+pass-by-value-size-limit   = 128
+array-size-threshold       = 4096
+stack-size-threshold       = 65536
+future-size-threshold      = 8192
+max-include-file-size      = 262144
+vec-box-size-threshold     = 4096
+too-large-for-stack        = 200
+
+# ------------------------------------------------------------ MSRV / docs ----
+msrv = "1.97"                               # OBRIGATÓRIO: 1.97+ (casar com rust-version)
+avoid-breaking-exported-api = false         # crate interno: aceita sugestões mais duras
+check-incompatible-msrv-in-tests = true
+check-private-items        = true
+missing-docs-allow-unused  = false
+missing-docs-in-crate-items = false
+inherent-impl-lint-scope   = "crate"
+recursive-self-in-type-definitions = true
+enable-raw-pointer-heuristic-for-send = true
+pub-underscore-fields-behavior = "PubliclyExported"
+
+# ----------------------------------------- determinismo / concorrência (R) ---
+# Guardas que não podem atravessar .await (R11/R16).
+await-holding-invalid-types = [
+  "std::sync::MutexGuard",
+  "std::sync::RwLockReadGuard",
+  "std::sync::RwLockWriteGuard",
+  "std::cell::Ref",
+  "std::cell::RefMut",
+  "parking_lot::MutexGuard",
+  "parking_lot::RwLockReadGuard",
+  "parking_lot::RwLockWriteGuard",
+]
+
+# -------------------------------------------------------------- aritmética ----
+arithmetic-side-effects-allowed = [
+  "Wrapping", "Saturating", "f32", "f64",
+  "AtomicU8", "AtomicU16", "AtomicU32", "AtomicU64", "AtomicUsize",
+  "AtomicI8", "AtomicI16", "AtomicI32", "AtomicI64", "AtomicIsize",
+]
+arithmetic-side-effects-allowed-binary = []
+arithmetic-side-effects-allowed-unary  = []
+suppress-restriction-lint-in-const = false
+verbose-bit-mask-threshold         = 1
+const-literal-digits-threshold     = 30
+literal-representation-threshold   = 16384
+
+# ---------------------------------------------------- listas de proibição ----
+disallowed-names = ["foo", "baz", "quux", "tmp", "thing", "stuff", "misc", ".."]
+
+disallowed-types = [
+  { path = "std::rc::Rc",       reason = "não é Send/Sync; use Arc (R03)" },
+  { path = "std::rc::Weak",     reason = "não é Send/Sync (R03)" },
+  { path = "std::cell::RefCell", reason = "interior mutability em runtime; use Mutex/RwLock (R03)" },
+  { path = "std::cell::Cell",   reason = "estado mutável compartilhado; use atômicos (R03)" },
+  { path = "std::collections::LinkedList", reason = "cache-hostil; use Vec/VecDeque" },
+  { path = "std::collections::HashMap",  reason = "iteração não determinística; use BTreeMap/IndexMap (allow no adaptador)" },
+  { path = "std::collections::HashSet",  reason = "iteração não determinística; use BTreeSet/IndexSet (allow no adaptador)" },
+]
+
+disallowed-methods = [
+  { path = "std::mem::transmute",            reason = "UB potencial; use from_bits/from_ne_bytes" },
+  { path = "std::mem::forget",               reason = "vazamento; use RAII/Drop (R05)" },
+  { path = "std::mem::zeroed",               reason = "valor inválido possível; use Default" },
+  { path = "std::mem::uninitialized",        reason = "deprecado e UB; use MaybeUninit" },
+  { path = "std::slice::from_raw_parts",     reason = "unsafe; confinado ao adaptador (R01)" },
+  { path = "std::slice::from_raw_parts_mut", reason = "unsafe; confinado ao adaptador (R01)" },
+  { path = "std::ptr::read",                 reason = "unsafe; confinado ao adaptador (R01)" },
+  { path = "std::ptr::write",                reason = "unsafe; confinado ao adaptador (R01)" },
+  { path = "std::env::set_var",              reason = "unsafe na Edition 2024; use o port Env" },
+  { path = "std::env::remove_var",           reason = "unsafe na Edition 2024; use o port Env" },
+  { path = "std::env::var",                  reason = "não determinístico; use o port Env (D65)" },
+  { path = "std::env::vars",                 reason = "não determinístico; use o port Env (D65)" },
+  { path = "std::time::SystemTime::now",     reason = "não determinístico; use o port Clock (D65)" },
+  { path = "std::time::Instant::now",        reason = "não determinístico; use o port Clock (D65)" },
+  { path = "std::process::exit",             reason = "propague Result; exit codes no adaptador (R31)" },
+]
+
+disallowed-macros = [
+  { path = "std::dbg",           reason = "remova antes do commit" },
+  { path = "std::todo",          reason = "inacabado; abra uma issue" },
+  { path = "std::unimplemented", reason = "inacabado; retorne Error" },
+  { path = "std::unreachable",   reason = "prove a impossibilidade sem panic (D92)" },
+  { path = "std::panic",         reason = "propague Result (D92)" },
+]
+
+disallowed-fields = []
+
+# ------------------------------------------------ ordenação / documentação ----
+doc-valid-idents = [
+  "knudge", "kd", "RRF", "BM25", "TOON", "LLM", "MCP", "CLI", "API",
+  "JSON", "TOML", "YAML", "NFC", "UTC", "TTL", "EPIPE", "MSRV",
+  "nDCG", "nDCG@k", "Recall@k", "MRR", "base36", "snake_case", "camelCase",
+  "frontmatter", "body_hash", "context_id", "anchors",
+  "sentence-transformers", "msmarco", "MiniLM", "ONNX", "Candle",
+  "arags", "seeds", "mulch", "proptest", "usearch", "HNSW",
+  "..",
+]
+
+standard-macro-braces = [
+  { name = "vec",          brace = "[" },
+  { name = "format",       brace = "(" },
+  { name = "write",        brace = "(" },
+  { name = "writeln",      brace = "(" },
+  { name = "assert",       brace = "(" },
+  { name = "assert_eq",    brace = "(" },
+  { name = "assert_ne",    brace = "(" },
+  { name = "debug_assert", brace = "(" },
+  { name = "matches",      brace = "(" },
+]
+
+warn-unsafe-macro-metavars-in-private-macros = true
+
+# ------------------------------------------------------------------ diversos --
+absolute-paths-allowed-crates = ["std", "core", "alloc"]
+absolute-paths-max-segments   = 2
+allow-comparison-to-zero      = true
+allow-exact-repetitions       = true
+allowed-dotfiles              = []
+allowed-duplicate-crates      = []
+allowed-prefixes              = ["to", "as", "into", "from", "try_into", "try_from"]
+allowed-scripts               = ["Latin"]
+cargo-ignore-publish          = false
+check-grouped-late-init       = true
+check-inconsistent-struct-field-initializers = false
+enforced-import-renames       = []
+large-error-ignored           = []
+ignore-interior-mutability    = ["bytes::Bytes"]
+matches-for-let-else          = "WellKnownTypes"
+# module-item-order-groupings / source-item-ordering /
+# trait-assoc-item-kinds-order / trivial-copy-size-limit: manter defaults.

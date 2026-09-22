@@ -100,17 +100,17 @@ MiniLM-L6-v2 fixo, 384 dims, INT8; RRF k=60; debounce de save vetorial 2 s.
 | C3 | **Ordem de escrita defensável**: "vetor órfão é aceitável (limpo na manutenção), linha sem âncoras **não**" | define o que um crash pode deixar inconsistente | ao gravar nota+índice+evento: gravar o **canônico primeiro**; índice/embedding depois; reconstruível a qualquer momento | 🔴 alta |
 | C4 | **Debounce de persistência vetorial** (dirty flag, ≤1 save/2 s, flush forçado no shutdown) | rajadas (10–20 notas) não devem causar 20 rewrites do índice | `.idx` marca *dirty* e faz flush coalescido; `kd` força flush ao sair; cenário "dark notes" fica barato | 🔴 alta |
 | C5 | **Lightweight/fallback embedder determinístico** (SHA-256 → vetor normalizado), sem pesos | testes/CI e modo degradado **sem download de modelo** | `provider = "lightweight"` para testes e offline puro; mantém localidade | 🟠 média |
-| C6 | **Harness A/B puro** com Recall@k, nDCG@k, MRR sobre corpus+gold, sem tocar servidor | o jeito concreto de decidir L6 vs L12 vs multilíngue | `kd eval --ab <modeloA> <modeloB>` sobre um golden pequeno; métricas puras testáveis | 🟠 média |
+| C6 | **Harness A/B puro** com Recall@k, nDCG@k, MRR sobre corpus+gold, sem tocar servidor | o jeito concreto de decidir L6 vs L12 vs multilíngue | `kd maintenance eval --ab <modeloA> <modeloB>` sobre um golden pequeno; métricas puras testáveis | 🟠 média |
 | C7 | **Quantização INT8** default e `matryoshka_truncate` p/ dims | velocidade/memória sem perder muito | opção de quantização e truncamento de dims no índice (default f32 384) | 🟡 baixa |
 
 ### D. Evidência, staleness e confiança (o coração do "projeto vivo")
 
 | # | Achado no arags | Por que importa | Adaptação ao knudge | Prioridade |
 |---|---|---|---|---|
-| D1 | **Âncoras com `content_hash` + verify-on-hit**: no hit, recheca o hash vigente dos arquivos citados; `stale_reason` granular (`cited` invalida, `context` não) | mede **verdade**, não só similaridade | `anchors` carregam `path`+hash; `kd check`/`doctor` rechecam sob demanda; `cited` vs `context`; **nunca** apaga stale — sinaliza | 🔴 alta |
+| D1 | **Âncoras com `content_hash` + verify-on-hit**: no hit, recheca o hash vigente dos arquivos citados; `stale_reason` granular (`cited` invalida, `context` não) | mede **verdade**, não só similaridade | `anchors` carregam `path`+hash; `kd maintenance doctor` recheca sob demanda; `cited` vs `context`; **nunca** apaga stale — sinaliza | 🔴 alta |
 | D2 | **Confiança composta** `sim × drift_factor × age_factor + feedback_weight × feedback`, com pisos (nunca zera); propriedades (monotônica em sim/confirmed; decrescente em drift/idade) | ranking honesto, testável por proptest | **derivada em tempo de consulta** (não armazenar) a partir de evidência+feedback+idade+âncoras | 🟠 média |
 | D3 | **Feedback confirm/contradict**; N contradições → auto-stale → review | fecha o ciclo de correção sem LLM obrigatório | `outcomes[]` com confirm/contradict; limiar leva a `stale`/fila de revisão | 🟠 média |
-| D4 | **`cache_id` estável (UUIDv7) anti-drift**: o orquestrador passa o ID ao subagente e este recebe **1:1** o mesmo contexto, sem re-busca/re-síntese | handoff reprodutível entre agentes/rodadas | `prime` emite um **`context_id`** (endereçado pelo conjunto retornado); `kd get-context <id>` devolve idêntico — encaixa no D57 | 🟠 média |
+| D4 | **`cache_id` estável (UUIDv7) anti-drift**: o orquestrador passa o ID ao subagente e este recebe **1:1** o mesmo contexto, sem re-busca/re-síntese | handoff reprodutível entre agentes/rodadas | `rewind` emite um **`context_id`** (endereçado pelo conjunto retornado); `kd rewind --resume <id>` devolve idêntico — encaixa no D57 | 🟠 média |
 | D5 | **Invalidação por hash das fontes**: cache fica `stale` quando qualquer chunk de origem muda | evidência não pode mentir após mudança | se `evidence`/`anchors` referenciam notas, mudança nelas invalida o derivado; recheck por hash | 🔴 alta |
 | D6 | **Margens duplas** `hit_high`/`hit_low` → `strong`/`related`/`none` | evita surfacar match fraco como forte | `recall` retorna grau (forte/relacionado) além do score; default conservador | 🟡 baixa |
 | D7 | **Assimetria declarada**: falso-positivo custa mais que falso-negativo ⇒ *precision > recall* | define a política quando em dúvida | documentar como princípio de retrieval/validação do knudge | 🟠 média |
@@ -169,9 +169,9 @@ MiniLM-L6-v2 fixo, 384 dims, INT8; RRF k=60; debounce de save vetorial 2 s.
 | **D85** | **Flush coalescido (debounce)** do `.idx` e do arquivo de embeddings | C4 | ✅ |
 | **D86** | `anchors` com **`path` + `content_hash`** e **verify-on-hit** (`cited` invalida, `context` não); stale **sinaliza**, não apaga | D1/D5 | ✅ |
 | **D87** | **Confiança derivada** em tempo de consulta (não armazenada), separada de `confidence` declarada | D2 | ✅ |
-| **D88** | `prime` emite **`context_id`** endereçável para handoff 1:1 (`kd get-context`) | D4 | ✅ |
+| **D88** | `rewind` emite **`context_id`** endereçável para handoff 1:1 (`kd rewind --resume`) | D4 | ✅ |
 | **D89** | **`provider = "lightweight"`** (embedder determinístico) para testes/offline | C5 | ✅ |
-| **D90** | **`kd eval --ab`** com Recall@k/nDCG@k/MRR sobre golden | C6 | ✅ |
+| **D90** | **`kd maintenance eval --ab`** com Recall@k/nDCG@k/MRR sobre golden | C6 | ✅ |
 | **D91** | Projeto identificado por **nome lógico**; segredos **só no global** | E1/E2 | ✅ |
 | **D92** | **Disciplina Rust**: ≤300 linhas, sem `unwrap/expect/panic`, proptest nos puros | E4 | ✅ |
 

@@ -39,9 +39,9 @@ E06, E07.
 
 ### E11-T03 ☐ Fila assíncrona/lazy
 - **Objetivo:** `mode = lazy|eager|manual`, `async = true`, `max_pending`; estado derivado
-  `indexed|pending|stale` por nota; **nunca descarta nota**; `prime` reporta
+  `indexed|pending|stale` por nota; **nunca descarta nota**; `rewind` reporta
   `embeddings_pending`.
-- **Entregáveis:** fila; estados; contador no `prime`.
+- **Entregáveis:** fila; estados; contador no `rewind`.
 - **Decisões:** D80, D83.
 - **Aceite:** rajada de 10–20 notas não bloqueia `write`/`recall`; backlog visível e
   drenável.
@@ -49,7 +49,7 @@ E06, E07.
 ### E11-T04 ☐ Worker de reconcile
 - **Objetivo:** re-embedar do **corpo canônico** as pendentes; I/O externo com **timeout
   curto** e falha rápida → `pending`.
-- **Entregáveis:** worker (chamado pelo daemon/CLI ocioso/`kd embed`).
+- **Entregáveis:** worker (chamado pelo daemon/CLI ocioso/`kd maintenance index`).
 - **Decisões:** D80, D83.
 - **Aceite:** endpoint lento não trava; pendentes viram `indexed` depois; nenhuma nota perdida.
 
@@ -65,7 +65,7 @@ E06, E07.
 - **Decisões:** D85.
 - **Aceite:** rajada gera um único write O(N); matar o processo após flush preserva o índice.
 
-### E11-T07 ☐ `kd eval --ab`
+### E11-T07 ☐ `kd maintenance eval --ab`
 - **Objetivo:** comparar dois modelos com **Recall@k, nDCG@k, MRR** sobre um golden pequeno;
   decide L6 vs L12 vs multilíngue no corpus real.
 - **Entregáveis:** métricas puras; comando `eval --ab`.
@@ -99,7 +99,7 @@ E06, E07.
 
 - [ ] Nenhum caminho do sistema bloqueia por embedding.
 - [ ] Cache, fila, reconcile, purge e flush travados por teste.
-- [ ] `eval --ab` disponível para decidir o modelo.
+- [ ] `kd maintenance eval --ab` disponível para decidir o modelo.
 - [ ] Runtime mínimo e backpressure demonstrados.
 
 ## Não-objetivos

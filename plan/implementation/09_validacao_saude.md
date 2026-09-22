@@ -48,13 +48,13 @@ E06, E07.
 - **Aceite:** `--fix` idempotente (rodar 2× não muda nada na segunda); divergência de índice
   detectada e reconstruída.
 
-### E09-T05 ☐ Leitura tolerante e `--strict`
+### E09-T05 ☐ Leitura tolerante e `strict` (config)
 - **Objetivo:** chave desconhecida **tolera com warning**; `type` desconhecido **rejeita por
   nota** (não derruba o comando); linha/nota malformada **skip + warning + orientação**;
-  `--strict` opcional para CI.
-- **Entregáveis:** leitor Postel; flag `--strict`.
-- **Decisões:** D16, D17, D18.
-- **Aceite:** uma nota ruim (cada classe) não impede um `recall`; `--strict` falha como
+  **`strict` de config (D94)** opcional para CI.
+- **Entregáveis:** leitor Postel; leitura de `[behavior] strict`.
+- **Decisões:** D16, D17, D18, D94.
+- **Aceite:** uma nota ruim (cada classe) não impede um `recall`; `strict=true` falha como
   esperado.
 
 ### E09-T06 ☐ Âncoras com hash e verify-on-hit

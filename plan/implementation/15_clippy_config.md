@@ -356,6 +356,13 @@ acrescentam `#![forbid(unsafe_code)]` no topo.
 - **Volume inicial de warnings**: os grupos `pedantic`/`nursery` geram muitos. Estratégia:
   aterrissar por grupos (primeiro `all`+`perf`+`correctness`+restriction curada; depois
   `pedantic`; `nursery` por último), sempre com `#[expect]`/allowlist + `reason`.
+- **Estado do 1º aterrissamento (E01):** grupos com `priority = -1` (para permitir overrides
+  pontuais, corrigindo `lint_groups_priority`); `pedantic`/`nursery` em `warn`. Temporariamente
+  em `allow` (baixo valor/ruído, reavaliar quando os módulos estabilizarem): `min_ident_chars`,
+  `many_single_char_names`, `missing_docs_in_private_items`, `missing_errors_doc`,
+  `missing_panics_doc`, `allow_attributes`, `option_if_let_else`, `significant_drop_tightening`,
+  `missing_const_for_fn`, `excessive_nesting` e `multiple_crate_versions` (`clippy::cargo`).
+  `allow_attributes_without_reason` permanece `deny`: todo `#[allow]` exige `reason`.
 - **`disallowed-types` com `HashMap`** é a regra mais invasiva; se o índice exigir `HashMap`
   por desempenho, manter o `allow` local com `reason` e um teste de determinismo.
 - **`max-fn-params-bools = 0`** força modelagem por enums; se doer, relaxar para `1` antes de

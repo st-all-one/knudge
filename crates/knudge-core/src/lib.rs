@@ -1,0 +1,29 @@
+//! # knudge-core
+//!
+//! Núcleo puro do knudge (D65). Sem terminal, `argv`, relógio global ou RNG global: todo acesso
+//! ao mundo externo passa por uma **porta** em [`ports`]. As implementações reais ficam em
+//! [`adapters`] e **não** são usadas pelo domínio.
+//!
+//! ## Invariantes (D92 / R01–R05)
+//! - `#![forbid(unsafe_code)]`.
+//! - Sem `Rc`/`RefCell`; estado compartilhado com `Arc<Mutex<_>>`.
+//! - Sem `unwrap`/`expect`/`panic` no código de produção.
+
+#![forbid(unsafe_code)]
+#![warn(missing_docs)]
+
+pub mod adapters;
+pub mod embeddings;
+pub mod error;
+pub mod git;
+pub mod jsonl;
+pub mod lifecycle;
+pub mod logging;
+pub mod ports;
+pub mod retrieval;
+pub mod schema;
+pub mod time;
+pub mod toon;
+
+pub use error::{Error, ErrorKind, Result, lock_or_recover};
+pub use time::Timestamp;

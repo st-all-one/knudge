@@ -21,7 +21,8 @@ Consequência: o embedding é **opcional e reconstruível**. `notas/` + `eventos
 O embedding **nunca bloqueia** `write`, `recall` ou o rebuild estrutural. Ele é consumido por uma **fila de digestão**:
 
 - No `write`, a nota é commitada imediatamente (nota + evento); o id entra numa **fila pendente** (derivada, em `.idx/`).
-- Um **worker** processa a fila em lote — no daemon `kd serve`, numa invocação ociosa do CLI, por timer, ou via `kd embed`.
+- Um **worker** processa a fila em lote — numa invocação ociosa do CLI, por timer ou via
+  `kd maintenance index --drain`.
 - `recall` **nunca espera**: usa BM25 + estrutura sempre; usa embeddings só para as notas já digeridas.
 
 **Notas “apagadas” (dark).** Notas recém-criadas ficam invisíveis à camada vetorial até serem digeridas. Numa rajada de 10–20 notas, elas ficam dark por uma janela curta — **gap tolerado e aceito pelo projeto**. Continuam acháveis por BM25/estrutura/`get`; só não participam de dedup semântico e cluster até serem embeddadas.
@@ -33,7 +34,7 @@ O embedding **nunca bloqueia** `write`, `recall` ou o rebuild estrutural. Ele é
 - **Visibilidade:** `prime()` reporta `embeddings_pending: N`; `audit()`/`doctor` sinalizam backlog grande.
 - **Backpressure:** `max_pending` limita a fila; acima disso, força catch-up em lote — **nunca descarta nota**.
 
-**Modos:** `lazy` (default; digere ocioso/em lote), `eager` (digere logo após o write, ainda async), `manual` (só via `kd embed`).
+**Modos:** `lazy` (default; digere ocioso/em lote), `eager` (digere logo após o write, ainda async), `manual` (só via `kd maintenance index --drain`).
 
 ```toml
 [embeddings]

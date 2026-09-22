@@ -1,9 +1,9 @@
 # E08 — Prime, handoff, diff e learn
 
-> **MVP.** O `prime` é o **handoff de estado entre agentes/rodadas**. Aqui entram a família
-> `prime`, o **orçamento de tokens sem tokenizer**, o auto-context-scope, o `context_id`
+> **MVP.** O `rewind` é o **handoff de estado entre agentes/rodadas**. Aqui entram a família
+> `rewind`, o **orçamento de tokens sem tokenizer**, o auto-context-scope, o `context_id`
 > endereçável, e as operações de passado (`diff`) e sugestão (`learn`), além de
-> `plan`/`compact`.
+> `task`/`compact`.
 >
 > **Decisões:** D33, D40, D41, D47, D52, D53, D57, D58, D82, D88.
 > **Políticas:** R04, R15, R33 (ver [`14_revisao_tecnica.md`](14_revisao_tecnica.md)).
@@ -20,9 +20,9 @@ E06, E07.
 
 ## Tarefas
 
-### E08-T01 ☐ Família `prime`
-- **Objetivo:** `prime()` → manifest ~30 tokens; `prime(scope)` → container/domínio;
-  `prime(files)` → working set ancorado; ranking por trust-tier
+### E08-T01 ☐ Família `rewind`
+- **Objetivo:** `rewind` → manifest ~30 tokens; `rewind --scope` → container/domínio;
+  `rewind --files` → working set ancorado; ranking por trust-tier
   (`star*100 + foundational*50 + tactical*20 + observational*10`).
 - **Entregáveis:** três modos; ranking por tier.
 - **Decisões:** D57.
@@ -32,7 +32,7 @@ E06, E07.
 - **Objetivo:** `estimateTokens = ceil(len/4)` (D40), default **4000**; prioridade
   tipo → classificação → score → timestamp; **trunca o último item** e ignora sobra < 100
   tokens. Sem dependência de tokenizador (D82).
-- **Entregáveis:** `prime --budget`; aplicador de orçamento.
+- **Entregáveis:** `rewind --budget`; aplicador de orçamento.
 - **Decisões:** D40, D82.
 - **Aceite:** orçamento nunca estourado; golden de truncamento e de sobra mínima.
 
@@ -44,9 +44,9 @@ E06, E07.
 - **Aceite:** cenário sintético dispara o flip; escopo coerente com o diff.
 
 ### E08-T04 ☐ `context_id` e handoff 1:1
-- **Objetivo:** o `prime` emite um **`context_id`** endereçável; `get_context(id)` devolve o
-  **mesmo contexto**, sem re-busca (anti-drift); footer curto de session-close.
-- **Entregáveis:** geração/armazenamento do `context_id` (derivado); `get_context`.
+- **Objetivo:** o `rewind` emite um **`context_id`** endereçável; `rewind --resume <id>` devolve
+  o **mesmo contexto**, sem re-busca (anti-drift); footer curto de session-close.
+- **Entregáveis:** geração/armazenamento do `context_id` (derivado); `rewind --resume`.
 - **Decisões:** D58, D88.
 - **Aceite:** mesmo `context_id` → bytes idênticos; handoff entre rodadas reproduzível.
 
@@ -56,22 +56,22 @@ E06, E07.
 - **Decisões:** D21 (eventos).
 - **Aceite:** diff determinístico por intervalo; sem depender do git global.
 
-### E08-T06 ☐ `learn()`
+### E08-T06 ☐ `learn`
 - **Objetivo:** sugerir notas a partir de **eventos + `anchors`** (determinístico), não do
-  diff global.
-- **Entregáveis:** `learn()`; sugestões revisáveis.
+  diff global. Exposto como `kd maintenance learn` (ver `16_cli_surface.md` §9).
+- **Entregáveis:** `learn`; sugestões revisáveis.
 - **Decisões:** D33.
 - **Aceite:** sugestões derivam só de eventos/âncoras; nada é escrito sem confirmação.
 
-### E08-T07 ☐ `plan` e container como view derivada
-- **Objetivo:** `plan(task_id, steps)`; container é **view** (id + eventos de filiação), com
-  **backref por marcador** no corpo da task; ciclo de vida
-  `submit/adopt/reorder/release/outcome/review`; profundidade máxima; `blocks` 1-based;
-  self-reference.
-- **Entregáveis:** `plan()`; validações; backref.
-- **Decisões:** D52, D53.
-- **Aceite:** container não materializa verdade própria; profundidade e `blocks` validados;
-  pai↔filho íntegro.
+### E08-T07 ☐ `kd task` e container como view derivada
+- **Objetivo:** `kd task` (D93) cria/gerencia `plan`/`epic`/`issue`/`task`; `plan`/`epic` são
+  **views** (`type=container`; id + eventos de filiação), com **backref por marcador** no corpo;
+  ciclo de vida `submit/adopt/reorder/release/outcome/review`; hierarquia fechada
+  `plan ⊃ epic ⊃ issue ⊃ task` (prof. máx. 4); `blocks` 1-based; sem self-reference.
+- **Entregáveis:** `kd task`; validações de hierarquia; backref.
+- **Decisões:** D52, D53, D93.
+- **Aceite:** container não materializa verdade própria; profundidade, `scope` e `blocks`
+  validados; pai↔filho íntegro.
 
 ### E08-T08 ☐ `compact` como proposta
 - **Objetivo:** `compact(scope)` **propõe** (concat / keep_latest / merge_outcomes); o agente
@@ -81,7 +81,7 @@ E06, E07.
 - **Aceite:** nenhuma fusão sem aceite; proposta mostra o antes/depois.
 
 ### E08-T09 ☐ Orçamento e streaming de saída
-- **Objetivo:** `prime`/pipe não montam saídas gigantes em memória.
+- **Objetivo:** `rewind`/pipe não montam saídas gigantes em memória.
 - **Entregáveis:** escrever direto no `BufWriter` do stdout; `with_capacity` quando o tamanho é
   conhecido; cap/`try_reserve` nos buffers; `warnings[]` em vez de abortar.
 - **Decisões:** D40, D82. **Políticas:** R04, R15, R33.
@@ -89,9 +89,9 @@ E06, E07.
 
 ## Definition of Done
 
-- [ ] `prime` situa o estado e respeita orçamento sem tokenizer.
+- [ ] `rewind` situa o estado e respeita orçamento sem tokenizer.
 - [ ] Handoff 1:1 por `context_id` garantido por teste de bytes.
-- [ ] `plan`/`compact` são views/propostas, nunca verdade imposta.
+- [ ] `task`/`compact` são views/propostas, nunca verdade imposta.
 - [ ] Saída em streaming, sem acúmulo em memória.
 
 ## Não-objetivos

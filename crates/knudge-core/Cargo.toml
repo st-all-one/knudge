@@ -1,0 +1,24 @@
+[package]
+name = "knudge-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Núcleo puro do knudge: modelo, portas, contrato de bytes e retrieval."
+
+[lib]
+name = "knudge_core"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror.workspace = true
+indexmap.workspace = true
+unicode-normalization.workspace = true
+sha2.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

@@ -198,7 +198,7 @@
 ### R33 🟠 Degradação graciosa e resultados parciais
 - **Estado:** leitura tolerante (E09-T05) e RRF degradam; não é regra geral.
 - **Recomendação:** canais de retrieval, embeddings e git falham **recolhendo `warnings[]`** e
-  retornam resultado parcial; nunca aborta; `--strict` promove warning a erro; fila de embeddings
+  retornam resultado parcial; nunca aborta; `strict` (config, D94) promove warning a erro; fila de embeddings
   → `pending`.
 - **Onde:** E06-T07; E09-T05; E12-T08.
 - **Aceite:** canal desligado retorna resultados + warning.

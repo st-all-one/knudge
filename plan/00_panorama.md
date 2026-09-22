@@ -115,6 +115,9 @@ rrf_k         = 60       # fusão de canais (BM25 + âncoras + vetor)
 observation_mode = true  # modo observação antes de injetar hints
 hints_cap        = 3
 
+[behavior]
+strict = false           # promove warnings a erro; config de projeto (D94)
+
 [ids]
 prefix_style = "declarative"   # declarative | compact
 
@@ -159,6 +162,7 @@ Acesso via tool `config get/set/list`. Precedência (quando houver override): fl
 | `classification` | enum | não | `foundational\|tactical\|observational` (default tactical) |
 | `anchors` | string[] | não | paths/globs de arquivo |
 | `status` | enum | não | `active\|in_progress\|blocked\|closed\|superseded\|forgotten` |
+| `scope` | enum | não | `plan\|epic\|issue\|task` (só `type=task`/`container`; D93) |
 | `checks` | string[] | não | validators (só `type=task`) |
 | `evidence` | map | não | resultados de validators (preenchido no close) |
 
@@ -219,18 +223,25 @@ results_in    resultado (decision → o que aconteceu)
 
 ---
 
-## 5. Tools
+## 5. Superfície (`kd`)
 
-O teto inicial de "sete" caiu. O critério passou a ser **uma tool por verbo irredutível**.
+O teto inicial de "sete" caiu. O critério passou a ser **poucos verbos, muitos modos** (inspirado
+no Docker): a superfície v2 está congelada em `implementation/16_cli_surface.md`.
 
-| Grupo | Tools |
-|---|---|
-| Leitura | `recall(q, filters)`, `get(ids)`, `expand(id, kind, depth)` |
-| Escrita | `write(type, statement, body, ...)`, `update(id, patch)`, `link(from, kind, to)`, `forget(id)`, `restore(id)` |
-| Bootstrap | `prime(mode, scope)`, `diff(since, until, scope)`, `learn()`, `get_context(id)` |
-| Transformação | `plan(task_id, steps)`, `compact(scope)` |
-| Manutenção | `audit()`, `sync()`, `doctor()`, `eval()` |
-| Instalação | `onboard()`, `config get/set/list` (projeto por padrão; `--global` para o template) |
+| Verbo | Absorve | Papel |
+|---|---|---|
+| `kd` (sem args) | = `kd prime` | protocolo estático |
+| `kd init` | `onboard` | funda `.knudge/` + prompt inicial |
+| `kd prime` | — | protocolo de uso, byte-idêntico |
+| `kd rewind` | `prime(scope)`, `get_context`, `diff` | estado/handoff ponto-no-tempo |
+| `kd ask` | `recall`, `get`, `expand` | toda pesquisa |
+| `kd write` | `write`, `update`, `link` | toda escrita |
+| `kd task` | `plan`, containers de tarefa | plan/epic/issue/task (D93) |
+| `kd maintenance` | `doctor`, `audit`, `compact`, `eval`, `embed`, `learn` | manutenção |
+| `kd config` | `config` | `.knudge/config.toml` |
+| `kd forget` | `forget`, `restore` | soft-delete |
+| `kd sync` | `sync` | commit git |
+| `kd self` | `setup`, `completions`, `upgrade`, `version` | instalação |
 
 ### Contratos importantes
 
@@ -238,8 +249,15 @@ O teto inicial de "sete" caiu. O critério passou a ser **uma tool por verbo irr
 - **Protocolo de escrita em duas fases.** `write` é precedido por `recall` obrigatório; score < 0.75 cria, 0.75–0.92 faz merge, ≥ 0.92 rejeita. O limiar é **config do sistema**, não do LLM. Com embeddings **assíncronos**, o score é **lexical (BM25)** enquanto o vetor não existe; o dedup **semântico é eventual** (reconciliação em background).
 - **`update` versiona, não sobrescreve.** Mudança de `type` = nova nota + `replaces`. Supersede deixa cadeia caminhável (`get(id, history=True)`).
 - **`status` unifica ciclo de vida.** `forget`, `supersede` e `close` viram `update(id, status=...)`. `ready`/`blocked` são **views** computadas no `recall` (via `depends_on` transitivo), não tools.
-- **`prime` é família, não função:** `prime()` → manifest ~30 tokens; `prime(scope)` → container/domínio; `prime(files)` → working set ancorado. É o comando que **situa o estado entre agentes/rodadas** (handoff), com **orçamento de tokens** (default 4000), ranking por trust-tier, auto-context-scope (`git status` + working set) e contagem de **`embeddings_pending`**. Emite um **`context_id`** endereçável — o handoff pode ser recuperado **1:1** por `get_context(id)`, sem re-busca (D88).
-- **Protocolo não pertence ao `prime`.** Texto estável (tipos, tools, regras) vai para `onboard` (uma vez, no `AGENTS.md`). `prime` carrega só estado volátil + footer de session-close.
+- **`prime` é estático; `rewind` é dinâmico.** `prime` imprime o protocolo token-optimized
+  (tipos, tools, regras, orçamento), **byte-idêntico** por versão do binário — é o "help" da IA;
+  `kd` sem argumentos = `kd prime`. `rewind` situa o estado entre agentes/rodadas: manifest ~30
+  tokens, `--scope` (container/domínio), `--files` (working set ancorado), orçamento de tokens
+  (default 4000), ranking por trust-tier, auto-context-scope (`git status` + working set) e
+  contagem de **`embeddings_pending`**. Emite um **`context_id`** endereçável, recuperável
+  **1:1** por `kd rewind --resume <id>` (D88).
+- **`kd init` funda o projeto** (`.knudge/` + `AGENTS.md` com marcadores idempotentes + prompt
+  inicial de fundação de conhecimento/tarefas). O protocolo de uso vive no `prime`.
 
 ---
 
@@ -300,8 +318,8 @@ O ganho da orquestração é **escopo delegado**: o master define `{containers, 
 Vale, mas **estreitamente** — o MCP deve ser **reativo a comportamento**, não proativo por iniciativa própria. Três gatilhos que se pagam:
 
 1. **Pré-`write`** (mais forte): retornar quase-duplicados na resposta do `write` — o único momento em que a duplicata é acionável.
-2. **Pré-edição de arquivo**: ao editar um path, anexar os `statement` de notas ancoradas (`prime(files)` contínuo).
-3. **Fechamento de sessão**: se houve diff significativo e zero writes, injetar `"learn()?"`.
+2. **Pré-edição de arquivo**: ao editar um path, anexar os `statement` de notas ancoradas (`kd rewind --files` contínuo).
+3. **Fechamento de sessão**: se houve diff significativo e zero writes, injetar `"kd maintenance learn?"`.
 
 Restrições: hint é **ponteiro, nunca conteúdo** (`id + statement + score`); dedup por sessão; cap de 3 hints. Modo observação por N sessões antes de produção, calibrado por taxa de seguimento (> 50%). Injeção por similaridade de conversa, padrão de erro ou "decisão detectada" foi rejeitada como ruído.
 
@@ -390,7 +408,7 @@ O que fica fixo é o **contrato semântico**; o que oscila é a **implementaçã
 1. **Schema v1** + bootstrap do `config.toml` (com `persist_in_project`) com `classification`, `anchors`, `status`, `outcomes[]`, `type=risk`, `type=container`, arestas `rejects`/`results_in`. Sem isso, nada funciona.
 2. **Índice por campos + grafo** — filtros determinísticos (já resolve o caso comum).
 3. **BM25 sobre corpus filtrado** — similaridade residual, barata.
-4. **`prime(files)` + `learn()`** — os dois casos que justificam ancoragem e git diff.
+4. **`kd rewind --files` + `kd maintenance learn`** — os dois casos que justificam ancoragem e git diff.
 5. **`audit()` estrutural** — clustering fase 1, sem estatística.
 6. **Embeddings** — só quando `learn()` e dedup semântico existirem; provedor plugável, cache por `body_hash`, consumo assíncrono/lazy e estado `pending` reconciliável (D79/D80/D83).
 7. **Clustering semântico** — só com volume que justifique.

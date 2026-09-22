@@ -116,7 +116,7 @@
 
 | # | Decisão final |
 |---|---|
-| **D57** ✅ | Protocolo vive no **`onboard`** (uma vez, `AGENTS.md`); `prime` só estado. **Caveat: `prime` é o comando que situa o estado entre agentes/rodadas.** |
+| **D57** ✅ | **`prime` é o protocolo estático** (token-optimized, byte-idêntico por versão do binário, estilo `help`): tipos, tools, regras, orçamento. `kd` sem argumentos executa `kd prime`. O **estado dinâmico** (situar agentes/rodadas) passa a ser **`kd rewind`**; o handoff 1:1 por `context_id` é `kd rewind --resume <id>`. `kd init` funda `.knudge/` + `AGENTS.md` (marcadores idempotentes). Protocolo e estado ficam **separados**. |
 | **D58** ✅ | Session-close como **footer curto do `prime`** + hook opcional. |
 | **D59** ✅ | **Hooks opcionais** (`pre-record`, `post-record`, `pre-prime`, `pre-prune`, `pre-compact`); stdin JSON; timeout + process-group kill; redaction. |
 | **D60** ✅ | `onboard` com **marcadores idempotentes** + version marker. |
@@ -140,7 +140,7 @@
 | **D68** ✅ | **MCP + CLI** agora; **FFI e WASM apenas a nível de planejamento**. |
 | **D79** ✅ | **Provedor de embedding plugável via `config.toml`** (`local`/`http`/`none`); modelo default **`sentence-transformers/msmarco-MiniLM-L12-cos-v5`** (384d, cosseno nativo), com **`msmarco-MiniLM-L6-cos-v5` como perfil rápido** (~2× mais rápido, mesmo índice). `revision` pinada e re-embed quando o modelo muda. Avaliar multilíngue se o corpus for PT-BR. Ver `04_embeddings.md`. |
 | **D80** ✅ | **Embedding assíncrono e lazy; nunca bloqueia.** `write`/`recall`/rebuild seguem sem esperar o modelo; notas recém-criadas ficam **“dark”** no espaço vetorial até serem digeridas por uma fila (gap tolerado em rajadas de 10–20). Dedup no write é **lexical**; o semântico é **eventual** (reconciliação). Estado `embedded\|pending\|stale` é derivado, em `.idx/`; `prime` reporta `embeddings_pending`. |
-| **D69** ✅ | Binário estático + `completions` + `setup` + `upgrade`. |
+| **D69** ✅ | Binário estático + `kd self setup` (recipes `claude`/`cursor`/`codex`/`pi`) + `kd self completions` + `kd self upgrade` + `kd self version`. |
 | **D70** ✅ | **Sem migração.** O knudge é **independente** de seeds e mulch. |
 
 ## N. Contrato de saída e erros
@@ -181,11 +181,33 @@
 | **D85** ✅ | **Flush coalescido (debounce)** do `.idx`/embeddings com *dirty flag*, **flush forçado na saída** — rajadas de 10–20 notas causam um único rewrite. |
 | **D86** ✅ | **`anchors` com `path` + `content_hash` derivado** (hashes em `.idx/anchors.jsonl`, **nunca** no frontmatter) e **verify-on-hit**: `cited` invalida, `context` não; nota **stale é sinalizada, não apagada**. |
 | **D87** ✅ | **Confiança derivada em tempo de consulta** (evidência + feedback + idade + âncoras), **não armazenada** — separada da `confidence` declarada. |
-| **D88** ✅ | **`prime` emite `context_id` endereçável**; `kd get-context <id>` devolve o **mesmo contexto 1:1**, sem re-busca — handoff reprodutível entre agentes/rodadas. |
+| **D88** ✅ | **`rewind` emite `context_id` endereçável**; `kd rewind --resume <id>` devolve o **mesmo contexto 1:1**, sem re-busca — handoff reprodutível entre agentes/rodadas. |
 | **D89** ✅ | **`provider = "lightweight"`** (embedder determinístico por hash) para testes/CI/offline — sem download de modelo, sem rede. |
-| **D90** ✅ | **`kd eval --ab`** com Recall@k / nDCG@k / MRR sobre um golden pequeno — o jeito de decidir L6 vs L12 vs multilíngue sem chutar. |
+| **D90** ✅ | **`kd maintenance eval --ab`** com Recall@k / nDCG@k / MRR sobre um golden pequeno — o jeito de decidir L6 vs L12 vs multilíngue sem chutar. |
 | **D91** ✅ | **Projeto por nome lógico** (worktrees do mesmo repo compartilham `.knudge/`); **segredos só no global** — o projeto nunca carrega credenciais. |
 | **D92** ✅ | **Disciplina Rust**: arquivos ≤300 linhas de produção, proibido `unwrap/expect/panic` em `src`, **proptest** nos puros (RRF, decay, confiança), clippy `-D warnings`. |
+
+---
+
+## R. Superfície CLI v2 (D93–D94)
+
+> Decidida na revisão da superfície do `kd` (inspirada no Docker). Contrato congelado em
+> `implementation/16_cli_surface.md`.
+
+| # | Decisão final |
+|---|---|
+| **D93** ✅ | **`task` com hierarquia fechada**: novo campo `scope ∈ {plan, epic, issue, task}` (enum fechado; **não** altera o enum de `type`). `plan`/`epic` são `type=container` (view derivada, D52) + `scope`; `issue`/`task` são `type=task` + `scope`. Aninhamento `plan ⊃ epic ⊃ issue ⊃ task` (profundidade máx. **4**), pai único via membership/backref (D52). Tudo de tarefa vive em `kd task`; `kd write` **rejeita** `--type task\|container`. |
+| **D94** ✅ | **`strict` é config de projeto** (`[behavior] strict = false` em `.knudge/config.toml`), **não** flag de CLI nem subcomando; vale para warnings de leitura/retrieval/embeddings. |
+
+---
+
+## S. Contrato de bytes (D95)
+
+> Fecha a pendência D01 × D02 e fixa a gramática do frontmatter. Detalhes em `TOON.md`.
+
+| # | Decisão final |
+|---|---|
+| **D95** ✅ | **Hash curto = SHA-256 truncado aos 4 primeiros bytes** (`u32` big-endian). `body_hash = hex8(normalize(statement) + LF + normalize(body))` (D06); `id = <prefixo>_<base36(8)>(type + U+001F + normalize(statement))` (D01). O `id` é **histórico**: reclassificar o `type` não o reescreve (D02). `normalize` = NFC + trim + colapso de whitespace. A **gramática TOON v1** (raw UTF-8, ordem canônica, inteiros sem `.0`, lista vazia omitida, newline `LF`) está em `TOON.md`. |
 
 ---
 
@@ -198,19 +220,23 @@
 | D44 | `classification` ganha **`observational`**. |
 | D48 | `outcome` + `confirmations` → **`outcomes[]`** com confirmação derivada. |
 | D49/D51 | Arestas passam a **explícitas + declarativas** (`references`, `depends_on`, …). |
-| D57 | `prime` explicitado como **handoff de estado entre agentes/rodadas**. |
+| D57 | `prime` reescrito: **protocolo estático** (byte-idêntico); estado/handoff migra para **`rewind`**. |
 | D65 | Arquitetura organizada por **escopo temático** (`core`, `cli`, `mcp`, `jsonl`, …). |
 | D42/D79 | Embeddings passam a ser **provedor plugável** via config, com default `msmarco-MiniLM-L12-cos-v5`. |
 | D80 | Embedding **assíncrono/lazy**: retrieval e write nunca bloqueiam; gap vetorial tolerado. |
 | D81 | `recall` ganha **fusão RRF determinística** + degradação graciosa. |
-| D82 | Orçamento do `prime` explicitado **sem tokenizer** (D40 refinado). |
+| D82 | Orçamento do `rewind` explicitado **sem tokenizer** (D40 refinado). |
 | D83/D84/D85 | Derivados confiáveis: cache por hash, `pending`/reconcile, purga em remoção, flush coalescido. |
 | D86/D87 | **Âncoras por hash + verify-on-hit** e **confiança derivada** (não armazenada). |
-| D88 | `prime` emite **`context_id`** para handoff 1:1. |
-| D89/D90 | **`lightweight`** offline e **`kd eval --ab`** com métricas de retrieval. |
+| D88 | `rewind` emite **`context_id`** para handoff 1:1 (`--resume`). |
+| D89/D90 | **`lightweight`** offline e **`kd maintenance eval --ab`** com métricas de retrieval. |
 | D91 | **Nome lógico de projeto** + segredos só no global. |
 | D92 | **Disciplina Rust** (tamanho, sem panic, proptest). |
 | D14 | Removida qualquer noção de alias/retrocompatibilidade. |
+| D69 | Instalação agrupada em **`kd self`**. |
+| D93 | `task` ganha `scope` fechado (`plan\|epic\|issue\|task`) e hierarquia máx. 4. |
+| D94 | `strict` vira config de projeto (`[behavior] strict`), sem flag. |
+| D95 | Fixa o hash curto (SHA-256→u32), a chave do `id` e a gramática TOON v1 (`TOON.md`). |
 
 ## Pendências / pontos de atenção
 
@@ -219,5 +245,5 @@
 | D05 × D14 | D05 diz "sem nota parcial"; D14 diz "sem retrocompatibilidade". Combinadas: **write estrito, sem draft**, e nenhuma migração de corpus antigo. | Confirmar que não há corpus a preservar. |
 | D16 × D17 | Chave desconhecida **tolera**, tipo desconhecido **rejeita**. | Garantir que a rejeição (D17) seja **por nota** e que o `doctor` a reporte com orientação — senão uma nota futura derruba a leitura. |
 | D30 × D34 | D30 pede exclusão **absoluta** de todo o `.knudge/`; D34 mantém `persist_in_project=true` versionando. | Interpretação adotada: **`persist=true`** versiona as notas mas exclui derivados (`.idx/`, `cache/`, `*.lock`) via `info/exclude`; **`persist=false`** exclui o `.knudge/` inteiro. Confirmar. |
-| D01 × D02 | ID endereçado por conteúdo + prefixo histórico. | Definir a chave exata do hash (inclui `type`?) e o que acontece quando só o `statement` muda (novo id + `superseded_by`). |
+| D01 × D02 | ID endereçado por conteúdo + prefixo histórico. | **Resolvido por D95**: chave = `type + U+001F + normalize(statement)`; `id` é histórico. |
 | D17 | Sem retrocompatibilidade + rejeitar tipo desconhecido. | Toda evolução de schema exige **rebuild em massa** — documentar o procedimento. |
