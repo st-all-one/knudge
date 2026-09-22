@@ -155,6 +155,14 @@ endpoint   = "http://127.0.0.1:8080/v1/embeddings"   # OpenAI-compatible (llama-
 timeout_ms = 30000
 retries    = 2
 api_key_env = "KNUDGE_EMBEDDING_API_KEY"
+
+[hooks]
+pre_record  = ""              # comando externo; bloqueia/muta o write (D59)
+post_record = ""
+pre_prime   = ""              # reservado (prime é byte-idêntico — D57)
+pre_prune   = ""
+pre_compact = ""
+timeout_ms  = 30000           # timeout por hook; acima, kill do grupo de processos
 ```
 
 O provedor de embedding é plugável via config (global como template, projeto com precedência). O default **`http`** consome um **servidor local** OpenAI-compatible — o usuário sobe `llama-server -m msmarco-MiniLM-L12-cos-v5.Q5_K_M.gguf --embeddings` e o knudge só aponta a URL (D101); **não** há inferência in-process (R16/R43). Detalhes, avaliação do modelo e alternativas multilíngues em **`04_embeddings.md`**. Os vetores são **derivados** (`.idx/embeddings.jsonl`, com cabeçalho `meta`), nunca gravados no frontmatter; trocar de modelo força re-embed. `lightweight` (hash) cobre testes/CI e `none` cai para BM25.

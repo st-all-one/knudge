@@ -4,7 +4,7 @@ mod maintenance;
 mod task;
 
 pub use maintenance::{ConfigCommand, MaintenanceCommand, SelfCommand};
-pub use task::TaskCommand;
+pub use task::{TaskCommand, TaskNewArgs};
 
 use clap::{Args, Parser, Subcommand};
 

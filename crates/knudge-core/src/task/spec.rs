@@ -30,6 +30,10 @@ pub struct TaskSpec {
     pub classification: Option<Classification>,
     /// Estado inicial.
     pub status: Option<Status>,
+    /// Expiração (ms desde a época).
+    pub expires_at: Option<i64>,
+    /// Agendamento `not_before` (ms desde a época) — separado da expiração (D56).
+    pub not_before: Option<i64>,
     /// Confiança `0..=1`.
     pub confidence: f64,
 }
@@ -49,6 +53,8 @@ impl TaskSpec {
             blocks: None,
             classification: None,
             status: None,
+            expires_at: None,
+            not_before: None,
             confidence: 0.7,
         }
     }
@@ -84,6 +90,8 @@ impl TaskSpec {
         draft.status = self.status;
         draft.checks.clone_from(&self.checks);
         draft.anchors.clone_from(&self.anchors);
+        draft.expires_at = self.expires_at;
+        draft.not_before = self.not_before;
         draft.edges = self
             .depends_on
             .iter()

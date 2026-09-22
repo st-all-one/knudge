@@ -73,6 +73,9 @@ Cada achado traz **estado atual, recomendação, onde aplicar e aceite** em `14_
 
 **MVP = Fase 0 + Fase 1** (+ leitura tolerante mínima de E09). O resto é incremental.
 
+**Status:** E01–E12 ✅ (`make check` verde; 405 testes). E13 (matriz de aceite e proptest
+ampliado) pendente.
+
 **Superfície CLI:** o contrato dos verbos do `kd` está congelado em
 [`16_cli_surface.md`](16_cli_surface.md) (v2, inspirada no Docker; decisões D57/D69/D88/D93/D94).
 

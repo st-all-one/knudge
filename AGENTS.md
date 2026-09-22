@@ -73,7 +73,9 @@ módulos. Onde mexer:
 | portas e fakes | `knudge-core/src/ports/` |
 | acesso real a SO/rede | `knudge-core/src/adapters/` |
 | embeddings (provedor, cache, fila, eval) | `knudge-core/src/embeddings/` |
-| superfície de CLI | `knudge-cli/src/cli/` + `plan/implementation/16_cli_surface.md` |
+| superfície de CLI / dispatch | `knudge-cli/src/cli/` + `knudge-cli/src/commands/` + `plan/implementation/16_cli_surface.md` |
+| hooks de ciclo de vida | `knudge-core/src/adapters/hook.rs` + `knudge-cli/src/commands/hooks.rs` |
+| MCP (gatilhos) | `knudge-mcp/src/triggers.rs` |
 
 ## 3. Padrões de desenvolvimento
 

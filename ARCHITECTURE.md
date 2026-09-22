@@ -25,7 +25,7 @@ knudge-cli ──┘
 |---|---|---|
 | `knudge-core` | Modelo, schema, retrieval, ciclo de vida e **portas** | Lógica pura; `adapters` (std) isolado |
 | `knudge-cli` | Binário `kd`; monta adaptadores e escreve a saída | `clap`, `tracing`, I/O de terminal |
-| `knudge-mcp` | Servidor MCP reativo (E12-T03) | Protocolo MCP; nada de domínio |
+| `knudge-mcp` | Servidor MCP reativo e motor de gatilhos (E12-T03) | Protocolo MCP; nada de domínio |
 
 **Regra:** os adaptadores **não** são dependência do domínio. `knudge-core::adapters` existe para
 conveniência, mas só `cli`/`mcp` o importam.
@@ -39,7 +39,7 @@ conveniência, mas só `cli`/`mcp` o importam.
 | `Env` | variáveis e argumentos | `FakeEnv` |
 | `Fs` | leitura/escrita atômica, append, create-exclusive, rename, `fsync`, mtime | `MemFs`, `FaultyFs` |
 | `Git` | worktree, status e execução de `git` sem shell | `FakeGit` |
-| `HookRunner` | hooks externos (sem shell) | `NoopHookRunner` |
+| `HookRunner` | hooks externos (sem shell); `adapters::ProcessHookRunner` com timeout + kill de grupo | `NoopHookRunner` |
 | `Logger` | log estruturado (stderr) | `RecordingLogger` |
 
 ## 4. Escopos temáticos (`knudge-core`)
@@ -203,7 +203,19 @@ volatilidade, não CAS (D48).
 | Purga | Toda remoção passa por `purge_derived`, que apaga registros com `id` do índice vetorial (D84). |
 | Avaliação | `Recall@k`/`nDCG@k`/`MRR` puras, com ranqueador injetado — alicerce do `kd maintenance eval --ab` (D90). |
 
-## 14. Fluxo de uma operação
+## 14. CLI, MCP e hooks (E12)
+
+| Conceito | Regra |
+|---|---|
+| Superfície | 12 verbos (`16_cli_surface.md`): `kd`(=prime), `init`, `prime`, `rewind`, `ask`, `write`, `task`, `maintenance`, `config`, `forget`, `sync`, `self`. |
+| Sessão | `knudge-cli::session::Session` resolve o projeto, carrega a config efetiva e monta store/eventos/índice/grafo sob demanda. É a única borda que toca adaptadores reais. |
+| Saída | **stdout = dados, stderr = logs** (R20); `--json` emite o envelope `{success, command, data?, error{code,message,retryable}, warnings?}` (D71/R31). EPIPE → exit 0 (D73). |
+| `strict` | Config de projeto (`behavior.strict`, D94) promove `warnings[]` a erro; **não** existe flag `--strict`. |
+| Hooks | `HookRunner` (porta) + `ProcessHookRunner` (adaptador; timeout + kill do grupo de processos, sem shell — D59/R12). Orquestração em `commands/hooks.rs`: `pre-record` (bloqueia/muta), `post-record`, `pre-prune`, `pre-compact`; `pre-prime` é reservado (`prime` é byte-idêntico — D57). |
+| MCP | `knudge-mcp::triggers::HintEngine` — 3 gatilhos (pré-`write`, pré-edição, fim de sessão), hints **ponteiro**, cap 3, dedup por sessão e modo observação (D68). O transporte JSON-RPC fica em E13. |
+| Distribuição | `kd self completions <bash|zsh|fish>` e `kd self setup <claude|cursor|codex|pi>` gravam recipes em `.knudge/setup/` (D69). |
+
+## 15. Fluxo de uma operação
 
 ```
 kd <verbo>
@@ -214,7 +226,7 @@ kd <verbo>
   → exit code = ErrorKind::exit_code() (101 reservado a panic)
 ```
 
-## 15. Invariantes de engenharia
+## 16. Invariantes de engenharia
 
 - `#![forbid(unsafe_code)]` em `core`/`cli`/`mcp` (R01).
 - Sem `Rc`/`RefCell` no core; estado compartilhado via `Arc<Mutex<_>>` (R03).
@@ -222,10 +234,10 @@ kd <verbo>
 - Arquivos de produção ≤ 300 linhas (D92).
 - `clippy -D warnings` lendo `clippy.toml` (R44); perfis e supply chain (R40–R43).
 
-## 16. Referências
+## 17. Referências
 
 - Visão: `plan/00_panorama.md`
-- Decisões: `plan/03_decisoes-fechadas.md` (D01–D100)
+- Decisões: `plan/03_decisoes-fechadas.md` (D01–D101)
 - Contrato de bytes: `TOON.md`
 - Políticas de engenharia: `plan/implementation/14_revisao_tecnica.md` (R01–R44)
 - Superfície CLI: `plan/implementation/16_cli_surface.md`

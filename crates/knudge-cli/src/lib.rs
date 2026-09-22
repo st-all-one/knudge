@@ -7,29 +7,20 @@
 #![warn(missing_docs)]
 
 pub mod cli;
+pub mod commands;
 pub mod envelope;
 pub mod logging;
 pub mod output;
+pub mod session;
 
 use std::process::ExitCode;
 
 use clap::Parser;
 use knudge_core::{Error, ErrorKind};
 
-use crate::cli::{Cli, Command, SelfCommand};
+use crate::cli::{Cli, Command};
 use crate::envelope::Envelope;
-use crate::output::{Payload, emit_stderr, emit_stdout};
-
-/// Versão do binário.
-const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-/// Protocolo estático (placeholder de E01; finalizado em E12-T01).
-const PRIME_TEXT: &str = "\
-knudge (kd) — memória otimizada para LLM
-Uso: kd <comando> [opções]
-Comandos: init, prime, rewind, ask, write, task, maintenance, config, forget, sync, self
-Sem argumentos, kd executa `prime`.
-";
+use crate::output::{Output, emit_stderr, emit_stdout};
 
 /// Ponto de entrada do binário.
 #[must_use]
@@ -40,9 +31,9 @@ pub fn run() -> ExitCode {
     };
     logging::init(&cli);
     let name = command_name(cli.command.as_ref());
-    match dispatch(&cli) {
-        Ok(payload) => emit_success(&cli, name, &payload),
-        Err(err) => emit_error(&cli, name, &err),
+    match commands::run(&cli) {
+        Ok(output) => emit_success(&cli, name, &output),
+        Err(err) => emit_error(&cli, name, &err, &[]),
     }
 }
 
@@ -51,50 +42,21 @@ fn command_name(command: Option<&Command>) -> &'static str {
     command.map_or("prime", Command::name)
 }
 
-/// Executa o comando. Esqueleto de E01: só `prime` e `self version` respondem.
-fn dispatch(cli: &Cli) -> Result<Payload, Error> {
-    match cli.command.as_ref() {
-        None | Some(Command::Prime(_)) => Ok(prime_payload()),
-        Some(Command::SelfCmd {
-            command: SelfCommand::Version,
-        }) => Ok(version_payload()),
-        Some(other) => Err(Error::internal(format!(
-            "subcomando `{}` ainda não implementado",
-            other.name()
-        ))),
-    }
-}
-
-/// Carga útil de `prime`.
-fn prime_payload() -> Payload {
-    Payload {
-        text: PRIME_TEXT.to_string(),
-        json: serde_json::json!({ "protocol": PRIME_TEXT, "version": VERSION }),
-    }
-}
-
-/// Carga útil de `self version`.
-fn version_payload() -> Payload {
-    Payload {
-        text: format!("kd {VERSION}"),
-        json: serde_json::json!({ "version": VERSION }),
-    }
-}
-
 /// Emite o resultado (texto no pipe ou envelope JSON).
-fn emit_success(cli: &Cli, command: &str, payload: &Payload) -> ExitCode {
+fn emit_success(cli: &Cli, command: &str, output: &Output) -> ExitCode {
     if cli.json {
-        let envelope = Envelope::success(command, Some(payload.json.clone()));
+        let envelope =
+            Envelope::success(command, Some(output.json.clone()), output.warnings.clone());
         emit_stdout(format!("{}\n", envelope.to_json_line()).as_bytes())
     } else {
-        emit_stdout(format!("{}\n", payload.text).as_bytes())
+        emit_stdout(format!("{}\n", output.text).as_bytes())
     }
 }
 
 /// Emite o erro (stderr no pipe ou envelope JSON) e devolve o exit code.
-fn emit_error(cli: &Cli, command: &str, err: &Error) -> ExitCode {
+fn emit_error(cli: &Cli, command: &str, err: &Error, warnings: &[String]) -> ExitCode {
     if cli.json {
-        let envelope = Envelope::failure(command, err);
+        let envelope = Envelope::failure(command, err, warnings.to_vec());
         let _ignored = emit_stdout(format!("{}\n", envelope.to_json_line()).as_bytes());
     } else {
         emit_stderr(format!("erro: {err}\n").as_bytes());

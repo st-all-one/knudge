@@ -1,40 +1,12 @@
 //! Subcomandos de `kd task` (hierarquia fechada `plan ⊃ epic ⊃ issue ⊃ task`, D93).
 
-use clap::Subcommand;
+use clap::{Args, Subcommand};
 
 /// Subcomandos de tarefa.
 #[derive(Debug, Subcommand)]
 pub enum TaskCommand {
     /// Cria uma tarefa.
-    New {
-        /// Afirmação.
-        #[arg(value_name = "STATEMENT")]
-        statement: Vec<String>,
-        /// Escopo fechado.
-        #[arg(long, value_name = "ESCOPO")]
-        scope: String,
-        /// Pai na hierarquia.
-        #[arg(long, value_name = "ID")]
-        parent: Option<String>,
-        /// Corpo.
-        #[arg(long, value_name = "TXT")]
-        body: Option<String>,
-        /// Checks (validators).
-        #[arg(long, value_name = "NOME")]
-        checks: Vec<String>,
-        /// Âncoras.
-        #[arg(long, value_name = "PATH")]
-        anchors: Vec<String>,
-        /// Dependências (`depends_on`).
-        #[arg(long = "depends-on", value_name = "ID")]
-        depends_on: Vec<String>,
-        /// Agendamento (`not_before`).
-        #[arg(long, value_name = "TS")]
-        not_before: Option<String>,
-        /// Expiração.
-        #[arg(long, value_name = "TS")]
-        expires_at: Option<String>,
-    },
+    New(TaskNewArgs),
     /// Lista tarefas.
     List {
         /// Filtro por escopo.
@@ -107,4 +79,36 @@ pub enum TaskCommand {
         #[arg(long)]
         review: bool,
     },
+}
+
+/// Argumentos de `kd task new`.
+#[derive(Debug, Args)]
+pub struct TaskNewArgs {
+    /// Afirmação.
+    #[arg(value_name = "STATEMENT")]
+    pub statement: Vec<String>,
+    /// Escopo fechado.
+    #[arg(long, value_name = "ESCOPO")]
+    pub scope: String,
+    /// Pai na hierarquia.
+    #[arg(long, value_name = "ID")]
+    pub parent: Option<String>,
+    /// Corpo (`-` lê stdin).
+    #[arg(long, value_name = "TXT")]
+    pub body: Option<String>,
+    /// Checks (validators).
+    #[arg(long, value_name = "NOME")]
+    pub checks: Vec<String>,
+    /// Âncoras.
+    #[arg(long, value_name = "PATH")]
+    pub anchors: Vec<String>,
+    /// Dependências (`depends_on`).
+    #[arg(long = "depends-on", value_name = "ID")]
+    pub depends_on: Vec<String>,
+    /// Agendamento (`not_before`).
+    #[arg(long, value_name = "TS")]
+    pub not_before: Option<String>,
+    /// Expiração.
+    #[arg(long, value_name = "TS")]
+    pub expires_at: Option<String>,
 }

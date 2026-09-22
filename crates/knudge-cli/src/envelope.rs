@@ -31,6 +31,9 @@ struct ErrorBody {
     message: String,
     /// Se a operação pode ser repetida.
     retryable: bool,
+    /// Detalhes estruturados opcionais (ex.: ids, contagens).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    details: Option<Value>,
 }
 
 /// Fallback caso a serialização falhe (não deve acontecer).
@@ -39,19 +42,19 @@ const FALLBACK: &str = r#"{"success":false,"error":{"code":"internal","message":
 impl Envelope {
     /// Envelope de sucesso.
     #[must_use]
-    pub fn success(command: &str, data: Option<Value>) -> Self {
+    pub fn success(command: &str, data: Option<Value>, warnings: Vec<String>) -> Self {
         Self {
             success: true,
             command: command.to_string(),
             data,
             error: None,
-            warnings: Vec::new(),
+            warnings,
         }
     }
 
     /// Envelope de erro.
     #[must_use]
-    pub fn failure(command: &str, err: &Error) -> Self {
+    pub fn failure(command: &str, err: &Error, warnings: Vec<String>) -> Self {
         Self {
             success: false,
             command: command.to_string(),
@@ -60,8 +63,9 @@ impl Envelope {
                 code: err.kind().code(),
                 message: err.to_string(),
                 retryable: err.retryable(),
+                details: None,
             }),
-            warnings: Vec::new(),
+            warnings,
         }
     }
 

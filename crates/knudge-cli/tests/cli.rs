@@ -1,6 +1,9 @@
-//! Testes de integração do binário `kd` (E01-T04): contrato de saída, `--json` e `EPIPE`.
+//! Testes de integração do binário `kd` (E01-T04/E12): contrato de saída, `--json`, EPIPE e
+//! fluxos com estado num projeto temporário.
 
+use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Alias de resultado dos testes (sem `unwrap`/`expect`, proibidos por D92).
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -8,6 +11,25 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 /// Executa `kd` com os argumentos dados e captura a saída.
 fn run(args: &[&str]) -> std::io::Result<Output> {
     Command::new(env!("CARGO_BIN_EXE_kd")).args(args).output()
+}
+
+/// Executa `kd` num diretório isolado (projeto temporário, sem config global).
+fn run_in(dir: &Path, args: &[&str]) -> std::io::Result<Output> {
+    Command::new(env!("CARGO_BIN_EXE_kd"))
+        .args(args)
+        .current_dir(dir)
+        .env("XDG_CONFIG_HOME", dir)
+        .output()
+}
+
+/// Cria um diretório temporário único para um teste.
+fn temp_project() -> PathBuf {
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let serial = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("kd-it-{}-{serial}", std::process::id()));
+    let _ignored = std::fs::remove_dir_all(&dir);
+    let _ignored = std::fs::create_dir_all(&dir);
+    dir
 }
 
 /// Interpreta o stdout como uma linha JSON.
@@ -68,23 +90,6 @@ fn self_version_works_in_both_modes() -> TestResult {
 }
 
 #[test]
-fn unimplemented_command_reports_internal_error() -> TestResult {
-    let out = run(&["--json", "ask", "foo"])?;
-    assert_eq!(out.status.code(), Some(70));
-    let value = json(&out)?;
-    assert_eq!(value.get("success"), Some(&serde_json::Value::Bool(false)));
-    let code = value
-        .get("error")
-        .and_then(|error| error.get("code"))
-        .cloned();
-    assert_eq!(
-        code,
-        Some(serde_json::Value::String("internal".to_string()))
-    );
-    Ok(())
-}
-
-#[test]
 fn unknown_command_exits_two() -> TestResult {
     let out = run(&["definitely-not-a-command"])?;
     assert_eq!(out.status.code(), Some(2));
@@ -101,5 +106,96 @@ fn broken_pipe_exits_zero() -> TestResult {
     drop(child.stdout.take());
     let status = child.wait()?;
     assert!(status.success(), "EPIPE deve terminar com exit 0");
+    Ok(())
+}
+
+#[test]
+fn init_write_ask_roundtrip() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let write = run_in(
+        &dir,
+        &["--json", "write", "o cache usa body_hash", "--type", "fact"],
+    )?;
+    assert!(write.status.success(), "write falhou: {:?}", write.stderr);
+    let envelope = json(&write)?;
+    let id = envelope
+        .get("data")
+        .and_then(|data| data.get("id"))
+        .and_then(|id| id.as_str())
+        .ok_or("write sem id")?
+        .to_string();
+    assert!(id.starts_with("fact_"), "id inesperado: {id}");
+
+    let ask = run_in(&dir, &["ask", "cache"])?;
+    assert!(ask.status.success(), "ask falhou: {:?}", ask.stderr);
+    let text = String::from_utf8(ask.stdout)?;
+    assert!(text.contains(&id), "ask não recuperou {id}: {text}");
+    Ok(())
+}
+
+#[test]
+fn write_rejects_task_type() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let out = run_in(&dir, &["--json", "write", "algo", "--type", "task"])?;
+    assert_eq!(out.status.code(), Some(2));
+    let value = json(&out)?;
+    assert_eq!(value.get("success"), Some(&serde_json::Value::Bool(false)));
+    let code = value
+        .get("error")
+        .and_then(|error| error.get("code"))
+        .and_then(|code| code.as_str());
+    assert_eq!(code, Some("invalid_input"));
+    Ok(())
+}
+
+#[test]
+fn task_new_requires_scope() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let out = run_in(&dir, &["--json", "task", "new", "passo", "--scope", "task"])?;
+    assert!(out.status.success(), "task falhou: {:?}", out.stderr);
+    let value = json(&out)?;
+    let id = value
+        .get("data")
+        .and_then(|data| data.get("id"))
+        .and_then(|id| id.as_str())
+        .ok_or("task sem id")?;
+    assert!(id.starts_with("task_"), "id inesperado: {id}");
+    Ok(())
+}
+
+#[test]
+fn config_set_get_roundtrip() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let set = run_in(&dir, &["config", "set", "recall.default_limit", "7"])?;
+    assert!(set.status.success(), "set falhou: {:?}", set.stderr);
+    let get = run_in(&dir, &["--json", "config", "get", "recall.default_limit"])?;
+    assert!(get.status.success());
+    let value = json(&get)?;
+    assert_eq!(
+        value
+            .get("data")
+            .and_then(|data| data.get("value"))
+            .and_then(|value| value.as_str()),
+        Some("7")
+    );
+    Ok(())
+}
+
+#[test]
+fn missing_key_reports_not_found() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let out = run_in(&dir, &["--json", "config", "get", "nao.existe"])?;
+    assert_eq!(out.status.code(), Some(3));
     Ok(())
 }

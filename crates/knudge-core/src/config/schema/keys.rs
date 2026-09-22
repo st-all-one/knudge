@@ -92,6 +92,36 @@ pub const KEYS: &[KeySpec] = &[
         default: Default::Float(0.8),
     },
     KeySpec {
+        key: "hooks.pre_record",
+        kind: Kind::Text,
+        default: Default::Text(""),
+    },
+    KeySpec {
+        key: "hooks.post_record",
+        kind: Kind::Text,
+        default: Default::Text(""),
+    },
+    KeySpec {
+        key: "hooks.pre_prime",
+        kind: Kind::Text,
+        default: Default::Text(""),
+    },
+    KeySpec {
+        key: "hooks.pre_prune",
+        kind: Kind::Text,
+        default: Default::Text(""),
+    },
+    KeySpec {
+        key: "hooks.pre_compact",
+        kind: Kind::Text,
+        default: Default::Text(""),
+    },
+    KeySpec {
+        key: "hooks.timeout_ms",
+        kind: Kind::Int,
+        default: Default::Int(30_000),
+    },
+    KeySpec {
         key: "ids.prefix_style",
         kind: Kind::Enum(&["declarative", "compact"]),
         default: Default::Text("declarative"),

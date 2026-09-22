@@ -5,6 +5,21 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 ## [Não publicado]
 
 ### Adicionado
+- **E12 — CLI, MCP, hooks e distribuição** (Fase 4, concluído):
+  - Superfície v2 completa: os 12 verbos (`init`, `prime`, `rewind`, `ask`, `write`, `task`,
+    `maintenance`, `config`, `forget`, `sync`, `self`) wireados ao domínio via
+    `knudge_cli::session::Session` (resolve projeto, carrega config efetiva, monta
+    store/eventos/índice/grafo).
+  - Envelope de máquina `{success, command, data?, error{code,message,retryable}, warnings?}`
+    (D71/R31); `strict` de projeto promove `warnings[]` a erro (D94); EPIPE → exit 0 (D73).
+  - **Hooks de ciclo de vida** (D59): porta `HookRunner` + `adapters::ProcessHookRunner`
+    (sem shell, timeout e kill do grupo de processos); `pre-record` pode bloquear/mutar,
+    `post-record`/`pre-prune`/`pre-compact` são executados na borda.
+  - **MCP proativo estreito** (D68): `knudge-mcp::triggers::HintEngine` com 3 gatilhos, hints
+    **ponteiro**, cap 3, dedup por sessão e modo observação.
+  - `kd self completions <bash|zsh|fish>` e `kd self setup <claude|cursor|codex|pi>` (D69).
+  - Novas chaves `hooks.*` na config; `TaskSpec` ganha `expires_at`/`not_before`; 11º check do
+    `doctor` reporta o tamanho do índice/cache vetorial.
 - **AGENTS.md** — guia de contribuição do repositório: padrões de desenvolvimento, erros,
   logs, testes, contrato de bytes e checklist de conclusão.
 - **E11 — Embeddings** (Fase 3, concluído):
@@ -213,11 +228,13 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   `superseded_by`, ciclo de supersessão sobre `replaces` e sugestões derivadas.
 
 ### Testes
-- 383 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
+- 388 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
   schema/hash/ID/arestas, TOON, JSONL/JSON, store, config/TOML, git/onboard/sync,
   grafo/integridade/ciclos/sugestões, retrieval/token/BM25/âncoras/RRF/views,
   escrita/dedup/update/supersede/forget, rewind/orçamento/context_id, diff/learn/compact,
   tarefas/hierarquia/ciclo de vida, validators/evidência/audit/doctor/âncoras/confiança,
-  shelf-life/decay/purga/ciclos/clusters, embeddings/meta/vector/cache/índice/fila/eval/http).
-- 8 testes de integração do binário (`--help`, `kd == kd prime`, `--json`, exit codes,
-  EPIPE, comando desconhecido).
+  shelf-life/decay/purga/ciclos/clusters, embeddings/meta/vector/cache/índice/fila/eval/http,
+  hooks/timeout/kill de grupo).
+- 5 testes do motor de gatilhos do MCP (`knudge-mcp`).
+- 12 testes de integração do binário (`--help`, `kd == kd prime`, `--json`, exit codes,
+  EPIPE, comando desconhecido, `init`+`write`+`ask`, `task`, `config`, `forget`).
