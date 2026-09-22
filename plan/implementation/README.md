@@ -70,10 +70,11 @@ Cada achado traz **estado atual, recomendação, onde aplicar e aceite** em `14_
 | **3 — Embeddings** | E11 Embeddings (provedor, fila, eval) | [`11_embeddings.md`](11_embeddings.md) | E06, E07 |
 | **4 — Interfaces** | E12 CLI, MCP, hooks e distribuição | [`12_cli_mcp_distribuicao.md`](12_cli_mcp_distribuicao.md) | E08, E09 |
 | **Transversal** | E13 Testes e qualidade | [`13_testes_qualidade.md`](13_testes_qualidade.md) | todos |
+| **5 — MCP** | E14 Transporte JSON-RPC e tools | [`18_mcp_transporte.md`](18_mcp_transporte.md) | E12, E13 |
 
 **MVP = Fase 0 + Fase 1** (+ leitura tolerante mínima de E09). O resto é incremental.
 
-**Status:** E01–E13 ✅ (`make check` verde; 423 testes). Projeto completo pelo plano; evolução
+**Status:** E01–E14 ✅ (`make check` verde; 458 testes). Projeto completo pelo plano; evolução
 segue as decisões `Dxx` e as políticas `Rnn`.
 
 **Superfície CLI:** o contrato dos verbos do `kd` está congelado em
@@ -94,6 +95,7 @@ E01 ── E02 ── E03 ──┬── E04
                                           │    └── E10
                                           └── E11
 E13 (testes) atravessa todos
+E14 (MCP stdio) depende de E12 + E13
 ```
 
 ---

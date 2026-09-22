@@ -308,6 +308,8 @@ name = "knudge-mcp"
 version = "0.1.0"
 dependencies = [
  "knudge-core",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

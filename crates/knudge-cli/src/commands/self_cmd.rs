@@ -74,6 +74,10 @@ fn setup_client(session: &Session, client: &str) -> Result<Output> {
             "binary": "kd",
             "verbs": ["prime", "rewind", "ask", "write", "task", "maintenance"],
             "protocol": "AGENTS.md",
+            "mcp": {
+                "command": "knudge-mcp",
+                "transport": "stdio",
+            },
         }
     });
     let bytes = serde_json::to_vec_pretty(&recipe)

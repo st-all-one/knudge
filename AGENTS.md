@@ -27,6 +27,8 @@ make fmt       # cargo fmt --all
 make clippy    # cargo clippy --workspace --all-targets -- -D warnings
 make test      # cargo test --workspace
 make build     # cargo build --workspace
+make install   # release + binários + config global + completions + PATH (source)
+make uninstall # invalida os binários (move para o lixo)
 
 # alvos extras (E13) — pulam se a ferramenta não estiver instalada
 make ci        # check + nextest + deny + audit + machete + typos
@@ -47,7 +49,7 @@ cargo clippy -p knudge-core --all-targets -- -D warnings
 ```
 crates/knudge-core/   # núcleo puro: modelo, schema, toon, retrieval, lifecycle + portas
 crates/knudge-cli/    # binário `kd`: clap, envelope --json, logging, montagem de adaptadores
-crates/knudge-mcp/    # servidor MCP (reativo)
+crates/knudge-mcp/    # servidor MCP: gatilhos + transporte JSON-RPC stdio (binário `knudge-mcp`)
 plan/                 # visão (00), decisões (Dxx), implementação por épico (E0x-T0y) e políticas (Rn)
 refs/                 # projetos de referência (mulch-rs, seeds-rs, arags) — leitura, não editar
 fuzz/                 # alvos de fuzz (TOON, JSONL) — fora do workspace
@@ -82,7 +84,7 @@ módulos. Onde mexer:
 | embeddings (provedor, cache, fila, eval) | `knudge-core/src/embeddings/` |
 | superfície de CLI / dispatch | `knudge-cli/src/cli/` + `knudge-cli/src/commands/` + `plan/implementation/16_cli_surface.md` |
 | hooks de ciclo de vida | `knudge-core/src/adapters/hook.rs` + `knudge-cli/src/commands/hooks.rs` |
-| MCP (gatilhos) | `knudge-mcp/src/triggers.rs` |
+| MCP (gatilhos, JSON-RPC, tools) | `knudge-mcp/src/` (binário `knudge-mcp`) |
 
 ## 3. Padrões de desenvolvimento
 

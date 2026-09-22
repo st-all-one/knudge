@@ -126,6 +126,14 @@ fn invalid_set_value_is_rejected() {
     assert_eq!(config.get_int("mcp.hints_cap"), Some(3));
 }
 
+#[test]
+fn mcp_observation_defaults() {
+    let config = Config::defaults();
+    assert_eq!(config.get_bool("mcp.observation_mode"), Some(true));
+    assert_eq!(config.get_int("mcp.observation_sessions"), Some(3));
+    assert_eq!(config.get_int("mcp.hints_cap"), Some(3));
+}
+
 /// Testes do schema canônico (movidos de `schema.rs` para respeitar o limite de 300 linhas).
 mod schema {
     use crate::config::ConfigValue;

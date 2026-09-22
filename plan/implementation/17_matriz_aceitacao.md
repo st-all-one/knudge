@@ -62,6 +62,29 @@
 | `learn`/`compact`/`doctor` não escrevem sem aceite | `maintenance::tests::*`, `health::tests::doctor` |
 | Exit code = `ErrorKind::exit_code()` | `golden::json_error_envelope_matches_golden` |
 
+## MCP (`knudge-mcp`, E14)
+
+Transporte JSON-RPC 2.0 sobre stdio; **uma linha JSON por mensagem**; stdout só tem protocolo.
+
+| Tool | `params.arguments` | `result.structuredContent` | Erro | Teste |
+|---|---|---|---|---|
+| `knudge_pre_write` | `{candidates:[{id,statement?,score}]}` | `{hints:[{kind:"duplicate",ids,score,why,observed}]}` | argumento inválido → `isError` | `tests::tools::pre_write_defaults_statement_to_id` |
+| `knudge_pre_edit` | `{items:[{id,statement?,score}]}` | `{hints:[{kind:"context",…}]}` | idem | `tests::server::tools_call_pre_write_returns_pointers` |
+| `knudge_session_end` | `{writes,proposals:[{kind,ids,why?,score?}]}` | `{hints:[…]}` e fecha a sessão | idem | `tests::tools::session_end_advances_session` |
+| `knudge_status` | `{}` | `{observing,sessions_seen,observation_sessions,cap}` | — | `tests::tools::status_reports_observation` |
+
+| Método | Pipe | `--json`/resultado | Erro (código JSON-RPC) | Teste |
+|---|---|---|---|---|
+| `initialize` | protocolo | `{protocolVersion,capabilities,serverInfo}` | — | `tests::server::initialize_negotiates_supported_version` |
+| `notifications/initialized` | — | sem resposta | — | `tests::server::initialized_notification_sets_flag_without_response` |
+| `ping` | protocolo | `{}` | — | `tests::server::ping_returns_empty_object` |
+| `tools/list` | protocolo | `{tools:[…]}` | — | `tests::server::tools_list_has_four_tools` |
+| `tools/call` | protocolo | `{content,structuredContent,isError}` | `name` ausente → `-32602` | `tests::server::missing_tool_name_is_invalid_params` |
+| método desconhecido | protocolo | — | `-32601` | `tests::server::unknown_method_is_not_found` |
+| linha inválida | protocolo | — | `-32700` com `id: null` | `tests::transport::parse_error_gets_null_id` |
+
+Invariantes: `EPIPE`/EOF → exit 0; `--help`/`--version` → exit 0; config ausente → defaults.
+
 ## Como manter
 
 1. Ao adicionar/alterar um verbo, adicione/atualize a linha **e** o teste apontado.

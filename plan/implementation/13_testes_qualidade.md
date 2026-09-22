@@ -109,7 +109,7 @@ Transversal — inicia junto com E01 e cresce com os épicos.
   `mtime`). Regressão em `store::tests::lock::fresh_unreadable_lock_is_not_reclaimed`.
 - **T04** — crash-injection com `FaultyFs`: nota-sem-evento, escrita atômica preservando o antigo
   e crash no meio do rebuild preservando o índice canônico.
-- **T05** — [`DIVERGENCES.md`](../../DIVERGENCES.md) na raiz (20 bordas, cada uma com o teste).
+- **T05** — [`DIVERGENCES.md`](../../DIVERGENCES.md) na raiz (21 bordas, cada uma com o teste).
 - **T06** — [`17_matriz_aceitacao.md`](17_matriz_aceitacao.md): linha por verbo/subcomando com
   pipe, `--json`, erro/exit code, estado de `.knudge/` e teste.
 - **T07** — `.github/workflows/ci.yml` (fmt+clippy+test+linhas, nextest, doc-tests) e alvos

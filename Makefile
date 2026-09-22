@@ -1,8 +1,10 @@
 # knudge — alvos de qualidade e build (E01-T03, E13-T07)
 
 CARGO ?= cargo
+PREFIX ?= $(HOME)/.local
+BINDIR ?= $(PREFIX)/bin
 
-.PHONY: check fmt clippy test build file-length clean \
+.PHONY: check fmt clippy test build file-length clean install uninstall \
         nextest doc deny audit machete typos miri fuzz coverage ci
 
 ## Portão completo local: formatação, lints, testes e gate de tamanho de arquivo.
@@ -30,6 +32,17 @@ file-length:
 
 clean:
 	$(CARGO) clean
+
+# --- Instalação local (source) ---
+
+## Compila em release e instala `kd` + `knudge-mcp`, a config global e as completions.
+## Use PREFIX=... / BINDIR=... para mudar o destino (default: ~/.local/bin).
+install:
+	INSTALL_DIR="$(DESTDIR)$(BINDIR)" ./install.sh --from-source
+
+## Remove os binários e as completions (preserva a config global e as notas).
+uninstall:
+	INSTALL_DIR="$(DESTDIR)$(BINDIR)" ./install.sh --uninstall
 
 # --- Alvos extras (CI / verificação dinâmica). Pulam se a ferramenta não estiver instalada. ---
 

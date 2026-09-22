@@ -29,6 +29,7 @@
 | 18 | **Exit codes** | tradução de erro mudar silenciosamente | `ErrorKind::code()`/`exit_code()` congelados; 101 reservado a panic (R35) | `tests/golden.rs`, `tests/cli.rs::unknown_command_exits_two` |
 | 19 | **EPIPE** | pipe fechado derrubar o processo | `output::emit_stdout` trata `BrokenPipe` → exit 0 (D73) | `tests/golden.rs::epipe_is_exit_zero`, `tests/cli.rs::broken_pipe_exits_zero` |
 | 20 | **Embeddings** | índice servir vetores de outro modelo | cabeçalho `meta` (provider/model/revision/dimensões) invalida ao mudar (D79) | `embeddings::tests::meta`, `index` |
+| 21 | **Framing MCP** | delimitador de mensagem divergir entre cliente e servidor | JSON-RPC 2.0 **uma linha por mensagem** (sem `Content-Length`); parse inválido responde com `id: null`; `EPIPE`/EOF → exit 0 (E14/D71/D73) | `tests::transport::*`, `tests/stdio.rs::handshake_and_tools_over_stdio` |
 
 ## Notas
 

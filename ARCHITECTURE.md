@@ -25,7 +25,7 @@ knudge-cli ──┘
 |---|---|---|
 | `knudge-core` | Modelo, schema, retrieval, ciclo de vida e **portas** | Lógica pura; `adapters` (std) isolado |
 | `knudge-cli` | Binário `kd`; monta adaptadores e escreve a saída | `clap`, `tracing`, I/O de terminal |
-| `knudge-mcp` | Servidor MCP reativo e motor de gatilhos (E12-T03) | Protocolo MCP; nada de domínio |
+| `knudge-mcp` | Servidor MCP reativo: motor de gatilhos + transporte JSON-RPC stdio (E12/E14) | Protocolo MCP; nada de domínio |
 
 **Regra:** os adaptadores **não** são dependência do domínio. `knudge-core::adapters` existe para
 conveniência, mas só `cli`/`mcp` o importam.
@@ -212,7 +212,8 @@ volatilidade, não CAS (D48).
 | Saída | **stdout = dados, stderr = logs** (R20); `--json` emite o envelope `{success, command, data?, error{code,message,retryable}, warnings?}` (D71/R31). EPIPE → exit 0 (D73). |
 | `strict` | Config de projeto (`behavior.strict`, D94) promove `warnings[]` a erro; **não** existe flag `--strict`. |
 | Hooks | `HookRunner` (porta) + `ProcessHookRunner` (adaptador; timeout + kill do grupo de processos, sem shell — D59/R12). Orquestração em `commands/hooks.rs`: `pre-record` (bloqueia/muta), `post-record`, `pre-prune`, `pre-compact`; `pre-prime` é reservado (`prime` é byte-idêntico — D57). |
-| MCP | `knudge-mcp::triggers::HintEngine` — 3 gatilhos (pré-`write`, pré-edição, fim de sessão), hints **ponteiro**, cap 3, dedup por sessão e modo observação (D68). O transporte JSON-RPC fica em E13. |
+| MCP | `knudge-mcp::triggers::HintEngine` — 3 gatilhos (pré-`write`, pré-edição, fim de sessão), hints **ponteiro**, cap 3, dedup por sessão e modo observação (D68). |
+| MCP (transporte) | Binário `knudge-mcp`: JSON-RPC 2.0 sobre stdio, **uma linha por mensagem**, `initialize`/`ping`/`tools/list`/`tools/call`; `knudge_pre_write`/`pre_edit`/`session_end`/`status`; `EPIPE`/EOF → exit 0 (E14, D68/D71/D73). |
 | Distribuição | `kd self completions <bash|zsh|fish>` e `kd self setup <claude|cursor|codex|pi>` gravam recipes em `.knudge/setup/` (D69). |
 
 ## 15. Fluxo de uma operação

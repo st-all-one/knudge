@@ -1,0 +1,97 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: macos-13
+            target: x86_64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+
+      - name: Dependências (musl)
+        if: contains(matrix.target, 'musl')
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Build release
+        run: cargo build --release --locked -p knudge-cli -p knudge-mcp --target ${{ matrix.target }}
+
+      - name: Empacotar
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          name="knudge-${version}-${{ matrix.target }}"
+          staging="dist/${name}"
+          mkdir -p "$staging"
+
+          if [[ "${{ matrix.target }}" == *-pc-windows-* ]]; then
+            cp "target/${{ matrix.target }}/release/kd.exe" "$staging/kd.exe"
+            cp "target/${{ matrix.target }}/release/knudge-mcp.exe" "$staging/knudge-mcp.exe"
+            ( cd "$staging" && 7z a -tzip "../../${name}.zip" ./* >/dev/null )
+          else
+            cp "target/${{ matrix.target }}/release/kd" "$staging/kd"
+            cp "target/${{ matrix.target }}/release/knudge-mcp" "$staging/knudge-mcp"
+            chmod +x "$staging/kd" "$staging/knudge-mcp"
+            ( cd "$staging" && tar -czf "../../${name}.tar.gz" kd knudge-mcp )
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: knudge-${{ matrix.target }}
+          path: dist/*
+
+  release:
+    name: publicar
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        run: |
+          cd dist
+          sha256sum knudge-*.tar.gz knudge-*.zip > sha256sums.txt
+          cat sha256sums.txt
+
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/sha256sums.txt
+          generate_release_notes: true

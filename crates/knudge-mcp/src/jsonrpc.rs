@@ -49,7 +49,7 @@ impl Id {
 }
 
 /// Mensagem decodificada.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Request {
     /// Id (`None` = notificação, que não recebe resposta).
     pub id: Option<Id>,
@@ -68,6 +68,10 @@ impl Request {
 }
 
 /// Erro JSON-RPC com código canônico.
+#[allow(
+    clippy::derive_partial_eq_without_eq,
+    reason = "`Value` não implementa `Eq` (contém f64)"
+)]
 #[derive(Debug, Clone, PartialEq)]
 pub struct RpcError {
     /// Código canônico (`-32700`…`-32603`).
@@ -109,6 +113,14 @@ impl RpcError {
     }
 }
 
+impl std::fmt::Display for RpcError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{} (código {})", self.message, self.code)
+    }
+}
+
+impl std::error::Error for RpcError {}
+
 /// Decodifica uma linha JSON em uma mensagem.
 ///
 /// # Errors
@@ -134,7 +146,10 @@ pub fn parse(line: &str) -> Result<Request, RpcError> {
     let id = match object.get("id") {
         None | Some(Value::Null) => None,
         Some(raw) => Some(Id::from_value(raw).ok_or_else(|| {
-            RpcError::new(INVALID_REQUEST, "campo id deve ser número inteiro ou string")
+            RpcError::new(
+                INVALID_REQUEST,
+                "campo id deve ser número inteiro ou string",
+            )
         })?),
     };
     let params = object.get("params").cloned().unwrap_or(Value::Null);
@@ -143,7 +158,7 @@ pub fn parse(line: &str) -> Result<Request, RpcError> {
 
 /// Monta uma resposta de sucesso.
 #[must_use]
-pub fn result(id: &Id, result: Value) -> Value {
+pub fn result(id: &Id, result: &Value) -> Value {
     json!({ "jsonrpc": JSONRPC_VERSION, "id": id.to_value(), "result": result })
 }
 

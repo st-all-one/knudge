@@ -365,6 +365,8 @@ Vale, mas **estreitamente** — o MCP deve ser **reativo a comportamento**, não
 
 Restrições: hint é **ponteiro, nunca conteúdo** (`id + statement + score`); dedup por sessão; cap de 3 hints. Modo observação por N sessões antes de produção, calibrado por taxa de seguimento (> 50%). Injeção por similaridade de conversa, padrão de erro ou "decisão detectada" foi rejeitada como ruído.
 
+**Transporte (E14).** O servidor é local e sem rede: JSON-RPC 2.0 sobre **stdio**, uma linha JSON por mensagem, expondo `knudge_pre_write`/`pre_edit`/`session_end`/`status` como tools. O binário `knudge-mcp` lê `mcp.hints_cap`/`mcp.observation_mode`/`mcp.observation_sessions` de `.knudge/config.toml` e cai nos defaults quando ausente. `resources`/`prompts` do MCP ficam de fora: os hints são tools e o conteúdo mora no `kd`.
+
 ---
 
 ## 9. Gestão de tarefas

@@ -5,6 +5,32 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 ## [Não publicado]
 
 ### Adicionado
+- **Instalação** (`install.sh` + `make install`):
+  - `make install` compila em release, instala `kd` e `knudge-mcp` em `~/.local/bin`
+    (`PREFIX`/`BINDIR` mudam o destino), cria a config global
+    (`~/.config/local/knudge/config.toml`), instala completions de bash/zsh/fish e ajusta o PATH.
+  - `install.sh` no estilo `curl | bash`: baixa o release pré-compilado, verifica o checksum
+    SHA-256 e instala; com `--from-source` (ou rodando de dentro do repositório) usa o build
+    local. Suporta `--install-dir`, `--prefix`, `--version`, `--no-path`, `--no-completions` e
+    `--uninstall`.
+  - Nada é apagado de forma irreversível: artefatos antigos são **movidos** para
+    `${XDG_CACHE_HOME:-~/.cache}/knudge/trash`.
+  - `.github/workflows/release.yml` empacota `kd` + `knudge-mcp` (Linux musl, macOS e Windows)
+    e publica `sha256sums.txt` no GitHub Release.
+- **E14 — MCP: transporte JSON-RPC (stdio) e tools** (concluído):
+  - **Codec JSON-RPC 2.0** puro (`crates/knudge-mcp/src/jsonrpc.rs`): `Request`/`Id`/`RpcError`,
+    `parse` e emissores `result`/`error` com os códigos canônicos (`-32700`…`-32603`).
+  - **Handshake MCP** (`src/protocol.rs` + `src/server.rs`): `initialize` negocia
+    `protocolVersion` (suportadas `2025-06-18`/`2025-03-26`/`2024-11-05`), `notifications/initialized`
+    e `ping`; notificações não geram resposta.
+  - **Tools** (`src/tools.rs`): `knudge_pre_write`, `knudge_pre_edit`, `knudge_session_end` e
+    `knudge_status`, com `inputSchema`; argumento inválido vira `isError` sem derrubar o servidor.
+  - **Transporte stdio** (`src/transport.rs` + `src/main.rs`): binário `knudge-mcp`, **uma linha
+    JSON por mensagem**, stdout só protocolo, `EPIPE`/EOF → exit 0.
+  - **Config**: `mcp.observation_sessions` (nova chave, default 3); o binário lê
+    `mcp.hints_cap`/`mcp.observation_mode`/`mcp.observation_sessions` de `.knudge/config.toml`.
+  - `kd self setup` passou a incluir o bloco `mcp` (`knudge-mcp --stdio`); `MODULE.md`,
+    matriz de aceite e `DIVERGENCES.md` atualizados.
 - **E13 — Testes e qualidade** (transversal, concluído):
   - **Golden** do binário (`crates/knudge-cli/tests/golden.rs` + `tests/golden/`): `prime`,
     `--json`, envelope de erro, erro em texto, `init` e EPIPE, com normalização de
@@ -14,7 +40,7 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   - **Stress de concorrência** sobre adaptadores reais (`crates/knudge-core/tests/stress.rs`):
     lock sem *lost update*, escritas concorrentes e leitor de índice durante rebuild.
   - **Crash-injection** com `FaultyFs`: nota-sem-evento, escrita atômica e crash no rebuild.
-  - [`DIVERGENCES.md`](DIVERGENCES.md) — 20 bordas catalogadas com o teste que trava cada
+  - [`DIVERGENCES.md`](DIVERGENCES.md) — 21 bordas catalogadas com o teste que trava cada
     uma; [`plan/implementation/17_matriz_aceitacao.md`](plan/implementation/17_matriz_aceitacao.md)
     — matriz por tool (pipe/`--json`/erro/exit/estado).
   - **CI** (`.github/workflows/ci.yml`): `fmt`+`clippy`+`test`+linhas, `nextest`, doc-tests,
@@ -254,13 +280,14 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   `superseded_by`, ciclo de supersessão sobre `replaces` e sugestões derivadas.
 
 ### Testes
-- 396 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
+- 397 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
   schema/hash/ID/arestas, TOON, JSONL/JSON, store, config/TOML, git/onboard/sync,
   grafo/integridade/ciclos/sugestões, retrieval/token/BM25/âncoras/RRF/views,
   escrita/dedup/update/supersede/forget, rewind/orçamento/context_id, diff/learn/compact,
   tarefas/hierarquia/ciclo de vida, validators/evidência/audit/doctor/âncoras/confiança,
   shelf-life/decay/purga/ciclos/clusters, embeddings/meta/vector/cache/índice/fila/eval/http,
   hooks/timeout/kill de grupo, lock/rebuild) e 3 testes de **stress** sobre adaptadores reais.
-- 5 testes do motor de gatilhos do MCP (`knudge-mcp`).
+- 37 testes do servidor MCP (`knudge-mcp`: gatilhos, codec JSON-RPC, handshake, tools e
+  transporte) + 2 de integração stdio (`tests/stdio.rs`).
 - 12 testes de integração do binário + 7 **golden** (`--help`, `kd == kd prime`, `--json`, exit
   codes, EPIPE, comando desconhecido, `init`+`write`+`ask`, `task`, `config`, `forget`).

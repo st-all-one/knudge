@@ -3,6 +3,37 @@
 Memória **por projeto**, otimizada para LLM: arquivos Markdown como verdade, um índice derivado
 reconstruível e um binário único (`kd`). Sem servidor, sem banco, sem daemon obrigatório.
 
+## Instalação
+
+**A partir do source** (precisa de Rust 1.97+):
+
+```sh
+make install          # release build + binários + config global + completions + PATH
+make uninstall        # invalida os binários (move para um lixo recuperável)
+```
+
+Instala em `~/.local/bin` (`PREFIX`/`BINDIR` mudam o destino) e cria a config global em
+`~/.config/local/knudge/config.toml`.
+
+**Pelo script** (release pré-compilado ou source, sem clonar o repositório):
+
+```sh
+# release (verifica SHA-256 e instala)
+curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/st-all-one/knudge/main/install.sh | bash
+
+# versão fixa / destino alternativo
+curl ... | VERSION=v0.1.0 bash
+curl ... | INSTALL_DIR=/usr/local/bin bash
+
+# de dentro do repositório, a partir do source
+./install.sh --from-source
+./install.sh --uninstall
+```
+
+O script instala os dois binários (`kd` e `knudge-mcp`), cria a pasta de config global,
+semeia os defaults, instala completions de bash/zsh/fish e ajusta o PATH. Nada é apagado de
+forma irreversível: artefatos antigos vão para `${XDG_CACHE_HOME:-~/.cache}/knudge/trash`.
+
 ## Construir e testar
 
 ```sh
@@ -29,6 +60,9 @@ kd self         # setup, completions, upgrade, version
 ```
 
 Contrato congelado: [`plan/implementation/16_cli_surface.md`](plan/implementation/16_cli_surface.md).
+
+Além do `kd`, o binário `knudge-mcp` serve o protocolo MCP (JSON-RPC 2.0 sobre stdio) com os
+gatilhos de memória — detalhes em [`plan/implementation/18_mcp_transporte.md`](plan/implementation/18_mcp_transporte.md).
 
 ## Documentação
 
