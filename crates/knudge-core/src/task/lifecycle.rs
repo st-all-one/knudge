@@ -2,11 +2,13 @@
 
 use crate::schema::{NoteType, Status, Value};
 use crate::store::Note;
-use crate::time::Timestamp;
 use crate::write::{WriteAction, WriteContext, event};
 use crate::{Error, Result};
 
 use super::membership;
+
+/// Reexporta a evidência de execução generalizada (D103).
+pub use crate::write::outcome::{OutcomeStatus, outcome};
 
 /// Ação de ciclo de vida.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,32 +41,6 @@ impl TaskAction {
     }
 }
 
-/// Resultado de um `outcome`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OutcomeStatus {
-    /// Sucesso.
-    Success,
-    /// Parcial.
-    Partial,
-    /// Falha.
-    Failure,
-    /// Abandonado.
-    Abandoned,
-}
-
-impl OutcomeStatus {
-    /// Rótulo canônico.
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Success => "success",
-            Self::Partial => "partial",
-            Self::Failure => "failure",
-            Self::Abandoned => "abandoned",
-        }
-    }
-}
-
 /// Aplica uma transição de ciclo de vida e devolve a nova revisão.
 ///
 /// # Errors
@@ -81,48 +57,6 @@ pub fn apply(ctx: &WriteContext<'_>, id: &str, action: TaskAction) -> Result<u32
     ctx.store().write(&note)?;
     let record = event("task", id, ctx.now_ms(), WriteAction::Updated, None)
         .with_data("action", Value::Str(action.as_str().to_string()));
-    ctx.events().append(&record)?;
-    Ok(revision)
-}
-
-/// Anexa um resultado a `outcomes` (D48) e devolve a nova revisão.
-///
-/// # Errors
-/// Retorna `ErrorKind::Schema` para não-tarefa e propaga erros de I/O.
-pub fn outcome(
-    ctx: &WriteContext<'_>,
-    id: &str,
-    status: OutcomeStatus,
-    note: Option<&str>,
-) -> Result<u32> {
-    let mut existing = ctx.store().read(id)?;
-    ensure_task(&existing)?;
-    let mut items = match existing.frontmatter.get("outcomes") {
-        Some(Value::List(items)) => items.clone(),
-        _ => Vec::new(),
-    };
-    let mut entry = vec![
-        (
-            "status".to_string(),
-            Value::Str(status.as_str().to_string()),
-        ),
-        (
-            "recorded_at".to_string(),
-            Value::Str(Timestamp::from_millis(ctx.now_ms()).to_rfc3339()),
-        ),
-    ];
-    if let Some(note) = note {
-        entry.push(("notes".to_string(), Value::Str(note.to_string())));
-    }
-    items.push(Value::map(entry));
-    existing.frontmatter.set("outcomes", Value::List(items))?;
-    let revision = existing.revision().saturating_add(1);
-    existing.set_revision(revision)?;
-    existing.frontmatter.validate()?;
-    ctx.store().write(&existing)?;
-    let record = event("task", id, ctx.now_ms(), WriteAction::Updated, None)
-        .with_data("action", Value::Str("outcome".to_string()))
-        .with_data("outcome", Value::Str(status.as_str().to_string()));
     ctx.events().append(&record)?;
     Ok(revision)
 }

@@ -154,6 +154,16 @@ impl Graph {
             .map_or(&[][..], Vec::as_slice)
     }
 
+    /// `true` se `id` é alvo de alguma aresta `results_in` (tem pai — D52/D119).
+    #[must_use]
+    pub fn has_parent(&self, id: &str) -> bool {
+        self.nodes.values().any(|node| {
+            node.edges
+                .get(&EdgeKind::ResultsIn)
+                .is_some_and(|targets| targets.iter().any(|target| target == id))
+        })
+    }
+
     /// Expansão BFS determinística até `depth` (arestas explícitas apenas).
     #[must_use]
     pub fn expand(&self, id: &str, kind: Option<EdgeKind>, depth: u32) -> Vec<ExpandHit> {

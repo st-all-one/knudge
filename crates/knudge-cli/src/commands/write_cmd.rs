@@ -6,8 +6,8 @@ use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::schema::NoteType;
 use knudge_core::write::{
-    DedupDecision, Draft, Patch, UpdateOutcome, WriteAction, WriteProposal, link, propose, update,
-    write,
+    DedupDecision, Draft, OutcomeStatus, Patch, UpdateOutcome, WriteAction, WriteProposal, link,
+    outcome, propose, update, write,
 };
 use serde_json::json;
 
@@ -23,6 +23,9 @@ use super::hooks::{self, HookEvent};
 /// # Errors
 /// Propaga erros de validação, dedup e I/O do domínio.
 pub fn run(session: &Session, args: &WriteArgs) -> Result<Output> {
+    if args.outcome.is_some() {
+        return outcome_note(session, args);
+    }
     if let Some(spec) = &args.link {
         return link_edge(session, spec);
     }
@@ -30,6 +33,39 @@ pub fn run(session: &Session, args: &WriteArgs) -> Result<Output> {
         return update_note(session, id, args);
     }
     create_note(session, args)
+}
+
+fn outcome_note(session: &Session, args: &WriteArgs) -> Result<Output> {
+    if args.update.is_some() || args.link.is_some() || args.dry_run {
+        return Err(Error::invalid_input(
+            "`--outcome` não combina com `--update`, `--link` ou `--dry-run`",
+        ));
+    }
+    let Some(id) = args.statement.first() else {
+        return Err(Error::invalid_input("`--outcome` exige um id (STATEMENT)"));
+    };
+    if args.statement.len() != 1 {
+        return Err(Error::invalid_input(
+            "`--outcome` exige exatamente um id (STATEMENT)",
+        ));
+    }
+    let status = args
+        .outcome
+        .as_deref()
+        .unwrap_or_default()
+        .parse::<OutcomeStatus>()?;
+    let ctx = session.write_context()?;
+    let revision = outcome(&ctx, id, status, args.note.as_deref())?;
+    let data = json!({
+        "action": "outcome",
+        "id": id,
+        "outcome": status.as_str(),
+        "revision": revision,
+    });
+    Ok(Output::new(
+        format!("outcome|{id}|{}|r{revision}", status.as_str()),
+        data,
+    ))
 }
 
 fn link_edge(session: &Session, spec: &str) -> Result<Output> {

@@ -8,6 +8,7 @@
 pub mod dedup;
 pub mod draft;
 pub mod lifecycle;
+pub mod outcome;
 pub mod status;
 pub mod update;
 
@@ -20,6 +21,7 @@ pub use dedup::{
 };
 pub use draft::Draft;
 pub use lifecycle::{forget, link, restore};
+pub use outcome::{OutcomeStatus, outcome};
 pub use status::validate_transition;
 pub use update::{Patch, UpdateOutcome, history, update};
 

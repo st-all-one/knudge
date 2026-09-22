@@ -9,10 +9,10 @@ use crate::health::{CheckId, DoctorInput, doctor, doctor_fix};
 use crate::ports::Fs;
 use crate::ports::fakes::MemFs;
 use crate::retrieval::Index;
-use crate::schema::{NoteType, Value};
+use crate::schema::{NoteType, Scope, Value};
 use crate::store::EventLog;
-use crate::write::WriteContext;
 use crate::write::dedup::DedupThresholds;
+use crate::write::{Draft, WriteContext};
 
 use super::{NOW, PROJECT, ROOT, anchored, built, note, seeded};
 
@@ -184,5 +184,59 @@ fn embeddings_check_reports_sizes() -> Result<()> {
     let check = report.check(CheckId::Embeddings);
     assert!(check.is_some());
     assert_eq!(check.map(|c| c.ok), Some(true));
+    Ok(())
+}
+
+#[test]
+fn program_anchor_reports_epic_without_program() -> Result<()> {
+    let fs = MemFs::new();
+    let mut draft = Draft::new(NoteType::Container, "Épico solto");
+    draft.scope = Some(Scope::Epic);
+    let epic = draft.to_note(NOW)?;
+    let ctx = seeded(&fs, std::slice::from_ref(&epic))?;
+    let events = EventLog::new(&fs, ROOT, EventLog::DEFAULT_MAX_BYTES);
+    let config = Config::defaults();
+    let (_index, graph) = built(std::slice::from_ref(&epic))?;
+    let thresholds = DedupThresholds::default();
+    let world = World {
+        fs: &fs,
+        ctx: &ctx,
+        events: &events,
+        config: &config,
+        graph: &graph,
+        thresholds: &thresholds,
+    };
+    let report = doctor(&world.input())?;
+    assert_eq!(
+        report.check(CheckId::ProgramAnchor).map(|c| c.ok),
+        Some(false)
+    );
+    Ok(())
+}
+
+#[test]
+fn program_anchor_reports_orphan_program() -> Result<()> {
+    let fs = MemFs::new();
+    let fact = note(NoteType::Fact, "só conhecimento", "")?;
+    let ctx = seeded(&fs, std::slice::from_ref(&fact))?;
+    let events = EventLog::new(&fs, ROOT, EventLog::DEFAULT_MAX_BYTES);
+    let config = Config::defaults();
+    let (_index, graph) = built(std::slice::from_ref(&fact))?;
+    let thresholds = DedupThresholds::default();
+    let world = World {
+        fs: &fs,
+        ctx: &ctx,
+        events: &events,
+        config: &config,
+        graph: &graph,
+        thresholds: &thresholds,
+    };
+    fs.create_dir_all(Path::new("/p/plan"))?;
+    fs.write_atomic(Path::new("/p/plan/orfao.md"), b"# orfao")?;
+    let report = doctor(&world.input())?;
+    assert_eq!(
+        report.check(CheckId::ProgramAnchor).map(|c| c.ok),
+        Some(false)
+    );
     Ok(())
 }

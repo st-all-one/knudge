@@ -87,7 +87,7 @@ fn reparent(ctx: &WriteContext<'_>, note: &mut Note, parent: &str) -> Result<()>
 pub(super) fn close(session: &Session, id: &str, outcome_arg: Option<&str>) -> Result<Output> {
     let ctx = session.write_context()?;
     if let Some(value) = outcome_arg {
-        let status = parse_outcome(value)?;
+        let status = value.parse::<OutcomeStatus>()?;
         let _ignored = outcome(&ctx, id, status, None)?;
         let revision = apply(&ctx, id, TaskAction::Review)?;
         let data = json!({ "id": id, "outcome": status.as_str(), "revision": revision });
@@ -123,16 +123,4 @@ pub(super) fn close(session: &Session, id: &str, outcome_arg: Option<&str>) -> R
         data,
     )
     .with_warnings(run.warnings))
-}
-
-fn parse_outcome(value: &str) -> Result<OutcomeStatus> {
-    match value {
-        "success" => Ok(OutcomeStatus::Success),
-        "partial" => Ok(OutcomeStatus::Partial),
-        "failure" => Ok(OutcomeStatus::Failure),
-        "abandoned" => Ok(OutcomeStatus::Abandoned),
-        other => Err(Error::invalid_input(format!(
-            "outcome desconhecido: {other:?}"
-        ))),
-    }
 }

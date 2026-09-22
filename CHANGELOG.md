@@ -26,7 +26,28 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   saída/exit codes e regras de `id`/TOON. `--long` anexa tipos e as 28 chaves canônicas.
   Goldens `prime.txt`/`json_prime.json` atualizados; `kd` continua byte-idêntico a `kd prime`.
 
+### Alterado
+- **`kd prime`** passa a listar `kd task graph` e `kd write --outcome`; goldens
+  `prime.txt`/`json_prime.json` regenerados.
+
 ### Adicionado
+- **`kd write --outcome <status> <ID> [--note TXT]`** anexa evidência (`outcomes[]`) a
+  **qualquer** nota (D103), não só a tarefas: a confiança derivada (D87) e o boost BM25 (E06)
+  passam a valer para conhecimento confirmado por trabalho. Core: `write::outcome` (generaliza o
+  `task::lifecycle::outcome`, sem `ensure_task`); evento `op=outcome`. Regressão:
+  `write::tests::outcome::*`, `cli::write_outcome_on_note_returns_outcome_action`.
+- **`kd task list --ready|--blocked [--explain]`** (D104): filtra pelas views derivadas
+  `ready`/`blocked` (dependências + `not_before`); `--explain` (só com `--blocked`) acrescenta o
+  motivo (`blocked_by=<id>`, `not_before=<ts>` ou `cycle`). Core: `retrieval::views::block_reason`.
+  Regressão: `retrieval::tests::views::block_reason_*`, `cli::task_list_ready_blocked_and_explain`.
+- **Programas externos (`plan/*.md`) como raiz de trabalho** (D119): o **Programa** é um arquivo
+  markdown real (o "porquê"), ancorado ao **Épico-raiz** (`scope=epic`, sem pai) via `anchors`
+  (D86) — nenhum `scope`/chave TOON nova. `kd task new … --source <arquivo>`; `kd task graph
+  --program plan/<slug>.md` imprime a subárvore; `kd rewind --files plan/<slug>.md` inclui a
+  subárvore; `doctor` ganha o check `program-anchor` (épico-raiz sem programa, programa órfão);
+  config `programs.glob` (default `plan/*.md`). Core: `task::program::{root_for_path, program_of,
+  subtree}`. Regressão: `task::tests::program::*`, `health::tests::doctor::program_anchor_*`,
+  `cli::task_graph_program_renders_subtree`.
 - **`kd ask --anchor` é repetível e aceita lista com vírgula.** `--anchor a,b --anchor c`
   consulta várias âncoras de uma vez; cada valor alimenta o canal de âncoras (D81). O `prime`
   e os goldens passam a documentar `[--anchor PATH...]`. Regressão:

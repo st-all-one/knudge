@@ -52,7 +52,7 @@ kd ask [QUERY]
   --tag <T>...
   --status <S>...
   --container <ID>
-  --anchor <PATH>
+  --anchor <PATH>...      # repetível; aceita vírgula (`--anchor a,b`)
   --since <TS> / --until <TS>
   --limit <N>             # default: config recall.default_limit
   --json
@@ -72,6 +72,7 @@ kd write [STATEMENT]
   --edge <ARESTA:ID>      # aresta explícita na criação
   --update <ID>           # modo update (patch versionado)
   --link <ARESTA:ID>      # cria aresta (substitui o antigo `link`)
+  --outcome <S> <ID>      # anexa evidência a qualquer nota (D103); com [--note <TXT>]
   --dry-run
   --json                  # {action: created|merged|rejected|updated, id}
 ```
@@ -107,10 +108,12 @@ membership/backref (D52); dependências via aresta `depends_on`.
 
 ```
 kd task new <STATEMENT> --scope <plan|epic|issue|task> [--parent <ID>]
-  [--body <TXT|->] [--checks <NAME>...] [--anchor <PATH>...]
+  [--body <TXT|->] [--checks <NAME>...] [--anchor <PATH>...] [--source <F>]
   [--depends-on <ID>...] [--not-before <TS>] [--expires-at <TS>]
 kd task list [--scope ...] [--status ...] [--parent <ID>]
+  [--ready|--blocked [--explain]]
 kd task show <ID> [--history]
+kd task graph --program <PATH>
 kd task update <ID> [--statement <S>] [--status <S>] [--parent <ID>] [--checks ...]
 kd task close <ID> [--outcome success|partial|failure|abandoned]
 kd task plan <ID> [--submit|--adopt|--reorder <N>|--release|--review]
@@ -120,6 +123,9 @@ kd task plan <ID> [--submit|--adopt|--reorder <N>|--release|--review]
 - `close` roda os validators e grava `outcomes[]`/`evidence` (D48/D55) — nunca declara sem evidência.
 - `plan` implementa o ciclo de vida de D53 (`blocks` 1-based, sem self-reference, detecção de ciclo).
 - `plan`/`epic` são **views derivadas** (sem verdade própria); `issue`/`task` são atômicas.
+- `list --ready|--blocked` filtra pelas views derivadas; `--explain` acrescenta o motivo (D104).
+- **Programa externo** (D119): `plan/<slug>.md` ancorado a um Épico-raiz (`--anchors`);
+  `task graph --program` imprime a subárvore; `programs.glob` define o que é um programa.
 
 ## 8. `kd maintenance` — manutenção
 

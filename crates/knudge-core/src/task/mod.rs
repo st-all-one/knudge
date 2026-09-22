@@ -7,6 +7,7 @@
 pub mod hierarchy;
 pub mod lifecycle;
 pub mod membership;
+pub mod program;
 pub mod spec;
 
 #[cfg(test)]
@@ -15,6 +16,7 @@ mod tests;
 pub use hierarchy::{children, expected_parent, validate_blocks, validate_parent};
 pub use lifecycle::{OutcomeStatus, TaskAction, apply, outcome, reorder, validate_transition};
 pub use membership::Marker;
+pub use program::{ProgramNode, program_of, root_for_path, subtree};
 pub use spec::TaskSpec;
 
 use crate::graph;

@@ -22,6 +22,56 @@ pub struct Views {
     pub blocked: BTreeSet<String>,
 }
 
+/// Motivo pelo qual uma tarefa está bloqueada (D104).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BlockReason {
+    /// Dependência aberta (menor id pendente na travessia transitória).
+    Dependency(String),
+    /// Agendamento futuro (`not_before`, ms desde a época — D56).
+    Scheduled(i64),
+    /// Ciclo de dependência (D45).
+    Cycle,
+}
+
+/// Motivo do bloqueio de `id` em `now_ms`; `None` se `ready` ou não for tarefa (D104).
+#[must_use]
+pub fn block_reason(graph: &Graph, id: &str, now_ms: i64) -> Option<BlockReason> {
+    if graph.note_type(id) != Some(NoteType::Task) {
+        return None;
+    }
+    let cyclic: BTreeSet<String> = graph.dependency_cycles().into_iter().flatten().collect();
+    if cyclic.contains(id) {
+        return Some(BlockReason::Cycle);
+    }
+    if let Some(not_before) = graph.not_before(id)
+        && now_ms < not_before
+    {
+        return Some(BlockReason::Scheduled(not_before));
+    }
+    pending_dependency(graph, id).map(BlockReason::Dependency)
+}
+
+fn pending_dependency(graph: &Graph, id: &str) -> Option<String> {
+    let mut seen: BTreeSet<String> = BTreeSet::new();
+    let mut pending: BTreeSet<String> = BTreeSet::new();
+    let mut stack = vec![id.to_string()];
+    while let Some(current) = stack.pop() {
+        for dependency in graph.targets(&current, EdgeKind::DependsOn) {
+            if !seen.insert(dependency.clone()) {
+                continue;
+            }
+            match graph.status(dependency) {
+                Some(Status::Closed | Status::Superseded) => {}
+                _ => {
+                    pending.insert(dependency.clone());
+                }
+            }
+            stack.push(dependency.clone());
+        }
+    }
+    pending.into_iter().next()
+}
+
 /// Computa as views `ready`/`blocked` **sem** considerar `not_before` (estático — D57).
 #[must_use]
 pub fn compute_views(graph: &Graph) -> Views {

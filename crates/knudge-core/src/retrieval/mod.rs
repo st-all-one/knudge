@@ -24,7 +24,7 @@ pub use index::{
     Field, FieldTf, INDEX_FILE, INDEX_WARN_BYTES, Index, NoteDoc, Stats, size_warning,
 };
 pub use rrf::{Fused, fuse};
-pub use views::{Views, compute_views, compute_views_at};
+pub use views::{BlockReason, Views, block_reason, compute_views, compute_views_at};
 pub use why::Why;
 
 use std::collections::{BTreeMap, BTreeSet};

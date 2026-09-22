@@ -88,10 +88,14 @@ pub struct ManifestItem {
 /// Ranqueia as notas do modo (escopo ou working set).
 #[must_use]
 pub fn rank(index: &Index, graph: &Graph, mode: &RewindMode) -> Vec<ManifestItem> {
+    let roots = match mode {
+        RewindMode::Files(paths) => program_roots(index, graph, paths),
+        _ => Vec::new(),
+    };
     let mut items: Vec<ManifestItem> = index
         .docs
         .iter()
-        .filter(|doc| in_mode(&doc.meta, graph, mode))
+        .filter(|doc| in_mode(&doc.meta, graph, mode, &roots))
         .map(|doc| ManifestItem {
             id: doc.meta.id.clone(),
             statement: doc.statement.clone(),
@@ -171,15 +175,37 @@ fn reachable(graph: &Graph, from: &str, target: &str, kind: EdgeKind) -> bool {
     false
 }
 
-fn in_mode(meta: &Meta, graph: &Graph, mode: &RewindMode) -> bool {
+fn in_mode(meta: &Meta, graph: &Graph, mode: &RewindMode, roots: &[String]) -> bool {
     match mode {
         RewindMode::Manifest | RewindMode::Auto => true,
         RewindMode::Scope(container) => belongs_to(graph, &meta.id, container),
-        RewindMode::Files(paths) => meta
-            .anchors
-            .iter()
-            .any(|anchor| paths.iter().any(|path| glob_match(anchor, path))),
+        RewindMode::Files(paths) => {
+            let anchored = meta
+                .anchors
+                .iter()
+                .any(|anchor| paths.iter().any(|path| glob_match(anchor, path)));
+            anchored || roots.iter().any(|root| belongs_to(graph, &meta.id, root))
+        }
     }
+}
+
+/// Épicos-raiz cujo `anchors` casa um dos `paths` (o arquivo do programa — D119).
+fn program_roots(index: &Index, graph: &Graph, paths: &[String]) -> Vec<String> {
+    let mut roots: Vec<String> = index
+        .docs
+        .iter()
+        .filter(|doc| doc.meta.note_type == NoteType::Container && !graph.has_parent(&doc.meta.id))
+        .filter(|doc| {
+            doc.meta.anchors.iter().any(|anchor| {
+                paths
+                    .iter()
+                    .any(|path| glob_match(anchor, path) || glob_match(path, anchor))
+            })
+        })
+        .map(|doc| doc.meta.id.clone())
+        .collect();
+    roots.sort();
+    roots
 }
 
 fn compare(left: &ManifestItem, right: &ManifestItem) -> Ordering {

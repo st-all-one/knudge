@@ -22,16 +22,7 @@ use crate::session::Session;
 pub fn run(session: &Session, command: &TaskCommand) -> Result<Output> {
     match command {
         TaskCommand::New(args) => create::new_task(session, args),
-        TaskCommand::List {
-            scope,
-            status,
-            parent,
-        } => query::list(
-            session,
-            scope.as_deref(),
-            status.as_deref(),
-            parent.as_deref(),
-        ),
+        TaskCommand::List(args) => query::list(session, args),
         TaskCommand::Show { id, history } => query::show(
             session,
             id,
@@ -56,6 +47,7 @@ pub fn run(session: &Session, command: &TaskCommand) -> Result<Output> {
             checks,
         ),
         TaskCommand::Close { id, outcome } => mutate::close(session, id, outcome.as_deref()),
+        TaskCommand::Graph { program } => query::program_tree(session, program),
         TaskCommand::Plan {
             id,
             steps,

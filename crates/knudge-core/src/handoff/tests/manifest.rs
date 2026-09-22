@@ -2,10 +2,11 @@
 
 use crate::handoff::RewindMode;
 use crate::handoff::manifest::{TrustTier, manifest_text, rank, tier_of, trust_score};
-use crate::schema::{Classification, NoteType};
+use crate::schema::{Classification, EdgeKind, NoteType, Scope};
+use crate::write::Draft;
 use crate::{Error, Result};
 
-use super::{built, classified, confirmed, note};
+use super::{NOW, built, classified, confirmed, note};
 
 #[test]
 fn confirmed_note_is_star() -> Result<()> {
@@ -79,5 +80,31 @@ fn files_mode_filters_by_anchor() -> Result<()> {
         items.first().map(|item| item.statement.as_str()),
         Some("ancorada")
     );
+    Ok(())
+}
+
+#[test]
+fn files_mode_includes_program_subtree() -> Result<()> {
+    let mut child = Draft::new(NoteType::Task, "story");
+    child.scope = Some(Scope::Task);
+    let child = child.to_note(NOW)?;
+    let child_id = child.id()?.to_string();
+    let mut epic = Draft::new(NoteType::Container, "programa");
+    epic.scope = Some(Scope::Epic);
+    epic.anchors = vec!["plan/foo.md".to_string()];
+    epic.edges = vec![(EdgeKind::ResultsIn, child_id.clone())];
+    let epic = epic.to_note(NOW)?;
+    let epic_id = epic.id()?.to_string();
+
+    let notes = [epic, child];
+    let (index, graph) = built(&notes)?;
+    let items = rank(
+        &index,
+        &graph,
+        &RewindMode::Files(vec!["plan/foo.md".to_string()]),
+    );
+    let ids: Vec<&str> = items.iter().map(|item| item.id.as_str()).collect();
+    assert!(ids.contains(&epic_id.as_str()), "sem o épico: {ids:?}");
+    assert!(ids.contains(&child_id.as_str()), "sem a subárvore: {ids:?}");
     Ok(())
 }

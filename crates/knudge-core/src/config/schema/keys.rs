@@ -132,6 +132,11 @@ pub const KEYS: &[KeySpec] = &[
         default: Default::Text("declarative"),
     },
     KeySpec {
+        key: "programs.glob",
+        kind: Kind::Text,
+        default: Default::Text("plan/*.md"),
+    },
+    KeySpec {
         key: "embeddings.enabled",
         kind: Kind::Bool,
         default: Default::Bool(true),

@@ -3,6 +3,7 @@
 mod dedup;
 mod idempotent;
 mod lifecycle;
+mod outcome;
 mod reconcile;
 mod strict;
 mod update;

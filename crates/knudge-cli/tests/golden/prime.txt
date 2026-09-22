@@ -10,6 +10,7 @@ ESCRITA (duas fases, idempotente por conteúdo):
      kd write --type <T> "<...>" [--body -|TXT] [--tag T...] [--anchors PATH...]
      kd write --update <ID> "<...>"    # versiona, não sobrescreve
      kd write --link <FROM:ARESTA:TO>    # aresta explícita
+     kd write --outcome <S> <ID>         # evidência: success|partial|failure|abandoned
      --type task|container é rejeitado: use kd task
 
 PESQUISA (uma tool):
@@ -23,7 +24,8 @@ ESTADO / HANDOFF:
   kd rewind [--scope CONTAINER] [--files PATH...] [--budget N] [--resume ID]
   Orçamento ceil(len/4) tokens (default 4000); emite context_id retomável 1:1.
 
-TAREFAS: kd task new|list|show|update|close|plan  (plan ⊃ epic ⊃ issue ⊃ task, máx. 4)
+TAREFAS: kd task new|list|show|update|close|graph|plan  (plan ⊃ epic ⊃ issue ⊃ task, máx. 4)
+  kd task list --ready|--blocked [--explain]   kd task graph --program plan/<slug>.md
 MANUTENÇÃO: kd maintenance doctor|audit|compact|eval|index|learn  (learn/compact só propõem)
 CICLO DE VIDA: kd forget <ID>  (soft; --restore; --purge após retenção)
 CONFIG: kd config get|set|unset|list [--global]  (strict é config, não flag)

@@ -20,12 +20,15 @@
 | `kd ask` | `id\|statement\|score\|why` (1/linha) | `{hits[], warnings[]}` | `io` (5) se índice ilegível | nada (read-only) | `retrieval::tests::recall`, `cli::init_write_ask_roundtrip` |
 | `kd ask --id <id>` | corpo da nota | `{notes[]}` | `not_found`/`io` (3/5) se id ausente | nada | `golden::json_error_envelope_matches_golden` |
 | `kd ask --around <id>` | subgrafo formatado | `{nodes[], edges[]}` | `not_found` (3) | nada | `graph::tests::*` |
+| `kd ask --anchor <path...>` | `id\|statement\|score\|why` das notas ancoradas (só o path basta; repetível, aceita vírgula) | `{hits[]}` | — (vazio se nada casa) | nada (read-only) | `retrieval::tests::recall::anchor_channel_recalls_with_empty_text`, `cli::ask_anchor_finds_note_without_query`, `cli::ask_anchor_accepts_comma_separated_and_repeated` |
 | `kd write` | `created\|merged\|rejected\|unchanged\|<id>\|r<N>` | `{action, id, revision}` | `schema` (8)/`invalid_input` (2) | nota nova em `notas/<id>.md` + evento `write` | `write::tests::*`, `cli::init_write_ask_roundtrip` |
 | `kd write --update <id>` | `updated\|<id>\|r<N>` | `{action, id, revision}` | `conflict` (4) se id inexistente/`forgotten` | nova revisão + evento `update` | `write::tests::update` |
 | `kd write --link` | `linked\|<aresta>\|<from>-><to>` | `{edge, from, to}` | `invalid_input` (2) se id inválido | atualiza aresta no frontmatter + evento `link` | `write::tests::lifecycle` |
 | `kd write --dry-run` | igual ao write | igual, sem persistir | idem | **nada** | `write::tests::dedup` |
-| `kd task new` | `task_xxx` | `{id, scope, status}` | `invalid_input` (2) se `scope` inválido/profundidade > 4 | `notas/<id>.md` (`type=task`/`container`) + evento | `task::tests::hierarchy` |
-| `kd task list` | `id\|scope\|status\|statement` | `{tasks[]}` | — | nada | `task::tests::hierarchy` |
+| `kd write --outcome <status> <ID>` | `outcome\|<id>\|<status>\|r<N>` | `{action, id, outcome, revision}` | `not_found` (3) se id ausente; `invalid_input` (2) se combinado com `--update`/`--link`/`--dry-run` | anexa `outcomes[]` + evento `outcome` | `write::tests::outcome::*`, `cli::write_outcome_on_note_returns_outcome_action` |
+| `kd task new [--source F]` | `task_xxx` | `{id, scope, status}` | `invalid_input` (2) se `scope` inválido/profundidade > 4 | `notas/<id>.md` (`type=task`/`container`) + evento | `task::tests::hierarchy` |
+| `kd task list [--ready\|--blocked [--explain]]` | `id\|scope\|status\|statement[\|motivo]` | `{tasks[]}` | `invalid_input` (2) se `--ready`+`--blocked` ou `--explain` sem `--blocked` | nada | `retrieval::tests::views::block_reason_*`, `cli::task_list_ready_blocked_and_explain` |
+| `kd task graph --program <path>` | path + `id\|scope\|status\|statement` indentado | `{program, root, nodes[]}` | `not_found` (3) se sem Épico-raiz | nada (read-only) | `task::tests::program::*`, `cli::task_graph_program_renders_subtree` |
 | `kd task show` | nota + histórico | `{task, history[]}` | `not_found` (3) | nada | `task::tests::lifecycle` |
 | `kd task update` | `updated\|<id>` | `{id, changed[]}` | `invalid_input` (2) | revisão + evento | `task::tests::lifecycle` |
 | `kd task close` | `closed\|<id>\|<outcome>` | `{id, outcome, evidence[]}` | `invalid_input` (2) sem evidência | grava `outcomes[]`/`evidence` | `task::tests::lifecycle` |

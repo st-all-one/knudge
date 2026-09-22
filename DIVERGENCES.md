@@ -31,6 +31,9 @@
 | 20 | **Embeddings** | índice servir vetores de outro modelo | cabeçalho `meta` (provider/model/revision/dimensões) invalida ao mudar (D79) | `embeddings::tests::meta`, `index` |
 | 21 | **Framing MCP** | delimitador de mensagem divergir entre cliente e servidor | JSON-RPC 2.0 **uma linha por mensagem** (sem `Content-Length`); parse inválido responde com `id: null`; `EPIPE`/EOF → exit 0 (E14/D71/D73) | `tests::transport::*`, `tests/stdio.rs::handshake_and_tools_over_stdio` |
 | 22 | **Glob de âncora bidirecional** | `ask --anchor` voltar vazio sem query textual e ignorar âncoras-glob | `--anchor` é **repetível e aceita vírgula**, alimenta o **canal** de âncoras (D81) e `Filter.anchors` casa nas **duas direções** (pedido↔âncora) | `retrieval::tests::filter::anchor_filter_accepts_note_glob_matching_requested_path`, `retrieval::tests::recall::anchor_channel_recalls_with_empty_text`, `cli::ask_anchor_finds_note_without_query`, `cli::ask_anchor_accepts_comma_separated_and_repeated` |
+| 23 | **Ordem da árvore do programa** | `task graph`/`rewind --files` divergirem entre execuções | `subtree` em pré-ordem com filhos `id asc`; `program_roots` ordenados (D119) | `task::tests::program::subtree_is_deterministic_preorder` |
+| 24 | **Programa ↔ Épico-raiz** | épico sem programa ou programa órfão passarem batido | check `program-anchor` (warn): **menor id** no match; `programs.glob` define o programa (D119) | `health::tests::doctor::program_anchor_reports_epic_without_program`, `health::tests::doctor::program_anchor_reports_orphan_program` |
+| 25 | **Motivo de bloqueio** | `--explain` escolher dependência não-determinística | **menor id** pendente na travessia transitiva (`blocked_by`); ciclo e `not_before` têm precedência (D104) | `retrieval::tests::views::block_reason_reports_smallest_pending_dependency` |
 
 ## Notas
 

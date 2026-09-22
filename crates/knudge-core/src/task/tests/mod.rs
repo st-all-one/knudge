@@ -2,6 +2,7 @@
 
 mod hierarchy;
 mod lifecycle;
+mod program;
 mod submit;
 
 use crate::Result;

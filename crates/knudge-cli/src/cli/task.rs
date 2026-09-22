@@ -8,17 +8,7 @@ pub enum TaskCommand {
     /// Cria uma tarefa.
     New(TaskNewArgs),
     /// Lista tarefas.
-    List {
-        /// Filtro por escopo.
-        #[arg(long, value_name = "ESCOPO")]
-        scope: Option<String>,
-        /// Filtro por status.
-        #[arg(long, value_name = "STATUS")]
-        status: Option<String>,
-        /// Filtro por pai.
-        #[arg(long, value_name = "ID")]
-        parent: Option<String>,
-    },
+    List(TaskListArgs),
     /// Mostra uma tarefa.
     Show {
         /// Id.
@@ -55,6 +45,12 @@ pub enum TaskCommand {
         #[arg(long, value_name = "OUTCOME")]
         outcome: Option<String>,
     },
+    /// Renderiza a árvore de um programa externo (`plan/*.md`) — D119.
+    Graph {
+        /// Arquivo do programa.
+        #[arg(long, value_name = "PATH")]
+        program: String,
+    },
     /// Ciclo de vida do plano (`submit`/`adopt`/`reorder`/`release`/`review`).
     Plan {
         /// Id do plano.
@@ -81,6 +77,30 @@ pub enum TaskCommand {
     },
 }
 
+/// Argumentos de `kd task list`.
+#[allow(clippy::struct_excessive_bools, reason = "flags de CLI")]
+#[derive(Debug, Args)]
+pub struct TaskListArgs {
+    /// Filtro por escopo.
+    #[arg(long, value_name = "ESCOPO")]
+    pub scope: Option<String>,
+    /// Filtro por status.
+    #[arg(long, value_name = "STATUS")]
+    pub status: Option<String>,
+    /// Filtro por pai.
+    #[arg(long, value_name = "ID")]
+    pub parent: Option<String>,
+    /// Só tarefas prontas (dependências resolvidas e `not_before` vencido).
+    #[arg(long)]
+    pub ready: bool,
+    /// Só tarefas bloqueadas.
+    #[arg(long)]
+    pub blocked: bool,
+    /// Com `--blocked`, acrescenta o motivo (`blocked_by=`/`not_before=`/`cycle`).
+    #[arg(long)]
+    pub explain: bool,
+}
+
 /// Argumentos de `kd task new`.
 #[derive(Debug, Args)]
 pub struct TaskNewArgs {
@@ -102,6 +122,9 @@ pub struct TaskNewArgs {
     /// Âncoras.
     #[arg(long, value_name = "PATH")]
     pub anchors: Vec<String>,
+    /// Proveniência (`source`) — ex.: o arquivo do programa.
+    #[arg(long, value_name = "FONTE")]
+    pub source: Option<String>,
     /// Dependências (`depends_on`).
     #[arg(long = "depends-on", value_name = "ID")]
     pub depends_on: Vec<String>,

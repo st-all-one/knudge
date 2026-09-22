@@ -304,6 +304,9 @@
 | D99 | Catálogo de validators em **TOML** (`validators.toml`), com `globals` no topo e resolução de `checks` em três fontes. |
 | D100 | `not_before` como 28ª chave canônica; agendamento ortogonal à expiração; views dinâmicas o consideram, o `prime` estático não. |
 | D101 | Embeddings via **HTTP local** (OpenAI-compatible); `provider = http\|lightweight\|none`; sem inferência in-process. |
+| D103 | `outcomes[]` vale para **qualquer** nota; `kd write --outcome <status> <ID>`; a confirmação continua **derivada** (D87). Evento `op=outcome`. |
+| D104 | Views `ready`/`blocked` como **modos** de `task list` (`--ready`/`--blocked`/`--explain`); motivo de bloqueio derivado (`blocked_by`/`not_before`/`cycle`). |
+| D119 | **Programa = arquivo externo `plan/*.md` ancorado ao Épico-raiz** (`scope=epic`, sem pai); `scope=plan` deprecado; `kd task graph --program`; check `program-anchor` no `doctor`; config `programs.glob`; `--source` em `task new`. |
 
 ## Pendências / pontos de atenção
 

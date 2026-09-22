@@ -1,9 +1,10 @@
 //! `doctor [--fix]`: diagnóstico e reparo do reversível (D19, E09-T04).
 //!
-//! Onze checks determinísticos cobrem schema/TOON, integridade, ciclos, âncoras, duplicatas,
-//! locks stale, config, `body_hash` desatualizado, `eventos.jsonl` malformado, **divergência
-//! canônico↔derivado** (D84) e o tamanho do índice vetorial/cache (R14). `--fix` corrige só o
-//! **reversível** e é **idempotente**: rodar duas vezes não muda nada na segunda.
+//! Doze checks determinísticos cobrem schema/TOON, integridade, ciclos, âncoras,
+//! **programas externos** (D119), duplicatas, locks stale, config, `body_hash` desatualizado,
+//! `eventos.jsonl` malformado, **divergência canônico↔derivado** (D84) e o tamanho do índice
+//! vetorial/cache (R14). `--fix` corrige só o **reversível** e é **idempotente**: rodar duas
+//! vezes não muda nada na segunda.
 
 mod checks;
 mod fix;
@@ -24,7 +25,8 @@ use crate::write::dedup::DedupThresholds;
 use super::tolerant::read_tolerant;
 use checks::{
     anchors_check, body_hash_check, config_check, cycles_check, derived_check, duplicates_check,
-    embeddings_check, events_check, integrity_check, locks_check, schema_check,
+    embeddings_check, events_check, integrity_check, locks_check, program_anchor_check,
+    schema_check,
 };
 
 /// Identificador estável de um check do `doctor`.
@@ -38,6 +40,8 @@ pub enum CheckId {
     Cycles,
     /// Âncoras quebradas/stale.
     Anchors,
+    /// Épico-raiz ↔ programa externo (`plan/*.md`) — D119.
+    ProgramAnchor,
     /// Quase-duplicatas.
     Duplicates,
     /// Locks stale.
@@ -56,11 +60,12 @@ pub enum CheckId {
 
 impl CheckId {
     /// Todos os checks, na ordem de exibição.
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 12] = [
         Self::Schema,
         Self::Integrity,
         Self::Cycles,
         Self::Anchors,
+        Self::ProgramAnchor,
         Self::Duplicates,
         Self::Locks,
         Self::Config,
@@ -78,6 +83,7 @@ impl CheckId {
             Self::Integrity => "integrity",
             Self::Cycles => "cycles",
             Self::Anchors => "anchors",
+            Self::ProgramAnchor => "program-anchor",
             Self::Duplicates => "duplicates",
             Self::Locks => "locks",
             Self::Config => "config",
@@ -155,7 +161,7 @@ pub struct DoctorInput<'a> {
     pub thresholds: &'a DedupThresholds,
 }
 
-/// Executa os onze checks (somente leitura).
+/// Executa os doze checks (somente leitura).
 ///
 /// # Errors
 /// Propaga erros de I/O de listagem/leitura do derivado.
@@ -168,6 +174,7 @@ pub fn doctor(input: &DoctorInput<'_>) -> Result<DoctorReport> {
         integrity_check(input),
         cycles_check(input),
         anchors_check(input)?,
+        program_anchor_check(input, &read.notes)?,
         duplicates_check(&expected, input),
         locks_check(input)?,
         config_check(input),

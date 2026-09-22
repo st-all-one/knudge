@@ -4,7 +4,7 @@ mod maintenance;
 mod task;
 
 pub use maintenance::{ConfigCommand, MaintenanceCommand, SelfCommand};
-pub use task::{TaskCommand, TaskNewArgs};
+pub use task::{TaskCommand, TaskListArgs, TaskNewArgs};
 
 use clap::{Args, Parser, Subcommand};
 
@@ -245,6 +245,12 @@ pub struct WriteArgs {
     /// Simula sem gravar.
     #[arg(long)]
     pub dry_run: bool,
+    /// Anexa um resultado (`success|partial|failure|abandoned`) a uma nota existente.
+    #[arg(long, value_name = "OUTCOME")]
+    pub outcome: Option<String>,
+    /// Texto do resultado (usado com `--outcome`).
+    #[arg(long, value_name = "TXT")]
+    pub note: Option<String>,
 }
 
 /// Argumentos de `kd forget`.

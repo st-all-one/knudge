@@ -164,6 +164,21 @@ fn write_anchored(
     Ok(id)
 }
 
+/// Cria uma tarefa via CLI e devolve o id.
+fn task_new(dir: &Path, args: &[&str]) -> Result<String, Box<dyn std::error::Error>> {
+    let mut full = vec!["--json"];
+    full.extend_from_slice(args);
+    let out = run_in(dir, &full)?;
+    assert!(out.status.success(), "task new falhou: {:?}", out.stderr);
+    let id = json(&out)?
+        .get("data")
+        .and_then(|data| data.get("id"))
+        .and_then(|id| id.as_str())
+        .ok_or("task sem id")?
+        .to_string();
+    Ok(id)
+}
+
 #[test]
 fn ask_anchor_finds_note_without_query() -> TestResult {
     let dir = temp_project();
@@ -231,6 +246,146 @@ fn ask_anchor_accepts_comma_separated_and_repeated() -> TestResult {
         text.contains(&second_id),
         "repeat não achou {second_id}: {text}"
     );
+    Ok(())
+}
+
+#[test]
+fn write_outcome_on_note_returns_outcome_action() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let id = write_anchored(&dir, "o cache usa body_hash", "src/cache.rs")?;
+
+    let out = run_in(
+        &dir,
+        &[
+            "--json",
+            "write",
+            "--outcome",
+            "success",
+            id.as_str(),
+            "--note",
+            "confirmado",
+        ],
+    )?;
+    assert!(out.status.success(), "outcome falhou: {:?}", out.stderr);
+    let envelope = json(&out)?;
+    let data = envelope.get("data").ok_or("sem data")?;
+    assert_eq!(data.get("action").and_then(|v| v.as_str()), Some("outcome"));
+    assert_eq!(
+        data.get("outcome").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    assert_eq!(
+        data.get("revision").and_then(serde_json::Value::as_i64),
+        Some(2)
+    );
+    Ok(())
+}
+
+#[test]
+fn task_list_ready_blocked_and_explain() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let epic = task_new(&dir, &["task", "new", "Programa", "--scope", "epic"])?;
+    let issue = task_new(
+        &dir,
+        &[
+            "task", "new", "Story", "--scope", "issue", "--parent", &epic,
+        ],
+    )?;
+    let ready = task_new(
+        &dir,
+        &[
+            "task", "new", "Pronta", "--scope", "task", "--parent", &issue,
+        ],
+    )?;
+    let blocked = task_new(
+        &dir,
+        &[
+            "task",
+            "new",
+            "Bloqueada",
+            "--scope",
+            "task",
+            "--parent",
+            &issue,
+            "--depends-on",
+            &ready,
+        ],
+    )?;
+
+    let out = run_in(&dir, &["task", "list", "--ready"])?;
+    assert!(out.status.success(), "list falhou: {:?}", out.stderr);
+    let text = String::from_utf8(out.stdout)?;
+    assert!(
+        text.contains(ready.as_str()),
+        "ready não listou {ready}: {text}"
+    );
+    assert!(
+        !text.contains(blocked.as_str()),
+        "ready listou bloqueada {blocked}: {text}"
+    );
+
+    let out = run_in(&dir, &["task", "list", "--blocked", "--explain"])?;
+    assert!(out.status.success(), "list falhou: {:?}", out.stderr);
+    let text = String::from_utf8(out.stdout)?;
+    assert!(
+        text.contains(blocked.as_str()),
+        "blocked não listou {blocked}: {text}"
+    );
+    assert!(
+        text.contains(&format!("blocked_by={ready}")),
+        "explain sem motivo: {text}"
+    );
+
+    let out = run_in(&dir, &["task", "list", "--explain"])?;
+    assert_eq!(out.status.code(), Some(2));
+    Ok(())
+}
+
+#[test]
+fn task_graph_program_renders_subtree() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let root = task_new(
+        &dir,
+        &[
+            "task",
+            "new",
+            "Programa",
+            "--scope",
+            "epic",
+            "--anchors",
+            "plan/foo.md",
+            "--source",
+            "plan/foo.md",
+        ],
+    )?;
+    let story = task_new(
+        &dir,
+        &[
+            "task", "new", "Story", "--scope", "issue", "--parent", &root,
+        ],
+    )?;
+
+    let out = run_in(&dir, &["task", "graph", "--program", "plan/foo.md"])?;
+    assert!(out.status.success(), "graph falhou: {:?}", out.stderr);
+    let text = String::from_utf8(out.stdout)?;
+    assert!(
+        text.contains("plan/foo.md"),
+        "sem o path do programa: {text}"
+    );
+    assert!(text.contains(&root), "sem o Épico-raiz {root}: {text}");
+    assert!(text.contains(&story), "sem a Story {story}: {text}");
+
+    let out = run_in(&dir, &["task", "graph", "--program", "plan/nao-existe.md"])?;
+    assert_eq!(out.status.code(), Some(3));
     Ok(())
 }
 
