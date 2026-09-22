@@ -40,17 +40,45 @@ pub trait Env: Send + Sync {
     fn current_dir(&self) -> Result<PathBuf>;
 }
 
+/// Saída de um comando `git`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GitOutput {
+    /// Código de saída (`-1` quando morto por sinal).
+    pub status: i32,
+    /// Bytes de stdout.
+    pub stdout: Vec<u8>,
+    /// Bytes de stderr.
+    pub stderr: Vec<u8>,
+}
+
+impl GitOutput {
+    /// `stdout` como texto, com espaços das pontas removidos.
+    #[must_use]
+    pub fn stdout_text(&self) -> String {
+        String::from_utf8_lossy(&self.stdout).trim().to_string()
+    }
+}
+
 /// Consultas de Git usadas pelas regras de worktree/persistência (E04).
 pub trait Git: Send + Sync {
     /// `true` se o diretório atual está dentro de um repositório git.
     fn is_repo(&self) -> bool;
     /// Caminho de `git rev-parse --git-common-dir`, quando houver.
     fn common_dir(&self) -> Option<PathBuf>;
+    /// `git rev-parse --show-toplevel` do worktree atual, quando houver.
+    fn top_level(&self) -> Option<PathBuf>;
+    /// Raiz do superprojeto (`git rev-parse --show-superproject-working-tree`), se houver.
+    fn superproject_root(&self) -> Option<PathBuf>;
     /// Saída de `git status --porcelain` (uma linha por arquivo).
     ///
     /// # Errors
     /// Retorna erro se o comando `git` não puder ser executado.
     fn status_porcelain(&self) -> Result<Vec<String>>;
+    /// Executa `git <args>` no diretório do adaptador (sem shell — R12).
+    ///
+    /// # Errors
+    /// Retorna `ErrorKind::Io` se o processo não puder ser iniciado.
+    fn run(&self, args: &[&str]) -> Result<GitOutput>;
 }
 
 /// Resultado da execução de um hook.

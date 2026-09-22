@@ -221,6 +221,16 @@
 
 ---
 
+## U. Config e worktree (D97)
+
+> Fecha o contrato do codec TOML, do `sync` e do `onboard` (implementado em E04).
+
+| # | Decisão final |
+|---|---|
+| **D97** ✅ | **TOML subset próprio** (sem dependência externa): aceita comentários, `[seção]`/`[seção.sub]`, chaves bare/citadas pontilhadas, strings básicas/literais de **uma linha**, inteiros com `_`, floats, booleanos e listas (inclusive multilinha). Rejeita `[[...]]`, strings multilinha e `null` com erro `config`. A leitura **preserva a ordem** (diff mínimo) e a escrita é canônica (D63). `sync` executa `git -C <raiz>` (guard de worktree, D32); `onboard` degrada para defaults quando não há config global. |
+
+---
+
 ## Impactos no panorama (já propagados)
 
 | Decisão | Onde mudou |
@@ -248,6 +258,7 @@
 | D94 | `strict` vira config de projeto (`[behavior] strict`), sem flag. |
 | D95 | Fixa o hash curto (SHA-256→u32), a chave do `id` e a gramática TOON v1 (`TOON.md`). |
 | D96 | Fixa o registro de evento (`id` derivado + dedup on-read), rotação por tamanho e a semântica de `revision`. |
+| D97 | Fixa o subset TOML (ordem preservada/canônica), o guard `git -C` do `sync` e a degradação do `onboard` sem global. |
 
 ## Pendências / pontos de atenção
 

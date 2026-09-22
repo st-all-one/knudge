@@ -13,6 +13,7 @@
 #![warn(missing_docs)]
 
 pub mod adapters;
+pub mod config;
 pub mod embeddings;
 pub mod error;
 pub mod git;
@@ -26,6 +27,7 @@ pub mod store;
 pub mod time;
 pub mod toon;
 
+pub use config::{Config, ConfigValue};
 pub use error::{Error, ErrorKind, Result, lock_or_recover};
 pub use store::{Event, EventLog, Note, Store};
 pub use time::Timestamp;

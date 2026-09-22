@@ -133,6 +133,7 @@ Um épico só fecha quando:
 | D76–D78, D82, D84, D86–D88, D91–D92 | E03, E08, E09, E13 |
 | D95 (hash/IDs, gramática TOON) | E02 |
 | D96 (registro de evento, rotação, `revision`) | E03 |
+| D97 (subset TOML, guard `git -C`, `onboard`) | E04 |
 
 ---
 

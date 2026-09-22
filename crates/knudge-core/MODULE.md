@@ -17,7 +17,8 @@ existem no mesmo crate, mas o domínio **nunca** as importa — só as portas.
 | `toon` | Parser/emissor TOON próprio (E02). |
 | `jsonl` | Leitura/escrita JSONL e codec JSON canônico (E03). |
 | `store` | Notas, eventos, lock, rebuild, purge e sweep (E03). |
-| `git` | Regras de worktree/persistência (E04). |
+| `config` | Config em dois níveis, schema e codec TOML próprio (E04). |
+| `git` | Worktree principal, `info/exclude`, `AGENTS.md`, `sync` (E04). |
 | `retrieval` | BM25, âncoras, RRF (E06). |
 | `lifecycle` | Decay, confiança derivada, clusters (E10). |
 | `embeddings` | Contrato do provedor plugável (E11). |

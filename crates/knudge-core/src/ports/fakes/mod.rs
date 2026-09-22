@@ -1,6 +1,6 @@
 //! Fakes determinísticos das portas, para testes sem tocar o sistema operacional (D65).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -14,7 +14,7 @@ pub mod fs;
 pub use fs::{FaultyFs, MemFs};
 
 use super::logger::{Level, LogRecord, Logger};
-use super::{Clock, Env, Git, HookOutput, HookRunner, Rng};
+use super::{Clock, Env, Git, GitOutput, HookOutput, HookRunner, Rng};
 
 /// Relógio fixo, ajustável pelo teste.
 #[derive(Debug)]
@@ -113,15 +113,56 @@ impl Env for FakeEnv {
     }
 }
 
-/// Git falso.
-#[derive(Debug, Clone, Default)]
+/// Git falso: campos de consulta + registro de comandos e resultados enfileirados.
+#[derive(Debug)]
 pub struct FakeGit {
     /// Se está em um repositório.
     pub repo: bool,
     /// `git-common-dir` simulado.
     pub common: Option<PathBuf>,
+    /// `show-toplevel` simulado.
+    pub top: Option<PathBuf>,
+    /// Raiz do superprojeto simulada (submódulo).
+    pub superproject: Option<PathBuf>,
     /// Linhas de `status --porcelain`.
     pub status: Vec<String>,
+    /// Comandos registrados (sem o prefixo `git`).
+    commands: Mutex<Vec<Vec<String>>>,
+    /// Resultados a devolver em `run`, em ordem.
+    outputs: Mutex<VecDeque<GitOutput>>,
+}
+
+impl FakeGit {
+    /// Cria um fake vazio (fora de repositório).
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Enfileira o resultado do próximo `run`.
+    pub fn push_output(&self, output: GitOutput) {
+        lock_or_recover(&self.outputs).push_back(output);
+    }
+
+    /// Comandos executados até agora.
+    #[must_use]
+    pub fn commands(&self) -> Vec<Vec<String>> {
+        lock_or_recover(&self.commands).clone()
+    }
+}
+
+impl Default for FakeGit {
+    fn default() -> Self {
+        Self {
+            repo: false,
+            common: None,
+            top: None,
+            superproject: None,
+            status: Vec::new(),
+            commands: Mutex::new(Vec::new()),
+            outputs: Mutex::new(VecDeque::new()),
+        }
+    }
 }
 
 impl Git for FakeGit {
@@ -133,8 +174,31 @@ impl Git for FakeGit {
         self.common.clone()
     }
 
+    fn top_level(&self) -> Option<PathBuf> {
+        self.top.clone()
+    }
+
+    fn superproject_root(&self) -> Option<PathBuf> {
+        self.superproject.clone()
+    }
+
     fn status_porcelain(&self) -> Result<Vec<String>> {
-        Ok(self.status.clone())
+        Ok(if self.repo {
+            self.status.clone()
+        } else {
+            Vec::new()
+        })
+    }
+
+    fn run(&self, args: &[&str]) -> Result<GitOutput> {
+        lock_or_recover(&self.commands).push(args.iter().map(|a| (*a).to_string()).collect());
+        Ok(lock_or_recover(&self.outputs)
+            .pop_front()
+            .unwrap_or(GitOutput {
+                status: 0,
+                stdout: Vec::new(),
+                stderr: Vec::new(),
+            }))
     }
 }
 

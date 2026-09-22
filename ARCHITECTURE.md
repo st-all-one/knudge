@@ -38,7 +38,7 @@ conveniência, mas só `cli`/`mcp` o importam.
 | `Rng` | aleatoriedade (só jitter) | `SeqRng` |
 | `Env` | variáveis e argumentos | `FakeEnv` |
 | `Fs` | leitura/escrita atômica, append, create-exclusive, rename, `fsync`, mtime | `MemFs`, `FaultyFs` |
-| `Git` | worktree, status, `--common-dir` | `FakeGit` |
+| `Git` | worktree, status e execução de `git` sem shell | `FakeGit` |
 | `HookRunner` | hooks externos (sem shell) | `NoopHookRunner` |
 | `Logger` | log estruturado (stderr) | `RecordingLogger` |
 
@@ -51,11 +51,12 @@ conveniência, mas só `cli`/`mcp` o importam.
 | `logging` | redação de segredos (R22) | E01 |
 | `ports` | traits + fakes | E01 |
 | `adapters` | implementações `std` | E01+ |
+| `config` | config em dois níveis, schema, codec TOML | E04 |
 | `schema` | schema canônico, tipos, IDs | E02 |
 | `toon` | parser/emissor TOON | E02 |
 | `jsonl` | leitura/escrita JSONL + codec JSON canônico | E03 |
 | `store` | notas (`notas/`), eventos, lock, rebuild, purge, sweep | E03 |
-| `git` | worktree, persistência, `sync` | E04 |
+| `git` | worktree principal, `info/exclude`, `AGENTS.md`, `sync` | E04 |
 | `retrieval` | BM25, âncoras, RRF | E06 |
 | `lifecycle` | decay, confiança derivada, clusters | E10 |
 | `embeddings` | provedor plugável e fila lazy | E11 |
@@ -80,7 +81,27 @@ conveniência, mas só `cli`/`mcp` o importam.
 `revision` é **contador de versões** (default 1; cada `update` incrementa) — sinal de
 volatilidade, não CAS (D48).
 
-## 6. Fluxo de uma operação
+## 6. Configuração e worktree (E04)
+
+| Nível | Caminho | Papel |
+|---|---|---|
+| Global | `$XDG_CONFIG_HOME/local/knudge/config.toml` (ou `~/.config/…`) | template/default curado |
+| Projeto | `<raiz>/.knudge/config.toml` | efetivo, **precedência** (D61) |
+
+- **Resolução:** `<raiz>` = worktree principal (`git rev-parse --git-common-dir`); worktrees
+  ligados compartilham `.knudge/`; submódulo resolve no próprio top-level (D29).
+- **Instanciação:** `onboard` clona o global **literalmente**; não sobrescreve projeto sem
+  `--force` (D62); sem global, usa defaults.
+- **Segredos:** vivem só no global (D91); o projeto é sanitizado em `Config::effective`.
+- **Codec:** subset TOML próprio; leitura preserva ordem (diff mínimo), escrita canônica (D97).
+- **Persistência (D34):** `persist_in_project=true` versiona `notas/`/`eventos/` e exclui o
+  derivado via `.git/info/exclude` (nunca `.gitignore` — D30); `false` exclui `.knudge/` inteiro.
+- **`sync` (D32):** `git -C <raiz> add .knudge/notas .knudge/eventos` + commit com mensagem
+  gerada do último evento; `merge=union` em `events*.jsonl` (D31).
+- **`AGENTS.md` (D60):** bloco entre `<!-- knudge:start -->`/`<!-- knudge:end -->` com version
+  marker; reexecutar não duplica nem sobrescreve o conteúdo do usuário.
+
+## 7. Fluxo de uma operação
 
 ```
 kd <verbo>
@@ -91,7 +112,7 @@ kd <verbo>
   → exit code = ErrorKind::exit_code() (101 reservado a panic)
 ```
 
-## 7. Invariantes de engenharia
+## 8. Invariantes de engenharia
 
 - `#![forbid(unsafe_code)]` em `core`/`cli`/`mcp` (R01).
 - Sem `Rc`/`RefCell` no core; estado compartilhado via `Arc<Mutex<_>>` (R03).
@@ -99,10 +120,10 @@ kd <verbo>
 - Arquivos de produção ≤ 300 linhas (D92).
 - `clippy -D warnings` lendo `clippy.toml` (R44); perfis e supply chain (R40–R43).
 
-## 8. Referências
+## 9. Referências
 
 - Visão: `plan/00_panorama.md`
-- Decisões: `plan/03_decisoes-fechadas.md` (D01–D96)
+- Decisões: `plan/03_decisoes-fechadas.md` (D01–D97)
 - Contrato de bytes: `TOON.md`
 - Políticas de engenharia: `plan/implementation/14_revisao_tecnica.md` (R01–R44)
 - Superfície CLI: `plan/implementation/16_cli_surface.md`

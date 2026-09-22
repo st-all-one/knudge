@@ -9,6 +9,10 @@ use crate::error::lock_or_recover;
 use crate::ports::Fs;
 use crate::{Error, Result};
 
+mod faulty;
+
+pub use faulty::FaultyFs;
+
 /// Entrada de arquivo em memória.
 #[derive(Debug, Clone)]
 struct Entry {
@@ -21,6 +25,8 @@ struct Entry {
 pub struct MemFs {
     /// Arquivos por caminho.
     files: Mutex<BTreeMap<PathBuf, Entry>>,
+    /// Diretórios criados explicitamente (diretórios vazios contam).
+    dirs: Mutex<BTreeSet<PathBuf>>,
 }
 
 impl MemFs {
@@ -108,6 +114,19 @@ impl Fs for MemFs {
     }
 
     fn rename(&self, from: &Path, to: &Path) -> Result<()> {
+        {
+            let mut dirs = lock_or_recover(&self.dirs);
+            let keys: Vec<PathBuf> = dirs
+                .iter()
+                .filter(|path| *path == from || path.starts_with(from))
+                .cloned()
+                .collect();
+            for key in keys {
+                dirs.remove(&key);
+                let rest = key.strip_prefix(from).unwrap_or(&key);
+                dirs.insert(to.join(rest));
+            }
+        }
         let mut files = lock_or_recover(&self.files);
         if let Some(entry) = files.remove(from) {
             files.insert(to.to_path_buf(), entry);
@@ -133,9 +152,10 @@ impl Fs for MemFs {
 
     fn list_dir(&self, path: &Path) -> Result<Vec<PathBuf>> {
         let files = lock_or_recover(&self.files);
+        let dirs = lock_or_recover(&self.dirs);
         let mut out: BTreeSet<PathBuf> = BTreeSet::new();
-        for key in files.keys() {
-            // Diretórios são implícitos: projeta o primeiro componente sob `path`.
+        // Diretórios são implícitos: projeta o primeiro componente sob `path`.
+        for key in files.keys().chain(dirs.iter()) {
             if let Ok(rest) = key.strip_prefix(path)
                 && let Some(first) = rest.components().next()
             {
@@ -147,15 +167,24 @@ impl Fs for MemFs {
 
     fn exists(&self, path: &Path) -> bool {
         let files = lock_or_recover(&self.files);
-        files.contains_key(path) || files.keys().any(|p| p.starts_with(path))
+        files.contains_key(path)
+            || files.keys().any(|p| p.starts_with(path))
+            || lock_or_recover(&self.dirs).contains(path)
     }
 
     fn is_dir(&self, path: &Path) -> bool {
         let files = lock_or_recover(&self.files);
         files.keys().any(|p| p != path && p.starts_with(path))
+            || lock_or_recover(&self.dirs).contains(path)
     }
 
-    fn create_dir_all(&self, _path: &Path) -> Result<()> {
+    fn create_dir_all(&self, path: &Path) -> Result<()> {
+        let mut dirs = lock_or_recover(&self.dirs);
+        let mut current = PathBuf::new();
+        for component in path.components() {
+            current.push(component);
+            dirs.insert(current.clone());
+        }
         Ok(())
     }
 
@@ -166,6 +195,7 @@ impl Fs for MemFs {
 
     fn remove_dir_all(&self, path: &Path) -> Result<()> {
         lock_or_recover(&self.files).retain(|p, _| !p.starts_with(path));
+        lock_or_recover(&self.dirs).retain(|p| !p.starts_with(path));
         Ok(())
     }
 
@@ -180,114 +210,8 @@ impl Fs for MemFs {
     }
 }
 
-/// Wrapper que injeta falhas de escrita em caminhos que contêm um marcador (crash-injection).
-#[derive(Debug, Default)]
-pub struct FaultyFs {
-    /// FS subjacente.
-    inner: MemFs,
-    /// Marcador; escritas cujo caminho o contém falham enquanto definido.
-    needle: Mutex<Option<String>>,
-}
-
-impl FaultyFs {
-    /// Cria sobre um [`MemFs`] existente.
-    #[must_use]
-    pub const fn new(inner: MemFs) -> Self {
-        Self {
-            inner,
-            needle: Mutex::new(None),
-        }
-    }
-
-    /// Passa a falhar escritas cujo caminho contenha `needle`.
-    pub fn fail_writes_containing(&self, needle: impl Into<String>) {
-        *lock_or_recover(&self.needle) = Some(needle.into());
-    }
-
-    /// Volta a permitir escritas.
-    pub fn clear(&self) {
-        *lock_or_recover(&self.needle) = None;
-    }
-
-    /// Acesso ao FS subjacente (inspeção em teste).
-    #[must_use]
-    pub const fn inner(&self) -> &MemFs {
-        &self.inner
-    }
-
-    fn fails(&self, path: &Path) -> bool {
-        lock_or_recover(&self.needle)
-            .as_ref()
-            .is_some_and(|needle| path.to_string_lossy().contains(needle.as_str()))
-    }
-}
-
-impl Fs for FaultyFs {
-    fn read(&self, path: &Path) -> Result<Vec<u8>> {
-        self.inner.read(path)
-    }
-
-    fn write_atomic(&self, path: &Path, data: &[u8]) -> Result<()> {
-        let staging = staging_path(path);
-        if self.fails(path) || self.fails(&staging) {
-            return Err(Error::io(path, std::io::Error::other("falha injetada")));
-        }
-        self.inner.write_atomic(path, data)
-    }
-
-    fn append(&self, path: &Path, data: &[u8]) -> Result<()> {
-        if self.fails(path) {
-            return Err(Error::io(path, std::io::Error::other("falha injetada")));
-        }
-        self.inner.append(path, data)
-    }
-
-    fn create_exclusive(&self, path: &Path, data: &[u8]) -> Result<()> {
-        if self.fails(path) {
-            return Err(Error::io(path, std::io::Error::other("falha injetada")));
-        }
-        self.inner.create_exclusive(path, data)
-    }
-
-    fn rename(&self, from: &Path, to: &Path) -> Result<()> {
-        self.inner.rename(from, to)
-    }
-
-    fn list_dir(&self, path: &Path) -> Result<Vec<PathBuf>> {
-        self.inner.list_dir(path)
-    }
-
-    fn exists(&self, path: &Path) -> bool {
-        self.inner.exists(path)
-    }
-
-    fn is_dir(&self, path: &Path) -> bool {
-        self.inner.is_dir(path)
-    }
-
-    fn create_dir_all(&self, path: &Path) -> Result<()> {
-        self.inner.create_dir_all(path)
-    }
-
-    fn remove_file(&self, path: &Path) -> Result<()> {
-        self.inner.remove_file(path)
-    }
-
-    fn remove_dir_all(&self, path: &Path) -> Result<()> {
-        self.inner.remove_dir_all(path)
-    }
-
-    fn sync(&self, path: &Path) -> Result<()> {
-        self.inner.sync(path)
-    }
-
-    fn modified_ms(&self, path: &Path) -> Result<Option<i64>> {
-        self.inner.modified_ms(path)
-    }
-}
-
 /// Caminho `*.tmp` usado na escrita atômica (mesmo diretório do destino — D20).
-fn staging_path(path: &Path) -> PathBuf {
+pub(super) fn staging_path(path: &Path) -> PathBuf {
     let mut name = path
         .file_name()
         .map(OsStr::to_os_string)

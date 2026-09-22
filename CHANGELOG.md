@@ -7,6 +7,29 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 ### Adicionado
 - **AGENTS.md** — guia de contribuição do repositório: padrões de desenvolvimento, erros,
   logs, testes, contrato de bytes e checklist de conclusão.
+- **E04 — Config, Git e worktree** (Fase 0, concluído):
+  - `config`: config em dois níveis (global template + projeto com precedência — D61), schema
+    fechado com tipos/enums/defaults, merge profundo, `set/unset/list/get` com validação (D64),
+    poda de ancestrais vazios e sanitização de segredos (D91).
+  - `config/toml`: codec TOML próprio (subset) com leitura que **preserva ordem** (diff mínimo)
+    e escrita canônica (D63/D97); comentários, seções, chaves pontilhadas, strings de uma
+    linha, números, listas multilinha; rejeita `[[...]]`/multilinha/`null`.
+  - `git::project`: resolve o **worktree principal** (`--git-common-dir`), compartilha `.knudge/`
+    entre worktrees ligados, usa o top-level do **submódulo** e valida o nome lógico (D29/D91).
+  - `git::exclude`: exclusão idempotente via `.git/info/exclude` (nunca `.gitignore` — D30),
+    versionando `notas/`/`eventos/` e excluindo só o derivado, com reversão ao alternar o modo
+    (D34); no-op fora de repo.
+  - `git::attributes` + `git::block`: bloco `merge=union` para `eventos*.jsonl` em
+    `.gitattributes`, delimitado por marcadores e idempotente (D31/D60).
+  - `git::agent_md`: gera/atualiza o `AGENTS.md` do projeto-alvo com version marker, sem
+    duplicar nem sobrescrever o conteúdo do usuário (D57/D60).
+  - `git::onboard`: cria a árvore `.knudge/`, clona o global **literalmente** (ou usa defaults),
+    aplica exclude/attributes/AGENTS e é idempotente (D62).
+  - `git::sync`: guard de worktree com `git -C <raiz>`, commit de `notas/`+`eventos/` e mensagem
+    gerada do último evento (D32).
+  - Porta `Git` ampliada (`common_dir`, `top_level`, `superproject_root`, `run`) e adaptador
+    `StdGit` sem shell (R12); `MemFs` passou a modelar diretórios explícitos.
+  - Decisão **D97** registrada.
 - **E03 — Store, notas e eventos** (Fase 0, concluído):
   - `jsonl`: codec JSON próprio (`encode`/`decode` canônicos, chaves ordenadas e sem
     dependência externa) e leitor de linhas tolerante a CRLF/linhas em branco.
@@ -62,9 +85,11 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 - **D95**: hash curto `SHA-256 → u32`; chave/derivação de `id` e gramática TOON v1 (`TOON.md`).
 - **D96**: registro de evento (`id` derivado + dedup on-read), rotação por tamanho e
   semântica de `revision`.
+- **D97**: subset TOML (ordem preservada/canônica), guard `git -C` do `sync` e degradação do
+  `onboard` sem config global.
 
 ### Testes
-- 82 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
-  schema/hash/ID, TOON, JSONL/JSON, store: commit/lock/events/rebuild/purge/sweep).
+- 133 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
+  schema/hash/ID, TOON, JSONL/JSON, store, config/TOML, git/onboard/sync).
 - 8 testes de integração do binário (`--help`, `kd == kd prime`, `--json`, exit codes,
   EPIPE, comando desconhecido).

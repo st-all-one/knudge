@@ -57,6 +57,8 @@ módulos. Onde mexer:
 | parser/emissor TOON | `knudge-core/src/toon/` |
 | notas, eventos, lock, rebuild | `knudge-core/src/store/` |
 | JSONL/JSON | `knudge-core/src/jsonl/` |
+| config TOML em dois níveis | `knudge-core/src/config/` |
+| worktree, exclude, `AGENTS.md`, `sync` | `knudge-core/src/git/` |
 | erros e exit codes | `knudge-core/src/error.rs` |
 | tempo determinístico | `knudge-core/src/time.rs` |
 | redação de segredos | `knudge-core/src/logging.rs` |
