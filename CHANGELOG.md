@@ -7,6 +7,40 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 ### Adicionado
 - **AGENTS.md** — guia de contribuição do repositório: padrões de desenvolvimento, erros,
   logs, testes, contrato de bytes e checklist de conclusão.
+- **E08 — Prime, handoff, diff e learn** (MVP, concluído):
+  - `handoff::rewind`: família de estado/handoff — manifest (~30 tokens), escopo (container) e
+    working set (âncoras), com ranking por trust-tier
+    (`star*100 + foundational*50 + tactical*20 + observational*10` — D57).
+  - `handoff::budget`: orçamento sem tokenizer (`ceil(chars/4)`, default 4000), truncando o
+    último item e ignorando sobra < 100 tokens (D40/D82); `apply_into` escreve direto no destino
+    (streaming) sem montar saída gigante.
+  - `handoff::scope`: auto-context-scope a partir dos arquivos tocados e auto-flip
+    (`>100 notas` ou `>5 containers` — D41).
+  - `handoff::context`: `context_id` derivado e guardado em `.idx/contexts/`; `--resume` devolve
+    **bytes idênticos** (D88).
+  - `maintenance::diff`: passado derivado da auditoria de eventos por intervalo/escopo (D21/D33).
+  - `maintenance::learn`: propostas determinísticas (`create_note`/`merge`/`supersede`/`link`) a
+    partir de eventos + âncoras — nunca escreve (D33/D47).
+  - `maintenance::compact`: propõe `concat`/`keep_latest`/`merge_outcomes`; aplica só sob aceite,
+    fundindo no `keep` e esquecendo (soft) os demais (D47).
+  - `task`: hierarquia fechada `plan ⊃ epic ⊃ issue ⊃ task` (máx. 4), `plan`/`epic` como
+    `container` sem verdade própria, pai por marcador no corpo + aresta `results_in`, `blocks`
+    1-based; ciclo de vida `adopt`/`release`/`review`, `outcome` e `reorder` (D52/D53/D93).
+- **E07 — Escrita e protocolo** (MVP, concluído):
+  - `write::Draft`: rascunho tipado que vira frontmatter válido; opcionais vazios **omitidos**
+    (D05); `scope` só para `task`/`container` (D93).
+  - `write::dedup`: decisão em três faixas (`<0.75` cria, `0.75–0.92` merge, `≥0.92` rejeita —
+    D26), similaridade **Dice** sobre termos em `[0,1]` calibrada para os limiares, configurável
+    por `[dedup]` (D80).
+  - `write::write`: idempotente por conteúdo (D01) — retry devolve o mesmo id sem duplicar;
+    `task`/`container` rejeitados; merge funde tags/âncoras/corpo e incrementa `revision`;
+    rejeição não escreve.
+  - `write::update`: `Patch` versionado; mesma chave → edita no lugar; `type`/`statement` novos
+    → **supersede** (novo id + `replaces`/`superseded_by` — D01/D48); `history` caminha a cadeia.
+  - `write::lifecycle`: `forget`/`restore` soft (`status`), `link` de arestas explícitas com
+    ponteiro reverso em `replaces` (D46/D49/D52); transições protegidas.
+  - `write::propose_merges`: reconciliação só **propõe** quase-duplicados — nunca funde em
+    silêncio (D47/D80).
 - **E06 — Retrieval: BM25, âncoras e RRF** (MVP, concluído):
   - `retrieval::token`: tokenização **ASCII explícita** `[a-z0-9_]` (`café` → `caf` — D36),
     com `Cow` no caminho quente e termos de consulta deduplicados.
@@ -126,8 +160,10 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   `superseded_by`, ciclo de supersessão sobre `replaces` e sugestões derivadas.
 
 ### Testes
-- 189 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
+- 262 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
   schema/hash/ID/arestas, TOON, JSONL/JSON, store, config/TOML, git/onboard/sync,
-  grafo/integridade/ciclos/sugestões, retrieval/token/BM25/âncoras/RRF/views).
+  grafo/integridade/ciclos/sugestões, retrieval/token/BM25/âncoras/RRF/views,
+  escrita/dedup/update/supersede/forget, rewind/orçamento/context_id, diff/learn/compact,
+  tarefas/hierarquia/ciclo de vida).
 - 8 testes de integração do binário (`--help`, `kd == kd prime`, `--json`, exit codes,
   EPIPE, comando desconhecido).

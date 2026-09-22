@@ -1,0 +1,181 @@
+//! Ciclo de vida de tarefa: `adopt`/`release`/`review`, `outcome` e `reorder` (D53).
+
+use crate::schema::{NoteType, Status, Value};
+use crate::store::Note;
+use crate::time::Timestamp;
+use crate::write::{WriteAction, WriteContext, event};
+use crate::{Error, Result};
+
+use super::membership;
+
+/// Ação de ciclo de vida.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TaskAction {
+    /// Marca como `in_progress`.
+    Adopt,
+    /// Devolve para `active`.
+    Release,
+    /// Encerra (`closed`).
+    Review,
+}
+
+impl TaskAction {
+    /// Rótulo canônico.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Adopt => "adopt",
+            Self::Release => "release",
+            Self::Review => "review",
+        }
+    }
+
+    const fn target(self) -> Status {
+        match self {
+            Self::Adopt => Status::InProgress,
+            Self::Release => Status::Active,
+            Self::Review => Status::Closed,
+        }
+    }
+}
+
+/// Resultado de um `outcome`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OutcomeStatus {
+    /// Sucesso.
+    Success,
+    /// Parcial.
+    Partial,
+    /// Falha.
+    Failure,
+    /// Abandonado.
+    Abandoned,
+}
+
+impl OutcomeStatus {
+    /// Rótulo canônico.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Success => "success",
+            Self::Partial => "partial",
+            Self::Failure => "failure",
+            Self::Abandoned => "abandoned",
+        }
+    }
+}
+
+/// Aplica uma transição de ciclo de vida e devolve a nova revisão.
+///
+/// # Errors
+/// Retorna `ErrorKind::InvalidInput` para transição proibida e `Schema` para não-tarefa.
+pub fn apply(ctx: &WriteContext<'_>, id: &str, action: TaskAction) -> Result<u32> {
+    let mut note = ctx.store().read(id)?;
+    ensure_task(&note)?;
+    transition(note.frontmatter.status()?, action.target())?;
+    note.frontmatter
+        .set("status", Value::Str(action.target().as_str().to_string()))?;
+    let revision = note.revision().saturating_add(1);
+    note.set_revision(revision)?;
+    note.frontmatter.validate()?;
+    ctx.store().write(&note)?;
+    let record = event("task", id, ctx.now_ms(), WriteAction::Updated, None)
+        .with_data("action", Value::Str(action.as_str().to_string()));
+    ctx.events().append(&record)?;
+    Ok(revision)
+}
+
+/// Anexa um resultado a `outcomes` (D48) e devolve a nova revisão.
+///
+/// # Errors
+/// Retorna `ErrorKind::Schema` para não-tarefa e propaga erros de I/O.
+pub fn outcome(
+    ctx: &WriteContext<'_>,
+    id: &str,
+    status: OutcomeStatus,
+    note: Option<&str>,
+) -> Result<u32> {
+    let mut existing = ctx.store().read(id)?;
+    ensure_task(&existing)?;
+    let mut items = match existing.frontmatter.get("outcomes") {
+        Some(Value::List(items)) => items.clone(),
+        _ => Vec::new(),
+    };
+    let mut entry = vec![
+        (
+            "status".to_string(),
+            Value::Str(status.as_str().to_string()),
+        ),
+        (
+            "at".to_string(),
+            Value::Str(Timestamp::from_millis(ctx.now_ms()).to_rfc3339()),
+        ),
+    ];
+    if let Some(note) = note {
+        entry.push(("note".to_string(), Value::Str(note.to_string())));
+    }
+    items.push(Value::map(entry));
+    existing.frontmatter.set("outcomes", Value::List(items))?;
+    let revision = existing.revision().saturating_add(1);
+    existing.set_revision(revision)?;
+    existing.frontmatter.validate()?;
+    ctx.store().write(&existing)?;
+    let record = event("task", id, ctx.now_ms(), WriteAction::Updated, None)
+        .with_data("action", Value::Str("outcome".to_string()))
+        .with_data("outcome", Value::Str(status.as_str().to_string()));
+    ctx.events().append(&record)?;
+    Ok(revision)
+}
+
+/// Reordena o filho dentro do pai (`blocks` 1-based) e devolve a nova revisão.
+///
+/// # Errors
+/// Retorna `ErrorKind::InvalidInput` se a nota não tiver pai ou `blocks` for 0.
+pub fn reorder(ctx: &WriteContext<'_>, id: &str, blocks: u32) -> Result<u32> {
+    if blocks == 0 {
+        return Err(Error::invalid_input("`blocks` é 1-based (D53)"));
+    }
+    let mut note = ctx.store().read(id)?;
+    ensure_task(&note)?;
+    let marker = membership::parse(&note.body)
+        .ok_or_else(|| Error::invalid_input("tarefa sem pai não pode ser reordenada"))?;
+    note.body = membership::set(&note.body, &marker.parent, Some(blocks));
+    let revision = note.revision().saturating_add(1);
+    note.set_revision(revision)?;
+    note.refresh_body_hash()?;
+    note.frontmatter.validate()?;
+    ctx.store().write(&note)?;
+    let record = event("task", id, ctx.now_ms(), WriteAction::Updated, None)
+        .with_data("action", Value::Str("reorder".to_string()))
+        .with_data("blocks", Value::Int(i64::from(blocks)));
+    ctx.events().append(&record)?;
+    Ok(revision)
+}
+
+fn ensure_task(note: &Note) -> Result<()> {
+    match note.frontmatter.note_type()? {
+        NoteType::Task | NoteType::Container => Ok(()),
+        other => Err(Error::schema(format!("`{other}` não é tarefa/container"))),
+    }
+}
+
+fn transition(from: Status, to: Status) -> Result<()> {
+    if from == to {
+        return Ok(());
+    }
+    let allowed = matches!(
+        (from, to),
+        (
+            Status::Active | Status::InProgress,
+            Status::InProgress | Status::Closed
+        ) | (Status::InProgress, Status::Active)
+            | (Status::Blocked, Status::Active | Status::InProgress)
+    );
+    if allowed {
+        Ok(())
+    } else {
+        Err(Error::invalid_input(format!(
+            "transição de tarefa inválida: `{from}` → `{to}`"
+        )))
+    }
+}

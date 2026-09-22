@@ -21,6 +21,10 @@ existem no mesmo crate, mas o domínio **nunca** as importa — só as portas.
 | `git` | Worktree principal, `info/exclude`, `AGENTS.md`, `sync` (E04). |
 | `graph` | Arestas explícitas, integridade, ciclos e sugestões (E05). |
 | `retrieval` | Índice derivado, BM25, âncoras, filtros, views e RRF (E06). |
+| `write` | Escrita idempotente, dedup em duas fases, update/supersede e ciclo de vida (E07). |
+| `handoff` | `rewind` (manifest/escopo/files), orçamento sem tokenizer e `context_id` (E08). |
+| `maintenance` | `diff`, `learn` e `compact` como propostas (E08). |
+| `task` | Hierarquia `plan ⊃ epic ⊃ issue ⊃ task` e ciclo de vida (E08). |
 | `lifecycle` | Decay, confiança derivada, clusters (E10). |
 | `embeddings` | Contrato do provedor plugável (E11). |
 

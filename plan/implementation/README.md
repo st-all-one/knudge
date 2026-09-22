@@ -114,24 +114,25 @@ Um épico só fecha quando:
 
 | Decisões | Épico |
 |---|---|
-| D01–D03 (IDs) | E02 |
+| D01–D03 (IDs) | E02, E07 |
 | D04–D13, D74–D75 (contrato de bytes / TOON) | E02 |
-| D14–D18 (versionamento / leitura tolerante) | E02, E09 |
+| D14–D18 (versionamento / leitura tolerante) | E02, E07, E09 |
 | D19 (doctor --fix) | E09 |
-| D20–D22 (escrita atômica / crash) | E03 |
-| D23–D28 (lock, dedup, rebuild, container) | E03, E10 |
-| D29–D34 (git, worktree, persistência) | E04 |
-| D35–D41, D81 (retrieval, ranking, RRF) | E06 |
-| D42, D79–D80, D83, D85, D89–D90 (embeddings) | E11 |
-| D43–D48 (ciclo de vida, confiança, evidence) | E09, E10 |
-| D49–D51 (grafo e arestas) | E05 |
-| D52–D56 (tarefas e planos) | E08, E09, E10 |
+| D20–D22 (escrita atômica / crash) | E03, E07 |
+| D23–D28 (lock, dedup, rebuild, container) | E03, E07, E10 |
+| D29–D34 (git, worktree, persistência) | E04, E08 |
+| D35–D41, D81 (retrieval, ranking, RRF) | E06, E08 |
+| D42, D79–D80, D83, D85, D89–D90 (embeddings) | E07, E11 |
+| D43–D48 (ciclo de vida, confiança, evidence) | E07, E08, E09, E10 |
+| D49–D51 (grafo e arestas) | E05, E07 |
+| D52–D56 (tarefas e planos) | E07, E08, E09, E10 |
 | D57–D60 (prime, hooks, onboard) | E04, E08, E12 |
 | D61–D64 (config) | E04 |
 | D65–D70 (arquitetura, distribuição) | E01, E12 |
 | D71–D73 (saída e erros) | E12 |
 | D76–D78, D82, D84, D86–D88, D91–D92 | E03, E08, E09, E13 |
 | D95 (hash/IDs, gramática TOON) | E02 |
+| D33, D40–D41, D47, D52–D53, D57–D58, D82, D88 (rewind, task, compact, learn) | E08 |
 | D96 (registro de evento, rotação, `revision`) | E03 |
 | D97 (subset TOML, guard `git -C`, `onboard`) | E04 |
 | D98 (chaves de aresta, ciclo de supersessão, sugestões derivadas) | E05 |

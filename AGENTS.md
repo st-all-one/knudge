@@ -61,6 +61,10 @@ módulos. Onde mexer:
 | worktree, exclude, `AGENTS.md`, `sync` | `knudge-core/src/git/` |
 | arestas, integridade, ciclos | `knudge-core/src/graph/` |
 | BM25, âncoras, filtros, views, RRF | `knudge-core/src/retrieval/` |
+| escrita, dedup, update/supersede, forget | `knudge-core/src/write/` |
+| rewind, manifest, orçamento, context_id | `knudge-core/src/handoff/` |
+| diff, learn, compact | `knudge-core/src/maintenance/` |
+| tarefas plan/epic/issue/task | `knudge-core/src/task/` |
 | erros e exit codes | `knudge-core/src/error.rs` |
 | tempo determinístico | `knudge-core/src/time.rs` |
 | redação de segredos | `knudge-core/src/logging.rs` |

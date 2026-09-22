@@ -42,7 +42,7 @@ Três consequências que explicam todas as decisões:
 |---|---|---|
 | `notas/` | Fonte da verdade. Um arquivo = uma unidade de recuperação. | **Fixa** |
 | `eventos/` | Append-only. Auditoria, `learn`, `diff`, `audit`. Não define ordem. | Recomendada |
-| `.idx/` | Índice derivado (retrieval, checkpoint de eventos, sugestões, embeddings, clusters). | Oscila |
+| `.idx/` | Índice derivado (retrieval, checkpoint de eventos, sugestões, contextos de rewind, embeddings, clusters). | Oscila |
 | `config.toml` | Config efetiva do projeto (clone do global). Precedência sobre o global. | Formato fixo |
 | `cache/` | Respostas caras / warm start. | Descartável |
 
@@ -432,9 +432,10 @@ Os passos 1–5 são pré-requisitos entre si; 6–7 são independentes e podem 
   notas/                  # .md com frontmatter TOON
   .idx/retrieval.jsonl    # índice invertido + forward (E06)
   .idx/events.checkpoint  # checkpoint do log de eventos (E03)
+  .idx/contexts/          # contextos de rewind (handoff 1:1 — E08)
 
 kd                 # binário único (Rust), módulos por escopo:
-                   # core, cli, mcp, jsonl, toon, git, retrieval, lifecycle
+                   # core, cli, mcp, jsonl, toon, git, store, graph, retrieval, write, handoff, maintenance, task, lifecycle
 ```
 
 MVP em Rust, com núcleo puro + adaptadores `cli`/`mcp`. Sem eventos, embeddings, clusters ou watcher. O resto é otimização incremental.

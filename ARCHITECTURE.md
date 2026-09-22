@@ -59,6 +59,10 @@ conveniência, mas só `cli`/`mcp` o importam.
 | `git` | worktree principal, `info/exclude`, `AGENTS.md`, `sync` | E04 |
 | `graph` | arestas explícitas, integridade, ciclos, sugestões | E05 |
 | `retrieval` | BM25, âncoras, filtros, views `ready`/`blocked` e RRF | E06 |
+| `write` | protocolo de escrita, dedup, update/supersede, ciclo de vida | E07 |
+| `handoff` | `rewind` (manifest/escopo/working set), orçamento e `context_id` | E08 |
+| `maintenance` | `diff`, `learn` e `compact` (propostas) | E08 |
+| `task` | hierarquia `plan ⊃ epic ⊃ issue ⊃ task` como view derivada | E08 |
 | `lifecycle` | decay, confiança derivada, clusters | E10 |
 | `embeddings` | provedor plugável e fila lazy | E11 |
 
@@ -130,7 +134,36 @@ volatilidade, não CAS (D48).
 | Contrato | `recall` em pipe `id\|statement\|score\|why`; `why` fechado (`file_match|anchor_match|tracker_match|stars|recent|universal`); corpo só via `get` (D39). |
 | Degradação | Canal falho → resultado parcial + `warnings`; `strict` (D94) promove a erro; teto de índice avisa (E06-T07). |
 
-## 9. Fluxo de uma operação
+## 9. Escrita e protocolo (E07)
+
+| Conceito | Regra |
+|---|---|
+| Idempotência | `id` endereçado por `type + statement` (D01); mesmo `body_hash` → `unchanged`; mesmo id com corpo diferente → conflito (use `update`). |
+| Duas fases | `propose` (recall + score) → decisão → `write`; `< create_below` cria, `[create_below, merge_below)` merge, `≥ merge_below` rejeita (D26). |
+| Score lexical | Dice sobre o conjunto de termos (calibrado para `0.75`/`0.92`); limiares vêm de `[dedup]` (D80). |
+| Merge | Funde no candidato (tags/âncoras unidas, corpo acrescido, confiança máx) e incrementa `revision`. |
+| `update` | Mesma chave de conteúdo → edita no lugar (`revision++`); chave nova → **supersede** (novo id + `replaces`/`superseded_by` — D01/D48). |
+| Ciclo de vida | `forget`/`restore` são soft (`status`), nunca apagam; transições protegidas (`superseded` só via supersede). |
+| Estrito | Chave/tipo desconhecidos rejeitados; opcionais vazios **omitidos** (D05/D16/D17). |
+| Reconciliação | `propose_merges` só **propõe** quase-duplicados; nada é fundido sem aprovação (D47/D80). |
+| Tarefas | `kd write` rejeita `task`/`container` (D93); `scope` só vale para eles. |
+
+## 10. Handoff, manutenção e tarefas (E08)
+
+| Conceito | Regra |
+|---|---|
+| `prime` vs `rewind` | `prime` é **protocolo estático** byte-idêntico; `rewind` é o **estado dinâmico** (D57). |
+| Três modos | manifest (~30 tokens: contadores + recentes + dirty), escopo (container/domínio) e working set (âncoras) (D57). |
+| Ranking | `star*100 + foundational*50 + tactical*20 + observational*10`, desempate `created_ms desc, id asc`. |
+| Orçamento | `ceil(chars/4)`, default 4000; trunca o último item e ignora sobra < 100 tokens (D40/D82). |
+| Auto-scope/flip | deriva o container dos arquivos tocados; vira manifest quando `>100 notas` ou `>5 containers` (D41). |
+| `context_id` | id derivado do texto, guardado em `.idx/contexts/`; `--resume` devolve **bytes idênticos** (D88). |
+| `diff` | lê a auditoria de eventos por intervalo/escopo — nunca o git global (D33). |
+| `learn` | propõe `create_note`/`merge`/`supersede`/`link` de eventos + âncoras; nunca escreve (D33/D47). |
+| `compact` | propõe `concat`/`keep_latest`/`merge_outcomes`; só aplica sob aceite (D47). |
+| Tarefas | `plan`/`epic` = `container`, `issue`/`task` = `task`; pai por marcador no corpo + aresta `results_in`; `blocks` 1-based; profundidade máx. 4 (D52/D53/D93). |
+
+## 11. Fluxo de uma operação
 
 ```
 kd <verbo>
@@ -141,7 +174,7 @@ kd <verbo>
   → exit code = ErrorKind::exit_code() (101 reservado a panic)
 ```
 
-## 10. Invariantes de engenharia
+## 12. Invariantes de engenharia
 
 - `#![forbid(unsafe_code)]` em `core`/`cli`/`mcp` (R01).
 - Sem `Rc`/`RefCell` no core; estado compartilhado via `Arc<Mutex<_>>` (R03).
@@ -149,7 +182,7 @@ kd <verbo>
 - Arquivos de produção ≤ 300 linhas (D92).
 - `clippy -D warnings` lendo `clippy.toml` (R44); perfis e supply chain (R40–R43).
 
-## 11. Referências
+## 13. Referências
 
 - Visão: `plan/00_panorama.md`
 - Decisões: `plan/03_decisoes-fechadas.md` (D01–D98)

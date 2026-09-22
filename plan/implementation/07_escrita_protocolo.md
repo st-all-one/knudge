@@ -19,14 +19,14 @@ E03, E05, E06.
 
 ## Tarefas
 
-### E07-T01 ☐ `write` idempotente por conteúdo
+### E07-T01 ☑ `write` idempotente por conteúdo
 - **Objetivo:** ID endereçado por conteúdo (E02-T06): reescrever o mesmo conteúdo devolve o
   mesmo id (sem duplicar); retry do LLM é seguro.
 - **Entregáveis:** `write()` com checagem de existência por id.
 - **Decisões:** D01.
 - **Aceite:** N writes idênticos → 1 nota; segundo write devolve o id e registra evento.
 
-### E07-T02 ☐ Protocolo de escrita em duas fases
+### E07-T02 ☑ Protocolo de escrita em duas fases
 - **Objetivo:** `recall` obrigatório antes do `write`; **< 0.75 cria**, **0.75–0.92 merge**,
   **≥ 0.92 rejeita**; limiares são config; com embeddings ausentes o score é **lexical** e o
   dedup semântico é **eventual**.
@@ -34,14 +34,14 @@ E03, E05, E06.
 - **Decisões:** D26, D80.
 - **Aceite:** cada faixa coberta por teste; limiar alterável por config sem tocar código.
 
-### E07-T03 ☐ `update` versionado e supersede caminhável
+### E07-T03 ☑ `update` versionado e supersede caminhável
 - **Objetivo:** `update(id, patch)` incrementa `revision`; mudança de `type` cria **nova nota
   + `replaces`**; cadeia de supersessão caminhável.
 - **Entregáveis:** `update`; `replaces`; `get(id, history=true)`.
 - **Decisões:** D21, D48.
 - **Aceite:** histórico recuperável; supersede mantém a linhagem.
 
-### E07-T04 ☐ `link`, `forget`, `restore`
+### E07-T04 ☑ `link`, `forget`, `restore`
 - **Objetivo:** `link(from, kind, to)`; `forget`/`restore` via `update(status=...)` — **soft**,
   nunca apaga; `status` unifica o ciclo de vida.
 - **Entregáveis:** tool `link`; transições de `status`.
@@ -49,14 +49,14 @@ E03, E05, E06.
 - **Aceite:** `forget` não remove arquivo; `restore` volta ao ativo; transições inválidas
   rejeitadas.
 
-### E07-T05 ☐ Escrita estrita e omissão de opcionais
+### E07-T05 ☑ Escrita estrita e omissão de opcionais
 - **Objetivo:** rejeitar chave desconhecida e `type` desconhecido; opcionais **omitidos**,
   nunca `null`/vazio; mensagens de erro congeladas por teste.
 - **Entregáveis:** validadores de write; catálogo de mensagens (compartilha E12-T02).
 - **Decisões:** D05, D16, D17.
 - **Aceite:** goldens de rejeição (`write` falha) e de omissão (bytes sem chave).
 
-### E07-T06 ☐ Dedup semântico eventual
+### E07-T06 ☑ Dedup semântico eventual
 - **Objetivo:** quando houver embeddings, a reconciliação **propõe** merge/supersede de
   quase-duplicados — **nunca funde em silêncio**.
 - **Entregáveis:** hook de reconciliação (roda com E11); modo `propose` (default).
@@ -66,9 +66,9 @@ E03, E05, E06.
 
 ## Definition of Done
 
-- [ ] `write` idempotente e com as três faixas de dedup testadas.
-- [ ] `update`/`forget`/`restore`/`link` com aceite.
-- [ ] Escrita estrita na forma, tolerante na operação.
+- [x] `write` idempotente e com as três faixas de dedup testadas.
+- [x] `update`/`forget`/`restore`/`link` com aceite.
+- [x] Escrita estrita na forma, tolerante na operação.
 
 ## Não-objetivos
 
