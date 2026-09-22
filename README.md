@@ -8,6 +8,7 @@ reconstruível e um binário único (`kd`). Sem servidor, sem banco, sem daemon 
 ```sh
 make check     # fmt --check + clippy -D warnings + test + gate de 300 linhas
 make build     # cargo build --workspace
+make ci        # check + nextest + deny + audit + machete + typos (E13)
 ```
 
 ## Superfície
@@ -37,3 +38,5 @@ Contrato congelado: [`plan/implementation/16_cli_surface.md`](plan/implementatio
 - Contrato de bytes: [`TOON.md`](TOON.md)
 - Decisões: [`plan/03_decisoes-fechadas.md`](plan/03_decisoes-fechadas.md)
 - Plano de implementação: [`plan/implementation/README.md`](plan/implementation/README.md)
+- Matriz de aceite por tool: [`plan/implementation/17_matriz_aceitacao.md`](plan/implementation/17_matriz_aceitacao.md)
+- Bordas e testes que as travam: [`DIVERGENCES.md`](DIVERGENCES.md)

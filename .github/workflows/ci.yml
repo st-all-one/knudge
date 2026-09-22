@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  check:
+    name: fmt + clippy + test + file-length
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: make check
+      - name: nextest
+        run: |
+          cargo install cargo-nextest --locked
+          cargo nextest run --workspace
+          cargo test --doc --workspace
+
+  supply-chain:
+    name: deny + audit + machete + typos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo install cargo-deny cargo-audit cargo-machete --locked
+      - run: cargo deny check
+      - run: cargo audit
+      - run: cargo machete
+      - uses: crate-ci/typos@master
+
+  miri:
+    name: miri (crates puros)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo miri setup
+      - run: cargo miri test -p knudge-core --lib
+
+  fuzz:
+    name: fuzz (TOON + JSONL, smoke)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo install cargo-fuzz --locked
+      - run: cargo fuzz build
+      - name: smoke de 30s por alvo
+        run: |
+          for target in toon_parse jsonl_decode; do
+            cargo fuzz run "$target" -- -max_total_time=30
+          done

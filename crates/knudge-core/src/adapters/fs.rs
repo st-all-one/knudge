@@ -79,7 +79,14 @@ impl Fs for StdFs {
     }
 
     fn rename(&self, from: &Path, to: &Path) -> Result<()> {
-        std::fs::rename(from, to).map_err(|e| Error::io(from, e))
+        std::fs::rename(from, to).map_err(|e| match e.kind() {
+            std::io::ErrorKind::NotFound => Error::not_found(format!(
+                "rename {} -> {}: origem ausente",
+                from.display(),
+                to.display()
+            )),
+            _ => Error::io(from, e),
+        })
     }
 
     fn list_dir(&self, path: &Path) -> Result<Vec<PathBuf>> {

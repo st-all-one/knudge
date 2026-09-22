@@ -107,6 +107,24 @@ impl HintEngine {
         self.sessions_seen < self.observation_sessions
     }
 
+    /// Cap de hints por gatilho.
+    #[must_use]
+    pub const fn cap(&self) -> usize {
+        self.cap
+    }
+
+    /// Sessões vistas até agora.
+    #[must_use]
+    pub const fn sessions_seen(&self) -> u32 {
+        self.sessions_seen
+    }
+
+    /// Sessões em modo observação.
+    #[must_use]
+    pub const fn observation_sessions(&self) -> u32 {
+        self.observation_sessions
+    }
+
     /// Registra o fim de uma sessão.
     pub fn end_session(&mut self) {
         self.sessions_seen = self.sessions_seen.saturating_add(1);

@@ -1,0 +1,5 @@
+knudge (kd) — memória otimizada para LLM
+Uso: kd <comando> [opções]
+Comandos: init, prime, rewind, ask, write, task, maintenance, config, forget, sync, self
+Sem argumentos, kd executa `prime`.
+

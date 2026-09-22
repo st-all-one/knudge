@@ -1,0 +1,21 @@
+# typos — configuração de verificação ortográfica (E13-T09)
+# Localmente: `make typos`; no CI, a action `crate-ci/typos`.
+
+[files]
+extend-exclude = [
+    "refs/",            # projetos de referência (leitura, não editar)
+    "plan/brainstorm/", # registro histórico
+    "target/",
+    "fuzz/corpus/",
+    "fuzz/artifacts/",
+    "Cargo.lock",
+    "*.gguf",
+]
+
+[default]
+extend-ignore-re = [
+    # ids e hashes do domínio (ex.: fact_01bpivlt)
+    "[a-z]+_[0-9a-z]{8}",
+    # blocos de código/TOON com identificadores
+    "(?s)```.*?```",
+]

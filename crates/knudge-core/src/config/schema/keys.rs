@@ -42,6 +42,11 @@ pub const KEYS: &[KeySpec] = &[
         default: Default::Bool(true),
     },
     KeySpec {
+        key: "mcp.observation_sessions",
+        kind: Kind::Int,
+        default: Default::Int(3),
+    },
+    KeySpec {
         key: "mcp.hints_cap",
         kind: Kind::Int,
         default: Default::Int(3),

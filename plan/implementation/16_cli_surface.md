@@ -219,9 +219,12 @@ pré-`write` (quase-duplicados), pré-edição (`kd rewind --files` contínuo), 
 
 ## 14. Aceite
 
-- [ ] `kd` sem argumentos == `kd prime`; `prime` byte-idêntico por versão (teste de golden).
-- [ ] `ask` cobre recall/get/expand com um só envelope.
-- [ ] `write` rejeita `task`/`container`; `--link` cobre arestas.
-- [ ] `task` valida hierarquia fechada (profundidade ≤ 4, pai único, sem ciclo).
-- [ ] `strict` lido só do config; nenhuma flag `--strict` existe.
-- [ ] `learn` só propõe; nenhum write sem aceite.
+- [x] `kd` sem argumentos == `kd prime`; `prime` byte-idêntico por versão (teste de golden).
+- [x] `ask` cobre recall/get/expand com um só envelope.
+- [x] `write` rejeita `task`/`container`; `--link` cobre arestas.
+- [x] `task` valida hierarquia fechada (profundidade ≤ 4, pai único, sem ciclo).
+- [x] `strict` lido só do config; nenhuma flag `--strict` existe.
+- [x] `learn` só propõe; nenhum write sem aceite.
+
+Detalhe por verbo (pipe/`--json`/erro/exit/estado) em
+[`17_matriz_aceitacao.md`](17_matriz_aceitacao.md).

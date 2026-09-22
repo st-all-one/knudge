@@ -1,0 +1,1 @@
+{"success":true,"command":"prime","data":{"protocol":"knudge (kd) — memória otimizada para LLM\nUso: kd <comando> [opções]\nComandos: init, prime, rewind, ask, write, task, maintenance, config, forget, sync, self\nSem argumentos, kd executa `prime`.\n","version":"0.1.0"}}

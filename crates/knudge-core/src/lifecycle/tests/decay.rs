@@ -9,6 +9,7 @@ use crate::lifecycle::decay::{
     should_demote, walk_paths,
 };
 use crate::ports::fakes::MemFs;
+use proptest::prelude::*;
 
 use super::PROJECT;
 
@@ -92,4 +93,44 @@ fn policy_reads_config() -> Result<()> {
     assert!((policy.threshold - 0.25).abs() < 1e-9);
     assert_eq!(policy.grace_days, 7);
     Ok(())
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(256))]
+
+    /// A fração de âncoras válidas vive em `[0, 1]`.
+    #[test]
+    fn fraction_is_within_unit_range(valid in 0_u32..64, total in 1_u32..64) {
+        let valid = valid.min(total);
+        let validity = AnchorValidity {
+            valid,
+            broken: total.saturating_sub(valid),
+            total,
+        };
+        let fraction = validity.fraction();
+        prop_assert!((0.0..=1.0).contains(&fraction));
+        prop_assert!(!fraction.is_nan());
+    }
+
+    /// Uma vez que a demolição é devida, envelhecer mais nunca a desfaz.
+    #[test]
+    fn demote_is_monotone_in_age(
+        valid in 0_u32..64,
+        total in 1_u32..64,
+        threshold in 0.0_f64..1.0,
+        grace in 0_i64..100,
+        age in 0_i64..200,
+        delta in 0_i64..200,
+    ) {
+        let valid = valid.min(total);
+        let validity = AnchorValidity {
+            valid,
+            broken: total.saturating_sub(valid),
+            total,
+        };
+        let policy = DecayPolicy { threshold, grace_days: grace };
+        if should_demote(&validity, &policy, age) {
+            prop_assert!(should_demote(&validity, &policy, age.saturating_add(delta)));
+        }
+    }
 }

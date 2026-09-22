@@ -5,6 +5,32 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 ## [Não publicado]
 
 ### Adicionado
+- **E13 — Testes e qualidade** (transversal, concluído):
+  - **Golden** do binário (`crates/knudge-cli/tests/golden.rs` + `tests/golden/`): `prime`,
+    `--json`, envelope de erro, erro em texto, `init` e EPIPE, com normalização de
+    `<ROOT>`/`<NAME>`.
+  - **Property tests** ampliados: TOON round-trip, RRF (determinismo, monotonicidade, união),
+    confiança/decay (`[0,1]`, monotonicidade) e `id`/`body_hash` sob normalização.
+  - **Stress de concorrência** sobre adaptadores reais (`crates/knudge-core/tests/stress.rs`):
+    lock sem *lost update*, escritas concorrentes e leitor de índice durante rebuild.
+  - **Crash-injection** com `FaultyFs`: nota-sem-evento, escrita atômica e crash no rebuild.
+  - [`DIVERGENCES.md`](DIVERGENCES.md) — 20 bordas catalogadas com o teste que trava cada
+    uma; [`plan/implementation/17_matriz_aceitacao.md`](plan/implementation/17_matriz_aceitacao.md)
+    — matriz por tool (pipe/`--json`/erro/exit/estado).
+  - **CI** (`.github/workflows/ci.yml`): `fmt`+`clippy`+`test`+linhas, `nextest`, doc-tests,
+    `cargo deny`/`audit`/`machete`/`typos`, `miri` (core puro) e fuzz smoke (`fuzz/`).
+  - Alvos extras no `Makefile`: `nextest`, `deny`, `audit`, `machete`, `typos`, `miri`, `fuzz`,
+    `coverage`, `ci`.
+
+### Corrigido
+- **Lock advisory**: um lock recém-criado, ainda sem conteúdo visível (janela entre
+  `create_exclusive` e a escrita do `at`), podia ser reclamado por outro processo. Agora o
+  `mtime` decide e, sem `mtime`, o lock **não** é reclamado (E13-T03). Regressão em
+  `store::tests::lock::fresh_unreadable_lock_is_not_reclaimed`.
+- **`StdFs::rename`**: `NotFound` era mapeado para `ErrorKind::Io`, abortando o reclaim de lock;
+  agora vira `ErrorKind::NotFound` (E13-T03).
+
+### Adicionado (continuação)
 - **E12 — CLI, MCP, hooks e distribuição** (Fase 4, concluído):
   - Superfície v2 completa: os 12 verbos (`init`, `prime`, `rewind`, `ask`, `write`, `task`,
     `maintenance`, `config`, `forget`, `sync`, `self`) wireados ao domínio via
@@ -228,13 +254,13 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   `superseded_by`, ciclo de supersessão sobre `replaces` e sugestões derivadas.
 
 ### Testes
-- 388 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
+- 396 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
   schema/hash/ID/arestas, TOON, JSONL/JSON, store, config/TOML, git/onboard/sync,
   grafo/integridade/ciclos/sugestões, retrieval/token/BM25/âncoras/RRF/views,
   escrita/dedup/update/supersede/forget, rewind/orçamento/context_id, diff/learn/compact,
   tarefas/hierarquia/ciclo de vida, validators/evidência/audit/doctor/âncoras/confiança,
   shelf-life/decay/purga/ciclos/clusters, embeddings/meta/vector/cache/índice/fila/eval/http,
-  hooks/timeout/kill de grupo).
+  hooks/timeout/kill de grupo, lock/rebuild) e 3 testes de **stress** sobre adaptadores reais.
 - 5 testes do motor de gatilhos do MCP (`knudge-mcp`).
-- 12 testes de integração do binário (`--help`, `kd == kd prime`, `--json`, exit codes,
-  EPIPE, comando desconhecido, `init`+`write`+`ask`, `task`, `config`, `forget`).
+- 12 testes de integração do binário + 7 **golden** (`--help`, `kd == kd prime`, `--json`, exit
+  codes, EPIPE, comando desconhecido, `init`+`write`+`ask`, `task`, `config`, `forget`).

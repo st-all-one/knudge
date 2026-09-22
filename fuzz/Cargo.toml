@@ -1,0 +1,26 @@
+[package]
+name = "knudge-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+knudge-core = { path = "../crates/knudge-core" }
+
+[[bin]]
+name = "toon_parse"
+path = "fuzz_targets/toon_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "jsonl_decode"
+path = "fuzz_targets/jsonl_decode.rs"
+test = false
+doc = false
+bench = false

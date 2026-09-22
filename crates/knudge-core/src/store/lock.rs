@@ -106,14 +106,17 @@ pub fn acquire<'a>(
 }
 
 /// `true` se o lock pode ser reclamado (idade > `stale_ms`, ou sem conteúdo legível).
+///
+/// Um lock recém-criado pode ainda não ter conteúdo visível (o `create_exclusive` não é
+/// atômico com a escrita do `at`); nesse caso o `mtime` decide. Sem `mtime`, é **conservador**
+/// e não reclama — melhor esperar do que roubar um lock vivo (E13-T03).
 fn is_stale(fs: &dyn Fs, path: &Path, now: i64, stale_ms: i64) -> bool {
     match read_lock_at(fs, path) {
         Ok(Some(at)) => now.saturating_sub(at) > stale_ms,
-        Ok(None) => match fs.modified_ms(path) {
+        _ => match fs.modified_ms(path) {
             Ok(Some(modified)) => now.saturating_sub(modified) > stale_ms,
-            _ => true,
+            _ => false,
         },
-        Err(_) => true,
     }
 }
 

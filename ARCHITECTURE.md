@@ -234,10 +234,27 @@ kd <verbo>
 - Arquivos de produção ≤ 300 linhas (D92).
 - `clippy -D warnings` lendo `clippy.toml` (R44); perfis e supply chain (R40–R43).
 
-## 17. Referências
+## 17. Qualidade e verificação (E13)
+
+| Camada | O que trava | Onde |
+|---|---|---|
+| Golden | bytes de `prime`/`--json`/erros/`init`/EPIPE | `crates/knudge-cli/tests/golden.rs` + `tests/golden/` |
+| Property | TOON, RRF, decay/confiança, ids/hash sob normalização | proptests nos `src/<mod>/tests*` + `proptest-regressions/` |
+| Stress | lock sem *lost update*, escritas concorrentes, leitor × rebuild | `crates/knudge-core/tests/stress.rs` |
+| Crash-injection | nota-antes-de-evento, tmp+rename, rebuild double-buffer | `FaultyFs` em `store/tests/*` |
+| Bordas | catálogo com o teste que trava cada uma | [`DIVERGENCES.md`](DIVERGENCES.md) |
+| Aceite | pipe/`--json`/erro/exit/estado por verbo | [`plan/implementation/17_matriz_aceitacao.md`](plan/implementation/17_matriz_aceitacao.md) |
+| Dinâmica | `miri` no core puro; fuzz de TOON/JSONL; supply chain (`deny`/`audit`/`machete`/`typos`) | `.github/workflows/ci.yml`, `fuzz/`, `deny.toml` |
+
+O gate local é `make check` (fmt + clippy + test + linhas); `make ci` soma os alvos extras
+(que pulam se a ferramenta não estiver instalada).
+
+## 18. Referências
 
 - Visão: `plan/00_panorama.md`
 - Decisões: `plan/03_decisoes-fechadas.md` (D01–D101)
 - Contrato de bytes: `TOON.md`
 - Políticas de engenharia: `plan/implementation/14_revisao_tecnica.md` (R01–R44)
 - Superfície CLI: `plan/implementation/16_cli_surface.md`
+- Matriz de aceite: `plan/implementation/17_matriz_aceitacao.md`
+- Bordas: `DIVERGENCES.md`

@@ -68,3 +68,24 @@ proptest! {
         prop_assert_eq!(scores, sorted);
     }
 }
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(128))]
+
+    /// A fusão devolve exatamente a **união** dos ids dos canais, sem repetição.
+    #[test]
+    fn fuse_contains_union_of_ids(
+        channels in prop::collection::vec(prop::collection::vec("[a-e][0-9]", 0..6), 0..3),
+    ) {
+        let refs: Vec<&[String]> = channels.iter().map(Vec::as_slice).collect();
+        let fused = fuse(&refs, 60);
+        let mut expected: BTreeSet<String> = BTreeSet::new();
+        for channel in &channels {
+            for id in channel {
+                expected.insert(id.clone());
+            }
+        }
+        let got: BTreeSet<String> = fused.iter().map(|hit| hit.id.clone()).collect();
+        prop_assert_eq!(got, expected);
+    }
+}

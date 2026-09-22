@@ -254,3 +254,31 @@ proptest! {
         );
     }
 }
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(256))]
+
+    /// O `id` é endereçado por `normalize(statement)`: espaços nas pontas não mudam nada.
+    #[test]
+    fn note_id_ignores_surrounding_whitespace(statement in "\\PC*") {
+        let padded = format!(" \t\n{statement}\n\t ");
+        prop_assert_eq!(
+            note_id(NoteType::Fact, &padded),
+            note_id(NoteType::Fact, &statement)
+        );
+    }
+
+    /// O `body_hash` normaliza statement e corpo antes de hashear.
+    #[test]
+    fn body_hash_ignores_surrounding_whitespace(statement in "\\PC*", body in "\\PC*") {
+        let padded = format!("  {statement}  ");
+        prop_assert_eq!(body_hash(&padded, &body), body_hash(&statement, &body));
+    }
+
+    /// Variações tipográficas de espaço interno colapsam para a mesma forma.
+    #[test]
+    fn normalize_collapses_internal_whitespace(statement in "[a-z ]{0,40}") {
+        let doubled = statement.replace(' ', "   ");
+        prop_assert_eq!(normalize(&doubled), normalize(&statement));
+    }
+}

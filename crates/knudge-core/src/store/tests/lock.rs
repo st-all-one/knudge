@@ -53,6 +53,23 @@ fn stale_lock_is_reclaimed() -> Result<()> {
 }
 
 #[test]
+fn fresh_unreadable_lock_is_not_reclaimed() -> Result<()> {
+    let fs = MemFs::new();
+    let clock = FixedClock::new(Timestamp::from_millis(1_000));
+    let mut rng = SeqRng::new(3);
+    let path = PathBuf::from("/p/.knudge/.locks/fact_a.lock");
+    // Janela entre `create_exclusive` e a escrita do `at`: arquivo existe e vazio.
+    fs.create_exclusive(&path, b"")?;
+
+    let blocked = acquire(&fs, &clock, &mut rng, &path, policy());
+    assert!(
+        matches!(blocked, Err(Error::Conflict(_))),
+        "um lock recém-criado não pode ser roubado (E13-T03)"
+    );
+    Ok(())
+}
+
+#[test]
 fn concurrent_lock_prevents_lost_updates() -> Result<()> {
     let fs = Arc::new(MemFs::new());
     let counter = "/p/.knudge/counter";

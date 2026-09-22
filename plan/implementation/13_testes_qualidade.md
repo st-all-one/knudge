@@ -18,14 +18,14 @@ Transversal — inicia junto com E01 e cresce com os épicos.
 
 ## Tarefas
 
-### E13-T01 ☐ Golden / snapshot
+### E13-T01 ☑ Golden / snapshot
 - **Objetivo:** snapshots versionados de TOON (round-trip), formatos de saída (`recall` pipe,
   `--json`), mensagens de erro e `prime`.
 - **Entregáveis:** corpus + snapshots; runner de comparação.
 - **Decisões:** D72, D76.
 - **Aceite:** qualquer mudança de bytes/mensagem reprova o snapshot até ser aprovada.
 
-### E13-T02 ☐ Property tests
+### E13-T02 ☑ Property tests
 - **Objetivo:** propriedades dos puros: TOON round-trip; **RRF** (determinismo, união,
   monotonicidade); **decay/confiança** (monotonicidade, [0,1]); **IDs** (idempotência);
   normalização de hash.
@@ -33,35 +33,35 @@ Transversal — inicia junto com E01 e cresce com os épicos.
 - **Decisões:** D76, D92.
 - **Aceite:** `proptest` roda em CI com seed fixa; contador de casos documentado.
 
-### E13-T03 ☐ Stress de concorrência
+### E13-T03 ☑ Stress de concorrência
 - **Objetivo:** CLI + MCP simultâneos, rebuild × `recall`, writes concorrentes no mesmo alvo,
   reclaim de lock.
 - **Entregáveis:** testes de stress determinísticos por scheduling.
 - **Decisões:** D76, D23–D27.
 - **Aceite:** nenhum lost update; nenhum leitor vê índice parcial; sem deadlock ABBA.
 
-### E13-T04 ☐ Crash-injection
+### E13-T04 ☑ Crash-injection
 - **Objetivo:** matar o processo em pontos-chave (entre tmp/rename, entre nota/evento, durante
   flush do índice) e verificar recuperação.
 - **Entregáveis:** harness de crash; `doctor` reconstrói.
 - **Decisões:** D76, D20, D21, D85.
 - **Aceite:** invariantes “canônico antes do derivado” e “nota antes do evento” preservadas.
 
-### E13-T05 ☐ `DIVERGENCES.md` do knudge
+### E13-T05 ☑ `DIVERGENCES.md` do knudge
 - **Objetivo:** catalogar as bordas: Unicode (NFC/contagem), hash, ordem de chaves, lock,
   atomicidade, TOON, RRF/tie-break, timestamps — com mitigação e teste.
 - **Entregáveis:** documento na raiz.
 - **Decisões:** D77.
 - **Aceite:** cada divergência aponta para o teste que a trava.
 
-### E13-T06 ☐ Matriz de aceite por tool
+### E13-T06 ☑ Matriz de aceite por tool
 - **Objetivo:** para cada tool: formato pipe, `--json`, erro, exit code e estado do `.knudge/`
   esperado.
 - **Entregáveis:** matriz em markdown.
 - **Decisões:** D78.
 - **Aceite:** toda tool tem linha; CI valida os itens automatizáveis.
 
-### E13-T07 ☐ Gate de CI
+### E13-T07 ☑ Gate de CI
 - **Objetivo:** `fmt --check`, `clippy --workspace --all-targets -D warnings`, `test`, gate de
   linhas, doc-tests, `nextest`, todos lendo `clippy.toml`.
 - **Entregáveis:** pipeline com `cargo fmt`, `clippy`, `nextest`, `deny`, `audit`, `machete`,
@@ -69,14 +69,14 @@ Transversal — inicia junto com E01 e cresce com os épicos.
 - **Decisões:** D92. **Políticas:** R42, R44.
 - **Aceite:** PR sem o gate não passa; `clippy.toml` e `[workspace.lints]` aplicados.
 
-### E13-T08 ☐ Verificação dinâmica de memória e concorrência
+### E13-T08 ☑ Verificação dinâmica de memória e concorrência
 - **Objetivo:** pegar UB e corridas que testes comuns não pegam.
 - **Entregáveis:** `cargo miri test` nos crates puros; `loom` nos primitivos concorrentes
   (lock/RRF); fuzz do parser TOON e do leitor JSONL; `cargo geiger` para auditar `unsafe`.
 - **Decisões:** D76. **Políticas:** R01, R11.
 - **Aceite:** Miri/loom verdes; fuzz sem panic no corpus; `unsafe` só em `embeddings`.
 
-### E13-T09 ☐ Supply chain, cobertura e benchmark
+### E13-T09 ☑ Supply chain, cobertura e benchmark
 - **Objetivo:** dependências, cobertura e desempenho observáveis.
 - **Entregáveis:** `cargo deny` (licenças/advisories) + `cargo audit` + `cargo machete` + `typos`
   no CI; cobertura `llvm-cov`/`tarpaulin`; `criterion` para retrieval (observação, não gate);
@@ -86,11 +86,39 @@ Transversal — inicia junto com E01 e cresce com os épicos.
 
 ## Definition of Done
 
-- [ ] Golden, proptest, stress e crash-injection verdes e em CI.
-- [ ] `DIVERGENCES.md` e a matriz de aceite publicados e mantidos.
-- [ ] Uma feature só é “pronta” com a linha da matriz correspondente verificada.
-- [ ] Miri/loom/fuzz e supply chain no CI.
+- [x] Golden, proptest, stress e crash-injection verdes e em CI.
+- [x] `DIVERGENCES.md` e a matriz de aceite publicados e mantidos.
+- [x] Uma feature só é “pronta” com a linha da matriz correspondente verificada.
+- [x] Miri/loom/fuzz e supply chain no CI.
 
 ## Não-objetivos
 
 - Benchmark de performance como critério de aceite (é observação, não bloqueio).
+
+## Entregue (E13)
+
+- **T01** — golden do binário em `crates/knudge-cli/tests/golden.rs` + `tests/golden/*` (`prime`,
+  `--json`, envelope de erro, erro em texto, `init`, EPIPE), com normalização de `<ROOT>`/`<NAME>`.
+- **T02** — proptests cobrindo TOON round-trip, RRF (determinismo, monotonicidade, **união**),
+  confiança/decay (monotonicidade, `[0,1]`), `id`/`body_hash` sob normalização e idempotência de
+  `normalize`. Contagem de casos fixa; regressões em `proptest-regressions/`.
+- **T03** — `crates/knudge-core/tests/stress.rs` sobre adaptadores **reais**: lock com 8×25
+  escritas (sem *lost update*), escritas concorrentes de notas distintas e leitor de índice
+  durante rebuild (nunca parcial). **Achou e corrigiu** duas bordas: `StdFs::rename` mapeando
+  `NotFound`→`Io` e o reclaim de um lock recém-criado ainda sem conteúdo (agora decide por
+  `mtime`). Regressão em `store::tests::lock::fresh_unreadable_lock_is_not_reclaimed`.
+- **T04** — crash-injection com `FaultyFs`: nota-sem-evento, escrita atômica preservando o antigo
+  e crash no meio do rebuild preservando o índice canônico.
+- **T05** — [`DIVERGENCES.md`](../../DIVERGENCES.md) na raiz (20 bordas, cada uma com o teste).
+- **T06** — [`17_matriz_aceitacao.md`](17_matriz_aceitacao.md): linha por verbo/subcomando com
+  pipe, `--json`, erro/exit code, estado de `.knudge/` e teste.
+- **T07** — `.github/workflows/ci.yml` (fmt+clippy+test+linhas, nextest, doc-tests) e alvos
+  `make nextest|deny|audit|machete|typos|miri|fuzz|coverage|ci`.
+- **T08** — job de `miri` para `knudge-core --lib`; fuzz skeleton em `fuzz/`
+  (`toon_parse`, `jsonl_decode`) com smoke de 30 s por alvo. **`loom` não se aplica**: o core não
+  tem primitivos concorrentes em memória (a sincronização real é por arquivo), então o stress
+  cobre o adaptador real.
+- **T09** — `deny.toml` (licenças, advisories, fontes, ban de runtime async), `_typos.toml`,
+  job de supply chain e alvo de cobertura (`cargo-llvm-cov`, observação).
+  **`criterion` fica como não-objetivo** (benchmark é observação, não gate) para não inflar o
+  orçamento de dependências (R43).

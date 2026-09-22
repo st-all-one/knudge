@@ -28,6 +28,11 @@ make clippy    # cargo clippy --workspace --all-targets -- -D warnings
 make test      # cargo test --workspace
 make build     # cargo build --workspace
 
+# alvos extras (E13) — pulam se a ferramenta não estiver instalada
+make ci        # check + nextest + deny + audit + machete + typos
+make miri      # verificação dinâmica de UB no core puro
+make fuzz      # build dos alvos de fuzz (TOON, JSONL)
+
 # alvos pontuais enquanto trabalha
 cargo test -p knudge-core toon::tests::round_trip_is_byte_exact
 cargo clippy -p knudge-core --all-targets -- -D warnings
@@ -45,7 +50,9 @@ crates/knudge-cli/    # binário `kd`: clap, envelope --json, logging, montagem 
 crates/knudge-mcp/    # servidor MCP (reativo)
 plan/                 # visão (00), decisões (Dxx), implementação por épico (E0x-T0y) e políticas (Rn)
 refs/                 # projetos de referência (mulch-rs, seeds-rs, arags) — leitura, não editar
+fuzz/                 # alvos de fuzz (TOON, JSONL) — fora do workspace
 .agents/skill/rust/   # skill de Rust (SKILL.md + capítulos)
+DIVERGENCES.md        # bordas (Unicode, ordem, lock, atomicidade…) + teste que trava cada uma
 ```
 
 Cada crate tem um `MODULE.md` com o papel e os módulos. Mantenha-o em sincronia ao criar/remover
@@ -173,6 +180,9 @@ módulos. Onde mexer:
 
 - [ ] `make check` verde.
 - [ ] Testes novos cobrem o comportamento e o bug (se houve) — sem `unwrap`.
+- [ ] Se tocou uma borda: linha em [`DIVERGENCES.md`](DIVERGENCES.md) com o teste que a trava.
+- [ ] Se adicionou/alterou verbo: linha na
+      [`17_matriz_aceitacao.md`](plan/implementation/17_matriz_aceitacao.md) e golden atualizado.
 - [ ] `MODULE.md`/docs atualizados se criou/removeu módulo ou mudou contrato.
 - [ ] Se mudou decisão/contrato: `Dxx` registrado em `plan/03_decisoes-fechadas.md` e propagado.
 - [ ] Se concluiu um épico/tarefa: marque `☑`/`[x]` em `plan/implementation/` e atualize
@@ -185,4 +195,6 @@ módulos. Onde mexer:
 - Políticas de engenharia: [`plan/implementation/14_revisao_tecnica.md`](plan/implementation/14_revisao_tecnica.md) (`R01–R44`).
 - Lints: [`plan/implementation/15_clippy_config.md`](plan/implementation/15_clippy_config.md) + `clippy.toml`.
 - Superfície `kd`: [`plan/implementation/16_cli_surface.md`](plan/implementation/16_cli_surface.md).
+- Matriz de aceite: [`plan/implementation/17_matriz_aceitacao.md`](plan/implementation/17_matriz_aceitacao.md).
+- Bordas: [`DIVERGENCES.md`](DIVERGENCES.md).
 - Rust: [`.agents/skill/rust/SKILL.md`](.agents/skill/rust/SKILL.md).

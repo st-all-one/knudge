@@ -11,8 +11,14 @@ description = "Servidor MCP do knudge (reativo a comportamento)."
 name = "knudge_mcp"
 path = "src/lib.rs"
 
+[[bin]]
+name = "knudge-mcp"
+path = "src/main.rs"
+
 [dependencies]
 knudge-core = { path = "../knudge-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
 
 [lints]
 workspace = true
