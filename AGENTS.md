@@ -65,6 +65,8 @@ módulos. Onde mexer:
 | rewind, manifest, orçamento, context_id | `knudge-core/src/handoff/` |
 | diff, learn, compact | `knudge-core/src/maintenance/` |
 | tarefas plan/epic/issue/task | `knudge-core/src/task/` |
+| validação, audit, doctor, validators | `knudge-core/src/health/` |
+| confiança derivada, decay, clusters | `knudge-core/src/lifecycle/` |
 | erros e exit codes | `knudge-core/src/error.rs` |
 | tempo determinístico | `knudge-core/src/time.rs` |
 | redação de segredos | `knudge-core/src/logging.rs` |

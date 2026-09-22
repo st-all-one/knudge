@@ -13,7 +13,7 @@ pub mod spec;
 mod tests;
 
 pub use hierarchy::{children, expected_parent, validate_blocks, validate_parent};
-pub use lifecycle::{OutcomeStatus, TaskAction, apply, outcome, reorder};
+pub use lifecycle::{OutcomeStatus, TaskAction, apply, outcome, reorder, validate_transition};
 pub use membership::Marker;
 pub use spec::TaskSpec;
 

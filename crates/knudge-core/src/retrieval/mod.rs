@@ -28,6 +28,7 @@ pub use why::Why;
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::graph::Graph;
+use crate::lifecycle::confidence::{ConfidenceInput, confidence_score};
 use crate::schema::EdgeKind;
 use crate::store::{Note, Store};
 use crate::{Error, Result};
@@ -90,6 +91,8 @@ pub struct RecallHit {
     pub statement: String,
     /// Score fundido (RRF).
     pub score: f64,
+    /// Confiança **derivada** `[0,1]` (D87) — nunca armazenada.
+    pub confidence: f64,
     /// Por que apareceu.
     pub why: Why,
 }
@@ -123,6 +126,7 @@ pub fn recall(index: &Index, graph: &Graph, query: &RecallQuery) -> Result<Recal
         channels.push(vector.as_slice());
     }
     let fused = fuse(&channels, query.rrf_k);
+    let max_score = fused.first().map_or(0.0, |hit| hit.score);
 
     let by_id: BTreeMap<&str, &NoteDoc> = index
         .docs
@@ -139,10 +143,22 @@ pub fn recall(index: &Index, graph: &Graph, query: &RecallQuery) -> Result<Recal
         let Some(doc) = by_id.get(fused_hit.id.as_str()) else {
             continue;
         };
+        let similarity = if max_score > 0.0 {
+            fused_hit.score / max_score
+        } else {
+            0.0
+        };
+        let confidence = confidence_score(&ConfidenceInput {
+            similarity,
+            confirmation: doc.meta.confirmation,
+            age_days: age_days(doc, query.now_ms),
+            ..ConfidenceInput::default()
+        });
         hits.push(RecallHit {
             id: fused_hit.id,
             statement: doc.statement.clone(),
             score: fused_hit.score,
+            confidence,
             why: choose_why(doc, query, graph),
         });
     }
@@ -252,6 +268,14 @@ fn choose_why(doc: &NoteDoc, query: &RecallQuery, graph: &Graph) -> Why {
         return Why::Recent;
     }
     Why::Universal
+}
+
+fn age_days(doc: &NoteDoc, now_ms: Option<i64>) -> f64 {
+    let Some(now) = now_ms else {
+        return 0.0;
+    };
+    let elapsed = now.saturating_sub(doc.meta.created_ms).max(0);
+    f64::from(i32::try_from(elapsed / 86_400_000).unwrap_or(i32::MAX))
 }
 
 fn sanitize(statement: &str) -> String {

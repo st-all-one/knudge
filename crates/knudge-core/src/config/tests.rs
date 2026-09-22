@@ -19,8 +19,10 @@ fn defaults_round_trip_and_validate() -> Result<()> {
 #[test]
 fn set_validates_and_unset_prunes() -> Result<()> {
     let mut config = Config::defaults();
+    assert!(!config.strict());
     config.set_str("behavior.strict", "true")?;
     assert_eq!(config.get_bool("behavior.strict"), Some(true));
+    assert!(config.strict());
 
     assert!(config.set_str("behavior.strict", "maybe").is_err());
     assert!(config.set_str("nope.key", "x").is_err());

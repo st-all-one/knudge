@@ -106,6 +106,12 @@ impl Config {
         self.get(key).and_then(ConfigValue::as_str)
     }
 
+    /// `behavior.strict`: promove warnings a erro (D94; default `false`).
+    #[must_use]
+    pub fn strict(&self) -> bool {
+        self.get_bool("behavior.strict").unwrap_or(false)
+    }
+
     /// Define um valor já tipado, validando contra o schema.
     ///
     /// # Errors

@@ -2,7 +2,7 @@
 
 > Plano de implementação do binário **`kd`** e do diretório **`.knudge/`**, derivado dos
 > documentos da raiz de `plan/`: `00_panorama.md` (visão), `01_gaps-plan-rs.md` (bordas),
-> `02_decisoes.md` (pontos), `03_decisoes-fechadas.md` (D01–D92 ✅), `04_embeddings.md`
+> `02_decisoes.md` (pontos), `03_decisoes-fechadas.md` (D01–D99 ✅), `04_embeddings.md`
 > (vetores) e `05_refs-agnostic-rag.md` (extrações do arags).
 >
 > Cada arquivo desta pasta é um **épico**; cada épico tem **tarefas** com aceite verificável.
@@ -136,6 +136,8 @@ Um épico só fecha quando:
 | D96 (registro de evento, rotação, `revision`) | E03 |
 | D97 (subset TOML, guard `git -C`, `onboard`) | E04 |
 | D98 (chaves de aresta, ciclo de supersessão, sugestões derivadas) | E05 |
+| D16–D19, D43, D46, D48, D54–D55, D84, D86–D87 (validators, evidence, audit, doctor, âncoras, confiança) | E09 |
+| D99 (catálogo de validators em TOML) | E09 |
 
 ---
 

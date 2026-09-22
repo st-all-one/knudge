@@ -31,12 +31,22 @@ impl Note {
     /// Retorna `ErrorKind::InvalidInput` se não for UTF-8 e `ErrorKind::Schema` se o
     /// frontmatter for inválido.
     pub fn parse(bytes: &[u8]) -> Result<Self> {
+        Self::parse_with_warnings(bytes).map(|(note, _warnings)| note)
+    }
+
+    /// Parseia como [`Note::parse`], devolvendo também os **warnings** do read (chave
+    /// desconhecida tolerada — D16).
+    ///
+    /// # Errors
+    /// Retorna `ErrorKind::InvalidInput` se não for UTF-8 e `ErrorKind::Schema` se o
+    /// frontmatter for inválido.
+    pub fn parse_with_warnings(bytes: &[u8]) -> Result<(Self, Vec<String>)> {
         let text =
             std::str::from_utf8(bytes).map_err(|_| Error::invalid_input("nota não é UTF-8"))?;
         let (front, body) = toon::split_frontmatter(text)?;
-        let (frontmatter, _warnings) = Frontmatter::parse(&front)?;
+        let (frontmatter, warnings) = Frontmatter::parse(&front)?;
         frontmatter.validate()?;
-        Ok(Self { frontmatter, body })
+        Ok((Self { frontmatter, body }, warnings))
     }
 
     /// Serializa para o formato de arquivo (`---` + TOON + `---` + corpo).

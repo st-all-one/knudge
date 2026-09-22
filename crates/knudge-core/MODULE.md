@@ -25,7 +25,8 @@ existem no mesmo crate, mas o domínio **nunca** as importa — só as portas.
 | `handoff` | `rewind` (manifest/escopo/files), orçamento sem tokenizer e `context_id` (E08). |
 | `maintenance` | `diff`, `learn` e `compact` como propostas (E08). |
 | `task` | Hierarquia `plan ⊃ epic ⊃ issue ⊃ task` e ciclo de vida (E08). |
-| `lifecycle` | Decay, confiança derivada, clusters (E10). |
+| `health` | Validators, evidência, `audit`, `doctor --fix`, leitura tolerante e âncoras por hash (E09). |
+| `lifecycle` | Confiança derivada (E09); decay e clusters (E10). |
 | `embeddings` | Contrato do provedor plugável (E11). |
 
 ## Invariantes

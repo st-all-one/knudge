@@ -72,7 +72,7 @@ impl OutcomeStatus {
 pub fn apply(ctx: &WriteContext<'_>, id: &str, action: TaskAction) -> Result<u32> {
     let mut note = ctx.store().read(id)?;
     ensure_task(&note)?;
-    transition(note.frontmatter.status()?, action.target())?;
+    validate_transition(note.frontmatter.status()?, action.target())?;
     note.frontmatter
         .set("status", Value::Str(action.target().as_str().to_string()))?;
     let revision = note.revision().saturating_add(1);
@@ -107,12 +107,12 @@ pub fn outcome(
             Value::Str(status.as_str().to_string()),
         ),
         (
-            "at".to_string(),
+            "recorded_at".to_string(),
             Value::Str(Timestamp::from_millis(ctx.now_ms()).to_rfc3339()),
         ),
     ];
     if let Some(note) = note {
-        entry.push(("note".to_string(), Value::Str(note.to_string())));
+        entry.push(("notes".to_string(), Value::Str(note.to_string())));
     }
     items.push(Value::map(entry));
     existing.frontmatter.set("outcomes", Value::List(items))?;
@@ -159,7 +159,11 @@ fn ensure_task(note: &Note) -> Result<()> {
     }
 }
 
-fn transition(from: Status, to: Status) -> Result<()> {
+/// Valida uma transição de status de tarefa (`from → to`).
+///
+/// # Errors
+/// Retorna `ErrorKind::InvalidInput` para transições proibidas (D53).
+pub fn validate_transition(from: Status, to: Status) -> Result<()> {
     if from == to {
         return Ok(());
     }

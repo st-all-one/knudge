@@ -30,7 +30,7 @@ Três consequências que explicam todas as decisões:
   notas/*.md                 # verdade — frontmatter TOON + corpo
   eventos/events.jsonl       # log append-only (auditoria)
   templates.yaml             # seções obrigatórias por tipo
-  validators.yaml            # catálogo de checks executáveis
+  validators.toml            # catálogo de checks executáveis (D99)
   .idx/                      # índice derivado, reconstruível
   cache/                     # descartável
 
@@ -42,7 +42,7 @@ Três consequências que explicam todas as decisões:
 |---|---|---|
 | `notas/` | Fonte da verdade. Um arquivo = uma unidade de recuperação. | **Fixa** |
 | `eventos/` | Append-only. Auditoria, `learn`, `diff`, `audit`. Não define ordem. | Recomendada |
-| `.idx/` | Índice derivado (retrieval, checkpoint de eventos, sugestões, contextos de rewind, embeddings, clusters). | Oscila |
+| `.idx/` | Índice derivado (retrieval, checkpoint de eventos, sugestões, contextos de rewind, hashes de âncora, embeddings, clusters). | Oscila |
 | `config.toml` | Config efetiva do projeto (clone do global). Precedência sobre o global. | Formato fixo |
 | `cache/` | Respostas caras / warm start. | Descartável |
 
@@ -70,7 +70,7 @@ Projeto (efetivo)           <projeto>/.knudge/config.toml
 
 O global é o **modelo** (defaults curados pelo usuário). O do projeto é o **efetivo** e tem **precedência**. Na instanciação, o projeto simplesmente **clona** o global — a partir daí pode divergir.
 
-Dados do projeto — `templates.yaml` e `validators.yaml` — continuam dentro de `.knudge/`, porque são **conteúdo**, não configuração.
+Dados do projeto — `templates.yaml` e `validators.toml` — continuam dentro de `.knudge/`, porque são **conteúdo**, não configuração.
 
 ### Precedência e instanciação
 
@@ -350,7 +350,7 @@ depends_on: [decision_4b22e901]
 
 **Cortados como resíduo de workflow humano:** `priority`, `assignee`/`claimed_by`, `acceptance` em prosa. Nenhum resolve problema de 2 agentes, 1 projeto, orquestrado, sem deadline.
 
-**Acceptance reformulado:** não prosa por task, mas **referência a um catálogo de validators executáveis** (`validators.yaml`). A resolução de checks combina três fontes:
+**Acceptance reformulado:** não prosa por task, mas **referência a um catálogo de validators executáveis** (`validators.toml`, D99). A resolução de checks combina três fontes:
 
 ```
 checks(task) = checks_explícitos(task)
@@ -433,6 +433,7 @@ Os passos 1–5 são pré-requisitos entre si; 6–7 são independentes e podem 
   .idx/retrieval.jsonl    # índice invertido + forward (E06)
   .idx/events.checkpoint  # checkpoint do log de eventos (E03)
   .idx/contexts/          # contextos de rewind (handoff 1:1 — E08)
+  .idx/anchors.jsonl      # hashes de âncora (verify-on-hit — E09)
 
 kd                 # binário único (Rust), módulos por escopo:
                    # core, cli, mcp, jsonl, toon, git, store, graph, retrieval, write, handoff, maintenance, task, lifecycle

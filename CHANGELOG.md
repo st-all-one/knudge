@@ -7,6 +7,25 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 ### Adicionado
 - **AGENTS.md** — guia de contribuição do repositório: padrões de desenvolvimento, erros,
   logs, testes, contrato de bytes e checklist de conclusão.
+- **E09 — Validação, saúde e leitura tolerante** (Fase 2, concluído):
+  - `health::validator`: catálogo `.knudge/validators.toml` (subset TOML — D99) e resolução
+    `checks = explícitos ∪ globais ∪ por_âncora`; explícito ausente vira `missing[]` (D54).
+  - `health::evidence`: fechamento por **evidência** — grava `evidence` + `outcomes[]`
+    (`status/duration/agent/notes/recorded_at`) e **infere** o `outcome` pela severidade
+    (`success`/`partial`/`failure`); sem evidência, não fecha (D48/D55).
+  - `health::audit`: relatório puro de integridade, ciclos, âncoras quebradas, duplicatas,
+    arestas sugeridas faltantes e locks stale (D46).
+  - `health::doctor [--fix]`: 10 checks (schema, integridade, ciclos, âncoras, duplicatas,
+    locks, config, `body_hash`, eventos, divergência canônico↔derivado) e reparo reversível
+    **idempotente** (D19/D84).
+  - `health::tolerant`: leitura Postel — chave desconhecida → warning; `type` desconhecido ou
+    nota malformada → **skip + orientação**, sem derrubar o comando (D16–D18); `Config::strict`.
+  - `health::anchors`: `content_hash` derivado em `.idx/anchors.jsonl` e verify-on-hit —
+    `cited` invalida, `context` não; stale **sinaliza**, nunca apaga (D86).
+  - `lifecycle::confidence`: confiança **derivada** (`sim × drift × idade + feedback`, pisos,
+    `[0,1]`) com proptest de monotonicidade; exposta em `RecallHit.confidence` (D87).
+  - Correções de contrato: `task::outcome` usa `notes`/`recorded_at` (D48) e `task` exporta
+    `validate_transition`.
 - **E08 — Prime, handoff, diff e learn** (MVP, concluído):
   - `handoff::rewind`: família de estado/handoff — manifest (~30 tokens), escopo (container) e
     working set (âncoras), com ranking por trust-tier
@@ -160,10 +179,10 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   `superseded_by`, ciclo de supersessão sobre `replaces` e sugestões derivadas.
 
 ### Testes
-- 262 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
+- 293 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
   schema/hash/ID/arestas, TOON, JSONL/JSON, store, config/TOML, git/onboard/sync,
   grafo/integridade/ciclos/sugestões, retrieval/token/BM25/âncoras/RRF/views,
   escrita/dedup/update/supersede/forget, rewind/orçamento/context_id, diff/learn/compact,
-  tarefas/hierarquia/ciclo de vida).
+  tarefas/hierarquia/ciclo de vida, validators/evidência/audit/doctor/âncoras/confiança).
 - 8 testes de integração do binário (`--help`, `kd == kd prime`, `--json`, exit codes,
   EPIPE, comando desconhecido).

@@ -63,7 +63,8 @@ conveniência, mas só `cli`/`mcp` o importam.
 | `handoff` | `rewind` (manifest/escopo/working set), orçamento e `context_id` | E08 |
 | `maintenance` | `diff`, `learn` e `compact` (propostas) | E08 |
 | `task` | hierarquia `plan ⊃ epic ⊃ issue ⊃ task` como view derivada | E08 |
-| `lifecycle` | decay, confiança derivada, clusters | E10 |
+| `health` | validators, evidência, `audit`, `doctor`, leitura tolerante e âncoras por hash | E09 |
+| `lifecycle` | confiança derivada (E09); decay e clusters | E09/E10 |
 | `embeddings` | provedor plugável e fila lazy | E11 |
 
 ## 5. Persistência (E03)
@@ -163,7 +164,21 @@ volatilidade, não CAS (D48).
 | `compact` | propõe `concat`/`keep_latest`/`merge_outcomes`; só aplica sob aceite (D47). |
 | Tarefas | `plan`/`epic` = `container`, `issue`/`task` = `task`; pai por marcador no corpo + aresta `results_in`; `blocks` 1-based; profundidade máx. 4 (D52/D53/D93). |
 
-## 11. Fluxo de uma operação
+## 11. Validação, saúde e leitura tolerante (E09)
+
+| Conceito | Regra |
+|---|---|
+| Catálogo de validators | `.knudge/validators.toml` (subset TOML — D99): `cmd` + `scope` + `severity` + `timeout`; `globals` no topo. |
+| Resolução de `checks` | `explícitos ∪ globais ∪ por_âncora(anchors)` (D54); explícito ausente vira `missing[]`. |
+| Fechamento por evidência | `close_task` grava `evidence` + `outcomes[]` e **infere** `outcome` pela severidade (D48/D55); sem evidência, não fecha. |
+| Confirmação | **Derivada** de `outcomes` (`success + partial*0.5`) — nunca armazenada (D48). |
+| `audit` | Leitura pura: integridade, ciclos, âncoras quebradas, duplicatas, arestas sugeridas faltantes e locks stale (D46). |
+| `doctor --fix` | 10 checks; corrige `body_hash`, âncoras quebradas, locks stale e índice divergente; **idempotente** (D19/D84). |
+| Leitura tolerante | Chave desconhecida → warning; `type` desconhecido/nota malformada → **skip + orientação**, sem derrubar o comando (D16–D18). |
+| Âncoras | `path` na nota, `content_hash` em `.idx/anchors.jsonl`; `cited` invalida, `context` não; stale **sinaliza**, não apaga (D86). |
+| Confiança derivada | `sim × drift × idade + feedback`, pisos, sempre `[0,1]`, calculada no `recall` (D87). |
+
+## 12. Fluxo de uma operação
 
 ```
 kd <verbo>
@@ -174,7 +189,7 @@ kd <verbo>
   → exit code = ErrorKind::exit_code() (101 reservado a panic)
 ```
 
-## 12. Invariantes de engenharia
+## 13. Invariantes de engenharia
 
 - `#![forbid(unsafe_code)]` em `core`/`cli`/`mcp` (R01).
 - Sem `Rc`/`RefCell` no core; estado compartilhado via `Arc<Mutex<_>>` (R03).
@@ -182,7 +197,7 @@ kd <verbo>
 - Arquivos de produção ≤ 300 linhas (D92).
 - `clippy -D warnings` lendo `clippy.toml` (R44); perfis e supply chain (R40–R43).
 
-## 13. Referências
+## 14. Referências
 
 - Visão: `plan/00_panorama.md`
 - Decisões: `plan/03_decisoes-fechadas.md` (D01–D98)
