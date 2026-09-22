@@ -15,7 +15,7 @@ ESCRITA (duas fases, idempotente por conteúdo):
 PESQUISA (uma tool):
   kd ask [QUERY] [--id ID...] [--around ID] [--via ARESTA] [--depth N]
          [--type T...] [--class C...] [--tag T...] [--status S...] [--container ID]
-         [--anchor PATH] [--since TS] [--until TS] [--limit N] [--brief] [--with-body]
+         [--anchor PATH...] [--since TS] [--until TS] [--limit N] [--brief] [--with-body]
   Pipe (LLM): id|statement|score|why  (1 hit por linha). Corpo só com --id/--with-body.
   forgotten/superseded ficam fora do ask por padrão; use --status para incluí-los.
 

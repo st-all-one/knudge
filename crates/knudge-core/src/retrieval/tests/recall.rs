@@ -51,6 +51,23 @@ fn anchored_note_recalls_without_lexical_match() -> Result<()> {
 }
 
 #[test]
+fn anchor_channel_recalls_with_empty_text() -> Result<()> {
+    let anchored = anchored(NoteType::Fact, "nota ancorada", &["src/**"])?;
+    let anchored_id = anchored.id()?.to_string();
+    let index = Index::build(&[anchored])?;
+    let graph = Graph::from_notes(Vec::new())?;
+
+    let mut query = RecallQuery::new("");
+    query.working_paths = vec!["src/retry.ts".to_string()];
+    let output = recall(&index, &graph, &query)?;
+
+    let hit = output.hits.first();
+    assert_eq!(hit.map(|hit| hit.id.as_str()), Some(anchored_id.as_str()));
+    assert_eq!(hit.map(|hit| hit.why), Some(Why::FileMatch));
+    Ok(())
+}
+
+#[test]
 fn failed_channel_degrades_and_strict_errors() -> Result<()> {
     let index = Index::build(&[note(NoteType::Fact, "alpha", "")?])?;
     let graph = Graph::from_notes(Vec::new())?;

@@ -5,6 +5,13 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 ## [Não publicado]
 
 ### Corrigido
+- **`kd ask --anchor <path>` voltava vazio sem query textual e ignorava âncoras-glob.** Agora
+  `--anchor` alimenta o **canal** de âncoras (D81) — a consulta funciona só com o path, sem
+  query — e `Filter.anchors` casa nas **duas direções** (o pedido como glob e a âncora da nota
+  como glob sobre o caminho pedido), alinhado a `rewind --files`. Regressão:
+  `retrieval::tests::filter::anchor_filter_accepts_note_glob_matching_requested_path`,
+  `retrieval::tests::recall::anchor_channel_recalls_with_empty_text`,
+  `cli::ask_anchor_finds_note_without_query`.
 - **`kd ask --brief` e `--with-body` eram flags mortas.** Agora `--brief` emite `id|statement`
   (2 colunas) e `--with-body` anexa o corpo de cada hit (no pipe e em `data.hits[].body` no
   `--json`); `--id` continua trazendo o corpo, e `--id --brief` o omite. Regressão:
@@ -20,6 +27,10 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   Goldens `prime.txt`/`json_prime.json` atualizados; `kd` continua byte-idêntico a `kd prime`.
 
 ### Adicionado
+- **`kd ask --anchor` é repetível e aceita lista com vírgula.** `--anchor a,b --anchor c`
+  consulta várias âncoras de uma vez; cada valor alimenta o canal de âncoras (D81). O `prime`
+  e os goldens passam a documentar `[--anchor PATH...]`. Regressão:
+  `cli::ask_anchor_accepts_comma_separated_and_repeated`.
 - **Instalação** (`install.sh` + `make install`):
   - `make install` compila em release, instala `kd` e `knudge-mcp` em `~/.local/bin`
     (`PREFIX`/`BINDIR` mudam o destino), cria a config global

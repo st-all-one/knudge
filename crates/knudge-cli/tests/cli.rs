@@ -136,6 +136,104 @@ fn init_write_ask_roundtrip() -> TestResult {
     Ok(())
 }
 
+/// Escreve uma nota ancorada num projeto e devolve o id.
+fn write_anchored(
+    dir: &Path,
+    statement: &str,
+    anchor: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let out = run_in(
+        dir,
+        &[
+            "--json",
+            "write",
+            statement,
+            "--type",
+            "fact",
+            "--anchors",
+            anchor,
+        ],
+    )?;
+    assert!(out.status.success(), "write falhou: {:?}", out.stderr);
+    let id = json(&out)?
+        .get("data")
+        .and_then(|data| data.get("id"))
+        .and_then(|id| id.as_str())
+        .ok_or("write sem id")?
+        .to_string();
+    Ok(id)
+}
+
+#[test]
+fn ask_anchor_finds_note_without_query() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let id = write_anchored(&dir, "o cache usa body_hash", "src/cache.rs")?;
+
+    let ask = run_in(&dir, &["ask", "--anchor", "src/cache.rs"])?;
+    assert!(ask.status.success(), "ask falhou: {:?}", ask.stderr);
+    let text = String::from_utf8(ask.stdout)?;
+    assert!(
+        text.contains(&id),
+        "ask --anchor não recuperou {id}: {text}"
+    );
+    assert!(
+        text.contains("file_match"),
+        "why esperado file_match: {text}"
+    );
+    Ok(())
+}
+
+#[test]
+fn ask_anchor_accepts_comma_separated_and_repeated() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let first_id = write_anchored(&dir, "o cache usa body_hash", "src/cache.rs")?;
+    let second_id = write_anchored(&dir, "a fila usa backoff", "src/queue.rs")?;
+
+    let comma = run_in(&dir, &["ask", "--anchor", "src/cache.rs,src/queue.rs"])?;
+    assert!(comma.status.success(), "ask falhou: {:?}", comma.stderr);
+    let text = String::from_utf8(comma.stdout)?;
+    assert!(
+        text.contains(&first_id),
+        "comma não achou {first_id}: {text}"
+    );
+    assert!(
+        text.contains(&second_id),
+        "comma não achou {second_id}: {text}"
+    );
+
+    let repeated = run_in(
+        &dir,
+        &[
+            "ask",
+            "--anchor",
+            "src/cache.rs",
+            "--anchor",
+            "src/queue.rs",
+        ],
+    )?;
+    assert!(
+        repeated.status.success(),
+        "ask falhou: {:?}",
+        repeated.stderr
+    );
+    let text = String::from_utf8(repeated.stdout)?;
+    assert!(
+        text.contains(&first_id),
+        "repeat não achou {first_id}: {text}"
+    );
+    assert!(
+        text.contains(&second_id),
+        "repeat não achou {second_id}: {text}"
+    );
+    Ok(())
+}
+
 #[test]
 fn forgotten_note_is_hidden_from_default_ask() -> TestResult {
     let dir = temp_project();

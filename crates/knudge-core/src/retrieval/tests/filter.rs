@@ -84,6 +84,19 @@ fn classification_and_anchors_filters() {
 }
 
 #[test]
+fn anchor_filter_accepts_note_glob_matching_requested_path() {
+    // O pedido é um caminho concreto; a nota está ancorada por glob (direção do canal).
+    let mut filter = Filter::new();
+    filter.anchors = vec!["src/retry.ts".to_string()];
+    let mut meta = empty_meta();
+    meta.anchors = vec!["src/**".to_string()];
+    assert!(filter.matches(&meta));
+
+    meta.anchors = vec!["other/**".to_string()];
+    assert!(!filter.matches(&meta));
+}
+
+#[test]
 fn empty_filter_accepts_everything() {
     let filter = Filter::new();
     assert!(filter.is_empty());

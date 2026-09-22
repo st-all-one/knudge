@@ -102,8 +102,12 @@ fn recall_query(session: &Session, args: &AskArgs) -> Result<Output> {
         classifications: parse::classifications(&args.classes)?,
         statuses,
         tags: args.tags.clone(),
-        anchors: args.anchor.iter().cloned().collect(),
+        anchors: args.anchor.clone(),
     };
+    // `--anchor` alimenta o canal de âncoras (D81), não só o filtro: sem isso, um
+    // `ask --anchor` sem query textual não teria candidato lexical e voltaria vazio.
+    // Repetível e com vírgula (`--anchor a,b --anchor c`).
+    query.working_paths.clone_from(&args.anchor);
     query.container.clone_from(&args.container);
     query.now_ms = Some(session.now_ms());
     query.strict = config.strict();

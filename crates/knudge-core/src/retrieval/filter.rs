@@ -59,7 +59,10 @@ pub struct Filter {
     pub statuses: Vec<Status>,
     /// Tags exigidas (basta uma).
     pub tags: Vec<String>,
-    /// Âncoras (glob) exigidas (basta uma).
+    /// Âncoras (path/glob) exigidas (basta uma). O match aceita as duas direções: o
+    /// valor pedido como glob sobre a âncora da nota (`V2/**` casa `V2/x.rs`) ou a âncora
+    /// da nota como glob sobre o valor pedido (`src/**` casa `src/x.rs`) — alinhado ao
+    /// canal de âncoras (`retrieval/anchor.rs`) e a `rewind --files`.
     pub anchors: Vec<String>,
 }
 
@@ -89,12 +92,19 @@ impl Filter {
             && (self.statuses.is_empty() || self.statuses.contains(&meta.status))
             && (self.tags.is_empty() || meta.tags.iter().any(|tag| self.tags.contains(tag)))
             && (self.anchors.is_empty()
-                || meta.anchors.iter().any(|anchor| {
-                    self.anchors
-                        .iter()
-                        .any(|pattern| glob_match(pattern, anchor))
-                }))
+                || meta
+                    .anchors
+                    .iter()
+                    .any(|anchor| self.anchors.iter().any(|req| anchor_matches(req, anchor))))
     }
+}
+
+/// `true` se o valor pedido casa a âncora da nota em qualquer direção (D81).
+///
+/// Aceita o pedido como glob (`V2/**` casa `V2/x.rs`) e a âncora como glob
+/// (`src/**` casa `src/x.rs`), para que `ask --anchor <path>` se comporte como o canal.
+fn anchor_matches(requested: &str, anchor: &str) -> bool {
+    glob_match(requested, anchor) || glob_match(anchor, requested)
 }
 
 fn string_list(frontmatter: &Frontmatter, key: &str) -> Vec<String> {

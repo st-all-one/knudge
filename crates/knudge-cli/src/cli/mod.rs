@@ -182,9 +182,9 @@ pub struct AskArgs {
     /// Filtro por container.
     #[arg(long, value_name = "ID")]
     pub container: Option<String>,
-    /// Filtro por âncora.
-    #[arg(long, value_name = "PATH")]
-    pub anchor: Option<String>,
+    /// Filtro por âncora (repetível; aceita lista com vírgula: `--anchor a,b`).
+    #[arg(long, value_name = "PATH", value_delimiter = ',')]
+    pub anchor: Vec<String>,
     /// Início do intervalo.
     #[arg(long, value_name = "TS")]
     pub since: Option<String>,
