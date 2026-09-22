@@ -7,6 +7,7 @@
 pub mod anchor;
 pub mod bm25;
 pub mod filter;
+pub mod format;
 pub mod index;
 pub mod rrf;
 pub mod token;
@@ -18,6 +19,7 @@ mod tests;
 
 pub use bm25::{B, Bm25Hit, CONFIRMATION_STEP, K1, type_weight};
 pub use filter::{Filter, Meta};
+pub use format::{format_brief, format_hit};
 pub use index::{
     Field, FieldTf, INDEX_FILE, INDEX_WARN_BYTES, Index, NoteDoc, Stats, size_warning,
 };
@@ -172,20 +174,6 @@ pub fn recall(index: &Index, graph: &Graph, query: &RecallQuery) -> Result<Recal
     Ok(RecallOutput { hits, warnings })
 }
 
-/// Formata um hit no contrato `id|statement|score|why` (D39).
-///
-/// O `statement` é sanitizado (sem `|` nem quebras) para manter as 4 colunas parseáveis.
-#[must_use]
-pub fn format_hit(hit: &RecallHit) -> String {
-    format!(
-        "{}|{}|{:.2}|{}",
-        hit.id,
-        sanitize(&hit.statement),
-        hit.score,
-        hit.why.as_str()
-    )
-}
-
 /// Resultado de [`get`].
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct GetOutput {
@@ -276,21 +264,4 @@ fn age_days(doc: &NoteDoc, now_ms: Option<i64>) -> f64 {
     };
     let elapsed = now.saturating_sub(doc.meta.created_ms).max(0);
     f64::from(i32::try_from(elapsed / 86_400_000).unwrap_or(i32::MAX))
-}
-
-fn sanitize(statement: &str) -> String {
-    let mut out = String::with_capacity(statement.len());
-    let mut pending = false;
-    for ch in statement.chars() {
-        if ch == '|' || ch.is_whitespace() {
-            pending = !out.is_empty();
-        } else {
-            if pending {
-                out.push(' ');
-                pending = false;
-            }
-            out.push(ch);
-        }
-    }
-    out
 }

@@ -5,6 +5,10 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 ## [Não publicado]
 
 ### Corrigido
+- **`kd ask --brief` e `--with-body` eram flags mortas.** Agora `--brief` emite `id|statement`
+  (2 colunas) e `--with-body` anexa o corpo de cada hit (no pipe e em `data.hits[].body` no
+  `--json`); `--id` continua trazendo o corpo, e `--id --brief` o omite. Regressão:
+  `cli::ask_with_body_and_brief_contract`.
 - **`kd ask` devolvia notas `forgotten`/`superseded` por padrão.** Como `forget` é soft-delete
   (D43), o `ask` sem `--status` agora exclui esses dois estados; `--status forgotten` (ou
   `superseded`) continua disponível para inspecionar a linhagem. Regressão:

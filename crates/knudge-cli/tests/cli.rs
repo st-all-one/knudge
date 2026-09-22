@@ -187,6 +187,60 @@ fn forgotten_note_is_hidden_from_default_ask() -> TestResult {
 }
 
 #[test]
+fn ask_with_body_and_brief_contract() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+
+    let write = run_in(
+        &dir,
+        &[
+            "--json",
+            "write",
+            "formato TOON é linha a linha",
+            "--type",
+            "def",
+            "--body",
+            "detalhe do corpo",
+        ],
+    )?;
+    assert!(write.status.success(), "write falhou: {:?}", write.stderr);
+    let envelope = json(&write)?;
+    let id = envelope
+        .get("data")
+        .and_then(|data| data.get("id"))
+        .and_then(|id| id.as_str())
+        .ok_or("write sem id")?
+        .to_string();
+
+    let brief = run_in(&dir, &["ask", "TOON", "--brief"])?;
+    assert!(
+        brief.status.success(),
+        "ask --brief falhou: {:?}",
+        brief.stderr
+    );
+    let text = String::from_utf8(brief.stdout)?;
+    assert!(text.contains(&id), "--brief perdeu o hit: {text}");
+    assert!(
+        !text.contains("detalhe do corpo"),
+        "--brief vazou o corpo: {text}"
+    );
+
+    let with_body = run_in(&dir, &["ask", "TOON", "--with-body"])?;
+    assert!(
+        with_body.status.success(),
+        "ask --with-body falhou: {:?}",
+        with_body.stderr
+    );
+    let text = String::from_utf8(with_body.stdout)?;
+    assert!(
+        text.contains("detalhe do corpo"),
+        "--with-body não trouxe o corpo: {text}"
+    );
+    Ok(())
+}
+
+#[test]
 fn write_rejects_task_type() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;

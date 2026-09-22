@@ -1,9 +1,12 @@
 //! `kd ask` — toda pesquisa: recall, get (`--id`) e expand (`--around`) (E12-T01).
 
+use std::collections::BTreeMap;
+
 use knudge_core::Result;
 use knudge_core::graph::Graph;
 use knudge_core::retrieval::{
-    DEFAULT_LIMIT, DEFAULT_RRF_K, Filter, RecallQuery, format_hit, get, recall,
+    DEFAULT_LIMIT, DEFAULT_RRF_K, Filter, RecallHit, RecallQuery, format_brief, format_hit, get,
+    recall,
 };
 use knudge_core::schema::{NoteType, Status};
 use knudge_core::store::Note;
@@ -37,7 +40,7 @@ fn get_ids(session: &Session, args: &AskArgs) -> Result<Output> {
         .map(|note| {
             let id = note.frontmatter.id().unwrap_or_default();
             let statement = note.frontmatter.statement().unwrap_or_default();
-            if note.body.is_empty() {
+            if note.body.is_empty() || args.brief {
                 format!("{id}|{statement}")
             } else {
                 format!("{id}|{statement}\n{}", note.body)
@@ -105,23 +108,85 @@ fn recall_query(session: &Session, args: &AskArgs) -> Result<Output> {
     query.now_ms = Some(session.now_ms());
     query.strict = config.strict();
     let out = recall(&index, &graph, &query)?;
+    let format = if args.brief {
+        HitFormat::Brief
+    } else {
+        HitFormat::Full
+    };
+    let bodies = if args.with_body && format == HitFormat::Full {
+        load_bodies(session, &out.hits)?
+    } else {
+        BTreeMap::new()
+    };
     let body = out
         .hits
         .iter()
-        .map(format_hit)
+        .map(|hit| render_hit(hit, format, &bodies))
         .collect::<Vec<_>>()
         .join("\n");
     let data = json!({
         "query": text,
-        "hits": out.hits.iter().map(|hit| json!({
+        "hits": out.hits.iter().map(|hit| hit_json(hit, format, &bodies)).collect::<Vec<_>>(),
+    });
+    Ok(Output::new(body, data).with_warnings(out.warnings))
+}
+
+/// Formato de renderização de um hit no pipe/JSON.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum HitFormat {
+    /// `id|statement|score|why` (e corpo com `--with-body`).
+    Full,
+    /// `id|statement`.
+    Brief,
+}
+
+/// Carrega os corpos dos hits (só no modo `--with-body`).
+fn load_bodies(session: &Session, hits: &[RecallHit]) -> Result<BTreeMap<String, String>> {
+    let ids: Vec<String> = hits.iter().map(|hit| hit.id.clone()).collect();
+    let out = get(&session.store(), &ids)?;
+    let mut bodies = BTreeMap::new();
+    for note in out.notes {
+        if let Ok(id) = note.frontmatter.id() {
+            let _ignored = bodies.insert(id.to_string(), note.body);
+        }
+    }
+    Ok(bodies)
+}
+
+/// Renderiza um hit no pipe: `--brief` → `id|statement`; senão 4 colunas + corpo opcional.
+fn render_hit(hit: &RecallHit, format: HitFormat, bodies: &BTreeMap<String, String>) -> String {
+    if format == HitFormat::Brief {
+        return format_brief(hit);
+    }
+    let line = format_hit(hit);
+    match bodies.get(hit.id.as_str()) {
+        Some(text) if !text.is_empty() => format!("{line}\n{text}"),
+        _ => line,
+    }
+}
+
+fn hit_json(
+    hit: &RecallHit,
+    format: HitFormat,
+    bodies: &BTreeMap<String, String>,
+) -> serde_json::Value {
+    let mut value = if format == HitFormat::Brief {
+        json!({ "id": hit.id, "statement": hit.statement })
+    } else {
+        json!({
             "id": hit.id,
             "statement": hit.statement,
             "score": hit.score,
             "confidence": hit.confidence,
             "why": hit.why.as_str(),
-        })).collect::<Vec<_>>(),
-    });
-    Ok(Output::new(body, data).with_warnings(out.warnings))
+        })
+    };
+    if let Some(text) = bodies.get(hit.id.as_str())
+        && let Some(object) = value.as_object_mut()
+    {
+        let _ignored = object.insert("body".to_string(), json!(text));
+    }
+    value
 }
 
 fn note_json(note: &Note) -> serde_json::Value {
