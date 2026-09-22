@@ -32,6 +32,8 @@ pub struct Draft {
     pub source: Option<String>,
     /// Expiração (ms desde a época).
     pub expires_at: Option<i64>,
+    /// Agendamento `not_before` (ms desde a época) — separado da expiração (D56).
+    pub not_before: Option<i64>,
     /// Arestas explícitas `(tipo, destino)`.
     pub edges: Vec<(EdgeKind, String)>,
     /// Âncoras (paths/globs).
@@ -58,6 +60,7 @@ impl Default for Draft {
             tags: Vec::new(),
             source: None,
             expires_at: None,
+            not_before: None,
             edges: Vec::new(),
             anchors: Vec::new(),
             classification: None,
@@ -125,6 +128,12 @@ impl Draft {
             frontmatter.set(
                 "expires_at",
                 Value::Str(Timestamp::from_millis(expires).to_rfc3339()),
+            )?;
+        }
+        if let Some(not_before) = self.not_before {
+            frontmatter.set(
+                "not_before",
+                Value::Str(Timestamp::from_millis(not_before).to_rfc3339()),
             )?;
         }
         for (kind, to) in &self.edges {

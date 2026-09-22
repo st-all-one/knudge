@@ -7,6 +7,22 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 ### Adicionado
 - **AGENTS.md** — guia de contribuição do repositório: padrões de desenvolvimento, erros,
   logs, testes, contrato de bytes e checklist de conclusão.
+- **E10 — Ciclo de vida, decay e clusters** (Fase 2, concluído):
+  - `lifecycle::shelf_life`: TTL por `classification` — `foundational` nunca expira,
+    `tactical`/`observational` com prazos configuráveis; `expires_at` explícito vence o
+    derivado (D44).
+  - `lifecycle::decay`: validade de âncoras (literal existe / glob casa) com varredura do
+    projeto limitada; demolição após grace se a fração válida < threshold (D43).
+  - `lifecycle::retire`: `retired_at` **derivado** dos eventos (`forget`/`supersede`); purga
+    do conteúdo (nota + derivado) só após a janela de retenção (D48/D84).
+  - `lifecycle::supersession`: demolição soft protegida — membros de ciclo de
+    supersessão/dependência **não** demovem (D45).
+  - `lifecycle::plan`: plano puro de demolição combinando shelf-life × decay × ciclos.
+  - `lifecycle::clusters`: fase 1 estrutural determinística (`anchor`/`type`/`classification`/
+    container) e fase 2 semântica **opcional e off-path**, com similaridade injetada (E11).
+  - `not_before` como **28ª chave canônica** (D100): agendamento ortogonal à expiração;
+    `compute_views_at` o considera, `compute_views` (prime) não (D56/D57).
+  - Correções de contrato: `Classification` ganha `Ord`; `compute_views_at` exportado.
 - **E09 — Validação, saúde e leitura tolerante** (Fase 2, concluído):
   - `health::validator`: catálogo `.knudge/validators.toml` (subset TOML — D99) e resolução
     `checks = explícitos ∪ globais ∪ por_âncora`; explícito ausente vira `missing[]` (D54).
@@ -179,10 +195,11 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   `superseded_by`, ciclo de supersessão sobre `replaces` e sugestões derivadas.
 
 ### Testes
-- 293 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
+- 323 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
   schema/hash/ID/arestas, TOON, JSONL/JSON, store, config/TOML, git/onboard/sync,
   grafo/integridade/ciclos/sugestões, retrieval/token/BM25/âncoras/RRF/views,
   escrita/dedup/update/supersede/forget, rewind/orçamento/context_id, diff/learn/compact,
-  tarefas/hierarquia/ciclo de vida, validators/evidência/audit/doctor/âncoras/confiança).
+  tarefas/hierarquia/ciclo de vida, validators/evidência/audit/doctor/âncoras/confiança,
+  shelf-life/decay/purga/ciclos/clusters).
 - 8 testes de integração do binário (`--help`, `kd == kd prime`, `--json`, exit codes,
   EPIPE, comando desconhecido).

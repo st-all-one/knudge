@@ -1,9 +1,9 @@
 //! Frontmatter canônico (E02-T01/T07).
 //!
 //! A ordem das chaves é **contrato** (D04/D13): [`Frontmatter::to_value`] sempre emite na
-//! [`CANONICAL_KEYS`], independentemente da ordem de inserção. Campos opcionais são
-//! **omitidos**, nunca `null`/vazio (D05). Chave desconhecida é rejeitada no write e
-//! **ignorada com warning** no read (D16).
+//! [`CANONICAL_KEYS`](super::keys::CANONICAL_KEYS), independentemente da ordem de inserção.
+//! Campos opcionais são **omitidos**, nunca `null`/vazio (D05). Chave desconhecida é rejeitada
+//! no write e **ignorada com warning** no read (D16).
 
 use std::fmt;
 use std::str::FromStr;
@@ -13,49 +13,10 @@ use indexmap::IndexMap;
 use crate::schema::{
     Classification, EDGE_KEYS, Edge, EdgeKind, NoteType, Scope, Status, Value, id, text,
 };
+use crate::time::Timestamp;
 use crate::{Error, Result, toon};
 
-/// Ordem canônica das chaves do frontmatter (D04/D13).
-pub const CANONICAL_KEYS: [&str; 27] = [
-    "id",
-    "type",
-    "statement",
-    "created_at",
-    "confidence",
-    "body_hash",
-    "schema_version",
-    "tags",
-    "source",
-    "expires_at",
-    "superseded_by",
-    "references",
-    "depends_on",
-    "contradicts",
-    "supports",
-    "extends",
-    "replaces",
-    "rejects",
-    "results_in",
-    "revision",
-    "outcomes",
-    "classification",
-    "anchors",
-    "status",
-    "scope",
-    "checks",
-    "evidence",
-];
-
-/// Chaves obrigatórias: ou a nota é válida, ou não existe (D05).
-pub const REQUIRED_KEYS: [&str; 7] = [
-    "id",
-    "type",
-    "statement",
-    "created_at",
-    "confidence",
-    "body_hash",
-    "schema_version",
-];
+use super::keys::{CANONICAL_KEYS, REQUIRED_KEYS};
 
 /// Frontmatter canônico, com campos opcionais omitidos.
 #[derive(Debug, Clone, PartialEq)]
@@ -226,6 +187,28 @@ impl Frontmatter {
             None => Ok(None),
             Some(Value::Str(text)) => Ok(Some(Scope::from_str(text)?)),
             Some(_) => Err(Error::schema("scope deve ser string")),
+        }
+    }
+
+    /// Campo opcional `expires_at` (RFC3339 → ms).
+    pub fn expires_at(&self) -> Result<Option<i64>> {
+        self.optional_timestamp("expires_at")
+    }
+
+    /// Campo opcional `not_before` (RFC3339 → ms) — agendamento, separado da expiração (D56).
+    pub fn not_before(&self) -> Result<Option<i64>> {
+        self.optional_timestamp("not_before")
+    }
+
+    fn optional_timestamp(&self, key: &str) -> Result<Option<i64>> {
+        match self.fields.get(key) {
+            None => Ok(None),
+            Some(Value::Int(ms)) => Ok(Some(*ms)),
+            Some(Value::Str(text)) => text
+                .parse::<Timestamp>()
+                .map(|ts| Some(ts.as_millis()))
+                .map_err(|_| Error::schema(format!("{key} deve ser timestamp RFC3339"))),
+            Some(_) => Err(Error::schema(format!("{key} deve ser string"))),
         }
     }
 

@@ -30,6 +30,7 @@ struct Node {
     note_type: NoteType,
     status: Status,
     superseded_by: Option<String>,
+    not_before: Option<i64>,
     /// Arestas de saída, por tipo (só tipos com alvos presentes).
     edges: BTreeMap<EdgeKind, Vec<String>>,
 }
@@ -67,6 +68,7 @@ impl Graph {
                 Some(Value::Str(target)) => Some(target.clone()),
                 _ => None,
             };
+            let not_before = frontmatter.not_before()?;
             let mut edges = BTreeMap::new();
             for kind in EdgeKind::ALL {
                 let targets: Vec<String> = frontmatter
@@ -85,6 +87,7 @@ impl Graph {
                     note_type,
                     status,
                     superseded_by,
+                    not_before,
                     edges,
                 },
             );
@@ -134,6 +137,12 @@ impl Graph {
         self.nodes
             .get(id)
             .and_then(|node| node.superseded_by.as_deref())
+    }
+
+    /// Agendamento `not_before` da nota, em ms (D56).
+    #[must_use]
+    pub fn not_before(&self, id: &str) -> Option<i64> {
+        self.nodes.get(id).and_then(|node| node.not_before)
     }
 
     /// Alvos de uma aresta de saída.

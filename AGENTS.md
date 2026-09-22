@@ -66,7 +66,7 @@ módulos. Onde mexer:
 | diff, learn, compact | `knudge-core/src/maintenance/` |
 | tarefas plan/epic/issue/task | `knudge-core/src/task/` |
 | validação, audit, doctor, validators | `knudge-core/src/health/` |
-| confiança derivada, decay, clusters | `knudge-core/src/lifecycle/` |
+| shelf-life, decay, purga, confiança derivada, clusters | `knudge-core/src/lifecycle/` |
 | erros e exit codes | `knudge-core/src/error.rs` |
 | tempo determinístico | `knudge-core/src/time.rs` |
 | redação de segredos | `knudge-core/src/logging.rs` |
@@ -147,7 +147,7 @@ módulos. Onde mexer:
 
 ## 7. Contrato de bytes (TOON / schema)
 
-- Gramática e regras em [`TOON.md`](TOON.md). Ordem canônica das 19 chaves em
+- Gramática e regras em [`TOON.md`](TOON.md). Ordem canônica das 28 chaves em
   `schema::CANONICAL_KEYS`; opcionais **omitidos**, nunca `null`.
 - `normalize` = NFC + trim + colapso; `body_hash` e `id` derivam dele (D95).
 - `id = <prefixo>_<base36(8)>` endereçado por `type + U+001F + normalize(statement)`; o prefixo é
@@ -178,7 +178,7 @@ módulos. Onde mexer:
 
 ## 10. Referências
 
-- Decisões fechadas: [`plan/03_decisoes-fechadas.md`](plan/03_decisoes-fechadas.md) (`D01–D95`).
+- Decisões fechadas: [`plan/03_decisoes-fechadas.md`](plan/03_decisoes-fechadas.md) (`D01–D100`).
 - Políticas de engenharia: [`plan/implementation/14_revisao_tecnica.md`](plan/implementation/14_revisao_tecnica.md) (`R01–R44`).
 - Lints: [`plan/implementation/15_clippy_config.md`](plan/implementation/15_clippy_config.md) + `clippy.toml`.
 - Superfície `kd`: [`plan/implementation/16_cli_surface.md`](plan/implementation/16_cli_surface.md).

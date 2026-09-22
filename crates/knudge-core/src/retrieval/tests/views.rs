@@ -2,9 +2,10 @@
 
 use crate::Result;
 use crate::graph::{Graph, link};
-use crate::retrieval::compute_views;
-use crate::schema::{EdgeKind, NoteType, Status, id};
+use crate::retrieval::{compute_views, compute_views_at};
+use crate::schema::{EdgeKind, NoteType, Status, Value, id};
 use crate::store::Note;
+use crate::time::Timestamp;
 
 use super::{base, with_status};
 
@@ -62,5 +63,30 @@ fn dependency_cycle_is_blocked() -> Result<()> {
     assert!(views.blocked.contains(&a_id));
     assert!(views.blocked.contains(&b_id));
     assert!(views.ready.is_empty());
+    Ok(())
+}
+
+#[test]
+fn not_before_blocks_until_due() -> Result<()> {
+    let scheduled_id = id::note_id(NoteType::Task, "agendada");
+    let mut frontmatter = base(NoteType::Task, "agendada")?;
+    frontmatter.set(
+        "not_before",
+        Value::Str(Timestamp::from_millis(2_000).to_rfc3339()),
+    )?;
+    let graph = Graph::from_notes(vec![Note::new(frontmatter, "")])?;
+
+    assert!(
+        compute_views_at(&graph, 1_000)
+            .blocked
+            .contains(&scheduled_id)
+    );
+    assert!(
+        compute_views_at(&graph, 3_000)
+            .ready
+            .contains(&scheduled_id)
+    );
+    // A view estática ignora o agendamento para preservar o `prime` byte-idêntico (D57).
+    assert!(compute_views(&graph).ready.contains(&scheduled_id));
     Ok(())
 }

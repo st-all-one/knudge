@@ -9,6 +9,7 @@ pub mod edge;
 pub mod frontmatter;
 pub mod hash;
 pub mod id;
+pub mod keys;
 pub mod text;
 pub mod types;
 pub mod value;
@@ -20,6 +21,7 @@ mod tests;
 pub const SCHEMA_VERSION: u32 = 1;
 
 pub use edge::{EDGE_KEYS, Edge, EdgeKind};
-pub use frontmatter::{CANONICAL_KEYS, Frontmatter, REQUIRED_KEYS};
+pub use frontmatter::Frontmatter;
+pub use keys::{CANONICAL_KEYS, REQUIRED_KEYS};
 pub use types::{Classification, NoteType, Scope, Status};
 pub use value::Value;

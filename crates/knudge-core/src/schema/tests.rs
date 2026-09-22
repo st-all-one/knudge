@@ -185,6 +185,30 @@ fn frontmatter_round_trips_via_toon() -> Result<()> {
 }
 
 #[test]
+fn not_before_is_optional_and_round_trips() -> Result<()> {
+    let mut fm = valid_frontmatter()?;
+    assert_eq!(fm.not_before()?, None);
+    assert_eq!(fm.expires_at()?, None);
+    fm.set(
+        "expires_at",
+        Value::Str("2026-03-04T05:06:07.000Z".to_string()),
+    )?;
+    fm.set(
+        "not_before",
+        Value::Str("2026-02-03T04:05:06.000Z".to_string()),
+    )?;
+    let millis = fm.not_before()?.unwrap_or_default();
+    let (back, warnings) = Frontmatter::parse(&fm.to_string())?;
+    assert!(warnings.is_empty(), "sem warnings: {warnings:?}");
+    assert_eq!(back.not_before()?, Some(millis));
+    let keys: Vec<&str> = back.keys();
+    let expires = keys.iter().position(|key| *key == "expires_at");
+    let not_before = keys.iter().position(|key| *key == "not_before");
+    assert!(matches!((expires, not_before), (Some(e), Some(n)) if e < n));
+    Ok(())
+}
+
+#[test]
 fn frontmatter_validate_checks_required_and_ranges() -> Result<()> {
     valid_frontmatter()?.validate()?;
 

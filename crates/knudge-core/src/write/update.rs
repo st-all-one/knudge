@@ -40,6 +40,8 @@ pub struct Patch {
     pub source: Option<String>,
     /// Nova expiração (ms).
     pub expires_at: Option<i64>,
+    /// Novo agendamento `not_before` (ms) — separado da expiração (D56).
+    pub not_before: Option<i64>,
 }
 
 impl Patch {
@@ -90,6 +92,12 @@ impl Patch {
             note.frontmatter.set(
                 "expires_at",
                 Value::Str(Timestamp::from_millis(expires).to_rfc3339()),
+            )?;
+        }
+        if let Some(not_before) = self.not_before {
+            note.frontmatter.set(
+                "not_before",
+                Value::Str(Timestamp::from_millis(not_before).to_rfc3339()),
             )?;
         }
         Ok(())

@@ -1,10 +1,30 @@
-//! Escopo `lifecycle`: decay, confiança derivada e clusters (E09/E10).
+//! Escopo `lifecycle`: shelf-life, decay, purga, confiança e clusters (E09/E10).
 //!
-//! A confiança derivada (E09-T07) já vive aqui; o decay e os clusters entram em E10.
+//! Retenção previsível e consolidação barata: nada de conhecimento válido é demolido por ciclo
+//! (D45) e nenhum conteúdo é removido antes da janela de retenção (E10-T03).
 
+pub mod clusters;
 pub mod confidence;
+pub mod decay;
+pub mod plan;
+pub mod retire;
+pub mod semantic;
+pub mod shelf_life;
+pub mod supersession;
 
 #[cfg(test)]
 mod tests;
 
+pub use clusters::{Cluster, ClusterAxis, container_of, structural_clusters};
 pub use confidence::{ConfidenceInput, age_factor, confidence_score, drift_factor};
+pub use decay::{
+    AnchorValidity, DecayPolicy, compute_anchor_validity, compute_anchor_validity_with, has_glob,
+    should_demote, walk_paths,
+};
+pub use plan::{DemotionCandidate, DemotionInput, DemotionReason, demotion_candidates};
+pub use retire::{
+    DEFAULT_RETIRED_DAYS, Retention, Retirement, due_for_purge, purge_due, retirements,
+};
+pub use semantic::{MIN_SEMANTIC_VOLUME, cluster_by_similarity, semantic_phase2, should_run};
+pub use shelf_life::{DAY_MS, ShelfLife, age_days, expired_ids, expiry_for, is_expired};
+pub use supersession::{cycle_members, demote, filter_protected, protected};

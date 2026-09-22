@@ -170,7 +170,7 @@ impl FromStr for Scope {
 }
 
 /// Classificação de maturidade (D44).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub enum Classification {
     /// Estruturante, dificilmente muda.
     Foundational,

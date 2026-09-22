@@ -118,6 +118,20 @@ hints_cap        = 3
 [behavior]
 strict = false           # promove warnings a erro; config de projeto (D94)
 
+[retention]
+foundational_days  = 0    # 0 = nunca expira (D44)
+tactical_days      = 365
+observational_days = 30
+retired_days       = 30   # janela antes da purga do conteúdo aposentado (E10-T03)
+
+[decay]
+anchor_threshold = 0.5    # fração válida mínima de âncoras (D43)
+grace_days       = 30     # carência antes de demover
+
+[clusters]
+min_volume           = 10 # volume mínimo da fase 2 semântica (E10-T07)
+similarity_threshold = 0.8
+
 [ids]
 prefix_style = "declarative"   # declarative | compact
 
@@ -156,6 +170,7 @@ Acesso via tool `config get/set/list`. Precedência (quando houver override): fl
 | `tags` | string[] | não | ≤ 5, lowercase, kebab |
 | `source` | string/url | não | proveniência |
 | `expires_at` | iso8601 | não | expiração |
+| `not_before` | iso8601 | não | agendamento (só libera `ready` a partir de; separado da expiração — D56/D100) |
 | `superseded_by` | id | não | id da nota que a substituiu (ponteiro reverso de `replaces`) |
 | `references` | id[] | não | aresta explícita: menção simples |
 | `depends_on` | id[] | não | aresta explícita: depende de |
@@ -176,7 +191,7 @@ Acesso via tool `config get/set/list`. Precedência (quando houver override): fl
 
 Chave desconhecida = **rejeita no write**. Sem `author` e sem `updated_at` (o evento cobre).
 
-O bloco de arestas (`references`…`results_in`) fica **entre `superseded_by` e `revision`** na ordem canônica — **27 chaves** ao todo (D98). Cada aresta é uma lista de ids derivada do `link()` e validada quanto ao formato; o `doctor` cobra a bidirecionalidade `replaces ↔ superseded_by`.
+O bloco de arestas (`references`…`results_in`) fica **entre `superseded_by` e `revision`** na ordem canônica — **28 chaves** ao todo (D98/D100), com `not_before` logo após `expires_at`. Cada aresta é uma lista de ids derivada do `link()` e validada quanto ao formato; o `doctor` cobra a bidirecionalidade `replaces ↔ superseded_by`.
 
 ### Tipos (`type`) — enum fechado
 

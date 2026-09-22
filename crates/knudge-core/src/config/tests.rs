@@ -125,3 +125,35 @@ fn invalid_set_value_is_rejected() {
     // O valor default permanece intacto.
     assert_eq!(config.get_int("mcp.hints_cap"), Some(3));
 }
+
+/// Testes do schema canônico (movidos de `schema.rs` para respeitar o limite de 300 linhas).
+mod schema {
+    use crate::config::ConfigValue;
+    use crate::config::schema::{default_table, validate_leaf, validate_table};
+    use crate::config::table::flatten;
+
+    #[test]
+    fn defaults_validate_and_are_in_canonical_order() {
+        let table = default_table();
+        assert!(validate_table(&table).is_ok());
+        let keys: Vec<String> = flatten(&table).into_iter().map(|(k, _)| k).collect();
+        assert_eq!(
+            keys.first().map(String::as_str),
+            Some("knowledge.persist_in_project")
+        );
+        assert_eq!(keys.last().map(String::as_str), Some("embeddings.flush_ms"));
+    }
+
+    #[test]
+    fn rejects_unknown_key_and_bad_enum() {
+        assert!(validate_leaf("nope", &ConfigValue::Bool(true)).is_err());
+        assert!(validate_leaf("ids.prefix_style", &ConfigValue::String("x".into())).is_err());
+        assert!(validate_leaf("ids.prefix_style", &ConfigValue::String("compact".into())).is_ok());
+    }
+
+    #[test]
+    fn secrets_must_be_strings() {
+        assert!(validate_leaf("secrets.token", &ConfigValue::String("x".into())).is_ok());
+        assert!(validate_leaf("secrets.token", &ConfigValue::Int(1)).is_err());
+    }
+}

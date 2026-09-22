@@ -26,7 +26,7 @@ existem no mesmo crate, mas o domínio **nunca** as importa — só as portas.
 | `maintenance` | `diff`, `learn` e `compact` como propostas (E08). |
 | `task` | Hierarquia `plan ⊃ epic ⊃ issue ⊃ task` e ciclo de vida (E08). |
 | `health` | Validators, evidência, `audit`, `doctor --fix`, leitura tolerante e âncoras por hash (E09). |
-| `lifecycle` | Confiança derivada (E09); decay e clusters (E10). |
+| `lifecycle` | Shelf-life, decay de âncoras, purga com retenção, confiança derivada e clusters (E09/E10). |
 | `embeddings` | Contrato do provedor plugável (E11). |
 
 ## Invariantes

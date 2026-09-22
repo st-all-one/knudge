@@ -64,7 +64,7 @@ conveniência, mas só `cli`/`mcp` o importam.
 | `maintenance` | `diff`, `learn` e `compact` (propostas) | E08 |
 | `task` | hierarquia `plan ⊃ epic ⊃ issue ⊃ task` como view derivada | E08 |
 | `health` | validators, evidência, `audit`, `doctor`, leitura tolerante e âncoras por hash | E09 |
-| `lifecycle` | confiança derivada (E09); decay e clusters | E09/E10 |
+| `lifecycle` | shelf-life, decay de âncoras, purga com retenção, confiança derivada e clusters | E09/E10 |
 | `embeddings` | provedor plugável e fila lazy | E11 |
 
 ## 5. Persistência (E03)
@@ -113,7 +113,7 @@ volatilidade, não CAS (D48).
 |---|---|
 | Fonte | Arestas explícitas no **frontmatter** (chave = `EdgeKind`, valor = lista de ids); a nota é a verdade (D49/D98). |
 | Vocabulário | Fechado: `references, depends_on, contradicts, supports, extends, replaces, rejects, results_in` (D51). |
-| Ordem | Bloco de 8 arestas logo após `superseded_by`, antes de `revision` (27 chaves — D98). |
+| Ordem | `not_before` logo após `expires_at`; bloco de 8 arestas logo após `superseded_by`, antes de `revision` (**28 chaves** — D98/D100). |
 | `link()` | Adiciona sem duplicar; rejeita id inválido e auto-aresta. |
 | `expand` | BFS determinística só no **explícito**, com corte por `depth` e filtro por tipo. |
 | Supersessão | `replaces` (novo → antigo) e `superseded_by` (antigo → novo); bidirecionalidade cobrada pela integridade (D46). |
@@ -178,7 +178,19 @@ volatilidade, não CAS (D48).
 | Âncoras | `path` na nota, `content_hash` em `.idx/anchors.jsonl`; `cited` invalida, `context` não; stale **sinaliza**, não apaga (D86). |
 | Confiança derivada | `sim × drift × idade + feedback`, pisos, sempre `[0,1]`, calculada no `recall` (D87). |
 
-## 12. Fluxo de uma operação
+## 12. Ciclo de vida, decay e clusters (E10)
+
+| Conceito | Regra |
+|---|---|
+| Shelf-life | `foundational` nunca expira (`0` dias); `tactical` (365) e `observational` (30) com prazos por config (D44). `expires_at` explícito vence o prazo derivado. |
+| Decay de âncoras | Valida literais (existe) e globs (casa); demove após grace se a fração válida < threshold (D43). Varredura do projeto limitada e off-path. |
+| Demolição | Sempre **soft** (`forget`); membros de ciclo de supersessão/dependência são **protegidos** (D45). |
+| Purga | `retired_at` derivado de eventos (`forget`/`supersede`); conteúdo só sai após a janela de retenção e a remoção purga o derivado (D48/D84). |
+| `not_before` | Agendamento ortogonal à expiração (D56/D100): retém a tarefa em `blocked` até o instante. A view estática ignora (prime byte-idêntico); a dinâmica considera. |
+| Clusters fase 1 | Agrupamento determinístico por `anchor`/`type`/`classification`/container — sem estatística nem embeddings (D47). |
+| Clusters fase 2 | Semântico **dentro** de um cluster estrutural, acima do volume mínimo e off-path; similaridade injetada (E11). |
+
+## 13. Fluxo de uma operação
 
 ```
 kd <verbo>
@@ -189,7 +201,7 @@ kd <verbo>
   → exit code = ErrorKind::exit_code() (101 reservado a panic)
 ```
 
-## 13. Invariantes de engenharia
+## 14. Invariantes de engenharia
 
 - `#![forbid(unsafe_code)]` em `core`/`cli`/`mcp` (R01).
 - Sem `Rc`/`RefCell` no core; estado compartilhado via `Arc<Mutex<_>>` (R03).
@@ -197,10 +209,10 @@ kd <verbo>
 - Arquivos de produção ≤ 300 linhas (D92).
 - `clippy -D warnings` lendo `clippy.toml` (R44); perfis e supply chain (R40–R43).
 
-## 14. Referências
+## 15. Referências
 
 - Visão: `plan/00_panorama.md`
-- Decisões: `plan/03_decisoes-fechadas.md` (D01–D98)
+- Decisões: `plan/03_decisoes-fechadas.md` (D01–D100)
 - Contrato de bytes: `TOON.md`
 - Políticas de engenharia: `plan/implementation/14_revisao_tecnica.md` (R01–R44)
 - Superfície CLI: `plan/implementation/16_cli_surface.md`

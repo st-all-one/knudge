@@ -237,7 +237,7 @@
 
 | # | Decisão final |
 |---|---|
-| **D98** ✅ | **Arestas explícitas são chaves de frontmatter de primeiro nível**, nomeadas pelo `EdgeKind` (`references`, `depends_on`, `contradicts`, `supports`, `extends`, `replaces`, `rejects`, `results_in`), cada uma uma **lista de ids** (omitida quando vazia — D05). Ordem canônica: as 8 arestas ficam logo após `superseded_by` e antes de `revision` — **27 chaves**. `superseded_by` continua sendo o **ponteiro reverso** (id único) de `replaces`; a bidirecionalidade é validada pela integridade (D46). A extração textual é **sugestão derivada** em `.idx/suggestions.jsonl` (nunca aresta; D49/D50) e o `expand` percorre só o explícito. Ciclos de supersessão são detectados por SCC sobre `replaces` (D45) e os membros **não demovem**. |
+| **D98** ✅ | **Arestas explícitas são chaves de frontmatter de primeiro nível**, nomeadas pelo `EdgeKind` (`references`, `depends_on`, `contradicts`, `supports`, `extends`, `replaces`, `rejects`, `results_in`), cada uma uma **lista de ids** (omitida quando vazia — D05). Ordem canônica: as 8 arestas ficam logo após `superseded_by` e antes de `revision` — **27 chaves**. `superseded_by` continua sendo o **ponteiro reverso** (id único) de `replaces`; a bidirecionalidade é validada pela integridade (D46). A extração textual é **sugestão derivada** em `.idx/suggestions.jsonl` (nunca aresta; D49/D50) e o `expand` percorre só o explícito. Ciclos de supersessão são detectados por SCC sobre `replaces` (D45) e os membros **não demovem**. (**D100** acrescenta `not_before` logo após `expires_at`, totalizando **28 chaves**.) |
 
 ---
 
@@ -248,6 +248,16 @@
 | # | Decisão final |
 |---|---|
 | **D99** ✅ | O catálogo de validators é **`.knudge/validators.toml`**, no **subset TOML próprio** (D97) — **não** YAML, para não introduzir dependência nem parser novo. Cada validator é uma tabela com `cmd` (obrigatório), `scope` (globs), `severity` (`error\|warn\|info`, default `error`) e `timeout` (ms, default 120000). A chave de topo `globals` lista os validators globais (fonte que o `AGENTS.md` renderiza). A resolução é `checks(task) = explícitos ∪ globais ∪ por_âncora(anchors(task))`; validator explícito ausente vira `missing[]` (não é erro fatal). A **execução** fica na borda (`HookRunner`, E12); o núcleo só resolve e descreve. |
+
+---
+
+## X. Agendamento separado de expiração (D100)
+
+> Fecha o campo de agendamento (implementado em E10-T05).
+
+| # | Decisão final |
+|---|---|
+| **D100** ✅ | Introduz **`not_before`** (RFC3339, opcional) como **28ª chave canônica**, logo após `expires_at` e antes de `superseded_by`. Agendamento e expiração são **ortogonais** (D56): `expires_at` remove do corpus, `not_before` só **retém** a tarefa em `blocked` até o instante. A view **estática** (`compute_views`, usada pelo `prime` byte-idêntico — D57) **ignora** `not_before`; a view dinâmica (`compute_views_at(now_ms)`) o considera. Sem bump de `schema_version`: é campo opcional on-read (D15), omitido quando ausente (D05). |
 
 ---
 
@@ -281,6 +291,7 @@
 | D97 | Fixa o subset TOML (ordem preservada/canônica), o guard `git -C` do `sync` e a degradação do `onboard` sem global. |
 | D98 | Fixa as 8 chaves de aresta, a ordem canônica de 27 chaves, o ponteiro reverso `superseded_by` e o storage derivado de sugestões. |
 | D99 | Catálogo de validators em **TOML** (`validators.toml`), com `globals` no topo e resolução de `checks` em três fontes. |
+| D100 | `not_before` como 28ª chave canônica; agendamento ortogonal à expiração; views dinâmicas o consideram, o `prime` estático não. |
 
 ## Pendências / pontos de atenção
 
