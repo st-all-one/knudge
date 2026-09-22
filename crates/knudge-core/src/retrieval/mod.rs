@@ -18,7 +18,9 @@ mod tests;
 
 pub use bm25::{B, Bm25Hit, CONFIRMATION_STEP, K1, type_weight};
 pub use filter::{Filter, Meta};
-pub use index::{Field, FieldTf, INDEX_FILE, INDEX_WARN_BYTES, Index, NoteDoc, Stats};
+pub use index::{
+    Field, FieldTf, INDEX_FILE, INDEX_WARN_BYTES, Index, NoteDoc, Stats, size_warning,
+};
 pub use rrf::{Fused, fuse};
 pub use views::{Views, compute_views};
 pub use why::Why;
@@ -168,21 +170,29 @@ pub fn format_hit(hit: &RecallHit) -> String {
     )
 }
 
+/// Resultado de [`get`].
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct GetOutput {
+    /// Notas encontradas, na ordem pedida.
+    pub notes: Vec<Note>,
+    /// Ids ausentes (resultado parcial).
+    pub warnings: Vec<String>,
+}
+
 /// Lê os corpos dos ids pedidos, preservando a ordem (E06-T06).
 ///
 /// # Errors
 /// Propaga erros de I/O; ids ausentes viram `warnings` (resultado parcial).
-pub fn get(store: &Store<'_>, ids: &[String]) -> Result<(Vec<Note>, Vec<String>)> {
-    let mut notes = Vec::new();
-    let mut warnings = Vec::new();
+pub fn get(store: &Store<'_>, ids: &[String]) -> Result<GetOutput> {
+    let mut output = GetOutput::default();
     for id in ids {
         match store.read(id) {
-            Ok(note) => notes.push(note),
-            Err(Error::NotFound(_)) => warnings.push(format!("nota ausente: {id}")),
+            Ok(note) => output.notes.push(note),
+            Err(Error::NotFound(_)) => output.warnings.push(format!("nota ausente: {id}")),
             Err(error) => return Err(error),
         }
     }
-    Ok((notes, warnings))
+    Ok(output)
 }
 
 fn candidates(index: &Index, graph: &Graph, query: &RecallQuery) -> BTreeSet<String> {

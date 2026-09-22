@@ -18,7 +18,7 @@ E02, E05.
 
 ## Tarefas
 
-### E06-T01 ☐ Índice derivado (invertido + forward + grafo)
+### E06-T01 ☑ Índice derivado (invertido + forward + grafo)
 - **Objetivo:** construir `.idx/` (JSON; binário quando justificar) a partir de `notas/` +
   `eventos/`; reconstruível; troca atômica (E03-T06).
 - **Entregáveis:** builder do índice; esquema do `.idx/`; `rebuild`.
@@ -26,7 +26,7 @@ E02, E05.
 - **Aceite:** rebuild a partir do canônico reproduz o índice byte a byte; leitura tolera
   índice ausente (reconstrói).
 
-### E06-T02 ☐ BM25
+### E06-T02 ☑ BM25
 - **Objetivo:** BM25 `k1=1.5, b=0.75`; **tokenização ASCII explícita** (replicar `\w`;
   `café`→`caf` documentado); **IDF por campo** (`statement` domina) e por `type`; **boost por
   confirmação derivada**: `score * (1 + 0.1 * (success + partial*0.5))`.
@@ -35,13 +35,13 @@ E02, E05.
 - **Aceite:** goldens de ranking; teste de tokenização com acentos; boost altera ordem como
   esperado.
 
-### E06-T03 ☐ Âncoras como canal de recall
+### E06-T03 ☑ Âncoras como canal de recall
 - **Objetivo:** match determinístico por `path`/`id` das `anchors` — não é só um campo.
 - **Entregáveis:** canal de âncoras; interseção com working set.
 - **Decisões:** D81 (origem arags A3), D86 (dados).
 - **Aceite:** nota ancorada em arquivo do working set aparece sem depender de BM25.
 
-### E06-T04 ☐ Fusão RRF determinística
+### E06-T04 ☑ Fusão RRF determinística
 - **Objetivo:** fundir canais por `1/(k+rank+1)` (k=60, config `recall.rrf_k`); ordenar por
   **`(score desc, id asc)`**; canais ausentes/falhos degradam para o lexical, com `warn`.
 - **Entregáveis:** `rrf_fuse`; tie-break por id.
@@ -49,7 +49,7 @@ E02, E05.
 - **Aceite:** proptest de **determinismo** (duas execuções idênticas), união preservada,
   monotonicidade de rank; canal desligado não quebra.
 
-### E06-T05 ☐ Filtros determinísticos e views `ready`/`blocked`
+### E06-T05 ☑ Filtros determinísticos e views `ready`/`blocked`
 - **Objetivo:** filtrar por `type`, `classification`, `tags`, `status`, `container`, `anchors`
   **antes** da estatística; `ready`/`blocked` são views computadas via `depends_on` transitivo
   (não tools).
@@ -58,7 +58,7 @@ E02, E05.
 - **Aceite:** filtro reduz N antes do BM25; `ready`/`blocked` corretos em grafo com
   dependências encadeadas.
 
-### E06-T06 ☐ Contratos `recall` / `get` / `expand`
+### E06-T06 ☑ Contratos `recall` / `get` / `expand`
 - **Objetivo:** `recall` em pipe com **4ª coluna `why`** (`id|statement|score|why`, ~15
   tokens/hit); `get(ids)` devolve corpo só dos ids pedidos; `expand(id, kind, depth)` caminha
   o grafo (explícito).
@@ -68,7 +68,7 @@ E02, E05.
 - **Aceite:** formato congelado por golden; `why` pertence ao conjunto; `expand` respeita
   `depth` e ciclos.
 
-### E06-T07 ☐ Orçamento de índice e resultados parciais
+### E06-T07 ☑ Orçamento de índice e resultados parciais
 - **Objetivo:** o retrieval não estoura memória nem aborta por causa de um canal.
 - **Entregáveis:** limiar documentado de índice (acima → mmap/streaming ou aviso); `try_reserve`
   e `Cow<'_, str>` no parsing; canais ausentes/falhos retornam **resultado parcial + `warnings[]`**
@@ -79,10 +79,10 @@ E02, E05.
 
 ## Definition of Done
 
-- [ ] `recall` determinístico e explicável, com degradação graciosa.
-- [ ] BM25 + âncoras + RRF travados por golden e proptest.
-- [ ] Formato de retorno congelado (E13-T01).
-- [ ] Índice com teto e canal falho não derruba o comando.
+- [x] `recall` determinístico e explicável, com degradação graciosa.
+- [x] BM25 + âncoras + RRF travados por golden e proptest.
+- [x] Formato de retorno congelado (E13-T01).
+- [x] Índice com teto e canal falho não derruba o comando.
 
 ## Não-objetivos
 

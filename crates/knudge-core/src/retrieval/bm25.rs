@@ -70,6 +70,7 @@ impl Index {
 
     #[allow(
         clippy::arithmetic_side_effects,
+        clippy::suboptimal_flops,
         reason = "fórmula BM25 em f64 com termos não negativos"
     )]
     fn score_doc(&self, doc: &NoteDoc, terms: &[std::borrow::Cow<'_, str>]) -> f64 {
@@ -83,7 +84,11 @@ impl Index {
                 let idf = self.idf(field, term.as_ref());
                 let length = f64::from(doc.len(field));
                 let avg = self.stats.avg_len.get(&field).copied().unwrap_or(0.0);
-                let norm = if avg > 0.0 { 1.0 - B + B * length / avg } else { 1.0 };
+                let norm = if avg > 0.0 {
+                    1.0 - B + B * length / avg
+                } else {
+                    1.0
+                };
                 let tf = f64::from(tf);
                 let denom = tf + K1 * norm;
                 if denom > 0.0 {
@@ -110,6 +115,6 @@ impl Index {
             .unwrap_or(0);
         let n = f64::from(self.stats.n);
         let df = f64::from(df);
-        (1.0 + (n - df + 0.5) / (df + 0.5)).ln()
+        ((n - df + 0.5) / (df + 0.5)).ln_1p()
     }
 }

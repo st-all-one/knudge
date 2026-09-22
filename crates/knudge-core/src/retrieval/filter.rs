@@ -3,10 +3,10 @@
 //! Filtrar é O(1) por nota e reduz `N` antes do BM25: primeiro estrutura, depois similaridade.
 //! O `container` é resolvido no grafo (via `depends_on` transitivo) e não entra aqui.
 
+use crate::Result;
 use crate::retrieval::anchor::glob_match;
 use crate::schema::{Classification, Frontmatter, NoteType, Status, Value};
 use crate::time::Timestamp;
-use crate::Result;
 
 /// Metadados de uma nota usados por filtros, `why` e boost.
 #[derive(Debug, Clone, PartialEq)]
@@ -89,10 +89,11 @@ impl Filter {
             && (self.statuses.is_empty() || self.statuses.contains(&meta.status))
             && (self.tags.is_empty() || meta.tags.iter().any(|tag| self.tags.contains(tag)))
             && (self.anchors.is_empty()
-                || meta
-                    .anchors
-                    .iter()
-                    .any(|anchor| self.anchors.iter().any(|pattern| glob_match(pattern, anchor))))
+                || meta.anchors.iter().any(|anchor| {
+                    self.anchors
+                        .iter()
+                        .any(|pattern| glob_match(pattern, anchor))
+                }))
     }
 }
 

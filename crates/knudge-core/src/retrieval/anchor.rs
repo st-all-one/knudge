@@ -11,6 +11,10 @@ use crate::retrieval::index::Index;
 
 /// Resultado do match de âncoras de uma nota.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "`file` e `id` são flags ortogonais do mesmo match"
+)]
 pub struct AnchorMatch {
     /// Quantas âncoras casaram (para ordenar).
     pub count: u32,
@@ -105,8 +109,9 @@ pub fn rank(
 }
 
 #[allow(
+    clippy::indexing_slicing,
     clippy::arithmetic_side_effects,
-    reason = "avanço de índice sobre bytes do padrão"
+    reason = "avanço de índice sobre bytes do padrão, com `index < bytes.len()`"
 )]
 fn glob_tokens(pattern: &str) -> Vec<Glob> {
     let bytes = pattern.as_bytes();

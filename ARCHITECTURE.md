@@ -58,7 +58,7 @@ conveniência, mas só `cli`/`mcp` o importam.
 | `store` | notas (`notas/`), eventos, lock, rebuild, purge, sweep | E03 |
 | `git` | worktree principal, `info/exclude`, `AGENTS.md`, `sync` | E04 |
 | `graph` | arestas explícitas, integridade, ciclos, sugestões | E05 |
-| `retrieval` | BM25, âncoras, RRF | E06 |
+| `retrieval` | BM25, âncoras, filtros, views `ready`/`blocked` e RRF | E06 |
 | `lifecycle` | decay, confiança derivada, clusters | E10 |
 | `embeddings` | provedor plugável e fila lazy | E11 |
 
@@ -115,7 +115,22 @@ volatilidade, não CAS (D48).
 | Ciclos | SCC (Kosaraju iterativo) sobre `replaces`/`depends_on`; membros **não demovem** (D45). |
 | Sugestões | Extração conservadora (ids, wikilinks, verbos) vai para `.idx/suggestions.jsonl` — derivado, purgável; **nunca** vira aresta (D49/D50/D84). |
 
-## 8. Fluxo de uma operação
+## 8. Retrieval: BM25, âncoras e RRF (E06)
+
+| Conceito | Regra |
+|---|---|
+| Índice | Derivado em `.idx/retrieval.jsonl` (uma linha JSON por nota), reconstruível byte a byte; ausente → reconstrói (D15/D27). |
+| Tokenização | ASCII explícita `[a-z0-9_]`; `café` → `caf` (D36). |
+| BM25 | `k1=1.5`, `b=0.75`, **IDF por campo** (`statement` domina, peso 3) e **peso por tipo** (D35/D37). |
+| Boost | `score * (1 + 0.1 * (success + partial*0.5))` a partir de `outcomes` (D38). |
+| Âncoras | Canal determinístico por `path`/`id` com globs `?`/`*`/`**` (D81/D86). |
+| RRF | `1/(k+rank+1)`, `k=60`; desempate `(score desc, id asc)`; canal ausente só não soma (D81). |
+| Filtros | `type`/`classification`/`status`/`tags`/`anchors` antes do BM25; `container` via `depends_on` transitivo (D41). |
+| Views | `ready`/`blocked` computadas do `depends_on` transitivo; ciclo de dependência = `blocked` (D53). |
+| Contrato | `recall` em pipe `id\|statement\|score\|why`; `why` fechado (`file_match|anchor_match|tracker_match|stars|recent|universal`); corpo só via `get` (D39). |
+| Degradação | Canal falho → resultado parcial + `warnings`; `strict` (D94) promove a erro; teto de índice avisa (E06-T07). |
+
+## 9. Fluxo de uma operação
 
 ```
 kd <verbo>
@@ -126,7 +141,7 @@ kd <verbo>
   → exit code = ErrorKind::exit_code() (101 reservado a panic)
 ```
 
-## 9. Invariantes de engenharia
+## 10. Invariantes de engenharia
 
 - `#![forbid(unsafe_code)]` em `core`/`cli`/`mcp` (R01).
 - Sem `Rc`/`RefCell` no core; estado compartilhado via `Arc<Mutex<_>>` (R03).
@@ -134,7 +149,7 @@ kd <verbo>
 - Arquivos de produção ≤ 300 linhas (D92).
 - `clippy -D warnings` lendo `clippy.toml` (R44); perfis e supply chain (R40–R43).
 
-## 10. Referências
+## 11. Referências
 
 - Visão: `plan/00_panorama.md`
 - Decisões: `plan/03_decisoes-fechadas.md` (D01–D98)

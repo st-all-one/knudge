@@ -7,6 +7,24 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 ### Adicionado
 - **AGENTS.md** — guia de contribuição do repositório: padrões de desenvolvimento, erros,
   logs, testes, contrato de bytes e checklist de conclusão.
+- **E06 — Retrieval: BM25, âncoras e RRF** (MVP, concluído):
+  - `retrieval::token`: tokenização **ASCII explícita** `[a-z0-9_]` (`café` → `caf` — D36),
+    com `Cow` no caminho quente e termos de consulta deduplicados.
+  - `retrieval::index`: índice derivado `.idx/retrieval.jsonl` (uma linha JSON por nota) com
+    frequências por campo (`statement`/`body`/`tags`); reconstruível **byte a byte**; ausente →
+    reconstrói e grava; teto de tamanho emite aviso (D15/D27).
+  - `retrieval::bm25`: BM25 (`k1=1.5`, `b=0.75`) com **IDF por campo**, **peso por tipo** e
+    **boost por confirmação** `1 + 0.1*(success + partial*0.5)` (D35/D37/D38).
+  - `retrieval::anchor`: canal de âncoras por `path`/`id` com globs `?`/`*`/`**` (D81/D86).
+  - `retrieval::rrf`: fusão `1/(k+rank+1)` com `k=60` e desempate `(score desc, id asc)` (D81).
+  - `retrieval::filter`: filtros determinísticos (`type`/`classification`/`status`/`tags`/`anchors`)
+    aplicados antes do BM25; `container` resolvido no grafo via `depends_on` transitivo (D41).
+  - `retrieval::views`: `ready`/`blocked` computadas do `depends_on` transitivo; ciclo de
+    dependência = `blocked` (D53).
+  - `retrieval::why` + contrato `id|statement|score|why` (4ª coluna com conjunto fechado — D39);
+    `get(ids)` devolve corpo só dos ids pedidos.
+  - Degradação graciosa: canal falho retorna resultado parcial + `warnings`; `strict` (D94)
+    promove a erro (E06-T07).
 - **E05 — Grafo e arestas** (Fase 0, concluído):
   - `schema::edge`: enum fechado `EdgeKind` (8 valores) com chaves de frontmatter em
     `snake_case`, `Edge` e `EDGE_KEYS` (D49/D51).
@@ -108,8 +126,8 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   `superseded_by`, ciclo de supersessão sobre `replaces` e sugestões derivadas.
 
 ### Testes
-- 157 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
+- 189 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
   schema/hash/ID/arestas, TOON, JSONL/JSON, store, config/TOML, git/onboard/sync,
-  grafo/integridade/ciclos/sugestões).
+  grafo/integridade/ciclos/sugestões, retrieval/token/BM25/âncoras/RRF/views).
 - 8 testes de integração do binário (`--help`, `kd == kd prime`, `--json`, exit codes,
   EPIPE, comando desconhecido).

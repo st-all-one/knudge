@@ -60,6 +60,7 @@ módulos. Onde mexer:
 | config TOML em dois níveis | `knudge-core/src/config/` |
 | worktree, exclude, `AGENTS.md`, `sync` | `knudge-core/src/git/` |
 | arestas, integridade, ciclos | `knudge-core/src/graph/` |
+| BM25, âncoras, filtros, views, RRF | `knudge-core/src/retrieval/` |
 | erros e exit codes | `knudge-core/src/error.rs` |
 | tempo determinístico | `knudge-core/src/time.rs` |
 | redação de segredos | `knudge-core/src/logging.rs` |
