@@ -72,6 +72,7 @@ módulos. Onde mexer:
 | redação de segredos | `knudge-core/src/logging.rs` |
 | portas e fakes | `knudge-core/src/ports/` |
 | acesso real a SO/rede | `knudge-core/src/adapters/` |
+| embeddings (provedor, cache, fila, eval) | `knudge-core/src/embeddings/` |
 | superfície de CLI | `knudge-cli/src/cli/` + `plan/implementation/16_cli_surface.md` |
 
 ## 3. Padrões de desenvolvimento
@@ -178,7 +179,7 @@ módulos. Onde mexer:
 
 ## 10. Referências
 
-- Decisões fechadas: [`plan/03_decisoes-fechadas.md`](plan/03_decisoes-fechadas.md) (`D01–D100`).
+- Decisões fechadas: [`plan/03_decisoes-fechadas.md`](plan/03_decisoes-fechadas.md) (`D01–D101`).
 - Políticas de engenharia: [`plan/implementation/14_revisao_tecnica.md`](plan/implementation/14_revisao_tecnica.md) (`R01–R44`).
 - Lints: [`plan/implementation/15_clippy_config.md`](plan/implementation/15_clippy_config.md) + `clippy.toml`.
 - Superfície `kd`: [`plan/implementation/16_cli_surface.md`](plan/implementation/16_cli_surface.md).

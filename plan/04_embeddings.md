@@ -123,35 +123,50 @@ O provedor vive no `config.toml` (global como template, projeto com precedência
 ```toml
 [embeddings]
 enabled      = true
-provider     = "local"                                    # local | http | lightweight | none
+provider     = "http"                                     # http | lightweight | none
 model        = "sentence-transformers/msmarco-MiniLM-L12-cos-v5"
 revision     = "main"                                     # pinar commit/tag p/ reprodutibilidade
 dimensions   = 384
 similarity   = "cosine"                                   # cosine | dot
 normalize    = true
 device       = "auto"                                     # auto | cpu | cuda | metal
-batch_size   = 32
+batch        = 32
 mode         = "lazy"                                     # lazy | eager | manual
 async        = true                                       # nunca bloqueia write/read
 max_pending  = 1000                                       # backpressure; acima, força catch-up
 cache        = true                                       # cache por body_hash em .idx/
+cache_max_bytes = 33554432                                # teto com eviction LRU (32 MiB)
+cache_ttl_days  = 30
 flush_ms     = 2000                                       # flush coalescido (debounce) do índice
-cache_dir    = ""                                         # default: <XDG_CACHE_HOME>/knudge/models
-
-[embeddings.http]                                         # usado quando provider = "http"
-endpoint     = "http://127.0.0.1:8080/v1/embeddings"      # OpenAI-compatible / TEI / Ollama
-api_key_env  = "KNUDGE_EMBEDDING_API_KEY"
+endpoint     = "http://127.0.0.1:8080/v1/embeddings"      # OpenAI-compatible (llama-server/TEI/Ollama)
 timeout_ms   = 30000
+retries      = 2
+api_key_env  = "KNUDGE_EMBEDDING_API_KEY"
 ```
 
 ### Provedores
 
 | `provider` | Como funciona | Quando usar |
 |---|---|---|
-| `local` | Modelo ONNX/GGUF carregado no processo (Rust: `ort` + `tokenizers`, ou `candle`) | Padrão; offline, sem latência de rede |
-| `http` | Endpoint OpenAI-compatible (TEI, Ollama, vLLM, OpenAI) | GPU compartilhada, modelo grande, ambiente sem build local |
+| `http` | Cliente HTTP/1.1 **bloqueante** para um servidor OpenAI-compatible. O modelo roda **fora** do binário: o usuário sobe `llama-server -m msmarco-MiniLM-L12-cos-v5.Q5_K_M.gguf --embeddings` (ou TEI/Ollama/vLLM) e o knudge só aponta a URL | **Default**; offline e local, sem dependência de runtime de IA no binário (R16/R43) |
 | `lightweight` | Embedder determinístico por hash (SHA-256 → vetor normalizado), **sem pesos** | Testes/CI e offline puro, sem download (D89) |
 | `none` | Sem vetores; só BM25 + estrutura | Corpus pequeno; quando `learn()`/dedup semântico ainda não existem |
+
+**Subindo o servidor local (exemplo com o GGUF do repositório):**
+
+```sh
+# llama.cpp; expõe /v1/embeddings (OpenAI-compatible)
+llama-server -m msmarco-MiniLM-L12-cos-v5.Q5_K_M.gguf --embeddings --port 8080
+```
+
+O `kd` consome `http://127.0.0.1:8080/v1/embeddings` por padrão; aponte
+`embeddings.endpoint` para outra porta/host se necessário. Enquanto o servidor não estiver de pé,
+as notas ficam `pending` (gap tolerado) e o retrieval usa BM25.
+
+> **Por que não inferência `local` in-process (ONNX/candle/llama.cpp)?** Ela exigiria uma
+dependência pesada (build C++/CUDA, download de pesos) e um runtime de IA dentro do binário,
+contra R16/R43. O modelo já roda otimizado num servidor dedicado; o knudge só consome HTTP —
+D101.
 
 ### Regras
 
@@ -178,8 +193,9 @@ timeout_ms   = 30000
 |---|---|---|
 | **D42** | Embeddings só depois de `learn()`/dedup semântico | Embeddings **configuráveis desde já** via `config.toml`; default `enabled=true` com `cos-v5`, mas o sistema funciona com `none` |
 | **D79** (nova) | — | **Modelo default = `msmarco-MiniLM-L12-cos-v5`**, provedor plugável; validar idioma e A/B no corpus |
+| **D101** (nova) | `provider = local\|http\|lightweight\|none` | **`provider = http`** (default) consumindo um **servidor local** OpenAI-compatible (`llama-server` com o GGUF); inferência in-process recusada (R16/R43); `lightweight`/`none` para CI/BM25 |
 | **D65** | Módulos por escopo temático | Ganha o escopo **`embeddings`** (provedor + cliente), separado do `retrieval` |
-| **D68** | MCP + CLI; FFI/WASM no planejamento | O provedor `local` é a peça que torna o WASM/FFI relevante no futuro |
+| **D68** | MCP + CLI; FFI/WASM no planejamento | O provedor `http` (D101) mantém o binário leve; WASM/FFI deixam de ser necessários para inferência |
 | **D83** | — | Cache por `body_hash` + estado `pending`/reconcile; falha nunca descarta nota |
 | **D85** | — | Flush coalescido do índice (debounce + flush na saída) |
 | **D89** | — | `provider = "lightweight"` para testes/CI/offline |
@@ -189,4 +205,4 @@ timeout_ms   = 30000
 
 ## 6. Em uma frase
 
-**`msmarco-MiniLM-L12-cos-v5` como default** (qualidade, mesmo índice do L6, embedding em lote), com **`msmarco-MiniLM-L6-cos-v5` como perfil rápido** para latência/edge — ambos treinados para cosseno, na mesma dimensão e custo de armazenamento. Provedor de embedding plugável via `config.toml` (`local`/`http`/`lightweight`/`none`), **assíncrono e lazy** (nunca bloqueia; fila de digestão com gap tolerado), **cache por `body_hash`** e **flush coalescido**, sempre derivado e re-embebido quando o modelo muda; a escolha do modelo se decide por **`kd eval --ab`** sobre o corpus; com a ressalva de que, se o corpus for PT-BR, um modelo multilíngue deve ser avaliado.
+**`msmarco-MiniLM-L12-cos-v5` como default** (qualidade, mesmo índice do L6, embedding em lote), com **`msmarco-MiniLM-L6-cos-v5` como perfil rápido** para latência/edge — ambos treinados para cosseno, na mesma dimensão e custo de armazenamento. O usuário sobe um **servidor local** (`llama-server` com o GGUF) e o knudge consome via **`provider = http`** (OpenAI-compatible), **assíncrono e lazy** (nunca bloqueia; fila de digestão com gap tolerado), **cache por `body_hash`** e **flush coalescido**, sempre derivado e re-embebido quando o modelo muda; `lightweight` cobre testes/CI e `none` cai para BM25; a escolha do modelo se decide por **`kd eval --ab`** sobre o corpus; com a ressalva de que, se o corpus for PT-BR, um modelo multilíngue deve ser avaliado.

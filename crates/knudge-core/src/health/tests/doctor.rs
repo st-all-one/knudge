@@ -161,3 +161,28 @@ fn broken_anchor_is_removed() -> Result<()> {
     assert!(stored.frontmatter.string_list("anchors")?.is_empty());
     Ok(())
 }
+
+#[test]
+fn embeddings_check_reports_sizes() -> Result<()> {
+    let fs = MemFs::new();
+    let fact = note(NoteType::Fact, "vetor", "")?;
+    let ctx = seeded(&fs, std::slice::from_ref(&fact))?;
+    let events = EventLog::new(&fs, ROOT, EventLog::DEFAULT_MAX_BYTES);
+    let config = Config::defaults();
+    let (_index, graph) = built(std::slice::from_ref(&fact))?;
+    let thresholds = DedupThresholds::default();
+    let world = World {
+        fs: &fs,
+        ctx: &ctx,
+        events: &events,
+        config: &config,
+        graph: &graph,
+        thresholds: &thresholds,
+    };
+    fs.insert("/p/.knudge/.idx/embeddings.jsonl", "{\"meta\":{}}\n");
+    let report = doctor(&world.input())?;
+    let check = report.check(CheckId::Embeddings);
+    assert!(check.is_some());
+    assert_eq!(check.map(|c| c.ok), Some(true));
+    Ok(())
+}

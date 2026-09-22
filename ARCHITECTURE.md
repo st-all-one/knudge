@@ -65,7 +65,7 @@ conveniência, mas só `cli`/`mcp` o importam.
 | `task` | hierarquia `plan ⊃ epic ⊃ issue ⊃ task` como view derivada | E08 |
 | `health` | validators, evidência, `audit`, `doctor`, leitura tolerante e âncoras por hash | E09 |
 | `lifecycle` | shelf-life, decay de âncoras, purga com retenção, confiança derivada e clusters | E09/E10 |
-| `embeddings` | provedor plugável e fila lazy | E11 |
+| `embeddings` | provedor HTTP plugável, cache por `body_hash`, fila lazy e avaliação A/B | E11 |
 
 ## 5. Persistência (E03)
 
@@ -173,7 +173,7 @@ volatilidade, não CAS (D48).
 | Fechamento por evidência | `close_task` grava `evidence` + `outcomes[]` e **infere** `outcome` pela severidade (D48/D55); sem evidência, não fecha. |
 | Confirmação | **Derivada** de `outcomes` (`success + partial*0.5`) — nunca armazenada (D48). |
 | `audit` | Leitura pura: integridade, ciclos, âncoras quebradas, duplicatas, arestas sugeridas faltantes e locks stale (D46). |
-| `doctor --fix` | 10 checks; corrige `body_hash`, âncoras quebradas, locks stale e índice divergente; **idempotente** (D19/D84). |
+| `doctor --fix` | 11 checks (inclui o tamanho do índice vetorial/cache — E11); corrige `body_hash`, âncoras quebradas, locks stale e índice divergente; **idempotente** (D19/D84). |
 | Leitura tolerante | Chave desconhecida → warning; `type` desconhecido/nota malformada → **skip + orientação**, sem derrubar o comando (D16–D18). |
 | Âncoras | `path` na nota, `content_hash` em `.idx/anchors.jsonl`; `cited` invalida, `context` não; stale **sinaliza**, não apaga (D86). |
 | Confiança derivada | `sim × drift × idade + feedback`, pisos, sempre `[0,1]`, calculada no `recall` (D87). |
@@ -190,7 +190,20 @@ volatilidade, não CAS (D48).
 | Clusters fase 1 | Agrupamento determinístico por `anchor`/`type`/`classification`/container — sem estatística nem embeddings (D47). |
 | Clusters fase 2 | Semântico **dentro** de um cluster estrutural, acima do volume mínimo e off-path; similaridade injetada (E11). |
 
-## 13. Fluxo de uma operação
+## 13. Embeddings (E11)
+
+| Conceito | Regra |
+|---|---|
+| Provedor | `http` (default; servidor local OpenAI-compatible — `llama-server`/TEI/Ollama), `lightweight` (hash, testes/CI) ou `none` (BM25). Sem inferência in-process (D101/R16/R43). |
+| Porta | Trait `Embedder` (`ports`); o domínio nunca fala HTTP. `adapters::http::HttpEmbedder` é cliente HTTP/1.1 bloqueante sobre `std::net` (timeout + retry idempotente). |
+| Índice | `.idx/embeddings.jsonl` com cabeçalho `meta` (provider/model/revision/dimensões/similaridade); mudança de modelo **invalida** e força re-embed (D79). |
+| Cache | `.idx/emb_cache.jsonl` por `body_hash`, com teto e eviction LRU; falha degrada para *pass-through* (D83/R14). |
+| Fila | Estado `indexed\|pending\|stale` **derivado** do `body_hash`; falha do provedor marca `pending`, nunca descarta (D80/D83). `max_pending` é backpressure; acima, catch-up. |
+| Flush | *Dirty flag* + debounce `flush_ms`, com flush forçado na saída (D85). |
+| Purga | Toda remoção passa por `purge_derived`, que apaga registros com `id` do índice vetorial (D84). |
+| Avaliação | `Recall@k`/`nDCG@k`/`MRR` puras, com ranqueador injetado — alicerce do `kd maintenance eval --ab` (D90). |
+
+## 14. Fluxo de uma operação
 
 ```
 kd <verbo>
@@ -201,7 +214,7 @@ kd <verbo>
   → exit code = ErrorKind::exit_code() (101 reservado a panic)
 ```
 
-## 14. Invariantes de engenharia
+## 15. Invariantes de engenharia
 
 - `#![forbid(unsafe_code)]` em `core`/`cli`/`mcp` (R01).
 - Sem `Rc`/`RefCell` no core; estado compartilhado via `Arc<Mutex<_>>` (R03).
@@ -209,7 +222,7 @@ kd <verbo>
 - Arquivos de produção ≤ 300 linhas (D92).
 - `clippy -D warnings` lendo `clippy.toml` (R44); perfis e supply chain (R40–R43).
 
-## 15. Referências
+## 16. Referências
 
 - Visão: `plan/00_panorama.md`
 - Decisões: `plan/03_decisoes-fechadas.md` (D01–D100)

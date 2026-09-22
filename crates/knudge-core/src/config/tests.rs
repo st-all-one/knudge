@@ -141,7 +141,10 @@ mod schema {
             keys.first().map(String::as_str),
             Some("knowledge.persist_in_project")
         );
-        assert_eq!(keys.last().map(String::as_str), Some("embeddings.flush_ms"));
+        assert_eq!(
+            keys.last().map(String::as_str),
+            Some("embeddings.api_key_env")
+        );
     }
 
     #[test]

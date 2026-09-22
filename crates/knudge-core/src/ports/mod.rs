@@ -3,10 +3,12 @@
 //! O domínio só conhece estas *traits*. As implementações reais ficam em `crate::adapters`; os
 //! fakes, em [`fakes`], permitem testes reprodutíveis sem tocar o sistema operacional.
 
+pub mod embedder;
 pub mod fakes;
 pub mod fs;
 pub mod logger;
 
+pub use embedder::Embedder;
 pub use fs::Fs;
 pub use logger::{Level, LogRecord, Logger};
 
@@ -115,5 +117,6 @@ mod tests {
         assert_send_sync::<dyn HookRunner>();
         assert_send_sync::<dyn Fs>();
         assert_send_sync::<dyn Logger>();
+        assert_send_sync::<dyn Embedder>();
     }
 }

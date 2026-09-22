@@ -27,7 +27,7 @@ existem no mesmo crate, mas o domínio **nunca** as importa — só as portas.
 | `task` | Hierarquia `plan ⊃ epic ⊃ issue ⊃ task` e ciclo de vida (E08). |
 | `health` | Validators, evidência, `audit`, `doctor --fix`, leitura tolerante e âncoras por hash (E09). |
 | `lifecycle` | Shelf-life, decay de âncoras, purga com retenção, confiança derivada e clusters (E09/E10). |
-| `embeddings` | Contrato do provedor plugável (E11). |
+| `embeddings` | Provedor HTTP plugável, cache por `body_hash`, fila lazy, purga/flush e avaliação A/B (E11). |
 
 ## Invariantes
 

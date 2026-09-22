@@ -1,9 +1,9 @@
 //! `doctor [--fix]`: diagnóstico e reparo do reversível (D19, E09-T04).
 //!
-//! Dez checks determinísticos cobrem schema/TOON, integridade, ciclos, âncoras, duplicatas,
-//! locks stale, config, `body_hash` desatualizado, `eventos.jsonl` malformado e **divergência
-//! canônico↔derivado** (D84). `--fix` corrige só o **reversível** e é **idempotente**: rodar
-//! duas vezes não muda nada na segunda.
+//! Onze checks determinísticos cobrem schema/TOON, integridade, ciclos, âncoras, duplicatas,
+//! locks stale, config, `body_hash` desatualizado, `eventos.jsonl` malformado, **divergência
+//! canônico↔derivado** (D84) e o tamanho do índice vetorial/cache (R14). `--fix` corrige só o
+//! **reversível** e é **idempotente**: rodar duas vezes não muda nada na segunda.
 
 mod checks;
 mod fix;
@@ -24,7 +24,7 @@ use crate::write::dedup::DedupThresholds;
 use super::tolerant::read_tolerant;
 use checks::{
     anchors_check, body_hash_check, config_check, cycles_check, derived_check, duplicates_check,
-    events_check, integrity_check, locks_check, schema_check,
+    embeddings_check, events_check, integrity_check, locks_check, schema_check,
 };
 
 /// Identificador estável de um check do `doctor`.
@@ -50,11 +50,13 @@ pub enum CheckId {
     Events,
     /// Divergência canônico↔derivado.
     Derived,
+    /// Tamanho do índice vetorial/cache de embeddings.
+    Embeddings,
 }
 
 impl CheckId {
     /// Todos os checks, na ordem de exibição.
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 11] = [
         Self::Schema,
         Self::Integrity,
         Self::Cycles,
@@ -65,6 +67,7 @@ impl CheckId {
         Self::BodyHash,
         Self::Events,
         Self::Derived,
+        Self::Embeddings,
     ];
 
     /// Rótulo canônico.
@@ -81,6 +84,7 @@ impl CheckId {
             Self::BodyHash => "body_hash",
             Self::Events => "events",
             Self::Derived => "derived",
+            Self::Embeddings => "embeddings",
         }
     }
 }
@@ -151,7 +155,7 @@ pub struct DoctorInput<'a> {
     pub thresholds: &'a DedupThresholds,
 }
 
-/// Executa os dez checks (somente leitura).
+/// Executa os onze checks (somente leitura).
 ///
 /// # Errors
 /// Propaga erros de I/O de listagem/leitura do derivado.
@@ -170,6 +174,7 @@ pub fn doctor(input: &DoctorInput<'_>) -> Result<DoctorReport> {
         body_hash_check(&read.notes)?,
         events_check(input),
         derived_check(input, &expected, &mut warnings),
+        embeddings_check(input),
     ];
     Ok(DoctorReport {
         checks,

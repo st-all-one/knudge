@@ -137,18 +137,27 @@ prefix_style = "declarative"   # declarative | compact
 
 [embeddings]
 enabled    = true
-provider   = "local"           # local | http | lightweight | none
+provider   = "http"            # http | lightweight | none (D101)
 model      = "sentence-transformers/msmarco-MiniLM-L12-cos-v5"
                               # perfil rápido: msmarco-MiniLM-L6-cos-v5 (mesmo 384d, ~2× mais rápido)
+revision   = "main"            # pinada p/ reprodutibilidade
 dimensions = 384
 similarity = "cosine"
 mode       = "lazy"            # lazy | eager | manual
 async      = true              # nunca bloqueia write/read
+batch      = 32
+max_pending = 1000             # backpressure; acima, força catch-up
 cache      = true              # cache por body_hash em .idx/
+cache_max_bytes = 33554432     # teto com eviction LRU (32 MiB)
+cache_ttl_days  = 30
 flush_ms   = 2000              # flush coalescido do índice (debounce)
+endpoint   = "http://127.0.0.1:8080/v1/embeddings"   # OpenAI-compatible (llama-server/TEI/Ollama)
+timeout_ms = 30000
+retries    = 2
+api_key_env = "KNUDGE_EMBEDDING_API_KEY"
 ```
 
-O provedor de embedding é plugável via config (global como template, projeto com precedência). Detalhes, avaliação do modelo e alternativas multilíngues em **`04_embeddings.md`**. Os vetores são **derivados** (`.idx/embeddings.jsonl`), nunca gravados no frontmatter; trocar de modelo força re-embed.
+O provedor de embedding é plugável via config (global como template, projeto com precedência). O default **`http`** consome um **servidor local** OpenAI-compatible — o usuário sobe `llama-server -m msmarco-MiniLM-L12-cos-v5.Q5_K_M.gguf --embeddings` e o knudge só aponta a URL (D101); **não** há inferência in-process (R16/R43). Detalhes, avaliação do modelo e alternativas multilíngues em **`04_embeddings.md`**. Os vetores são **derivados** (`.idx/embeddings.jsonl`, com cabeçalho `meta`), nunca gravados no frontmatter; trocar de modelo força re-embed. `lightweight` (hash) cobre testes/CI e `none` cai para BM25.
 
 Acesso via tool `config get/set/list`. Precedência (quando houver override): flag de CLI > `config.toml`. O LLM **não** altera limiares em runtime — são config, não decisão do agente.
 

@@ -8,10 +8,12 @@ pub mod clock;
 pub mod env;
 pub mod fs;
 pub mod git;
+pub mod http;
 pub mod rng;
 
 pub use clock::SystemClock;
 pub use env::StdEnv;
 pub use fs::StdFs;
 pub use git::StdGit;
+pub use http::HttpEmbedder;
 pub use rng::ThreadRng;

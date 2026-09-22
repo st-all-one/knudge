@@ -138,7 +138,7 @@
 | **D66** ✅ | **Rust.** Objetivo: **um único binário executável chamado `kd`**. |
 | **D67** ✅ | Nome: **`kd`**. |
 | **D68** ✅ | **MCP + CLI** agora; **FFI e WASM apenas a nível de planejamento**. |
-| **D79** ✅ | **Provedor de embedding plugável via `config.toml`** (`local`/`http`/`none`); modelo default **`sentence-transformers/msmarco-MiniLM-L12-cos-v5`** (384d, cosseno nativo), com **`msmarco-MiniLM-L6-cos-v5` como perfil rápido** (~2× mais rápido, mesmo índice). `revision` pinada e re-embed quando o modelo muda. Avaliar multilíngue se o corpus for PT-BR. Ver `04_embeddings.md`. |
+| **D79** ✅ | **Provedor de embedding plugável via `config.toml`** (`local`/`http`/`none`); modelo default **`sentence-transformers/msmarco-MiniLM-L12-cos-v5`** (384d, cosseno nativo), com **`msmarco-MiniLM-L6-cos-v5` como perfil rápido** (~2× mais rápido, mesmo índice). `revision` pinada e re-embed quando o modelo muda. Avaliar multilíngue se o corpus for PT-BR. Ver `04_embeddings.md`. (**D101** fixa a execução em **HTTP local**, sem inferência in-process.) |
 | **D80** ✅ | **Embedding assíncrono e lazy; nunca bloqueia.** `write`/`recall`/rebuild seguem sem esperar o modelo; notas recém-criadas ficam **“dark”** no espaço vetorial até serem digeridas por uma fila (gap tolerado em rajadas de 10–20). Dedup no write é **lexical**; o semântico é **eventual** (reconciliação). Estado `embedded\|pending\|stale` é derivado, em `.idx/`; `prime` reporta `embeddings_pending`. |
 | **D69** ✅ | Binário estático + `kd self setup` (recipes `claude`/`cursor`/`codex`/`pi`) + `kd self completions` + `kd self upgrade` + `kd self version`. |
 | **D70** ✅ | **Sem migração.** O knudge é **independente** de seeds e mulch. |
@@ -261,6 +261,16 @@
 
 ---
 
+## Y. Embeddings via HTTP local (D101)
+
+> Fecha a forma de execução do provedor (implementado em E11).
+
+| # | Decisão final |
+|---|---|
+| **D101** ✅ | O provedor de embedding **não roda in-process**. `provider` é `http` (default) \| `lightweight` \| `none`; o default consome um **servidor local OpenAI-compatible** — `llama-server -m msmarco-MiniLM-L12-cos-v5.Q5_K_M.gguf --embeddings` (ou TEI/Ollama/vLLM) — via `embeddings.endpoint` (`http://127.0.0.1:8080/v1/embeddings`), com `timeout_ms`, `retries` e `api_key_env`. O cliente é HTTP/1.1 **bloqueante** sobre `std::net` (**sem** `tokio`/`reqwest` — R16/R43) e `https://` exige proxy/TLS terminator. `lightweight` (hash, D89) cobre CI/offline; `none` cai para BM25. Inferência `local` in-process (ONNX/candle/llama.cpp) é **recusada** (R16/R43). O índice é **invalidado** quando modelo/revisão/dimensão mudam (D79). |
+
+---
+
 ## Impactos no panorama (já propagados)
 
 | Decisão | Onde mudou |
@@ -273,6 +283,7 @@
 | D57 | `prime` reescrito: **protocolo estático** (byte-idêntico); estado/handoff migra para **`rewind`**. |
 | D65 | Arquitetura organizada por **escopo temático** (`core`, `cli`, `mcp`, `jsonl`, …). |
 | D42/D79 | Embeddings passam a ser **provedor plugável** via config, com default `msmarco-MiniLM-L12-cos-v5`. |
+| D101 | Provedor default = **`http`** apontando para um servidor local (`llama-server`); sem inferência in-process. |
 | D80 | Embedding **assíncrono/lazy**: retrieval e write nunca bloqueiam; gap vetorial tolerado. |
 | D81 | `recall` ganha **fusão RRF determinística** + degradação graciosa. |
 | D82 | Orçamento do `rewind` explicitado **sem tokenizer** (D40 refinado). |
@@ -292,6 +303,7 @@
 | D98 | Fixa as 8 chaves de aresta, a ordem canônica de 27 chaves, o ponteiro reverso `superseded_by` e o storage derivado de sugestões. |
 | D99 | Catálogo de validators em **TOML** (`validators.toml`), com `globals` no topo e resolução de `checks` em três fontes. |
 | D100 | `not_before` como 28ª chave canônica; agendamento ortogonal à expiração; views dinâmicas o consideram, o `prime` estático não. |
+| D101 | Embeddings via **HTTP local** (OpenAI-compatible); `provider = http\|lightweight\|none`; sem inferência in-process. |
 
 ## Pendências / pontos de atenção
 

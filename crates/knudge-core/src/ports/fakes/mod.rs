@@ -9,8 +9,10 @@ use crate::error::lock_or_recover;
 use crate::logging::Redactor;
 use crate::time::Timestamp;
 
+pub mod embedder;
 pub mod fs;
 
+pub use embedder::FakeEmbedder;
 pub use fs::{FaultyFs, MemFs};
 
 use super::logger::{Level, LogRecord, Logger};

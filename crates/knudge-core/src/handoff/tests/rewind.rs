@@ -16,6 +16,7 @@ fn input<'a>(index: &'a Index, graph: &'a Graph, changed_paths: &'a [String]) ->
         graph,
         events: &[],
         changed_paths,
+        embeddings_pending: 0,
         now_ms: NOW,
     }
 }
@@ -141,5 +142,20 @@ fn auto_flips_on_large_corpus() -> Result<()> {
     let output = rewind(&input, &request, &contexts)?;
     assert!(output.text.starts_with("notes="));
     assert!(output.items.is_empty());
+    Ok(())
+}
+
+#[test]
+fn manifest_reports_embeddings_pending() -> Result<()> {
+    let fs = MemFs::new();
+    let notes = vec![note(NoteType::Fact, "a")?, note(NoteType::Fact, "b")?];
+    let (index, graph) = built(&notes)?;
+    let contexts = ContextStore::new(&fs, "/p/.knudge");
+    let request = RewindRequest::new();
+    let mut input = input(&index, &graph, &[]);
+    input.embeddings_pending = 2;
+    let output = rewind(&input, &request, &contexts)?;
+    assert!(output.text.contains("embeddings_pending=2"));
+    assert_eq!(output.embeddings_pending, 2);
     Ok(())
 }

@@ -1,6 +1,11 @@
 //! Checks individuais do `doctor` (E09-T04).
 
+use std::path::Path;
+
 use crate::Result;
+use crate::embeddings::index::WARN_BYTES as EMBEDDINGS_WARN_BYTES;
+use crate::embeddings::{CACHE_FILE, EMBEDDINGS_FILE};
+use crate::ports::Fs;
 use crate::retrieval::Index;
 use crate::store::Note;
 use crate::write::dedup::propose_merges;
@@ -188,4 +193,26 @@ pub(super) fn derived_check(
         },
         fixable: true,
     }
+}
+
+/// Reporta o tamanho do índice vetorial e do cache de embeddings (E11-T02/R14).
+pub(super) fn embeddings_check(input: &DoctorInput<'_>) -> DoctorCheck {
+    let index_bytes = file_len(input.fs, &input.root.join(".idx").join(EMBEDDINGS_FILE));
+    let cache_bytes = file_len(input.fs, &input.root.join(".idx").join(CACHE_FILE));
+    let limit = EMBEDDINGS_WARN_BYTES;
+    let ok = index_bytes <= limit && cache_bytes <= limit;
+    DoctorCheck {
+        id: CheckId::Embeddings,
+        ok,
+        detail: format!("índice {index_bytes} bytes; cache {cache_bytes} bytes"),
+        fixable: false,
+    }
+}
+
+fn file_len(fs: &dyn Fs, path: &Path) -> u64 {
+    if !fs.exists(path) {
+        return 0;
+    }
+    fs.read(path)
+        .map_or(0, |bytes| u64::try_from(bytes.len()).unwrap_or(u64::MAX))
 }

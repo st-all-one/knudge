@@ -23,7 +23,7 @@ fn parses_comments_keys_and_types() -> Result<()> {
 # comentário de topo
 [embeddings]
 enabled = true   # inline
-provider = 'local'
+provider = 'http'
 dimensions = 384
 model = \"a\\tb\"
 mode = \"lazy\"
@@ -36,7 +36,7 @@ merge_below = 0.92
     let table = parse(text)?;
     assert_eq!(
         get_path(&table, &["embeddings", "provider"]),
-        Some(&ConfigValue::String("local".into()))
+        Some(&ConfigValue::String("http".into()))
     );
     assert_eq!(
         get_path(&table, &["embeddings", "model"]),
@@ -57,7 +57,7 @@ merge_below = 0.92
 fn parses_multiline_arrays_and_literals() -> Result<()> {
     let text = "\
 [embeddings]
-provider = \"local\"
+provider = \"http\"
 [lista]
 values = [
   \"a\",

@@ -7,6 +7,24 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 ### Adicionado
 - **AGENTS.md** — guia de contribuição do repositório: padrões de desenvolvimento, erros,
   logs, testes, contrato de bytes e checklist de conclusão.
+- **E11 — Embeddings** (Fase 3, concluído):
+  - Porta `Embedder` (`ports`) e **provedor HTTP** OpenAI-compatible (`adapters::http`), cliente
+    HTTP/1.1 bloqueante sobre `std::net` (sem `tokio`/`reqwest`), com timeout e retry idempotente.
+    O modelo roda num **servidor local** (`llama-server` com o GGUF); **sem** inferência in-process
+    (D101/R16/R43).
+  - `EmbeddingMeta` (provider/model/revision/dimensões/similaridade) com *fingerprint*;
+    `.idx/embeddings.jsonl` com cabeçalho `meta` que **invalida** o índice quando o modelo muda
+    (D79).
+  - `EmbeddingCache` por `body_hash` com teto e eviction **LRU**; falha de cache degrada para
+    *pass-through* (D83/R14).
+  - Fila derivada `indexed|pending|stale` + `EmbeddingMode`; `max_pending` como backpressure e
+    catch-up; falha do provedor mantém `pending` (D80/D83).
+  - Worker `drain` (reconcile off-path) + `FlushState` coalescido com *dirty flag* (D85).
+  - Purga do vetor em toda remoção via `purge_derived` (D84).
+  - Métricas puras `Recall@k`/`nDCG@k`/`MRR` e `ab_compare` (D90); `LightweightEmbedder`
+    determinístico por SHA-256 para testes/CI (D89); consultas semânticas (vizinhos, duplicatas,
+    sugestões de link) sempre como **proposta** (D42/D47).
+  - `rewind` reporta `embeddings_pending` (D80).
 - **E10 — Ciclo de vida, decay e clusters** (Fase 2, concluído):
   - `lifecycle::shelf_life`: TTL por `classification` — `foundational` nunca expira,
     `tactical`/`observational` com prazos configuráveis; `expires_at` explícito vence o
@@ -33,7 +51,7 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
     arestas sugeridas faltantes e locks stale (D46).
   - `health::doctor [--fix]`: 10 checks (schema, integridade, ciclos, âncoras, duplicatas,
     locks, config, `body_hash`, eventos, divergência canônico↔derivado) e reparo reversível
-    **idempotente** (D19/D84).
+    **idempotente** (D19/D84). **E11** acrescenta o 11º check (tamanho do índice vetorial/cache).
   - `health::tolerant`: leitura Postel — chave desconhecida → warning; `type` desconhecido ou
     nota malformada → **skip + orientação**, sem derrubar o comando (D16–D18); `Config::strict`.
   - `health::anchors`: `content_hash` derivado em `.idx/anchors.jsonl` e verify-on-hit —
@@ -195,11 +213,11 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   `superseded_by`, ciclo de supersessão sobre `replaces` e sugestões derivadas.
 
 ### Testes
-- 323 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
+- 383 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
   schema/hash/ID/arestas, TOON, JSONL/JSON, store, config/TOML, git/onboard/sync,
   grafo/integridade/ciclos/sugestões, retrieval/token/BM25/âncoras/RRF/views,
   escrita/dedup/update/supersede/forget, rewind/orçamento/context_id, diff/learn/compact,
   tarefas/hierarquia/ciclo de vida, validators/evidência/audit/doctor/âncoras/confiança,
-  shelf-life/decay/purga/ciclos/clusters).
+  shelf-life/decay/purga/ciclos/clusters, embeddings/meta/vector/cache/índice/fila/eval/http).
 - 8 testes de integração do binário (`--help`, `kd == kd prime`, `--json`, exit codes,
   EPIPE, comando desconhecido).
