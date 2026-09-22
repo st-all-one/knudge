@@ -1,1 +1,262 @@
-//! Escopo `retrieval`: BM25, âncoras e fusão RRF (E06).
+//! Escopo `retrieval`: BM25, âncoras, filtros, views e fusão RRF (E06).
+//!
+//! A cascata do `recall` vai do mais barato ao mais caro: **filtros determinísticos** → **BM25**
+//! no resíduo → **âncoras** como canal → **fusão RRF** (D39/D41/D81). Canais ausentes/falhos
+//! degradam para o lexical com `warnings`, nunca abortam (a menos que `strict` esteja ligado).
+
+pub mod anchor;
+pub mod bm25;
+pub mod filter;
+pub mod index;
+pub mod rrf;
+pub mod token;
+pub mod views;
+pub mod why;
+
+#[cfg(test)]
+mod tests;
+
+pub use bm25::{B, Bm25Hit, CONFIRMATION_STEP, K1, type_weight};
+pub use filter::{Filter, Meta};
+pub use index::{Field, FieldTf, INDEX_FILE, INDEX_WARN_BYTES, Index, NoteDoc, Stats};
+pub use rrf::{Fused, fuse};
+pub use views::{Views, compute_views};
+pub use why::Why;
+
+use std::collections::{BTreeMap, BTreeSet};
+
+use crate::graph::Graph;
+use crate::schema::EdgeKind;
+use crate::store::{Note, Store};
+use crate::{Error, Result};
+
+/// `k` padrão da fusão RRF (config `recall.rrf_k`).
+pub const DEFAULT_RRF_K: u32 = 60;
+
+/// Limite padrão de hits (config `recall.default_limit`).
+pub const DEFAULT_LIMIT: usize = 10;
+
+/// Janela de recência do `why = recent` (7 dias em ms).
+pub const RECENT_WINDOW_MS: i64 = 604_800_000;
+
+/// Consulta de `recall`.
+#[derive(Debug, Clone, Default)]
+pub struct RecallQuery {
+    /// Texto livre (tokenizado em ASCII).
+    pub text: String,
+    /// Máximo de hits (0 = sem limite).
+    pub limit: usize,
+    /// Constante da fusão RRF.
+    pub rrf_k: u32,
+    /// Filtros estruturais.
+    pub filter: Filter,
+    /// Container pedido (pertencimento via `depends_on` transitivo).
+    pub container: Option<String>,
+    /// Arquivos do working set (canal de âncoras).
+    pub working_paths: Vec<String>,
+    /// Ids do working set (canal de âncoras).
+    pub working_ids: Vec<String>,
+    /// Canal vetorial opcional (E11); `None` = desligado sem aviso.
+    pub vector: Option<Vec<String>>,
+    /// Avisos de canais fornecidos pelo chamador (ex.: provedor indisponível).
+    pub channel_warnings: Vec<String>,
+    /// Instante atual para o `why = recent` (opcional).
+    pub now_ms: Option<i64>,
+    /// Promove `warnings` a erro (config `behavior.strict` — D94).
+    pub strict: bool,
+}
+
+impl RecallQuery {
+    /// Consulta com defaults de config (`rrf_k=60`, `limit=10`).
+    #[must_use]
+    pub fn new(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            limit: DEFAULT_LIMIT,
+            rrf_k: DEFAULT_RRF_K,
+            ..Self::default()
+        }
+    }
+}
+
+/// Hit de `recall` com o motivo.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RecallHit {
+    /// Id.
+    pub id: String,
+    /// `statement` da nota.
+    pub statement: String,
+    /// Score fundido (RRF).
+    pub score: f64,
+    /// Por que apareceu.
+    pub why: Why,
+}
+
+/// Resultado (possivelmente parcial) de `recall`.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct RecallOutput {
+    /// Hits ordenados por `(score desc, id asc)`.
+    pub hits: Vec<RecallHit>,
+    /// Avisos de degradação graciosa.
+    pub warnings: Vec<String>,
+}
+
+/// Executa a cascata filtros → BM25 → âncoras → RRF.
+///
+/// # Errors
+/// Retorna `ErrorKind::Config` quando `strict` está ligado e há `warnings`.
+pub fn recall(index: &Index, graph: &Graph, query: &RecallQuery) -> Result<RecallOutput> {
+    let warnings = query.channel_warnings.clone();
+    let allowed = candidates(index, graph, query);
+
+    let lexical: Vec<String> = index
+        .score(&query.text, &allowed)
+        .into_iter()
+        .map(|hit| hit.id)
+        .collect();
+    let anchored = anchor::rank(index, &allowed, &query.working_paths, &query.working_ids);
+
+    let mut channels: Vec<&[String]> = vec![lexical.as_slice(), anchored.as_slice()];
+    if let Some(vector) = &query.vector {
+        channels.push(vector.as_slice());
+    }
+    let fused = fuse(&channels, query.rrf_k);
+
+    let by_id: BTreeMap<&str, &NoteDoc> = index
+        .docs
+        .iter()
+        .map(|doc| (doc.meta.id.as_str(), doc))
+        .collect();
+    let limit = if query.limit == 0 {
+        usize::MAX
+    } else {
+        query.limit
+    };
+    let mut hits = Vec::new();
+    for fused_hit in fused.into_iter().take(limit) {
+        let Some(doc) = by_id.get(fused_hit.id.as_str()) else {
+            continue;
+        };
+        hits.push(RecallHit {
+            id: fused_hit.id,
+            statement: doc.statement.clone(),
+            score: fused_hit.score,
+            why: choose_why(doc, query, graph),
+        });
+    }
+
+    if query.strict && !warnings.is_empty() {
+        return Err(Error::config(format!(
+            "recall estrito: {}",
+            warnings.join("; ")
+        )));
+    }
+    Ok(RecallOutput { hits, warnings })
+}
+
+/// Formata um hit no contrato `id|statement|score|why` (D39).
+///
+/// O `statement` é sanitizado (sem `|` nem quebras) para manter as 4 colunas parseáveis.
+#[must_use]
+pub fn format_hit(hit: &RecallHit) -> String {
+    format!(
+        "{}|{}|{:.2}|{}",
+        hit.id,
+        sanitize(&hit.statement),
+        hit.score,
+        hit.why.as_str()
+    )
+}
+
+/// Lê os corpos dos ids pedidos, preservando a ordem (E06-T06).
+///
+/// # Errors
+/// Propaga erros de I/O; ids ausentes viram `warnings` (resultado parcial).
+pub fn get(store: &Store<'_>, ids: &[String]) -> Result<(Vec<Note>, Vec<String>)> {
+    let mut notes = Vec::new();
+    let mut warnings = Vec::new();
+    for id in ids {
+        match store.read(id) {
+            Ok(note) => notes.push(note),
+            Err(Error::NotFound(_)) => warnings.push(format!("nota ausente: {id}")),
+            Err(error) => return Err(error),
+        }
+    }
+    Ok((notes, warnings))
+}
+
+fn candidates(index: &Index, graph: &Graph, query: &RecallQuery) -> BTreeSet<String> {
+    let mut allowed = BTreeSet::new();
+    for doc in &index.docs {
+        if !query.filter.matches(&doc.meta) {
+            continue;
+        }
+        if let Some(container) = query.container.as_deref()
+            && !belongs_to(graph, &doc.meta.id, container)
+        {
+            continue;
+        }
+        allowed.insert(doc.meta.id.clone());
+    }
+    allowed
+}
+
+fn belongs_to(graph: &Graph, id: &str, container: &str) -> bool {
+    if id == container {
+        return true;
+    }
+    let mut seen: BTreeSet<String> = BTreeSet::new();
+    let mut stack = vec![id.to_string()];
+    while let Some(current) = stack.pop() {
+        for dependency in graph.targets(&current, EdgeKind::DependsOn) {
+            if dependency == container {
+                return true;
+            }
+            if seen.insert(dependency.clone()) {
+                stack.push(dependency.clone());
+            }
+        }
+    }
+    false
+}
+
+fn choose_why(doc: &NoteDoc, query: &RecallQuery, graph: &Graph) -> Why {
+    let matched = anchor::match_note(&doc.meta, &query.working_paths, &query.working_ids);
+    if matched.file {
+        return Why::FileMatch;
+    }
+    if matched.id {
+        return Why::AnchorMatch;
+    }
+    if let Some(container) = query.container.as_deref()
+        && belongs_to(graph, &doc.meta.id, container)
+    {
+        return Why::TrackerMatch;
+    }
+    if doc.meta.confirmation > 0.0 {
+        return Why::Stars;
+    }
+    if let Some(now) = query.now_ms
+        && now.saturating_sub(doc.meta.created_ms) <= RECENT_WINDOW_MS
+    {
+        return Why::Recent;
+    }
+    Why::Universal
+}
+
+fn sanitize(statement: &str) -> String {
+    let mut out = String::with_capacity(statement.len());
+    let mut pending = false;
+    for ch in statement.chars() {
+        if ch == '|' || ch.is_whitespace() {
+            pending = !out.is_empty();
+        } else {
+            if pending {
+                out.push(' ');
+                pending = false;
+            }
+            out.push(ch);
+        }
+    }
+    out
+}

@@ -5,6 +5,7 @@
 //! `statement` (D08). A serialização concreta vive em [`crate::toon`].
 
 pub mod body;
+pub mod edge;
 pub mod frontmatter;
 pub mod hash;
 pub mod id;
@@ -18,6 +19,7 @@ mod tests;
 /// Versão atual do schema (D15).
 pub const SCHEMA_VERSION: u32 = 1;
 
+pub use edge::{EDGE_KEYS, Edge, EdgeKind};
 pub use frontmatter::{CANONICAL_KEYS, Frontmatter, REQUIRED_KEYS};
 pub use types::{Classification, NoteType, Scope, Status};
 pub use value::Value;

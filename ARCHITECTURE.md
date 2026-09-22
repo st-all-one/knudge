@@ -57,6 +57,7 @@ conveniência, mas só `cli`/`mcp` o importam.
 | `jsonl` | leitura/escrita JSONL + codec JSON canônico | E03 |
 | `store` | notas (`notas/`), eventos, lock, rebuild, purge, sweep | E03 |
 | `git` | worktree principal, `info/exclude`, `AGENTS.md`, `sync` | E04 |
+| `graph` | arestas explícitas, integridade, ciclos, sugestões | E05 |
 | `retrieval` | BM25, âncoras, RRF | E06 |
 | `lifecycle` | decay, confiança derivada, clusters | E10 |
 | `embeddings` | provedor plugável e fila lazy | E11 |
@@ -101,7 +102,20 @@ volatilidade, não CAS (D48).
 - **`AGENTS.md` (D60):** bloco entre `<!-- knudge:start -->`/`<!-- knudge:end -->` com version
   marker; reexecutar não duplica nem sobrescreve o conteúdo do usuário.
 
-## 7. Fluxo de uma operação
+## 7. Grafo e arestas (E05)
+
+| Conceito | Regra |
+|---|---|
+| Fonte | Arestas explícitas no **frontmatter** (chave = `EdgeKind`, valor = lista de ids); a nota é a verdade (D49/D98). |
+| Vocabulário | Fechado: `references, depends_on, contradicts, supports, extends, replaces, rejects, results_in` (D51). |
+| Ordem | Bloco de 8 arestas logo após `superseded_by`, antes de `revision` (27 chaves — D98). |
+| `link()` | Adiciona sem duplicar; rejeita id inválido e auto-aresta. |
+| `expand` | BFS determinística só no **explícito**, com corte por `depth` e filtro por tipo. |
+| Supersessão | `replaces` (novo → antigo) e `superseded_by` (antigo → novo); bidirecionalidade cobrada pela integridade (D46). |
+| Ciclos | SCC (Kosaraju iterativo) sobre `replaces`/`depends_on`; membros **não demovem** (D45). |
+| Sugestões | Extração conservadora (ids, wikilinks, verbos) vai para `.idx/suggestions.jsonl` — derivado, purgável; **nunca** vira aresta (D49/D50/D84). |
+
+## 8. Fluxo de uma operação
 
 ```
 kd <verbo>
@@ -112,7 +126,7 @@ kd <verbo>
   → exit code = ErrorKind::exit_code() (101 reservado a panic)
 ```
 
-## 8. Invariantes de engenharia
+## 9. Invariantes de engenharia
 
 - `#![forbid(unsafe_code)]` em `core`/`cli`/`mcp` (R01).
 - Sem `Rc`/`RefCell` no core; estado compartilhado via `Arc<Mutex<_>>` (R03).
@@ -120,10 +134,10 @@ kd <verbo>
 - Arquivos de produção ≤ 300 linhas (D92).
 - `clippy -D warnings` lendo `clippy.toml` (R44); perfis e supply chain (R40–R43).
 
-## 9. Referências
+## 10. Referências
 
 - Visão: `plan/00_panorama.md`
-- Decisões: `plan/03_decisoes-fechadas.md` (D01–D97)
+- Decisões: `plan/03_decisoes-fechadas.md` (D01–D98)
 - Contrato de bytes: `TOON.md`
 - Políticas de engenharia: `plan/implementation/14_revisao_tecnica.md` (R01–R44)
 - Superfície CLI: `plan/implementation/16_cli_surface.md`

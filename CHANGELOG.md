@@ -7,6 +7,23 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 ### Adicionado
 - **AGENTS.md** — guia de contribuição do repositório: padrões de desenvolvimento, erros,
   logs, testes, contrato de bytes e checklist de conclusão.
+- **E05 — Grafo e arestas** (Fase 0, concluído):
+  - `schema::edge`: enum fechado `EdgeKind` (8 valores) com chaves de frontmatter em
+    `snake_case`, `Edge` e `EDGE_KEYS` (D49/D51).
+  - `schema::frontmatter`: as 8 chaves de aresta entram na **ordem canônica** (após
+    `superseded_by`, antes de `revision` — **27 chaves**, D98), com `string_list`, `edges()` e
+    validação de formato dos ids.
+  - `graph`: projeção das notas (`Graph`), `link()` idempotente (rejeita id inválido e
+    auto-aresta) e `expand` BFS determinística que só percorre o **explícito** (D49).
+  - `graph::integrity`: arestas penduradas, auto-arestas e bidirecionalidade
+    `replaces ↔ superseded_by` (D46).
+  - `graph::cycles`: SCC (Kosaraju iterativo, sem dependências) para supersessão (`replaces`)
+    e dependência (`depends_on`); `cycle_members()` protege os membros de demolição (D45).
+  - `graph::extract` + `graph::suggestions`: extração conservadora (ids, wikilinks, verbos) com
+    armazenamento derivado em `.idx/suggestions.jsonl` — separado e auditável (D49/D50).
+  - `store::purge` passou a podar ids dentro de listas JSONL (não só descartar a linha), para
+    limpar `targets` de sugestões de um alvo removido (D84).
+  - Decisão **D98** registrada.
 - **E04 — Config, Git e worktree** (Fase 0, concluído):
   - `config`: config em dois níveis (global template + projeto com precedência — D61), schema
     fechado com tipos/enums/defaults, merge profundo, `set/unset/list/get` com validação (D64),
@@ -87,9 +104,12 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   semântica de `revision`.
 - **D97**: subset TOML (ordem preservada/canônica), guard `git -C` do `sync` e degradação do
   `onboard` sem config global.
+- **D98**: arestas como chaves de frontmatter (27 chaves na ordem canônica), ponteiro reverso
+  `superseded_by`, ciclo de supersessão sobre `replaces` e sugestões derivadas.
 
 ### Testes
-- 133 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
-  schema/hash/ID, TOON, JSONL/JSON, store, config/TOML, git/onboard/sync).
+- 157 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
+  schema/hash/ID/arestas, TOON, JSONL/JSON, store, config/TOML, git/onboard/sync,
+  grafo/integridade/ciclos/sugestões).
 - 8 testes de integração do binário (`--help`, `kd == kd prime`, `--json`, exit codes,
   EPIPE, comando desconhecido).

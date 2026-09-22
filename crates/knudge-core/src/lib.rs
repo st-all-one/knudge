@@ -17,6 +17,7 @@ pub mod config;
 pub mod embeddings;
 pub mod error;
 pub mod git;
+pub mod graph;
 pub mod jsonl;
 pub mod lifecycle;
 pub mod logging;
@@ -29,5 +30,6 @@ pub mod toon;
 
 pub use config::{Config, ConfigValue};
 pub use error::{Error, ErrorKind, Result, lock_or_recover};
+pub use graph::Graph;
 pub use store::{Event, EventLog, Note, Store};
 pub use time::Timestamp;

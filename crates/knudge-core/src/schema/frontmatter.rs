@@ -10,11 +10,13 @@ use std::str::FromStr;
 
 use indexmap::IndexMap;
 
-use crate::schema::{Classification, NoteType, Scope, Status, Value, id, text};
+use crate::schema::{
+    Classification, EDGE_KEYS, Edge, EdgeKind, NoteType, Scope, Status, Value, id, text,
+};
 use crate::{Error, Result, toon};
 
 /// Ordem canônica das chaves do frontmatter (D04/D13).
-pub const CANONICAL_KEYS: [&str; 19] = [
+pub const CANONICAL_KEYS: [&str; 27] = [
     "id",
     "type",
     "statement",
@@ -26,6 +28,14 @@ pub const CANONICAL_KEYS: [&str; 19] = [
     "source",
     "expires_at",
     "superseded_by",
+    "references",
+    "depends_on",
+    "contradicts",
+    "supports",
+    "extends",
+    "replaces",
+    "rejects",
+    "results_in",
     "revision",
     "outcomes",
     "classification",
@@ -146,7 +156,25 @@ impl Frontmatter {
         if !id::is_valid_note_id(self.id()?) {
             return Err(Error::schema(format!("id inválido: {:?}", self.id()?)));
         }
+        self.validate_edges()?;
         Ok(())
+    }
+
+    fn validate_edges(&self) -> Result<()> {
+        for key in EDGE_KEYS {
+            for target in self.string_list(key)? {
+                if !id::is_valid_note_id(target) {
+                    return Err(Error::schema(format!(
+                        "id de aresta inválido em {key}: {target:?}"
+                    )));
+                }
+            }
+        }
+        match self.fields.get("superseded_by") {
+            None => Ok(()),
+            Some(Value::Str(target)) if id::is_valid_note_id(target) => Ok(()),
+            Some(_) => Err(Error::schema("superseded_by deve ser um id válido")),
+        }
     }
 
     /// Campo `id`.
@@ -199,6 +227,39 @@ impl Frontmatter {
             Some(Value::Str(text)) => Ok(Some(Scope::from_str(text)?)),
             Some(_) => Err(Error::schema("scope deve ser string")),
         }
+    }
+
+    /// Lista de strings de um campo opcional (ids de aresta).
+    ///
+    /// # Errors
+    /// Retorna `ErrorKind::Schema` se o campo não for lista de strings.
+    pub fn string_list(&self, key: &str) -> Result<Vec<&str>> {
+        match self.fields.get(key) {
+            None => Ok(Vec::new()),
+            Some(Value::List(items)) => items
+                .iter()
+                .map(|item| {
+                    item.as_str()
+                        .ok_or_else(|| Error::schema(format!("{key} deve conter apenas strings")))
+                })
+                .collect(),
+            Some(_) => Err(Error::schema(format!("{key} deve ser uma lista"))),
+        }
+    }
+
+    /// Arestas explícitas declaradas nesta nota (ordem canônica dos tipos).
+    ///
+    /// # Errors
+    /// Retorna `ErrorKind::Schema` se `id` ou algum destino for inválido.
+    pub fn edges(&self) -> Result<Vec<Edge>> {
+        let from = self.id()?.to_string();
+        let mut edges = Vec::new();
+        for kind in EdgeKind::ALL {
+            for to in self.string_list(kind.key())? {
+                edges.push(Edge::new(from.clone(), kind, to.to_string()));
+            }
+        }
+        Ok(edges)
     }
 
     fn optional_enum<T: FromStr<Err = Error> + Default>(&self, key: &str) -> Result<T> {

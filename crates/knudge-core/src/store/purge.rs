@@ -39,16 +39,25 @@ fn purge_jsonl(fs: &dyn Fs, path: &Path, id: &str) -> Result<()> {
     let mut out = String::new();
     let mut changed = false;
     for line in jsonl::lines(text) {
-        let keep = match json::decode(line) {
-            Ok(Value::Map(map)) => !record_matches(&map, id),
-            _ => true,
-        };
-        if keep {
+        let Ok(mut value) = json::decode(line) else {
             out.push_str(line);
             out.push('\n');
+            continue;
+        };
+        let remove_record = value.as_map().is_some_and(|map| record_matches(map, id));
+        if remove_record {
+            changed = true;
+            continue;
+        }
+        let before = value.clone();
+        remove_id(&mut value, id);
+        if value == before {
+            out.push_str(line);
         } else {
             changed = true;
+            out.push_str(&json::encode(&value)?);
         }
+        out.push('\n');
     }
     if changed {
         fs.write_atomic(path, out.as_bytes())?;

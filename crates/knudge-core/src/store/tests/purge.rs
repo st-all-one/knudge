@@ -56,3 +56,21 @@ fn store_remove_purges_derived() -> Result<()> {
 fn read(fs: &MemFs, path: &str) -> String {
     String::from_utf8(fs.get(Path::new(path)).unwrap_or_default()).unwrap_or_default()
 }
+
+#[test]
+fn purge_prunes_ids_inside_jsonl_lists() -> Result<()> {
+    let fs = MemFs::new();
+    let removed = "fact_00000001";
+    let kept = "fact_00000002";
+    fs.insert(
+        "/p/.knudge/.idx/suggestions.jsonl",
+        format!("{{\"id\":\"{kept}\",\"targets\":[\"{removed}\",\"{kept}\"]}}\n"),
+    );
+
+    purge_derived(&fs, Path::new("/p/.knudge"), removed)?;
+
+    let jsonl = read(&fs, "/p/.knudge/.idx/suggestions.jsonl");
+    assert!(jsonl.contains(kept));
+    assert!(!jsonl.contains(removed));
+    Ok(())
+}

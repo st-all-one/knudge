@@ -156,7 +156,15 @@ Acesso via tool `config get/set/list`. Precedência (quando houver override): fl
 | `tags` | string[] | não | ≤ 5, lowercase, kebab |
 | `source` | string/url | não | proveniência |
 | `expires_at` | iso8601 | não | expiração |
-| `superseded_by` | id | não | id da nota que a substituiu |
+| `superseded_by` | id | não | id da nota que a substituiu (ponteiro reverso de `replaces`) |
+| `references` | id[] | não | aresta explícita: menção simples |
+| `depends_on` | id[] | não | aresta explícita: depende de |
+| `contradicts` | id[] | não | aresta explícita: contradiz |
+| `supports` | id[] | não | aresta explícita: suporta / confirma |
+| `extends` | id[] | não | aresta explícita: estende / refina |
+| `replaces` | id[] | não | aresta explícita: substitui |
+| `rejects` | id[] | não | aresta explícita: rejeita |
+| `results_in` | id[] | não | aresta explícita: resultado |
 | `revision` | int | não | contador de edições (default 1) |
 | `outcomes` | array | não | histórico `{status, duration, agent, notes, recorded_at}`; confirmação **derivada** |
 | `classification` | enum | não | `foundational\|tactical\|observational` (default tactical) |
@@ -167,6 +175,8 @@ Acesso via tool `config get/set/list`. Precedência (quando houver override): fl
 | `evidence` | map | não | resultados de validators (preenchido no close) |
 
 Chave desconhecida = **rejeita no write**. Sem `author` e sem `updated_at` (o evento cobre).
+
+O bloco de arestas (`references`…`results_in`) fica **entre `superseded_by` e `revision`** na ordem canônica — **27 chaves** ao todo (D98). Cada aresta é uma lista de ids derivada do `link()` e validada quanto ao formato; o `doctor` cobra a bidirecionalidade `replaces ↔ superseded_by`.
 
 ### Tipos (`type`) — enum fechado
 
@@ -331,7 +341,7 @@ Task **não é subsistema** — é `type=task`, um tipo entre onze. Campos míni
 
 ```yaml
 type: task
-status: open | in_progress | blocked | closed | forgotten
+status: active | in_progress | blocked | closed | superseded | forgotten
 outcomes: [{status: success|partial|failure|abandoned}]   # só ao fechar
 checks: [validator-names]                          # delta declarado
 anchors: ["V2/Modules/Noticias/**"]
