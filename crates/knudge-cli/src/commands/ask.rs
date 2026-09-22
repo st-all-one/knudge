@@ -83,10 +83,21 @@ fn recall_query(session: &Session, args: &AskArgs) -> Result<Output> {
         .limit
         .unwrap_or_else(|| usize_from(config.get_int("recall.default_limit"), DEFAULT_LIMIT));
     query.rrf_k = u32_from(config.get_int("recall.rrf_k"), DEFAULT_RRF_K);
+    let statuses = parse::statuses(args.status.iter().cloned().collect::<Vec<_>>().as_slice())?;
+    let statuses = if statuses.is_empty() {
+        // Soft-delete/supersede ficam fora do `ask` por padrão (D43); peça
+        // `--status forgotten`/`--status superseded` para inspecionar a linhagem.
+        Status::ALL
+            .into_iter()
+            .filter(|status| !matches!(status, Status::Superseded | Status::Forgotten))
+            .collect()
+    } else {
+        statuses
+    };
     query.filter = Filter {
         types: parse::types(&args.types)?,
         classifications: parse::classifications(&args.classes)?,
-        statuses: parse::statuses(args.status.iter().cloned().collect::<Vec<_>>().as_slice())?,
+        statuses,
         tags: args.tags.clone(),
         anchors: args.anchor.iter().cloned().collect(),
     };

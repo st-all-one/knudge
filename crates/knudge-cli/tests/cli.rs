@@ -137,6 +137,56 @@ fn init_write_ask_roundtrip() -> TestResult {
 }
 
 #[test]
+fn forgotten_note_is_hidden_from_default_ask() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+
+    let write = run_in(
+        &dir,
+        &[
+            "--json",
+            "write",
+            "segredo temporário do cache",
+            "--type",
+            "fact",
+        ],
+    )?;
+    assert!(write.status.success(), "write falhou: {:?}", write.stderr);
+    let envelope = json(&write)?;
+    let id = envelope
+        .get("data")
+        .and_then(|data| data.get("id"))
+        .and_then(|id| id.as_str())
+        .ok_or("write sem id")?
+        .to_string();
+
+    let forget = run_in(&dir, &["forget", id.as_str()])?;
+    assert!(
+        forget.status.success(),
+        "forget falhou: {:?}",
+        forget.stderr
+    );
+
+    let hidden = run_in(&dir, &["ask", "cache"])?;
+    assert!(hidden.status.success(), "ask falhou: {:?}", hidden.stderr);
+    let text = String::from_utf8(hidden.stdout)?;
+    assert!(
+        !text.contains(&id),
+        "nota esquecida apareceu no ask: {text}"
+    );
+
+    let shown = run_in(&dir, &["ask", "cache", "--status", "forgotten"])?;
+    assert!(shown.status.success(), "ask falhou: {:?}", shown.stderr);
+    let text = String::from_utf8(shown.stdout)?;
+    assert!(
+        text.contains(&id),
+        "ask --status forgotten não achou {id}: {text}"
+    );
+    Ok(())
+}
+
+#[test]
 fn write_rejects_task_type() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;

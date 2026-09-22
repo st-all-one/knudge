@@ -4,6 +4,17 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+### Corrigido
+- **`kd ask` devolvia notas `forgotten`/`superseded` por padrão.** Como `forget` é soft-delete
+  (D43), o `ask` sem `--status` agora exclui esses dois estados; `--status forgotten` (ou
+  `superseded`) continua disponível para inspecionar a linhagem. Regressão:
+  `cli::forgotten_note_is_hidden_from_default_ask`.
+- **`kd prime` entregava só um placeholder de 5 linhas.** Agora imprime o protocolo estático
+  completo (D57): tipos, classificação/status, fluxo de escrita em duas fases (0.75/0.92),
+  pesquisa, estado/handoff e orçamento, tarefas, manutenção, ciclo de vida, config, formato de
+  saída/exit codes e regras de `id`/TOON. `--long` anexa tipos e as 28 chaves canônicas.
+  Goldens `prime.txt`/`json_prime.json` atualizados; `kd` continua byte-idêntico a `kd prime`.
+
 ### Adicionado
 - **Instalação** (`install.sh` + `make install`):
   - `make install` compila em release, instala `kd` e `knudge-mcp` em `~/.local/bin`
