@@ -4,6 +4,8 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+## [0.1.1] - 2026-09-23
+
 ### Adicionado
 - **`llms.txt` e `SKILL.md` (uso por projetos que adotam o knudge).** `llms.txt` é o índice
   para modelos de linguagem (o que lembrar, docs, key facts, exemplos); `SKILL.md` é o guia de

@@ -20,7 +20,7 @@ curl --proto '=https' \
 > Requisito: `git` no projeto. Rust 1.97+ só para compilar do source; embeddings são opcionais.
 
 Instala `kd` + `knudge-mcp` em `~/.local/bin` (release pré-compilado, checksum SHA-256).
-Versão fixa: `... | VERSION=v0.1.0 bash`. Do source: `make install` (ou `./install.sh --from-source`).
+Versão fixa: `... | VERSION=v0.1.1 bash`. Do source: `make install` (ou `./install.sh --from-source`).
 
 ## Quickstart
 
