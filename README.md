@@ -1,124 +1,151 @@
 # knudge
 
-Memória **por projeto**, otimizada para LLM: arquivos Markdown como verdade, um índice derivado
-reconstruível e um binário único (`kd`). Sem servidor, sem banco, sem daemon obrigatório.
+**knudge** é uma CLI Rust (`kd`) de **memória por projeto otimizada para LLM**: notas em
+**Markdown como verdade**, índice derivado reconstruível e busca híbrida (BM25 + âncoras +
+embeddings opcional via RRF) — sem servidor, sem banco, sem daemon. Feito para o agente
+**buscar antes de gravar**, registrar decisões/fatos/erros e planejar tarefas com contexto
+mínimo.
 
 ## Instalação
 
-**A partir do source** (precisa de Rust 1.97+):
-
-```sh
-make install          # release build + binários + config global + completions + PATH
-make uninstall        # invalida os binários (move para um lixo recuperável)
+```bash
+curl --proto '=https' \
+     --tlsv1.2 \
+     --show-error \
+     --fail \
+  https://raw.githubusercontent.com/st-all-one/knudge/main/install.sh \
+  | bash
 ```
 
-Instala em `~/.local/bin` (`PREFIX`/`BINDIR` mudam o destino) e cria a config global em
-`~/.config/local/knudge/config.toml`.
+> Requisito: `git` no projeto. Rust 1.97+ só para compilar do source; embeddings são opcionais.
 
-**Pelo script** (release pré-compilado ou source, sem clonar o repositório):
+Instala `kd` + `knudge-mcp` em `~/.local/bin` (release pré-compilado, checksum SHA-256).
+Versão fixa: `... | VERSION=v0.1.0 bash`. Do source: `make install` (ou `./install.sh --from-source`).
 
-```sh
-# release (verifica SHA-256 e instala)
-curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/st-all-one/knudge/main/install.sh | bash
+## Quickstart
 
-# versão fixa / destino alternativo
-curl ... | VERSION=v0.1.0 bash
-curl ... | INSTALL_DIR=/usr/local/bin bash
+```bash
+# Fundar a memória do projeto (ancorada na raiz do git)
+kd init
 
-# de dentro do repositório, a partir do source
-./install.sh --from-source
-./install.sh --uninstall
+# Buscar antes de gravar
+kd ask "como o gateway limita requisições" --brief
+
+# Gravar um fato (dedup automático: <0.75 cria, 0.75–0.92 merge, >=0.92 rejeita)
+kd write --type fact "Rate limit é 100 rps por chave" --tag gateway --anchor src/gateway.rs
+
+# Planejar e executar
+kd task new "Sync offline-first" --scope epic
+kd task new "Resolver conflito de merge" --scope task --parent <epic>
+kd task list --ready --sort impact
+kd task close <task> --outcome success --note "testes verdes"
+
+# Retomar contexto entre sessões (handoff com orçamento de tokens)
+kd rewind --budget 2000
+
+# Mapa de conhecimento (clusters estruturais + semânticos)
+kd knowledge map --axis container --semantic
+
+# Manutenção (só propõe)
+kd maintenance doctor --audit
+kd maintenance learn
+
+# Versionar notas/ + eventos/
+kd sync
 ```
 
-O script instala os dois binários (`kd` e `knudge-mcp`), cria a pasta de config global,
-semeia os defaults, instala completions de bash/zsh/fish e ajusta o PATH. Nada é apagado de
-forma irreversível: artefatos antigos vão para `${XDG_CACHE_HOME:-~/.cache}/knudge/trash`.
+Protocolo completo (o "help da IA"): `kd prime` (ou `kd`). Busca sem embeddings funciona: o
+`ask` usa BM25 + âncoras.
 
-## Preparar o ambiente
+## O que esta ferramenta faz?
 
-| Requisito | Obrigatório? | Nota |
+**O knudge dá memória durável ao agente, por projeto.** A verdade são **arquivos Markdown**
+(`.knudge/notas/`); todo o resto (índice BM25, embeddings, grafo) é **derivado** e
+reconstruível. Não há servidor, banco nem daemon — só o binário `kd`.
+
+O ciclo é **buscar → gravar → executar → commitar**:
+
+- **`kd ask`** — busca híbrida (filtros → BM25 → âncoras → RRF), `--id` para corpos, `--around`
+  para expandir o grafo, `--json` para máquinas.
+- **`kd write`** — create idempotente com dedup (0.75/0.92); `--update` versiona; `--link` cria
+  aresta explícita.
+- **`kd task`** — hierarquia `plan ⊃ epic ⊃ issue ⊃ task`, com rollup de progresso por épico e
+  fechamento por evidência.
+- **`kd rewind`** — handoff ponto-no-tempo dentro de um orçamento de tokens, retomável 1:1.
+- **`kd knowledge`** — mapa de clusters (estrutural e semântico).
+- **`kd maintenance`** — `doctor`/`learn`/`compact`/`prune` **propõem**; nunca mudam o corpus
+  sozinhos.
+
+O `id` de cada nota é derivado do conteúdo (`<tipo>_<base36(8)>`); reclassificar o `type` não o
+reescreve. O contrato de bytes (TOON) é congelado por testes.
+
+### Casos de uso
+
+| Cenário | Como usar | Benefício |
 |---|---|---|
-| Rust **1.97+** (edição 2024) | só para build do source | MSRV travada; `make install` compila release |
-| `git` | sim | o `kd` ancora o `.knudge/` na raiz do repositório |
-| servidor de embeddings | **não** | busca semântica é opcional; sem ele o `ask` usa BM25 |
+| **Lembrar uma decisão** | `kd write --type decision "..."` | Conhecimento durável, id estável e arestas |
+| **Achar o que já se sabe** | `kd ask "..." --brief` | Busca híbrida com score e `why`; `--json` para agentes |
+| **Planejar trabalho** | `kd task new ... --scope epic/task` | WBS com progresso por épico e bloqueios |
+| **Retomar contexto** | `kd rewind --budget 2000` | Handoff dentro do orçamento de tokens |
+| **Evitar duplicata** | `kd ask "<rascunho>"` antes do `write` | Dedup lexical 0.75/0.92 |
+| **Auditar a base** | `kd maintenance doctor --audit` | Integridade + arestas sugeridas |
+| **Revisão por IA** | `knudge-mcp` | Hints-ponteiro antes de gravar/editar |
 
-O binário é **único e sem daemon** (`kd`), e o `knudge-mcp` é opcional para agentes via MCP. Nada
-de banco, servidor HTTP próprio ou runtime de IA embutido: o embedding (quando usado) roda **fora**
-num servidor local OpenAI-compatible.
+## Embeddings (opcional)
 
-## Integrar ao projeto
+O `ask` funciona **sem embeddings** (BM25 + âncoras + RRF); a busca semântica é um canal
+derivado que melhora perguntas em linguagem natural. Sem provedor, degrada para lexical com
+`warnings[]`.
 
-O `kd` ancora a memória na **raiz do git** (um `.knudge/` por projeto):
+Modelo recomendado: `ibm-granite/granite-embedding-97m-multilingual-r2` (384d, Apache-2.0,
+multilíngue com PT), servido por `llama.cpp` com **`--pooling mean`**:
 
-```sh
-cd meu-projeto
-kd init                 # funda .knudge/ + bloco no AGENTS.md (protocolo para agentes)
-kd write --type fact "O parser de TOON é byte-exato" --tag toon
-kd task new "Implementar sync offline-first" --scope epic
-kd sync                 # commit de notas/ + eventos/
-```
-
-O que **versionar**: `.knudge/notas/` (a verdade, Markdown) e `.knudge/eventos/` (auditoria).
-O que é **derivado** e reconstruível (não versionar): `.knudge/.idx/`, `.knudge/cache/` e
-`.knudge/contexts/` — o `kd init` cuida do `.gitignore`/`.gitattributes`.
-
-Para agentes via **MCP** (JSON-RPC 2.0 sobre stdio), rode `knudge-mcp`: ele expõe os gatilhos de
-memória sobre o mesmo `.knudge/` do projeto (sem servidor de rede).
-
-## Embeddings (busca semântica, opcional)
-
-O `kd ask` funciona **sem embeddings** (BM25 + âncoras + RRF); a busca semântica é um canal
-**derivado** que melhora perguntas em linguagem natural. Sem provedor, o `ask` degrada para
-lexical e o aviso aparece em `warnings[]`.
-
-**Modelo recomendado:** `ibm-granite/granite-embedding-97m-multilingual-r2` (384 dims,
-Apache-2.0, multilíngue com PT explícito), escolhido na bancada PT-BR ([`bench/`](bench/), D123).
-Sirva-o com `llama.cpp` usando **`--pooling mean`** — o índice é gravado com esse pooling e outro
-pooling degrada o ranking.
-
-```sh
-# 1. servidor local OpenAI-compatible (GGUF Q8_0, ~115 MB)
+```bash
 llama serve -m models/granite-97m-r2-Q8_0.gguf --embeddings --pooling mean --port 8084
 
-# 2. aponte o kd para o servidor (config de projeto; --global aplica a todos)
 kd config set embeddings.provider http
 kd config set embeddings.model ibm-granite/granite-embedding-97m-multilingual-r2
 kd config set embeddings.dimensions 384
-kd config set embeddings.similarity cosine
 kd config set embeddings.endpoint http://127.0.0.1:8084/v1/embeddings
 
-# 3. indexe as notas e busque
 kd maintenance index --drain
 kd ask "como o servidor não vê o conteúdo das notas"
 ```
 
-- **Assíncrono e lazy:** o embedding nunca bloqueia `write`/`ask`; notas novas ficam `pending`
-  até drenar (`kd maintenance index --drain`). Trocar de modelo invalida o índice e re-embeda tudo.
-- **Para desligar:** `kd config set recall.semantic false` (ou `embeddings.enabled false`) — volta
-  a BM25 puro.
-- A escolha de modelo é configurável; o veredito da bancada e o A/B estão em
-  [`plan/04_embeddings.md`](plan/04_embeddings.md).
+Assíncrono e lazy: notas novas ficam `pending` até `kd maintenance index --drain`. Para
+desligar: `kd config set recall.semantic false`. Veredito da bancada e A/B em
+[`plan/04_embeddings.md`](plan/04_embeddings.md).
 
-## Construir e testar
+## MCP (agentes de IA)
 
-```sh
-make check     # fmt --check + clippy -D warnings + test + gate de 300 linhas
-make build     # cargo build --workspace
-make ci        # check + nextest + deny + audit + machete + typos (E13)
-```
+`knudge-mcp` serve os gatilhos de memória por **JSON-RPC 2.0 sobre stdio** — sem servidor de
+rede. Configure no cliente com `kd self setup <claude|cursor|codex|pi>`.
+
+Tools: `knudge_pre_write` (quase-duplicados antes de gravar), `knudge_pre_edit` (working set
+antes de editar), `knudge_session_end` (fim de sessão) e `knudge_status`. Os hints são
+**ponteiros** (`id + statement + score`) — o conteúdo fica no `kd`, nunca no contexto do modelo.
+
+## Destaques
+
+- **Busca híbrida com pesos** — BM25 + âncoras + vetor fundidos por RRF (peso por canal, D124).
+- **Contrato de bytes congelado** — TOON + IDs por hash; mudança exige golden/proptest (D95).
+- **Determinístico** — testes de core usam fakes (relógio/RNG/FS), reprodutíveis byte a byte.
+- **Local e leve** — binário estático, sem `tokio`/`reqwest`/servidor; MCP é stdio.
+- **Degradação graciosa** — canal opcional fora do ar vira `warnings[]` (e `strict` promove a erro).
+- **Distribuição sem Docker** — binários otimizados para Linux (x86_64/ARM64), macOS (Apple
+  Silicon/Intel) e Windows (x86_64/ARM64).
 
 ## Superfície
 
 ```
-kd              # equivale a `kd prime`
-kd init         # funda .knudge/ no projeto + prompt inicial
-kd prime        # protocolo de uso (estático, byte-idêntico)
+kd              # = kd prime (protocolo estático, byte-idêntico)
+kd init         # funda .knudge/ + bloco no AGENTS.md
 kd rewind       # estado/handoff ponto-no-tempo
 kd ask          # toda pesquisa (recall + get + expand)
 kd write        # toda escrita (create + update + arestas)
 kd task         # plan / epic / issue / task
 kd knowledge    # mapa de conhecimento (clusters)
-kd maintenance  # doctor, compact, eval, index, learn
+kd maintenance  # doctor, compact, eval, index, learn, prune
 kd config       # .knudge/config.toml
 kd forget       # soft-delete / restore
 kd sync         # commit de notas/ + eventos/
@@ -127,16 +154,31 @@ kd self         # setup, completions, upgrade, version
 
 Contrato congelado: [`plan/implementation/16_cli_surface.md`](plan/implementation/16_cli_surface.md).
 
-Além do `kd`, o binário `knudge-mcp` serve o protocolo MCP (JSON-RPC 2.0 sobre stdio) com os
-gatilhos de memória — detalhes em [`plan/implementation/18_mcp_transporte.md`](plan/implementation/18_mcp_transporte.md).
+## Desenvolvimento
+
+```bash
+make check     # fmt --check + clippy -D warnings + test + gate de 300 linhas
+make dist      # release otimizado + pacote da plataforma atual em dist/
+```
+
+Contribuir: [`AGENTS.md`](AGENTS.md) · Arquitetura: [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## Documentação
 
-- Visão geral: [`plan/00_panorama.md`](plan/00_panorama.md)
-- Guia de contribuição (agentes): [`AGENTS.md`](AGENTS.md)
-- Arquitetura: [`ARCHITECTURE.md`](ARCHITECTURE.md)
-- Contrato de bytes: [`TOON.md`](TOON.md)
-- Decisões: [`plan/03_decisoes-fechadas.md`](plan/03_decisoes-fechadas.md)
-- Plano de implementação: [`plan/implementation/README.md`](plan/implementation/README.md)
-- Matriz de aceite por tool: [`plan/implementation/17_matriz_aceitacao.md`](plan/implementation/17_matriz_aceitacao.md)
-- Bordas e testes que as travam: [`DIVERGENCES.md`](DIVERGENCES.md)
+| Doc | Conteúdo |
+|---|---|
+| [`SKILL.md`](SKILL.md) | Guia de uso ativo para agentes de IA. |
+| [`llms.txt`](llms.txt) | Índice para modelos de linguagem. |
+| [`plan/implementation/16_cli_surface.md`](plan/implementation/16_cli_surface.md) | Referência completa da CLI. |
+| [`plan/implementation/17_matriz_aceitacao.md`](plan/implementation/17_matriz_aceitacao.md) | Matriz por verbo (pipe/`--json`/exit/estado). |
+| [`TOON.md`](TOON.md) | Contrato de bytes. |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Arquitetura interna. |
+| [`plan/03_decisoes-fechadas.md`](plan/03_decisoes-fechadas.md) | Decisões D01–D130. |
+| [`plan/04_embeddings.md`](plan/04_embeddings.md) | Embeddings, modelos e A/B. |
+| [`DIVERGENCES.md`](DIVERGENCES.md) | Bordas + testes que as travam. |
+| [`AGENTS.md`](AGENTS.md) | Contribuir no código do knudge. |
+| [`CHANGELOG.md`](CHANGELOG.md) | Histórico de versões. |
+
+## Licença
+
+[MIT](LICENSE-MIT) OR [Apache-2.0](LICENSE-APACHE) — uso livre.

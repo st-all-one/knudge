@@ -1,5 +1,8 @@
 # knudge-mcp — servidor MCP
 
+**Binário puro:** o pacote expõe só `[[bin]]` (`knudge-mcp`), **sem `[lib]`**. A única
+biblioteca é `knudge-core` (interna, compartilhada com o `kd`).
+
 Servidor MCP **local e reativo a comportamento** (D68), sem servidor de rede. O núcleo é o
 **motor de gatilhos** (E12-T03); a E14 acrescentou o **transporte JSON-RPC 2.0 sobre stdio**.
 

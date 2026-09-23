@@ -55,6 +55,8 @@ refs/                 # projetos de referência (mulch-rs, seeds-rs, arags) — 
 fuzz/                 # alvos de fuzz (TOON, JSONL) — fora do workspace
 .agents/skill/rust/   # skill de Rust (SKILL.md + capítulos)
 DIVERGENCES.md        # bordas (Unicode, ordem, lock, atomicidade…) + teste que trava cada uma
+SKILL.md              # guia de uso ativo do knudge para agentes (dos projetos que o adotam)
+llms.txt              # índice do projeto para modelos de linguagem
 ```
 
 Cada crate tem um `MODULE.md` com o papel e os módulos. Mantenha-o em sincronia ao criar/remover

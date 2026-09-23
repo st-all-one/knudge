@@ -26,6 +26,20 @@ jobs:
           cargo nextest run --workspace
           cargo test --doc --workspace
 
+  build:
+    name: build release (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # Valida o perfil otimizado (LTO fat, codegen-units=1, strip) em cada SO.
+      - run: cargo build --release --locked -p knudge-cli -p knudge-mcp
+
   supply-chain:
     name: deny + audit + machete + typos
     runs-on: ubuntu-latest

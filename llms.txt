@@ -1,0 +1,76 @@
+# knudge
+
+> knudge é uma CLI Rust (binário `kd`, 13 verbos) de **memória por projeto otimizada para LLM**:
+> notas em **Markdown como verdade**, um índice derivado reconstruível e busca híbrida
+> (BM25 + âncoras + embeddings opcional via RRF). Sem servidor, sem banco, sem daemon. O
+> binário `knudge-mcp` expõe os gatilhos de memória por MCP (JSON-RPC 2.0 sobre stdio).
+
+Coisas para lembrar ao usar o knudge:
+
+- **`kd` sem argumentos == `kd prime`** — o protocolo estático (byte-idêntico por versão) que
+  ensina o ciclo `ask → write → task → sync`. `kd prime --long` anexa a gramática TOON + schema.
+- **Sempre busque antes de gravar:** `kd ask "<rascunho>"`; score `< 0.75` cria, `0.75–0.92` faz
+  merge, `≥ 0.92` rejeita (dedup lexical).
+- **stdout = dados** (pipe/`--json`); **stderr = logs**. Em `--json`, stdout é **só** o envelope
+  `{success, command, data?, error?, warnings?}` — nenhum log vaza. EPIPE → exit 0 (D73).
+- **Exit codes** (contrato): `2` invalid, `3` not_found, `4` conflict, `5` io, `6` timeout,
+  `7` config, `8` schema, `70` internal; `101` reservado a panic.
+- **O `id` é derivado:** `<tipo>_<base36(8)>` = hash(`type` + `U+001F` + `normalize(statement)`).
+  **Nunca invente id**; reclassificar `type` **não** reescreve o id (D95).
+- **TOON:** frontmatter na ordem canônica; opcionais **omitidos**, nunca `null`; `normalize` =
+  NFC + trim + colapso.
+- **`kd write` rejeita `--type task|container`** (use `kd task`); arestas explícitas só por
+  `kd write --link <FROM:ARESTA:TO>` (via única, D126).
+- **Tarefas:** hierarquia **fechada** `plan ⊃ epic ⊃ issue ⊃ task` (profundidade máx. 4);
+  `kd task close` só declara conclusão com **evidência** (`--outcome`).
+- **Embeddings são opcionais e derivados:** sem provedor o `ask` degrada para BM25 com
+  `warnings`. Default `http` para um servidor local OpenAI-compatible (D101/D123).
+- `forgotten`/`superseded` ficam **fora** do `ask` por padrão; inclua com `--status`.
+- **`strict` é config de projeto** (`.knudge/config.toml`), não flag (D94).
+- **MCP:** `knudge-mcp` expõe 4 tools (`knudge_pre_write`, `knudge_pre_edit`,
+  `knudge_session_end`, `knudge_status`); os hints são **ponteiros** (`id + statement + score`),
+  nunca corpo de nota.
+- **O `kd` ancora `.knudge/` na raiz do git** (um por projeto). Versionar `notas/` + `eventos/`;
+  derivado (não versionar) `.idx/`, `cache/`, `contexts/`.
+
+## Docs
+
+### Index
+
+- [`README.md`](README.md) — instalação + quickstart.
+- [`SKILL.md`](SKILL.md) — guia de uso ativo para agentes de IA.
+- [`AGENTS.md`](AGENTS.md) — contribuir no código do knudge.
+- [`plan/implementation/16_cli_surface.md`](plan/implementation/16_cli_surface.md) — referência completa da CLI (fonte de verdade dos verbos).
+- [`plan/implementation/17_matriz_aceitacao.md`](plan/implementation/17_matriz_aceitacao.md) — matriz por verbo (pipe/`--json`/erro/exit/estado).
+- [`TOON.md`](TOON.md) — contrato de bytes (gramática TOON + 28 chaves canônicas).
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — camadas: núcleo puro + portas + adaptadores.
+- [`plan/03_decisoes-fechadas.md`](plan/03_decisoes-fechadas.md) — decisões `D01–D130`.
+- [`plan/04_embeddings.md`](plan/04_embeddings.md) — embeddings, modelos e A/B.
+- [`plan/implementation/18_mcp_transporte.md`](plan/implementation/18_mcp_transporte.md) — MCP JSON-RPC 2.0 sobre stdio.
+- [`DIVERGENCES.md`](DIVERGENCES.md) — bordas conhecidas + testes que as travam.
+- [`CHANGELOG.md`](CHANGELOG.md) — histórico de versões.
+
+### Key facts
+
+- **Tipos (11):** `fact`, `decision`, `question`, `task`, `def`, `error`, `snippet`, `link`, `meta`, `container`, `risk`.
+- **Classificação:** `foundational`, `tactical`, `observational`. **Status:** `active`, `in_progress`, `blocked`, `closed`, `superseded`, `forgotten`.
+- **Verbos (13):** `init`, `prime`, `rewind`, `ask`, `write`, `task`, `knowledge`, `maintenance`, `config`, `forget`, `sync`, `self` (+ `kd` = `prime`).
+- **`kd ask`** cobre recall + get (`--id`) + expand (`--around`); filtros `--type/--class/--tag/--status/--container/--anchor/--since/--until`; `--rank` e `--tags`; `--limit` (default 5), `--brief`, `--with-body`.
+- **`kd task`:** `new/list/show/update/close/claim/graph/plan`; `--ready`/`--blocked`, `--sort impact`; rollup de progresso por épico (D127).
+- **`kd knowledge map [--axis anchor|type|classification|container] [--semantic] [--members]`** — clusters estruturais + fase 2 semântica complete-link (D128/D129).
+- **`kd maintenance`:** `doctor [--fix] [--audit]` · `compact` · `eval --ab` · `index [--drain|--status]` · `learn` · `prune` (as três últimas só propõem).
+- **`kd rewind`:** handoff ponto-no-tempo; orçamento `ceil(len/4)` tokens (default 4000); `--resume` retomável 1:1 (D88).
+- **`kd self setup <claude|cursor|codex|pi>`**, `kd self completions <bash|zsh|fish>`.
+- **Config global** (template): `~/.config/local/knudge/config.toml` (Linux), `~/Library/Application Support/knudge/config.toml` (macOS), `%APPDATA%\knudge\config.toml` (Windows). **Projeto** (efetivo): `.knudge/config.toml`.
+- **Distribuição:** binários otimizados (LTO fat, `codegen-units=1`, `strip`) para Linux x86_64/ARM64 (musl estático), macOS Apple Silicon/Intel e Windows x86_64/ARM64, publicados por tag `vX.Y.Z` **sem Docker**.
+
+## Examples
+
+- Gravar um fato: `kd write --type fact "O parser de TOON é byte-exato" --tag toon`
+- Buscar: `kd ask "como o parser trata whitespace" --brief`
+- Expandir o grafo: `kd ask --around fact_01m81b6h --depth 2`
+- Tarefa (épico → tarefa): `kd task new "Sync offline-first" --scope epic` e
+  `kd task new "Conflito de merge" --scope task --parent <epic>`
+- Handoff: `kd rewind --budget 2000`
+- Mapa: `kd knowledge map --axis container --semantic`
+- MCP: `knudge-mcp --stdio`

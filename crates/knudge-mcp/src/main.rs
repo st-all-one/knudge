@@ -1,14 +1,33 @@
-//! Entrada do servidor MCP `knudge-mcp` (E14-T05, D68).
+//! # knudge-mcp
+//!
+//! Servidor MCP do knudge (D68). O **motor de gatilhos** (`triggers`) é puro; o **codec**
+//! (`jsonrpc`) e o **dispatcher** (`server`) não fazem I/O; o **transporte** (`transport`)
+//! fala JSON-RPC 2.0 sobre stdio, **uma linha por mensagem**.
+//!
+//! Este pacote é um **binário** (sem `[lib]`): o `knudge-core` é a biblioteca interna,
+//! compartilhada com o binário `kd`.
 
 #![forbid(unsafe_code)]
+#![warn(missing_docs)]
+
+pub mod config;
+pub mod jsonrpc;
+pub mod protocol;
+pub mod server;
+pub mod tools;
+pub mod transport;
+pub mod triggers;
+
+#[cfg(test)]
+mod tests;
 
 use std::io::{self, Write};
 use std::process::ExitCode;
 
 use knudge_core::ErrorKind;
-use knudge_mcp::config::McpConfig;
-use knudge_mcp::server::{McpServer, SERVER_VERSION};
-use knudge_mcp::transport;
+
+use crate::config::McpConfig;
+use crate::server::{McpServer, SERVER_VERSION};
 
 /// Ajuda do binário.
 const USAGE: &str = "knudge-mcp — servidor MCP do knudge (JSON-RPC 2.0 sobre stdio)

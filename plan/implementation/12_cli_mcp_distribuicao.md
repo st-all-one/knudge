@@ -119,3 +119,28 @@ E08, E09.
   válido.
 - **T08** — envelope `{success, command, data?, error{code,message,retryable}, warnings?}`;
   `strict` (config de projeto) promove warnings a erro.
+
+## Distribuição e CI/CD (E12-T05)
+
+O release é **100% GitHub Actions**, **sem Docker**: `.github/workflows/release.yml` dispara em
+`push` de tag `v*` (ou `workflow_dispatch`) e publica 6 alvos otimizados.
+
+| Alvo | Runner | Como |
+|---|---|---|
+| `x86_64-unknown-linux-musl` | `ubuntu-latest` | nativo + `musl-tools` |
+| `aarch64-unknown-linux-musl` | `ubuntu-24.04-arm` | nativo (ARM64) |
+| `aarch64-apple-darwin` | `macos-latest` | nativo |
+| `x86_64-apple-darwin` | `macos-latest` | cross (mesmo SDK) |
+| `x86_64-pc-windows-msvc` | `windows-latest` | nativo |
+| `aarch64-pc-windows-msvc` | `windows-latest` | cross (`ilammy/msvc-dev-cmd`, arch arm64) |
+
+- **Portão (`verify`):** `make check` + tag `vX.Y.Z` == `[workspace.package] version`.
+- **Build:** `cargo build --release --locked -p knudge-cli -p knudge-mcp --target <triple>`
+  (perfil `release`: LTO fat, `codegen-units=1`, `strip="symbols"`).
+- **Pacote:** `knudge-<versão>-<triple>.tar.gz` (Unix) / `.zip` (Windows) com `kd` + `knudge-mcp`.
+- **Release:** `sha256sums.txt` + artefatos anexados (`softprops/action-gh-release`).
+- **Local:** `make dist` reproduz o mesmo pacote da plataforma atual (`scripts/package.sh`).
+
+O `install.sh` (modo release) detecta o triple, baixa `knudge-<v>-<triple>.{tar.gz,zip}` e o
+`sha256sums.txt`, verifica o SHA-256 e instala `kd` + `knudge-mcp` em `~/.local/bin`. O CI
+(`.github/workflows/ci.yml`) valida o perfil otimizado em Linux/macOS/Windows a cada push/PR.

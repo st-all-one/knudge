@@ -5,6 +5,20 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 ## [Não publicado]
 
 ### Adicionado
+- **`llms.txt` e `SKILL.md` (uso por projetos que adotam o knudge).** `llms.txt` é o índice
+  para modelos de linguagem (o que lembrar, docs, key facts, exemplos); `SKILL.md` é o guia de
+  **uso ativo** para agentes — ciclo `ask→write→task→sync`, quick reference, workflows
+  (conhecimento, tarefas, handoff, manutenção, MCP), anti-patterns, limitações e checklist.
+  Ambos em português, alinhados ao `prime`.
+- **README reescrito, simples e objetivo.** Instalação (`curl | bash`), quickstart, "o que faz",
+  casos de uso, embeddings opcional, MCP, destaques, superfície, desenvolvimento e tabela de
+  docs — o detalhe de release/build fica em [`AGENTS.md`](AGENTS.md) e no plano de distribuição.
+- **CI/CD de release sem Docker (E12-T05).** `.github/workflows/release.yml` publica 6 alvos
+  otimizados a partir de uma tag `vX.Y.Z` — Linux x86_64/ARM64 (musl estático), macOS Apple
+  Silicon/Intel e Windows x86_64/ARM64 — com portão de versão (`verify`: tag == `Cargo.toml` +
+  `make check`), checksums e `install.sh` compatível. **Sem Docker** (cross-compile nativo onde
+  faz sentido). `make dist` empacota a plataforma atual (`scripts/package.sh`); o CI passou a
+  validar o perfil `release` em Linux/macOS/Windows.
 - **`kd prime` reorganizado por fluxo e economia de tokens (D57/D130).** O protocolo agora abre
   com o **CICLO** (`ask → write → task → sync`), separa **CONHECIMENTO / PESQUISA / TAREFAS**,
   explicita os modos do `ask` (`--id`/`--around`/`--rank`/`--tags`) e recomenda `--limit N` e
@@ -40,6 +54,10 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   fundia tudo). Teste: `lifecycle::tests::semantic::complete_link_prevents_chaining`.
 
 ### Alterado
+- **`knudge-cli` e `knudge-mcp` passam a ser binários puros.** Os dois pacotes deixam de expor
+  `[lib]` (`knudge_cli`/`knudge_mcp`); a **única biblioteca** é o `knudge-core`, interna e
+  compartilhada pelos dois. O que se distribui são os executáveis `kd` e `knudge-mcp` (GitHub
+  Releases) — sem `rlib` e sem preparo de publicação de crate.
 - **Arestas passam a ter via única: `kd write --link` (D126).** `kd task new` deixa de aceitar
   `--depends-on` e `TaskSpec.depends_on` sai do core; `plan submit` cria as dependências dos
   passos via `write::link`. Reduz a superfície de API e reaproveita o caminho de grafo (valida

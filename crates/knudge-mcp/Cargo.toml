@@ -7,10 +7,6 @@ license.workspace = true
 publish.workspace = true
 description = "Servidor MCP do knudge (reativo a comportamento)."
 
-[lib]
-name = "knudge_mcp"
-path = "src/lib.rs"
-
 [[bin]]
 name = "knudge-mcp"
 path = "src/main.rs"

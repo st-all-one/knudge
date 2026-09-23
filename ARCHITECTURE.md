@@ -27,6 +27,9 @@ knudge-cli ──┘
 | `knudge-cli` | Binário `kd`; monta adaptadores e escreve a saída | `clap`, `tracing`, I/O de terminal |
 | `knudge-mcp` | Servidor MCP reativo: motor de gatilhos + transporte JSON-RPC stdio (E12/E14) | Protocolo MCP; nada de domínio |
 
+`knudge-core` é a **única biblioteca** (interna). `knudge-cli` e `knudge-mcp` são **pacotes de
+binário** (só `[[bin]]`, sem `[lib]`): o que se distribui são os executáveis `kd` e `knudge-mcp`.
+
 **Regra:** os adaptadores **não** são dependência do domínio. `knudge-core::adapters` existe para
 conveniência, mas só `cli`/`mcp` o importam.
 

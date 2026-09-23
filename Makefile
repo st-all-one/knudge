@@ -5,7 +5,7 @@ PREFIX ?= $(HOME)/.local
 BINDIR ?= $(PREFIX)/bin
 
 .PHONY: check fmt clippy test build file-length clean install uninstall \
-        nextest doc deny audit machete typos miri fuzz coverage ci
+        nextest doc deny audit machete typos miri fuzz coverage ci dist
 
 ## Portão completo local: formatação, lints, testes e gate de tamanho de arquivo.
 check: fmt clippy test file-length
@@ -43,6 +43,12 @@ install:
 ## Remove os binários e as completions (preserva a config global e as notas).
 uninstall:
 	INSTALL_DIR="$(DESTDIR)$(BINDIR)" ./install.sh --uninstall
+
+# --- Empacotamento local (mesmo padrão do GitHub Release) ---
+
+## Compila release e empacota a plataforma atual em `dist/` (`knudge-<versão>-<target>.*`).
+dist:
+	./scripts/package.sh
 
 # --- Alvos extras (CI / verificação dinâmica). Pulam se a ferramenta não estiver instalada. ---
 

@@ -1,5 +1,8 @@
 # knudge-cli — binário `kd`
 
+**Binário puro:** o pacote expõe só `[[bin]]` (`kd`), **sem `[lib]`**. A única biblioteca é
+`knudge-core` (interna, compartilhada com o `knudge-mcp`).
+
 Adaptador de linha de comando. Monta as implementações reais das portas e traduz o resultado
 do núcleo para o **contrato de saída** (D71):
 

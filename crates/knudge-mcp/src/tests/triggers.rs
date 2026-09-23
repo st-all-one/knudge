@@ -4,7 +4,7 @@ use knudge_core::handoff::{ManifestItem, TrustTier};
 use knudge_core::maintenance::{LearnKind, LearnProposal};
 use knudge_core::write::Candidate;
 
-use crate::{HintEngine, HintKind};
+use crate::triggers::{HintEngine, HintKind};
 
 fn candidate(id: &str, score: f64) -> Candidate {
     Candidate {

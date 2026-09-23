@@ -1,3 +1,13 @@
+# Release — binários otimizados por plataforma, publicados a partir de uma tag `vX.Y.Z`.
+#
+# SEM Docker: cada alvo é compilado no runner nativo da sua arquitetura (Linux x86_64,
+# Linux ARM64, macOS arm64 com cross para x86_64, Windows x86_64 com cross para ARM64).
+#
+# Fluxo: `git tag v0.1.0 && git push origin v0.1.0` → verifica versão → compila a matriz →
+# publica o GitHub Release com os `.tar.gz`/`.zip` + `sha256sums.txt`.
+#
+# Consumido por `install.sh` (asset `knudge-<versão>-<target>.{tar.gz,zip}` + `sha256sums.txt`).
+
 name: Release
 
 on:
@@ -5,28 +15,80 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
-permissions:
-  contents: write
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: read
+
 jobs:
+  # Portão da versão: o commit tagueado precisa estar verde e a tag casar com o Cargo.toml.
+  verify:
+    name: verificar versão e testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Portão local (fmt + clippy + test + gate de 300 linhas)
+        run: make check
+
+      - name: Tag == versão do workspace
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF_TYPE}" != "tag" ]]; then
+            echo "workflow_dispatch em '${GITHUB_REF_NAME}': pulando verificação de tag."
+            exit 0
+          fi
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(grep -m1 -E '^version = "[0-9]' Cargo.toml | cut -d'"' -f2)"
+          echo "tag=v${tag}  workspace=${version}"
+          if [[ "${tag}" != "${version}" ]]; then
+            echo "::error::tag v${tag} != versão ${version} do Cargo.toml — ajuste um dos dois."
+            exit 1
+          fi
+
+  # Matriz de binários otimizados (perfil `release`: LTO fat, codegen-units=1, strip).
   build:
     name: ${{ matrix.target }}
+    needs: verify
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
+          # Linux — musl estático (roda em qualquer distro, glibc ou não).
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
+            archive: tar.gz
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            archive: tar.gz
+          # macOS — Apple Silicon nativo + Intel por cross-compile (mesmo SDK).
           - os: macos-latest
             target: aarch64-apple-darwin
-          - os: macos-13
+            archive: tar.gz
+          - os: macos-latest
             target: x86_64-apple-darwin
+            archive: tar.gz
+          # Windows — MSVC x86_64 nativo + ARM64 por cross-compile (toolchain MSVC ARM64).
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            archive: zip
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+            archive: zip
+            msvc_arch: arm64
+
     steps:
       - uses: actions/checkout@v4
 
@@ -38,11 +100,19 @@ jobs:
         with:
           key: release-${{ matrix.target }}
 
-      - name: Dependências (musl)
-        if: contains(matrix.target, 'musl')
+      # musl: o Rust moderno já linka estático (self-contained); musl-tools cobre o cc.
+      - name: Dependências musl (Linux)
+        if: contains(matrix.target, 'linux-musl')
         run: sudo apt-get update && sudo apt-get install -y musl-tools
 
-      - name: Build release
+      # Windows ARM64: habilita o linker/lib do MSVC ARM64 (sem Docker, sem runner extra).
+      - name: Toolchain MSVC ARM64 (Windows)
+        if: matrix.msvc_arch == 'arm64'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: arm64
+
+      - name: Build release (otimizado)
         run: cargo build --release --locked -p knudge-cli -p knudge-mcp --target ${{ matrix.target }}
 
       - name: Empacotar
@@ -57,34 +127,46 @@ jobs:
           if [[ "${{ matrix.target }}" == *-pc-windows-* ]]; then
             cp "target/${{ matrix.target }}/release/kd.exe" "$staging/kd.exe"
             cp "target/${{ matrix.target }}/release/knudge-mcp.exe" "$staging/knudge-mcp.exe"
-            ( cd "$staging" && 7z a -tzip "../../${name}.zip" ./* >/dev/null )
           else
             cp "target/${{ matrix.target }}/release/kd" "$staging/kd"
             cp "target/${{ matrix.target }}/release/knudge-mcp" "$staging/knudge-mcp"
             chmod +x "$staging/kd" "$staging/knudge-mcp"
-            ( cd "$staging" && tar -czf "../../${name}.tar.gz" kd knudge-mcp )
           fi
 
-      - name: Upload artifact
+          if [[ "${{ matrix.archive }}" == "zip" ]]; then
+            ( cd "$staging" && 7z a -tzip "../${name}.zip" ./* >/dev/null )
+          else
+            ( cd "$staging" && tar -czf "../${name}.tar.gz" kd knudge-mcp )
+          fi
+          ls -l "dist/${name}.${{ matrix.archive }}"
+
+      - name: Upload do artefato
         uses: actions/upload-artifact@v4
         with:
           name: knudge-${{ matrix.target }}
-          path: dist/*
+          path: dist/*.${{ matrix.archive }}
+          retention-days: 1
 
+  # Publica o Release: reúne os artefatos, gera os checksums e anexa tudo.
   release:
     name: publicar
     needs: build
+    # Só publica quando o gatilho é uma tag; `workflow_dispatch` em branch apenas compila.
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
 
-      - name: Checksums
+      - name: Checksums SHA-256
         run: |
+          set -euo pipefail
           cd dist
-          sha256sum knudge-*.tar.gz knudge-*.zip > sha256sums.txt
+          sha256sum knudge-*.* > sha256sums.txt
           cat sha256sums.txt
 
       - name: GitHub Release
@@ -95,3 +177,5 @@ jobs:
             dist/*.zip
             dist/sha256sums.txt
           generate_release_notes: true
+          draft: false
+          prerelease: false
