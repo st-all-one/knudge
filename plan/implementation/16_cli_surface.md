@@ -202,8 +202,9 @@ kd maintenance eval --ab <A> <B>          # Recall@k / nDCG@k / MRR
 kd maintenance index [--drain|--status]   # fila de embeddings
 kd maintenance learn [--scope <C>]        # sugestões de notas/links/merges
 kd maintenance prune [--scope <C>]        # propõe forget por shelf-life/decay (nunca age, D112)
-kd maintenance watch-service [--yes] [--dry-run] [--every 1h] [--port 8999]
-                                          # instala o worker de auto-drain (timer systemd)
+kd maintenance watch-service [--install|--subscribe|--unsubscribe|--status|--uninstall]
+                             [--yes] [--dry-run] [--every 1h] [--port 8999]
+                                          # gerencia o worker de auto-drain (timer systemd)
 ```
 
 - `audit` virou modo do `doctor` (relatório de integridade + arestas sugeridas).
@@ -212,10 +213,13 @@ kd maintenance watch-service [--yes] [--dry-run] [--every 1h] [--port 8999]
   `embeddings.mode=lazy` (default) o CLI ainda drena **um lote** ao fim de qualquer verbo
   não-`maintenance` (auto-drain ocioso, D131); `manual` desliga esse caminho.
 - `prune` **só propõe** (`forget|id|motivo`); a aplicação é `kd forget` (D47/D112).
-- `watch-service` **pergunta antes de agir** (stderr; stdin não-TTY ou `n` cancela, exit 0);
-  aprovado, baixa `scripts/knudge-idle.sh` na tag `v<versão>` e roda `install` — timer
-  `systemd --user` que garante o servidor local e drena a fila (D132). `--dry-run` só imprime o
-  plano; `--script` usa um arquivo local (offline); `--yes` pula a pergunta.
+- `watch-service` gerencia o worker **sem supply-chain**: o `knudge-idle.sh` é embutido no binário
+  (`--script`/`--url` sobrescrevem). Ações (exclusivas; default `--status`): `--install` faz
+  pré-flight (`systemd --user`/`kd`/`llama`/GGUF/projeto) e cadastra o projeto atual;
+  `--subscribe`/`--unsubscribe` cadastram/descadastram **um** projeto (multi-projeto; não
+  desinstalam o sistema); `--status` mostra timer/servidor/fila por projeto; `--uninstall` remove
+  o sistema. Mutar exige confirmação (stderr; não-TTY cancela; `--yes` pula). O GGUF mora ao lado
+  do `config.toml` global (D132).
 
 ## 10. `learn` em profundidade
 

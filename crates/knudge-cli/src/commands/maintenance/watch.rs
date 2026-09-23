@@ -1,9 +1,9 @@
-//! `kd maintenance watch-service` — instala o worker de auto-drain ocioso (E11-T03/D132).
+//! `kd maintenance watch-service` — gerencia o worker de auto-drain ocioso (E11-T03/D131/D132).
 //!
-//! Pergunta ao usuário e, se aprovado, baixa `scripts/knudge-idle.sh` (na tag da versão) e o
-//! aciona com `install` — que cria um timer `systemd --user` para drenar a fila quando o `kd`
-//! não está em uso. Nunca age sem confirmação (`--yes` pula a pergunta; stdin não-TTY ⇒ cancela).
-//! O prompt vai para **stderr** (stdout segue só dados, R20).
+//! As ações (`--install`, `--subscribe`, `--unsubscribe`, `--status`, `--uninstall`) são
+//! delegadas ao `knudge-idle.sh` **embutido no binário** (sem download por padrão; `--script` ou
+//! `--url`/`KNUDGE_SCRIPT_URL` sobrescrevem). Ações que mutam o host perguntam antes (`--yes`
+//! pula; stdin não-TTY ⇒ cancela). O prompt vai para **stderr** (stdout segue só dados, R20).
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -17,98 +17,160 @@ use crate::cli::WatchServiceArgs;
 use crate::output::{Output, emit_stderr};
 use crate::session::Session;
 
-/// Repositório oficial (o mesmo do `install.sh`).
-const REPO: &str = "st-all-one/knudge";
-/// Versão do binário; o script é baixado na tag correspondente.
-const VERSION: &str = env!("CARGO_PKG_VERSION");
-/// Caminho do script no repositório.
-const SCRIPT: &str = "scripts/knudge-idle.sh";
+/// Corpo do worker, embutido no binário — sem supply-chain de rede por padrão.
+const SCRIPT_BODY: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../scripts/knudge-idle.sh"
+));
+
+/// Ação pedida (default: `--status`, read-only).
+#[derive(Clone, Copy)]
+enum Action {
+    Install,
+    Subscribe,
+    Unsubscribe,
+    Status,
+    Uninstall,
+}
+
+impl Action {
+    /// Resolve a ação a partir das flags (o clap garante no máximo uma).
+    fn of(args: &WatchServiceArgs) -> Self {
+        if args.install {
+            Self::Install
+        } else if args.subscribe {
+            Self::Subscribe
+        } else if args.unsubscribe {
+            Self::Unsubscribe
+        } else if args.uninstall {
+            Self::Uninstall
+        } else {
+            Self::Status
+        }
+    }
+
+    fn name(self) -> &'static str {
+        match self {
+            Self::Install => "install",
+            Self::Subscribe => "subscribe",
+            Self::Unsubscribe => "unsubscribe",
+            Self::Status => "status",
+            Self::Uninstall => "uninstall",
+        }
+    }
+
+    /// Ações que mudam o host pedem confirmação.
+    fn asks(self) -> bool {
+        matches!(self, Self::Install | Self::Subscribe | Self::Uninstall)
+    }
+
+    /// Ações que operam sobre o projeto atual.
+    fn scoped(self) -> bool {
+        matches!(self, Self::Install | Self::Subscribe | Self::Unsubscribe)
+    }
+
+    fn question(self) -> &'static str {
+        match self {
+            Self::Install => {
+                "Instalar o worker de auto-drain (timer systemd) e cadastrar este projeto?"
+            }
+            Self::Subscribe => "Cadastrar este projeto no worker de auto-drain?",
+            Self::Uninstall => "Remover o worker de auto-drain (unidades + config + binário)?",
+            Self::Unsubscribe | Self::Status => "Continuar?",
+        }
+    }
+}
 
 /// De onde vem o worker.
 enum Source {
-    /// Baixado da URL.
-    Download(String),
+    /// Embutido no binário (default).
+    Embedded,
     /// Script local (`--script`).
     Local(PathBuf),
+    /// Baixado da URL (`--url`/`KNUDGE_SCRIPT_URL`).
+    Download(String),
 }
 
 /// Executa `kd maintenance watch-service`.
 ///
 /// # Errors
-/// Propaga falha de download/execução do worker e de I/O.
+/// Propaga falha de materialização/download/execução do worker e de I/O.
 pub fn run(session: &Session, args: &WatchServiceArgs) -> Result<Output> {
+    let action = Action::of(args);
     let root = session.project_root().to_path_buf();
-    let install = install_args(&root, args);
     let source = source_of(session, args);
+    let worker = worker_args(action, &root, args);
 
     if args.dry_run {
-        return Ok(plan(&source, &install));
+        return Ok(plan(action, &source, &worker));
     }
-    if !args.yes && !confirm("Instalar o worker de auto-drain (timer systemd) deste projeto?")? {
+    if action.asks() && !args.yes && !confirm(action.question())? {
         return Ok(Output::new(
-            "cancelado: worker não instalado",
-            json!({ "installed": false, "reason": "declined" }),
+            format!("cancelado: {}", action.name()),
+            json!({ "action": action.name(), "done": false, "reason": "declined" }),
         ));
     }
-
     let script = match &source {
+        Source::Embedded => materialize(session)?,
         Source::Local(path) => path.clone(),
         Source::Download(url) => download(session, url.as_str())?,
     };
-    run_worker(&script, &install)
+    run_worker(&script, action, &worker)
 }
 
-/// Argumentos repassados ao `knudge-idle.sh install`.
-fn install_args(root: &Path, args: &WatchServiceArgs) -> Vec<String> {
-    let mut out = vec![
-        "install".to_string(),
-        "--project".to_string(),
-        root.display().to_string(),
-        "--every".to_string(),
-        args.every.clone(),
-        "--port".to_string(),
-        args.port.to_string(),
-    ];
-    if let Some(model) = &args.model {
-        out.push("--model".to_string());
-        out.push(model.clone());
+/// Argumentos repassados ao `knudge-idle.sh`.
+fn worker_args(action: Action, root: &Path, args: &WatchServiceArgs) -> Vec<String> {
+    let mut out = vec![action.name().to_string()];
+    if action.scoped() {
+        out.push("--project".to_string());
+        out.push(root.display().to_string());
+    }
+    if matches!(action, Action::Install) {
+        out.push("--every".to_string());
+        out.push(args.every.clone());
+        out.push("--port".to_string());
+        out.push(args.port.to_string());
+        if let Some(model) = &args.model {
+            out.push("--model".to_string());
+            out.push(model.clone());
+        }
     }
     out
 }
 
-/// Resolve a origem do script (`--script`, `--url`/`KNUDGE_SCRIPT_URL`, ou a tag da versão).
+/// Prioridade: `--script` > `--url`/`KNUDGE_SCRIPT_URL` > embutido.
 fn source_of(session: &Session, args: &WatchServiceArgs) -> Source {
     if let Some(path) = &args.script {
         return Source::Local(PathBuf::from(path));
     }
-    let url = args
+    if let Some(url) = args
         .url
         .clone()
         .or_else(|| session.env().var("KNUDGE_SCRIPT_URL"))
-        .unwrap_or_else(default_url);
-    Source::Download(url)
+    {
+        return Source::Download(url);
+    }
+    Source::Embedded
 }
 
-/// URL default do script, na tag `v<versão>`.
-fn default_url() -> String {
-    format!("https://raw.githubusercontent.com/{REPO}/v{VERSION}/{SCRIPT}")
-}
-
-/// Plano do `--dry-run` (não baixa nem executa).
-fn plan(source: &Source, install: &[String]) -> Output {
+/// Plano do `--dry-run` (não materializa nem executa).
+fn plan(action: Action, source: &Source, worker: &[String]) -> Output {
     let (kind, reference) = match source {
-        Source::Download(url) => ("download", url.clone()),
+        Source::Embedded => ("embedded", "scripts/knudge-idle.sh".to_string()),
         Source::Local(path) => ("local", path.display().to_string()),
+        Source::Download(url) => ("download", url.clone()),
     };
     let script = match source {
-        Source::Download(_) => "<baixado>".to_string(),
+        Source::Embedded => "<embutido>".to_string(),
         Source::Local(path) => path.display().to_string(),
+        Source::Download(_) => "<baixado>".to_string(),
     };
-    let command = format!("bash {script} {}", install.join(" "));
+    let command = format!("bash {script} {}", worker.join(" "));
     Output::new(
         format!("dry-run: {command}"),
         json!({
             "dry_run": true,
+            "action": action.name(),
             "source": kind,
             "reference": reference,
             "command": command,
@@ -145,6 +207,15 @@ fn cache_dir(session: &Session) -> PathBuf {
         .join("knudge")
 }
 
+/// Escreve o script embutido no staging de cache e devolve o caminho.
+fn materialize(session: &Session) -> Result<PathBuf> {
+    let dir = cache_dir(session).join("staging");
+    session.fs().create_dir_all(&dir)?;
+    let dest = dir.join("knudge-idle.sh");
+    session.fs().write_atomic(&dest, SCRIPT_BODY.as_bytes())?;
+    Ok(dest)
+}
+
 /// Baixa o script para o staging de cache via `curl` (HTTPS).
 fn download(session: &Session, url: &str) -> Result<PathBuf> {
     let dir = cache_dir(session).join("staging");
@@ -165,11 +236,11 @@ fn download(session: &Session, url: &str) -> Result<PathBuf> {
     Ok(dest)
 }
 
-/// Executa `bash <script> <install...>` e resume o resultado.
-fn run_worker(script: &Path, install: &[String]) -> Result<Output> {
+/// Executa `bash <script> <ação...>` e resume o resultado.
+fn run_worker(script: &Path, action: Action, worker: &[String]) -> Result<Output> {
     let output = Command::new("bash")
         .arg(script)
-        .args(install)
+        .args(worker)
         .output()
         .map_err(|error| Error::io("bash", error))?;
     if !output.status.success() {
@@ -177,7 +248,8 @@ fn run_worker(script: &Path, install: &[String]) -> Result<Output> {
         return Err(Error::io(
             script,
             std::io::Error::other(format!(
-                "worker não instalado ({}): {}",
+                "watch-service {} falhou ({}): {}",
+                action.name(),
                 output.status,
                 stderr.trim()
             )),
@@ -185,12 +257,16 @@ fn run_worker(script: &Path, install: &[String]) -> Result<Output> {
     }
     let stdout = String::from_utf8_lossy(&output.stdout);
     let text = if stdout.trim().is_empty() {
-        "worker instalado".to_string()
+        format!("watch-service {}: ok", action.name())
     } else {
         stdout.trim().to_string()
     };
     Ok(Output::new(
         text,
-        json!({ "installed": true, "script": script.display().to_string() }),
+        json!({
+            "action": action.name(),
+            "done": true,
+            "script": script.display().to_string(),
+        }),
     ))
 }

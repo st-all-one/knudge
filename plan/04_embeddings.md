@@ -34,7 +34,7 @@ O embedding **nunca bloqueia** `write`, `recall` ou o rebuild estrutural. Ele é
 - **Visibilidade:** `prime()` reporta `embeddings_pending: N`; `audit()`/`doctor` sinalizam backlog grande.
 - **Backpressure:** `max_pending` limita a fila; acima disso, força catch-up em lote — **nunca descarta nota**.
 
-**Modos:** `lazy` (default; o CLI drena **um lote** no fim de cada invocação, ocioso e *best-effort* — E11-T03/D131) e `manual` (só via `kd maintenance index --drain`). Os dois **coexistem**: mesmo em `lazy`, o `--drain` explícito funciona. O worker contínuo (quando você não usa o `kd`) é instalado por `kd maintenance watch-service` (D132).
+**Modos:** `lazy` (default; o CLI drena **um lote** no fim de cada invocação, ocioso e *best-effort* — E11-T03/D131) e `manual` (só via `kd maintenance index --drain`). Os dois **coexistem**: mesmo em `lazy`, o `--drain` explícito funciona. O worker contínuo (quando você não usa o `kd`) é gerenciado por `kd maintenance watch-service` (`--install`/`--subscribe`/`--unsubscribe`/`--status`/`--uninstall`, multi-projeto — D132).
 
 ```toml
 [embeddings]

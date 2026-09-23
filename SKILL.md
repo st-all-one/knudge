@@ -151,7 +151,15 @@ kd maintenance doctor --audit           # integridade + arestas sugeridas
 kd maintenance learn                    # o que deveria virar nota?
 kd knowledge map --axis container --semantic
 kd maintenance prune                    # propõe forget por shelf-life
+kd maintenance index --status           # fila de embeddings (pending) por projeto
+kd maintenance watch-service --status   # saúde do worker de auto-drain (timer systemd)
 ```
+
+O worker de auto-drain é gerenciado por `kd maintenance watch-service`: `--install` (pré-flight +
+unidades + timer systemd + cadastra o projeto), `--subscribe`/`--unsubscribe` (multi-projeto; não
+desinstalam o sistema), `--status` (default) e `--uninstall`. O script é **embutido** no binário
+(sem download) e o GGUF mora ao lado do `config.toml` global. Com `embeddings.mode=lazy` (default)
+o próprio `kd` já drena um lote ao fim de cada verbo.
 
 ### Integração MCP
 

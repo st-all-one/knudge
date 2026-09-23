@@ -46,7 +46,8 @@ E06, E07.
 - **Entregáveis:** fila; estados; contador no `rewind`; **auto-drain ocioso** — com `mode=lazy`,
   ao fim de cada invocação não-`maintenance` o CLI drena **um lote** *best-effort*, **depois** de
   emitir a saída; falha não muda exit code nem `warnings[]`; `KNUDGE_NO_IDLE` desliga;
-  `kd maintenance watch-service` instala o worker contínuo (timer systemd) com consentimento (D132).
+  `kd maintenance watch-service` gerencia o worker contínuo (timer systemd) com consentimento:
+  `--install`/`--subscribe`/`--unsubscribe`/`--status`/`--uninstall`, multi-projeto (D132).
 - **Decisões:** D80, D83, D131.
 - **Aceite:** rajada de 10–20 notas não bloqueia `write`/`recall`; backlog visível e
   drenável; `lazy` esvazia a fila durante o uso, `manual` só com `--drain`.

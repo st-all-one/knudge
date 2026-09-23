@@ -1711,7 +1711,13 @@ fn watch_service_dry_run_reports_plan() -> TestResult {
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
     let out = run_in(
         &dir,
-        &["--json", "maintenance", "watch-service", "--dry-run"],
+        &[
+            "--json",
+            "maintenance",
+            "watch-service",
+            "--install",
+            "--dry-run",
+        ],
     )?;
     assert!(out.status.success(), "stderr: {:?}", out.stderr);
     let data = json(&out)?;
@@ -1720,11 +1726,61 @@ fn watch_service_dry_run_reports_plan() -> TestResult {
         data.get("dry_run").and_then(serde_json::Value::as_bool),
         Some(true)
     );
-    let url = data
+    assert_eq!(
+        data.get("action").and_then(serde_json::Value::as_str),
+        Some("install")
+    );
+    let reference = data
         .get("reference")
         .and_then(|v| v.as_str())
-        .ok_or("sem url")?;
-    assert!(url.contains("knudge-idle.sh"), "url: {url}");
+        .ok_or("sem reference")?;
+    assert!(
+        reference.contains("knudge-idle.sh"),
+        "reference: {reference}"
+    );
+    let command = data
+        .get("command")
+        .and_then(|v| v.as_str())
+        .ok_or("sem command")?;
+    assert!(
+        command.contains("install") && command.contains("--project"),
+        "command: {command}"
+    );
+    Ok(())
+}
+
+#[test]
+fn watch_service_defaults_to_status() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    let out = run_in(
+        &dir,
+        &["--json", "maintenance", "watch-service", "--dry-run"],
+    )?;
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let data = json(&out)?;
+    assert_eq!(
+        data.get("data")
+            .and_then(|d| d.get("action"))
+            .and_then(serde_json::Value::as_str),
+        Some("status")
+    );
+    Ok(())
+}
+
+#[test]
+fn watch_service_action_flags_are_exclusive() -> TestResult {
+    let dir = temp_project();
+    let out = run_in(
+        &dir,
+        &["maintenance", "watch-service", "--install", "--status"],
+    )?;
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "flags de ação conflitantes deveriam ser uso (2)"
+    );
     Ok(())
 }
 
@@ -1733,7 +1789,7 @@ fn watch_service_declined_does_nothing() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
-    let out = run_stdin(&dir, &["maintenance", "watch-service"], "n\n")?;
+    let out = run_stdin(&dir, &["maintenance", "watch-service", "--install"], "n\n")?;
     assert!(out.status.success(), "stderr: {:?}", out.stderr);
     let text = String::from_utf8(out.stdout)?;
     assert!(text.contains("cancelad"), "saída: {text}");
@@ -1741,7 +1797,7 @@ fn watch_service_declined_does_nothing() -> TestResult {
 }
 
 #[test]
-fn watch_service_runs_local_script() -> TestResult {
+fn watch_service_subscribe_runs_local_script() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
@@ -1760,6 +1816,7 @@ fn watch_service_runs_local_script() -> TestResult {
         &[
             "maintenance",
             "watch-service",
+            "--subscribe",
             "--yes",
             "--script",
             &script_arg,
@@ -1767,7 +1824,7 @@ fn watch_service_runs_local_script() -> TestResult {
     )?;
     assert!(out.status.success(), "stderr: {:?}", out.stderr);
     let recorded = std::fs::read_to_string(&args_file)?;
-    assert!(recorded.contains("install"), "args: {recorded}");
+    assert!(recorded.contains("subscribe"), "args: {recorded}");
     assert!(recorded.contains("--project"), "args: {recorded}");
     Ok(())
 }

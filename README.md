@@ -130,11 +130,14 @@ scripts/knudge-idle.sh status
 scripts/knudge-idle.sh uninstall
 ```
 
-Ou pelo próprio binário — ele **pergunta antes** de instalar e baixa o script na tag da versão:
+Ou pelo próprio binário — ele **pergunta antes** de agir e embute o worker (sem download):
 
 ```bash
-kd maintenance watch-service            # pergunta [s/N]; --yes automatiza
-kd maintenance watch-service --dry-run  # só mostra o plano
+kd maintenance watch-service --install      # pré-flight + timer + cadastra este projeto
+kd maintenance watch-service --subscribe    # cadastra outro projeto (multi-projeto)
+kd maintenance watch-service --unsubscribe  # descadastra (mantém o sistema instalado)
+kd maintenance watch-service --status       # saúde: timer, servidor, fila por projeto (default)
+kd maintenance watch-service --uninstall    # remove o sistema
 ```
 
 ## MCP (agentes de IA)

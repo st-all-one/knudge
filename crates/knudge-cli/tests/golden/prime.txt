@@ -40,7 +40,7 @@ TAREFAS (kd task — plan ⊃ epic ⊃ issue ⊃ task, máx. 4):
 ESTADO / HANDOFF: kd rewind [--scope CONTAINER] [--files PATH...] [--budget N] [--resume ID]
   Orçamento ceil(len/4) tokens (default 4000); context_id retomável 1:1; next:/fresh: (D106).
 MAPA: kd knowledge map [--axis anchor|type|classification|container] [--scope C] [--semantic] [--members]
-MANUTENÇÃO: kd maintenance doctor [--audit]|compact|eval|index|learn|prune  (learn/compact/prune só propõem)
+MANUTENÇÃO: kd maintenance doctor [--audit]|compact|eval|index|learn|prune|watch-service  (learn/compact/prune só propõem)
 CICLO DE VIDA: kd forget <ID>  (soft; --restore; --purge após retenção)
 CONFIG: kd config get|set|unset|list [--global]  (strict é config, não flag)
 INIT/SYNC: kd init  (funda .knudge/ + AGENTS.md)  ·  kd sync  (commit de notas/ + eventos/)

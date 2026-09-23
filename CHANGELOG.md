@@ -7,11 +7,14 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 ## [0.2.0] - 2026-09-23
 
 ### Adicionado
-- **`kd maintenance watch-service` (D132).** Instala o worker de auto-drain ocioso: pergunta ao
-  usuário (stderr; `n`/não-TTY cancela) e, se aprovado, baixa `scripts/knudge-idle.sh` na tag da
-  versão e o executa — criando um timer `systemd --user` que garante o servidor e drena a fila.
-  `--script` usa um arquivo local (offline), `--dry-run` só mostra o plano, `--yes` pula a
-  pergunta.
+- **`kd maintenance watch-service` (D132).** Gerencia o worker de auto-drain ocioso. Ações
+  exclusivas (default `--status`): `--install` faz pré-flight (`systemd --user`/`kd`/`llama`/GGUF/
+  projeto), cria o timer e cadastra o projeto; `--subscribe`/`--unsubscribe` cadastram/
+  descadastram **um** projeto (multi-projeto; não desinstalam o sistema); `--status` mostra a
+  saúde (timer, servidor, fila por projeto); `--uninstall` remove o sistema. O `knudge-idle.sh` é
+  **embutido no binário** (sem download por padrão); `--script`/`--url` sobrescrevem. Mutar exige
+  confirmação (stderr; não-TTY cancela; `--yes` pula). O GGUF mora ao lado do `config.toml`
+  global (`${XDG_CONFIG_HOME:-~/.config}/local/knudge/`).
 
 ### Alterado
 - **Auto-drain ocioso (E11-T03/D131).** `embeddings.mode` agora aceita só `lazy` (default) e

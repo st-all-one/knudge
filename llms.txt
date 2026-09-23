@@ -58,7 +58,7 @@ Coisas para lembrar ao usar o knudge:
 - **`kd ask`** cobre recall + get (`--id`) + expand (`--around`); filtros `--type/--class/--tag/--status/--container/--anchor/--since/--until`; `--rank` e `--tags`; `--limit` (default 5), `--brief`, `--with-body`.
 - **`kd task`:** `new/list/show/update/close/claim/graph/plan`; `--ready`/`--blocked`, `--sort impact`; rollup de progresso por épico (D127).
 - **`kd knowledge map [--axis anchor|type|classification|container] [--semantic] [--members]`** — clusters estruturais + fase 2 semântica complete-link (D128/D129).
-- **`kd maintenance`:** `doctor [--fix] [--audit]` · `compact` · `eval --ab` · `index [--drain|--status]` · `learn` · `prune` (as três últimas só propõem).
+- **`kd maintenance`:** `doctor [--fix] [--audit]` · `compact` · `eval --ab` · `index [--drain|--status]` · `learn` · `prune` · `watch-service [--install|--subscribe|--unsubscribe|--status|--uninstall]` (compact/learn/prune só propõem; watch-service = worker de auto-drain, multi-projeto).
 - **`kd rewind`:** handoff ponto-no-tempo; orçamento `ceil(len/4)` tokens (default 4000); `--resume` retomável 1:1 (D88).
 - **`kd self setup <claude|cursor|codex|pi>`**, `kd self completions <bash|zsh|fish>`.
 - **Config global** (template): `~/.config/local/knudge/config.toml` (Linux), `~/Library/Application Support/knudge/config.toml` (macOS), `%APPDATA%\knudge\config.toml` (Windows). **Projeto** (efetivo): `.knudge/config.toml`.

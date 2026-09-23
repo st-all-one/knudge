@@ -50,7 +50,7 @@ pub enum MaintenanceCommand {
         #[arg(long)]
         dry_run: bool,
     },
-    /// Instala o worker de auto-drain ocioso (timer systemd) deste projeto.
+    /// Gerencia o worker de auto-drain ocioso: `--install`/`--subscribe`/`--unsubscribe`/`--status`/`--uninstall`.
     WatchService(WatchServiceArgs),
 }
 
@@ -58,6 +58,21 @@ pub enum MaintenanceCommand {
 #[allow(clippy::struct_excessive_bools, reason = "flags de CLI")]
 #[derive(Debug, Args)]
 pub struct WatchServiceArgs {
+    /// Instala o sistema (unidades + timer) e cadastra o projeto atual (com pré-flight).
+    #[arg(long, group = "action")]
+    pub install: bool,
+    /// Cadastra o projeto atual (multi-projeto; exige o sistema instalado).
+    #[arg(long, group = "action")]
+    pub subscribe: bool,
+    /// Descadastra o projeto atual (mantém o sistema instalado).
+    #[arg(long, group = "action")]
+    pub unsubscribe: bool,
+    /// Mostra a saúde atual (timer, servidor, fila por projeto). É o default.
+    #[arg(long, group = "action")]
+    pub status: bool,
+    /// Remove o sistema (unidades + config + binário).
+    #[arg(long, group = "action")]
+    pub uninstall: bool,
     /// Não pergunta: assume que sim.
     #[arg(long, short = 'y')]
     pub yes: bool,
@@ -70,13 +85,13 @@ pub struct WatchServiceArgs {
     /// Porta do servidor de embeddings local.
     #[arg(long, value_name = "N", default_value_t = 8999)]
     pub port: u16,
-    /// Caminho do modelo GGUF (repassado ao worker).
+    /// Caminho do modelo GGUF (default: ao lado do config.toml global).
     #[arg(long, value_name = "PATH")]
     pub model: Option<String>,
-    /// Usa um script local em vez de baixar (offline/testes).
+    /// Usa um script local em vez do embutido (offline/testes).
     #[arg(long, value_name = "PATH")]
     pub script: Option<String>,
-    /// Sobrescreve a URL do script baixado.
+    /// Baixa o script de uma URL (HTTPS) em vez de usar o embutido.
     #[arg(long, value_name = "URL")]
     pub url: Option<String>,
 }
