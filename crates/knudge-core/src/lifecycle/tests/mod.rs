@@ -3,6 +3,7 @@
 mod clusters;
 mod confidence;
 mod decay;
+mod from_tasks;
 mod plan;
 mod retire;
 mod semantic;

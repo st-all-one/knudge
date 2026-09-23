@@ -43,6 +43,9 @@
 | 32 | **`next:` vs `ready`** | `--ready` listar tarefa `closed` como pronta e o `next:` herdar isso | `next_tasks` filtra tarefas **abertas** (fora `closed`/`superseded`/`forgotten`); a view `ready` continua sendo "sem dependência pendente" (D104/D106) | `handoff::tests::next::closed_ready_tasks_are_skipped` |
 | 33 | **Impacto** | ordem de `next:`/`--sort impact` depender de iteração | impacto = tarefas **abertas** com caminho `depends_on` reverso; empate `(impact desc, created asc, id asc)` (D106/D109) | `task::tests::impact::impact_counts_open_dependents_transitively`, `handoff::tests::next::next_orders_by_impact` |
 | 34 | **Vocabulário de tags** | `ask --tags` divergir entre execuções | `BTreeMap` + ordem `(count desc, tag asc)`, ignorando `forgotten`/`superseded` (D107) | `retrieval::tests::tags::tag_counts_orders_by_count_then_name` |
+| 35 | **Confirmação por tarefa** | o peso depender de distância no grafo ou de ordem | o vínculo tarefa↔nota é a **âncora** (não há aresta), então a distância colapsa a `0`: `Σ W` por tarefa de sucesso distinta, saturado em `1.0` (D108) | `lifecycle::tests::from_tasks::*` |
+| 36 | **`scope` no índice derivado** | índices antigos sem `scope` perderem a confirmação por tarefa | `Meta.scope` é opcional e o índice é reconstruído do store no `ask`/`rewind` (D15); ausente ⇒ sem tarefa confirmadora | `retrieval::tests::index::scope_survives_round_trip` |
+| 37 | **`--sort impact` vs `--ready`** | o caminho crítico listar tarefa `closed` no topo | a view `ready` mantém `closed` (D104), mas `--sort impact` filtra `closed`/`superseded`/`forgotten` (`is_actionable`), como o `next:` (D106/D109) | `task::tests::impact::actionable_excludes_terminal_statuses`, `cli::task_list_sort_impact_skips_closed` |
 
 ## Notas
 

@@ -10,8 +10,7 @@ use crate::graph::Graph;
 use crate::lifecycle::Freshness;
 use crate::retrieval::Index;
 use crate::retrieval::views::compute_views;
-use crate::schema::Status;
-use crate::task::impact;
+use crate::task::{impact, is_actionable};
 
 use super::manifest::{manifest_text, sanitize};
 
@@ -48,7 +47,7 @@ pub fn next_tasks(index: &Index, graph: &Graph, limit: usize) -> Vec<NextTask> {
         .ready
         .iter()
         .map(String::as_str)
-        .filter(|id| is_actionable(graph, id))
+        .filter(|id| is_actionable(graph.status(id)))
         .collect();
     ready.sort_by(|left, right| {
         impact(graph, right)
@@ -70,14 +69,6 @@ pub fn next_tasks(index: &Index, graph: &Graph, limit: usize) -> Vec<NextTask> {
             statement: sanitize(statements.get(id).copied().unwrap_or("")),
         })
         .collect()
-}
-
-/// `true` se a tarefa ainda pede ação (não `closed`/`superseded`/`forgotten`).
-fn is_actionable(graph: &Graph, id: &str) -> bool {
-    !matches!(
-        graph.status(id),
-        Some(Status::Closed | Status::Superseded | Status::Forgotten)
-    )
 }
 
 /// Manifest dinâmico: contadores + `next:` + `fresh:`; retorna `(texto, descartados)`.

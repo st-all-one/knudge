@@ -8,7 +8,7 @@ use indexmap::IndexMap;
 use crate::jsonl::{self, json};
 use crate::ports::Fs;
 use crate::retrieval::filter::Meta;
-use crate::schema::{Classification, NoteType, Status, Value};
+use crate::schema::{Classification, NoteType, Scope, Status, Value};
 use crate::store::Store;
 use crate::{Error, Result};
 
@@ -111,6 +111,9 @@ fn doc_to_value(doc: &NoteDoc) -> Value {
         "classification".to_string(),
         Value::Str(doc.meta.classification.as_str().to_string()),
     );
+    if let Some(scope) = doc.meta.scope {
+        map.insert("scope".to_string(), Value::Str(scope.as_str().to_string()));
+    }
     map.insert(
         "status".to_string(),
         Value::Str(doc.meta.status.as_str().to_string()),
@@ -147,6 +150,7 @@ fn doc_from_value(value: &Value) -> Result<NoteDoc> {
     let meta = Meta {
         id: str_field(map, "id")?.to_string(),
         note_type: str_field(map, "type")?.parse::<NoteType>()?,
+        scope: opt_scope(map)?,
         classification: str_field(map, "classification")?.parse::<Classification>()?,
         status: str_field(map, "status")?.parse::<Status>()?,
         tags: str_list(map, "tags"),
@@ -188,6 +192,14 @@ fn str_field<'a>(map: &'a IndexMap<String, Value>, key: &str) -> Result<&'a str>
     map.get(key)
         .and_then(Value::as_str)
         .ok_or_else(|| Error::schema(format!("campo `{key}` ausente no índice")))
+}
+
+/// Escopo opcional (índices antigos não o têm — derivado, D15).
+fn opt_scope(map: &IndexMap<String, Value>) -> Result<Option<Scope>> {
+    match map.get("scope").and_then(Value::as_str) {
+        Some(text) => text.parse::<Scope>().map(Some),
+        None => Ok(None),
+    }
 }
 
 fn int_field(map: &IndexMap<String, Value>, key: &str) -> Result<i64> {

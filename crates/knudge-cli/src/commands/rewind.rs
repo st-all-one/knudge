@@ -4,7 +4,7 @@ use knudge_core::Result;
 use knudge_core::handoff::{
     ContextStore, DEFAULT_BUDGET, RewindInput, RewindMode, RewindRequest, rewind,
 };
-use knudge_core::lifecycle::{ShelfLife, freshness};
+use knudge_core::lifecycle::{DEFAULT_TASK_CONFIRMATION, ShelfLife, freshness};
 use serde_json::json;
 
 use crate::cli::RewindArgs;
@@ -45,6 +45,10 @@ pub fn run(session: &Session, args: &RewindArgs) -> Result<Output> {
         events: &events,
         changed_paths: &changed,
         freshness: fresh,
+        task_confirmation_weight: session
+            .config()
+            .get_float("recall.confirmation_from_tasks")
+            .unwrap_or(DEFAULT_TASK_CONFIRMATION),
         now_ms: session.now_ms(),
     };
     let out = rewind(&input, &request, &contexts)?;

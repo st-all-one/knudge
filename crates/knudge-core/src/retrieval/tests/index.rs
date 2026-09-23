@@ -4,10 +4,10 @@ use crate::Result;
 use crate::ports::Fs;
 use crate::ports::fakes::MemFs;
 use crate::retrieval::{INDEX_FILE, INDEX_WARN_BYTES, Index, size_warning};
-use crate::schema::NoteType;
-use crate::store::Store;
+use crate::schema::{NoteType, Scope};
+use crate::store::{Note, Store};
 
-use super::note;
+use super::{base, note, with_scope};
 
 #[test]
 fn rebuild_is_byte_for_byte() -> Result<()> {
@@ -21,6 +21,22 @@ fn rebuild_is_byte_for_byte() -> Result<()> {
     let loaded = Index::parse(&bytes)?;
     assert_eq!(loaded, first);
     assert_eq!(loaded.serialize()?, bytes);
+    Ok(())
+}
+
+#[test]
+fn scope_survives_round_trip() -> Result<()> {
+    let task = Note::new(
+        with_scope(base(NoteType::Task, "tarefa")?, Scope::Task)?,
+        "",
+    );
+    let index = Index::build(&[task])?;
+    let loaded = Index::parse(&index.serialize()?)?;
+    assert_eq!(loaded, index);
+    assert_eq!(
+        loaded.docs.first().and_then(|doc| doc.meta.scope),
+        Some(Scope::Task)
+    );
     Ok(())
 }
 

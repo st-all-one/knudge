@@ -32,6 +32,18 @@ fn is_open(graph: &Graph, id: &str) -> bool {
     )
 }
 
+/// `true` se o status ainda pede ação (não `closed`/`superseded`/`forgotten`).
+///
+/// Compartilhado por `next:` (D106) e por `task list --sort impact` (D109): a lista por
+/// impacto é o **caminho crítico**, não o histórico.
+#[must_use]
+pub fn is_actionable(status: Option<Status>) -> bool {
+    !matches!(
+        status,
+        Some(Status::Closed | Status::Superseded | Status::Forgotten)
+    )
+}
+
 fn depends_on_transitively(graph: &Graph, from: &str, target: &str) -> bool {
     let mut seen: BTreeSet<String> = BTreeSet::new();
     let mut stack = vec![from.to_string()];

@@ -9,6 +9,7 @@ pub mod bm25;
 pub mod filter;
 pub mod format;
 pub mod index;
+pub mod pipeline;
 pub mod rrf;
 pub mod tags;
 pub mod token;
@@ -29,13 +30,12 @@ pub use tags::tag_counts;
 pub use views::{BlockReason, Views, block_reason, compute_views, compute_views_at};
 pub use why::Why;
 
-use std::collections::{BTreeMap, BTreeSet};
-
 use crate::graph::Graph;
-use crate::lifecycle::confidence::{ConfidenceInput, confidence_score};
-use crate::schema::EdgeKind;
+use crate::lifecycle::confidence::DEFAULT_TASK_CONFIRMATION;
 use crate::store::{Note, Store};
 use crate::{Error, Result};
+
+use pipeline::{build_hits, candidates, lexical_channel, semantic_channel, task_confirmers};
 
 /// `k` padrão da fusão RRF (config `recall.rrf_k`).
 pub const DEFAULT_RRF_K: u32 = 60;
@@ -69,6 +69,9 @@ pub struct RecallQuery {
     pub channel_warnings: Vec<String>,
     /// Instante atual para o `why = recent` (opcional).
     pub now_ms: Option<i64>,
+    /// Peso da confirmação derivada de tarefas (X1/D108; config
+    /// `recall.confirmation_from_tasks`).
+    pub task_confirmation_weight: f64,
     /// Promove `warnings` a erro (config `behavior.strict` — D94).
     pub strict: bool,
 }
@@ -81,6 +84,7 @@ impl RecallQuery {
             text: text.into(),
             limit: DEFAULT_LIMIT,
             rrf_k: DEFAULT_RRF_K,
+            task_confirmation_weight: DEFAULT_TASK_CONFIRMATION,
             ..Self::default()
         }
     }
@@ -117,12 +121,10 @@ pub struct RecallOutput {
 pub fn recall(index: &Index, graph: &Graph, query: &RecallQuery) -> Result<RecallOutput> {
     let warnings = query.channel_warnings.clone();
     let allowed = candidates(index, graph, query);
+    let confirmers = task_confirmers(index);
+    let weight = query.task_confirmation_weight;
 
-    let lexical: Vec<String> = index
-        .score(&query.text, &allowed)
-        .into_iter()
-        .map(|hit| hit.id)
-        .collect();
+    let lexical = lexical_channel(index, &allowed, query, &confirmers, weight);
     let anchored = anchor::rank(index, &allowed, &query.working_paths, &query.working_ids);
 
     let mut channels: Vec<&[String]> = vec![lexical.as_slice(), anchored.as_slice()];
@@ -131,42 +133,13 @@ pub fn recall(index: &Index, graph: &Graph, query: &RecallQuery) -> Result<Recal
         channels.push(semantic.as_slice());
     }
     let fused = fuse(&channels, query.rrf_k);
-    let max_score = fused.first().map_or(0.0, |hit| hit.score);
 
-    let by_id: BTreeMap<&str, &NoteDoc> = index
-        .docs
-        .iter()
-        .map(|doc| (doc.meta.id.as_str(), doc))
-        .collect();
     let limit = if query.limit == 0 {
         usize::MAX
     } else {
         query.limit
     };
-    let mut hits = Vec::new();
-    for fused_hit in fused.into_iter().take(limit) {
-        let Some(doc) = by_id.get(fused_hit.id.as_str()) else {
-            continue;
-        };
-        let similarity = if max_score > 0.0 {
-            fused_hit.score / max_score
-        } else {
-            0.0
-        };
-        let confidence = confidence_score(&ConfidenceInput {
-            similarity,
-            confirmation: doc.meta.confirmation,
-            age_days: age_days(doc, query.now_ms),
-            ..ConfidenceInput::default()
-        });
-        hits.push(RecallHit {
-            id: fused_hit.id,
-            statement: doc.statement.clone(),
-            score: fused_hit.score,
-            confidence,
-            why: choose_why(doc, query, graph),
-        });
-    }
+    let hits = build_hits(&fused, index, query, graph, limit);
 
     if query.strict && !warnings.is_empty() {
         return Err(Error::config(format!(
@@ -200,88 +173,4 @@ pub fn get(store: &Store<'_>, ids: &[String]) -> Result<GetOutput> {
         }
     }
     Ok(output)
-}
-
-/// Canal vetorial **filtrado** por `allowed` (D102).
-///
-/// As views/filtros determinísticos são contrato e não podem ser furados por uma nota só
-/// semanticamente próxima.
-fn semantic_channel(query: &RecallQuery, allowed: &BTreeSet<String>) -> Vec<String> {
-    query
-        .vector
-        .as_ref()
-        .map(|ids| {
-            ids.iter()
-                .filter(|id| allowed.contains(id.as_str()))
-                .cloned()
-                .collect()
-        })
-        .unwrap_or_default()
-}
-
-fn candidates(index: &Index, graph: &Graph, query: &RecallQuery) -> BTreeSet<String> {
-    let mut allowed = BTreeSet::new();
-    for doc in &index.docs {
-        if !query.filter.matches(&doc.meta) {
-            continue;
-        }
-        if let Some(container) = query.container.as_deref()
-            && !belongs_to(graph, &doc.meta.id, container)
-        {
-            continue;
-        }
-        allowed.insert(doc.meta.id.clone());
-    }
-    allowed
-}
-
-fn belongs_to(graph: &Graph, id: &str, container: &str) -> bool {
-    if id == container {
-        return true;
-    }
-    let mut seen: BTreeSet<String> = BTreeSet::new();
-    let mut stack = vec![id.to_string()];
-    while let Some(current) = stack.pop() {
-        for dependency in graph.targets(&current, EdgeKind::DependsOn) {
-            if dependency == container {
-                return true;
-            }
-            if seen.insert(dependency.clone()) {
-                stack.push(dependency.clone());
-            }
-        }
-    }
-    false
-}
-
-fn choose_why(doc: &NoteDoc, query: &RecallQuery, graph: &Graph) -> Why {
-    let matched = anchor::match_note(&doc.meta, &query.working_paths, &query.working_ids);
-    if matched.file {
-        return Why::FileMatch;
-    }
-    if matched.id {
-        return Why::AnchorMatch;
-    }
-    if let Some(container) = query.container.as_deref()
-        && belongs_to(graph, &doc.meta.id, container)
-    {
-        return Why::TrackerMatch;
-    }
-    if doc.meta.confirmation > 0.0 {
-        return Why::Stars;
-    }
-    if let Some(now) = query.now_ms
-        && now.saturating_sub(doc.meta.created_ms) <= RECENT_WINDOW_MS
-    {
-        return Why::Recent;
-    }
-    Why::Universal
-}
-
-fn age_days(doc: &NoteDoc, now_ms: Option<i64>) -> f64 {
-    let Some(now) = now_ms else {
-        return 0.0;
-    };
-    let elapsed = now.saturating_sub(doc.meta.created_ms).max(0);
-    f64::from(i32::try_from(elapsed / 86_400_000).unwrap_or(i32::MAX))
 }

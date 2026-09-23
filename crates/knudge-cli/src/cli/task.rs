@@ -1,6 +1,6 @@
 //! Subcomandos de `kd task` (hierarquia fechada `plan ⊃ epic ⊃ issue ⊃ task`, D93).
 
-use clap::{Args, Subcommand};
+use clap::{Args, Subcommand, ValueEnum};
 
 /// Subcomandos de tarefa.
 #[allow(
@@ -138,9 +138,20 @@ pub struct TaskListArgs {
     /// Só tarefas bloqueadas.
     #[arg(long)]
     pub blocked: bool,
-    /// Com `--blocked`, acrescenta o motivo (`blocked_by=`/`not_before=`/`cycle`).
+    /// Com `--blocked`, acrescenta o motivo (`blocked_by=`/`not_before=`/`cycle`);
+    /// com `--sort impact`, acrescenta `unblocks=N` (D109).
     #[arg(long)]
     pub explain: bool,
+    /// Ordenação derivada do grafo (D109).
+    #[arg(long, value_enum, value_name = "CAMPO")]
+    pub sort: Option<TaskSort>,
+}
+
+/// Campo de ordenação de `kd task list` (D109).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum TaskSort {
+    /// Impacto de desbloqueio: tarefas abertas que dependem do nó (transitivo).
+    Impact,
 }
 
 /// Argumentos de `kd task new`.

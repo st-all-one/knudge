@@ -4,10 +4,10 @@ use crate::Result;
 use crate::graph::Graph;
 use crate::ports::fakes::MemFs;
 use crate::retrieval::{Index, RecallQuery, Why, format_hit, get, recall};
-use crate::schema::{NoteType, id};
-use crate::store::Store;
+use crate::schema::{NoteType, Scope, id};
+use crate::store::{Note, Store};
 
-use super::{anchored, note};
+use super::{anchored, base, note, with_anchors, with_outcomes, with_scope};
 
 #[test]
 fn pipe_format_golden() -> Result<()> {
@@ -100,6 +100,51 @@ fn failed_channel_degrades_and_strict_errors() -> Result<()> {
 
     query.strict = true;
     assert!(recall(&index, &graph, &query).is_err());
+    Ok(())
+}
+
+#[test]
+fn task_confirmation_raises_confidence_and_rank() -> Result<()> {
+    let task = Note::new(
+        with_anchors(
+            with_scope(
+                with_outcomes(base(NoteType::Task, "implementar retry")?, &["success"])?,
+                Scope::Task,
+            )?,
+            &["src/retry.ts"],
+        )?,
+        "",
+    );
+    let confirmed = anchored(NoteType::Decision, "jitter backoff alfa", &["src/retry.ts"])?;
+    let plain = anchored(NoteType::Decision, "jitter backoff beta", &["src/other.ts"])?;
+    let confirmed_id = confirmed.id()?.to_string();
+    let plain_id = plain.id()?.to_string();
+
+    let index = Index::build(&[task, confirmed, plain])?;
+    let graph = Graph::from_notes(Vec::new())?;
+    let output = recall(&index, &graph, &RecallQuery::new("jitter backoff"))?;
+
+    let confidence = |id: &str| {
+        output
+            .hits
+            .iter()
+            .find(|hit| hit.id == id)
+            .map(|hit| hit.confidence)
+    };
+    let Some(confirmed_confidence) = confidence(&confirmed_id) else {
+        return Ok(());
+    };
+    let Some(plain_confidence) = confidence(&plain_id) else {
+        return Ok(());
+    };
+    assert!(
+        confirmed_confidence > plain_confidence,
+        "tarefa não confirmou: {confirmed_confidence} <= {plain_confidence}"
+    );
+    assert_eq!(
+        output.hits.first().map(|hit| hit.id.as_str()),
+        Some(confirmed_id.as_str())
+    );
     Ok(())
 }
 

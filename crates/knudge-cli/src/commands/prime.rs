@@ -45,7 +45,7 @@ ESTADO / HANDOFF:
 TAREFAS: kd task new|list|show|update|close|claim|graph|plan  (plan ⊃ epic ⊃ issue ⊃ task, máx. 4)
   kd task new ... --kind error|question|risk|decision   # espécie (D113)
   kd task claim <ID> --by <agente>|--release             # dono derivado (D114)
-  kd task list --ready|--blocked [--explain] [--kind K] [--owner A|--mine]
+  kd task list --ready|--blocked [--explain] [--sort impact] [--kind K] [--owner A|--mine]
   kd task plan <ID> --prompt [--template T]  |  --submit --from -   # plano TOON (D105)
   kd task graph [--program plan/<slug>.md|--root ID]   # role|kind|status|owner|mode (D116)
 MANUTENÇÃO: kd maintenance doctor|audit|compact|eval|index|learn  (learn/compact só propõem)

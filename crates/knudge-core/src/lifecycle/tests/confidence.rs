@@ -14,6 +14,7 @@ fn result_is_always_in_unit_range() {
         drift: 10.0,
         age_days: 1_000_000.0,
         feedback: 10.0,
+        task_confirmation: 10.0,
     };
     let score = confidence_score(&extreme);
     assert!((0.0..=1.0).contains(&score), "score fora de [0,1]: {score}");
@@ -46,6 +47,17 @@ proptest! {
     }
 
     #[test]
+    fn monotone_in_task_confirmation(
+        similarity in 0.0_f64..1.0,
+        delta in 0.0_f64..1.0,
+        task_confirmation in 0.0_f64..1.0,
+    ) {
+        let low = ConfidenceInput { similarity, task_confirmation, ..Default::default() };
+        let high = ConfidenceInput { similarity, task_confirmation: (task_confirmation + delta).min(1.0), ..Default::default() };
+        prop_assert!(confidence_score(&high) >= confidence_score(&low) - 1e-12);
+    }
+
+    #[test]
     fn decreasing_in_drift_and_age(
         similarity in 0.0_f64..1.0,
         drift in 0.0_f64..1.0,
@@ -68,8 +80,9 @@ proptest! {
         drift in -5.0_f64..5.0,
         age_days in 0.0_f64..1_000_000.0,
         feedback in -5.0_f64..5.0,
+        task_confirmation in -5.0_f64..5.0,
     ) {
-        let score = confidence_score(&ConfidenceInput { similarity, confirmation, drift, age_days, feedback });
+        let score = confidence_score(&ConfidenceInput { similarity, confirmation, drift, age_days, feedback, task_confirmation });
         prop_assert!((0.0..=1.0).contains(&score));
         prop_assert!(!score.is_nan());
     }

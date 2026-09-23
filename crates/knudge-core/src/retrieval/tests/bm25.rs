@@ -80,3 +80,27 @@ fn empty_query_yields_no_hits() -> Result<()> {
     assert!(index.score("   ", &allowed(&index)).is_empty());
     Ok(())
 }
+
+#[test]
+fn task_boost_raises_score() -> Result<()> {
+    let plain = note(NoteType::Fact, "cache alfa", "")?;
+    let boosted = note(NoteType::Fact, "cache beta", "")?;
+    let boosted_id = id_of(&boosted)?;
+    let index = Index::build(&[plain, boosted])?;
+    let allowed = allowed(&index);
+
+    let base = index.score("cache", &allowed);
+    let with_boost = index.score_with("cache", &allowed, |meta| {
+        if meta.id == boosted_id { 0.5 } else { 0.0 }
+    });
+    let base_score = base
+        .iter()
+        .find(|hit| hit.id == boosted_id)
+        .map(|hit| hit.score);
+    let boosted_score = with_boost
+        .iter()
+        .find(|hit| hit.id == boosted_id)
+        .map(|hit| hit.score);
+    assert!(boosted_score > base_score, "boost não alterou o score");
+    Ok(())
+}

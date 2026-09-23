@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 use knudge_core::Result;
 use knudge_core::embeddings::{EmbeddingIndex, rank_query};
 use knudge_core::graph::Graph;
+use knudge_core::lifecycle::DEFAULT_TASK_CONFIRMATION;
 use knudge_core::retrieval::{
     DEFAULT_LIMIT, DEFAULT_RRF_K, Filter, RecallHit, RecallQuery, format_brief, format_hit, get,
     recall, tag_counts,
@@ -110,6 +111,9 @@ fn recall_query(session: &Session, args: &AskArgs) -> Result<Output> {
         .limit
         .unwrap_or_else(|| usize_from(config.get_int("recall.default_limit"), DEFAULT_LIMIT));
     query.rrf_k = u32_from(config.get_int("recall.rrf_k"), DEFAULT_RRF_K);
+    query.task_confirmation_weight = config
+        .get_float("recall.confirmation_from_tasks")
+        .unwrap_or(DEFAULT_TASK_CONFIRMATION);
     let statuses = parse::statuses(args.status.iter().cloned().collect::<Vec<_>>().as_slice())?;
     let statuses = if statuses.is_empty() {
         // Soft-delete/supersede ficam fora do `ask` por padrão (D43); peça

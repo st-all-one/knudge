@@ -42,6 +42,7 @@ fn match_note_distinguishes_file_and_id() {
     let meta = Meta {
         id: "fact_00000001".to_string(),
         note_type: NoteType::Fact,
+        scope: None,
         classification: Classification::Tactical,
         status: Status::Active,
         tags: Vec::new(),

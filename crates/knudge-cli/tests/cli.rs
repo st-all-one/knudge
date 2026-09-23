@@ -361,6 +361,102 @@ fn task_list_ready_blocked_and_explain() -> TestResult {
 }
 
 #[test]
+fn task_list_sort_impact_orders_critical_path() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let base = task_new(&dir, &["task", "new", "Base", "--scope", "task"])?;
+    let parallel = task_new(&dir, &["task", "new", "Paralela", "--scope", "task"])?;
+    let middle = task_dep(&dir, "Depende da base", &base)?;
+    let _leaf = task_dep(&dir, "Depende do meio", &middle)?;
+
+    let out = run_in(
+        &dir,
+        &["task", "list", "--ready", "--sort", "impact", "--explain"],
+    )?;
+    assert!(out.status.success(), "list falhou: {:?}", out.stderr);
+    let text = String::from_utf8(out.stdout)?;
+    let base_line = line_of(&text, &base)?;
+    let parallel_line = line_of(&text, &parallel)?;
+    assert!(base_line.ends_with("|unblocks=2"), "linha: {base_line}");
+    assert!(
+        parallel_line.ends_with("|unblocks=0"),
+        "linha: {parallel_line}"
+    );
+    assert!(
+        text.find(&base).ok_or("base ausente")? < text.find(&parallel).ok_or("paralela ausente")?,
+        "impacto não ordenou: {text}"
+    );
+
+    let json_out = run_in(
+        &dir,
+        &["--json", "task", "list", "--ready", "--sort", "impact"],
+    )?;
+    let value = json(&json_out)?;
+    let first = value
+        .get("data")
+        .and_then(|data| data.get("tasks"))
+        .and_then(|tasks| tasks.as_array())
+        .and_then(|tasks| tasks.first())
+        .ok_or("sem tasks")?;
+    assert_eq!(
+        first.get("id").and_then(|id| id.as_str()),
+        Some(base.as_str())
+    );
+    assert_eq!(
+        first.get("impact").and_then(serde_json::Value::as_u64),
+        Some(2)
+    );
+    Ok(())
+}
+
+#[test]
+fn task_list_sort_impact_skips_closed() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let done = task_new(&dir, &["task", "new", "Feita", "--scope", "task"])?;
+    let _waiting = task_dep(&dir, "Espera a feita", &done)?;
+    let out = run_in(&dir, &["task", "update", &done, "--status", "closed"])?;
+    assert!(out.status.success(), "close falhou: {:?}", out.stderr);
+
+    let sorted = run_in(&dir, &["task", "list", "--ready", "--sort", "impact"])?;
+    let text = String::from_utf8(sorted.stdout)?;
+    assert!(!text.contains(&done), "closed apareceu no impacto: {text}");
+
+    let ready = run_in(&dir, &["task", "list", "--ready"])?;
+    let text = String::from_utf8(ready.stdout)?;
+    assert!(text.contains(&done), "closed sumiu do --ready: {text}");
+    Ok(())
+}
+
+/// Cria uma tarefa `--scope task` dependente de `dep`.
+fn task_dep(dir: &Path, statement: &str, dep: &str) -> Result<String, Box<dyn std::error::Error>> {
+    task_new(
+        dir,
+        &[
+            "task",
+            "new",
+            statement,
+            "--scope",
+            "task",
+            "--depends-on",
+            dep,
+        ],
+    )
+}
+
+/// Linha de `task list` que começa com `id`.
+fn line_of(text: &str, id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    text.lines()
+        .find(|line| line.starts_with(id))
+        .map(str::to_string)
+        .ok_or_else(|| format!("linha ausente: {id}").into())
+}
+
+#[test]
 fn task_kind_sets_type_and_filters() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
@@ -890,5 +986,121 @@ fn rewind_manifest_shows_next_and_fresh() -> TestResult {
         text.contains("\nfresh: stale=0 expiring=0 pending="),
         "sem fresh: {text}"
     );
+    Ok(())
+}
+
+/// Escreve uma nota tipada com âncora e devolve o id.
+fn write_typed(
+    dir: &Path,
+    statement: &str,
+    note_type: &str,
+    anchor: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let out = run_in(
+        dir,
+        &[
+            "--json",
+            "write",
+            statement,
+            "--type",
+            note_type,
+            "--anchors",
+            anchor,
+        ],
+    )?;
+    assert!(out.status.success(), "write falhou: {:?}", out.stderr);
+    let id = json(&out)?
+        .get("data")
+        .and_then(|data| data.get("id"))
+        .and_then(|id| id.as_str())
+        .ok_or("write sem id")?
+        .to_string();
+    Ok(id)
+}
+
+#[test]
+fn task_outcome_promotes_anchored_note_in_ask() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let confirmed = write_typed(&dir, "jitter backoff alfa", "decision", "src/retry.ts")?;
+    let plain = write_typed(&dir, "jitter backoff beta", "decision", "src/other.ts")?;
+
+    let task = task_new(
+        &dir,
+        &[
+            "task",
+            "new",
+            "implementar retry",
+            "--scope",
+            "task",
+            "--anchors",
+            "src/retry.ts",
+        ],
+    )?;
+    let outcome = run_in(&dir, &["write", "--outcome", "success", &task])?;
+    assert!(
+        outcome.status.success(),
+        "outcome falhou: {:?}",
+        outcome.stderr
+    );
+
+    let after = run_in(&dir, &["--json", "ask", "jitter backoff"])?;
+    assert!(after.status.success(), "ask falhou: {:?}", after.stderr);
+    let hits = json(&after)?
+        .get("data")
+        .and_then(|data| data.get("hits"))
+        .and_then(|hits| hits.as_array())
+        .cloned()
+        .ok_or("sem hits")?;
+    let confidence = |target: &str| {
+        hits.iter()
+            .find(|hit| hit.get("id").and_then(|value| value.as_str()) == Some(target))
+            .and_then(|hit| hit.get("confidence"))
+            .and_then(serde_json::Value::as_f64)
+    };
+    let confirmed_confidence = confidence(&confirmed).ok_or("confirmed ausente")?;
+    let plain_confidence = confidence(&plain).ok_or("plain ausente")?;
+    assert!(
+        confirmed_confidence > plain_confidence,
+        "confirmação não elevou: {confirmed_confidence} <= {plain_confidence}"
+    );
+    Ok(())
+}
+
+#[test]
+fn rewind_files_promotes_task_confirmed_note() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let confirmed = write_typed(&dir, "usar full jitter", "decision", "src/retry.ts")?;
+    let task = task_new(
+        &dir,
+        &[
+            "task",
+            "new",
+            "implementar retry",
+            "--scope",
+            "task",
+            "--anchors",
+            "src/retry.ts",
+        ],
+    )?;
+    let outcome = run_in(&dir, &["write", "--outcome", "success", &task])?;
+    assert!(
+        outcome.status.success(),
+        "outcome falhou: {:?}",
+        outcome.stderr
+    );
+
+    let out = run_in(&dir, &["rewind", "--files", "src/retry.ts"])?;
+    assert!(out.status.success(), "rewind falhou: {:?}", out.stderr);
+    let text = String::from_utf8(out.stdout)?;
+    let promoted = text
+        .lines()
+        .any(|line| line.starts_with(&format!("{confirmed}|")) && line.ends_with("|star"));
+    assert!(promoted, "nota não promovida a star: {text}");
     Ok(())
 }

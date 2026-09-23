@@ -5,7 +5,7 @@
 
 use crate::Result;
 use crate::retrieval::anchor::glob_match;
-use crate::schema::{Classification, Frontmatter, NoteType, Status, Value};
+use crate::schema::{Classification, Frontmatter, NoteType, Scope, Status, Value};
 use crate::time::Timestamp;
 
 /// Metadados de uma nota usados por filtros, `why` e boost.
@@ -15,6 +15,8 @@ pub struct Meta {
     pub id: String,
     /// Tipo fechado.
     pub note_type: NoteType,
+    /// Escopo de tarefa, quando houver (nível; D113).
+    pub scope: Option<Scope>,
     /// Classificação de maturidade.
     pub classification: Classification,
     /// Estado.
@@ -38,6 +40,7 @@ impl Meta {
         Ok(Self {
             id: frontmatter.id()?.to_string(),
             note_type: frontmatter.note_type()?,
+            scope: frontmatter.scope()?,
             classification: frontmatter.classification()?,
             status: frontmatter.status()?,
             tags: string_list(frontmatter, "tags"),
@@ -103,7 +106,7 @@ impl Filter {
 ///
 /// Aceita o pedido como glob (`V2/**` casa `V2/x.rs`) e a âncora como glob
 /// (`src/**` casa `src/x.rs`), para que `ask --anchor <path>` se comporte como o canal.
-fn anchor_matches(requested: &str, anchor: &str) -> bool {
+pub(crate) fn anchor_matches(requested: &str, anchor: &str) -> bool {
     glob_match(requested, anchor) || glob_match(anchor, requested)
 }
 

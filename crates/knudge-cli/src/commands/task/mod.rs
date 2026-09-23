@@ -5,6 +5,7 @@ mod graph;
 mod mutate;
 mod plan;
 mod query;
+mod render;
 
 use knudge_core::Result;
 

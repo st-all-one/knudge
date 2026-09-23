@@ -7,6 +7,7 @@
 use std::cmp::Ordering;
 
 use crate::graph::Graph;
+use crate::lifecycle::confidence::{DEFAULT_TASK_CONFIRMATION, from_tasks_with, is_success_task};
 use crate::retrieval::anchor::glob_match;
 use crate::retrieval::views::compute_views;
 use crate::retrieval::{Index, Meta};
@@ -88,20 +89,44 @@ pub struct ManifestItem {
 /// Ranqueia as notas do modo (escopo ou working set).
 #[must_use]
 pub fn rank(index: &Index, graph: &Graph, mode: &RewindMode) -> Vec<ManifestItem> {
+    rank_with(index, graph, mode, DEFAULT_TASK_CONFIRMATION)
+}
+
+/// Como [`rank`], promovendo a `Star` notas confirmadas por tarefas (X1/D108).
+#[must_use]
+pub fn rank_with(
+    index: &Index,
+    graph: &Graph,
+    mode: &RewindMode,
+    task_confirmation_weight: f64,
+) -> Vec<ManifestItem> {
     let roots = match mode {
         RewindMode::Files(paths) => program_roots(index, graph, paths),
         _ => Vec::new(),
     };
+    let confirmers: Vec<&Meta> = index
+        .docs
+        .iter()
+        .map(|doc| &doc.meta)
+        .filter(|meta| is_success_task(meta))
+        .collect();
     let mut items: Vec<ManifestItem> = index
         .docs
         .iter()
         .filter(|doc| in_mode(&doc.meta, graph, mode, &roots))
-        .map(|doc| ManifestItem {
-            id: doc.meta.id.clone(),
-            statement: doc.statement.clone(),
-            tier: tier_of(&doc.meta),
-            score: trust_score(&doc.meta),
-            created_ms: doc.meta.created_ms,
+        .map(|doc| {
+            let confirmed = from_tasks_with(&doc.meta, &confirmers, task_confirmation_weight) > 0.0;
+            ManifestItem {
+                id: doc.meta.id.clone(),
+                statement: doc.statement.clone(),
+                tier: if confirmed {
+                    TrustTier::Star
+                } else {
+                    tier_of(&doc.meta)
+                },
+                score: trust_score(&doc.meta) + if confirmed { 100.0 } else { 0.0 },
+                created_ms: doc.meta.created_ms,
+            }
         })
         .collect();
     items.sort_by(compare);

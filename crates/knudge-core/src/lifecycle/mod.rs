@@ -16,7 +16,10 @@ pub mod supersession;
 mod tests;
 
 pub use clusters::{Cluster, ClusterAxis, container_of, structural_clusters};
-pub use confidence::{ConfidenceInput, age_factor, confidence_score, drift_factor};
+pub use confidence::{
+    ConfidenceInput, DEFAULT_TASK_CONFIRMATION, age_factor, confidence_score, drift_factor,
+    from_tasks, from_tasks_with, is_success_task,
+};
 pub use decay::{
     AnchorValidity, DecayPolicy, compute_anchor_validity, compute_anchor_validity_with, has_glob,
     should_demote, walk_paths,

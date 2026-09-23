@@ -1,7 +1,7 @@
 //! Testes do retrieval (E06).
 
 use crate::Result;
-use crate::schema::{Frontmatter, NoteType, Status, Value, body, id};
+use crate::schema::{Frontmatter, NoteType, Scope, Status, Value, body, id};
 use crate::store::Note;
 
 mod anchor;
@@ -63,6 +63,12 @@ pub(super) fn with_anchors(mut frontmatter: Frontmatter, anchors: &[&str]) -> Re
 /// Aplica `status`.
 pub(super) fn with_status(mut frontmatter: Frontmatter, status: Status) -> Result<Frontmatter> {
     frontmatter.set("status", Value::Str(status.as_str().to_string()))?;
+    Ok(frontmatter)
+}
+
+/// Aplica `scope` (nível de tarefa — D113).
+pub(super) fn with_scope(mut frontmatter: Frontmatter, scope: Scope) -> Result<Frontmatter> {
+    frontmatter.set("scope", Value::Str(scope.as_str().to_string()))?;
     Ok(frontmatter)
 }
 

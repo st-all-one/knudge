@@ -6,6 +6,7 @@
 
 use std::collections::BTreeSet;
 
+use crate::retrieval::filter::Meta;
 use crate::retrieval::index::{Field, Index, NoteDoc};
 use crate::retrieval::token::query_terms;
 use crate::schema::NoteType;
@@ -47,6 +48,20 @@ impl Index {
     /// Pontua o corpus (restrito a `allowed`) por uma consulta livre.
     #[must_use]
     pub fn score(&self, query: &str, allowed: &BTreeSet<String>) -> Vec<Bm25Hit> {
+        self.score_with(query, allowed, |_| 0.0)
+    }
+
+    /// Como [`Index::score`], mas multiplica o score de cada doc por `1 + boost(meta)`.
+    ///
+    /// O `boost` é a confirmação derivada de tarefas (X1/D108); o closure só é chamado para
+    /// documentos que casam a consulta (o termo lexical é o gate).
+    #[must_use]
+    pub fn score_with<F: Fn(&Meta) -> f64>(
+        &self,
+        query: &str,
+        allowed: &BTreeSet<String>,
+        boost: F,
+    ) -> Vec<Bm25Hit> {
         let terms = query_terms(query);
         if terms.is_empty() {
             return Vec::new();
@@ -56,13 +71,15 @@ impl Index {
             if !allowed.contains(&doc.meta.id) {
                 continue;
             }
-            let score = self.score_doc(doc, &terms);
-            if score > 0.0 {
-                hits.push(Bm25Hit {
-                    id: doc.meta.id.clone(),
-                    score,
-                });
+            let base = self.score_doc(doc, &terms);
+            if base <= 0.0 {
+                continue;
             }
+            let score = base * (1.0 + boost(&doc.meta).max(0.0));
+            hits.push(Bm25Hit {
+                id: doc.meta.id.clone(),
+                score,
+            });
         }
         hits.sort_by(|a, b| b.score.total_cmp(&a.score).then_with(|| a.id.cmp(&b.id)));
         hits

@@ -200,6 +200,14 @@ impl Frontmatter {
         self.optional_timestamp("not_before")
     }
 
+    /// Campo `created_at` (RFC3339 → ms); `0` se ausente.
+    ///
+    /// # Errors
+    /// Retorna `ErrorKind::Schema` se `created_at` estiver presente e não for timestamp.
+    pub fn created_at(&self) -> Result<i64> {
+        Ok(self.optional_timestamp("created_at")?.unwrap_or(0))
+    }
+
     fn optional_timestamp(&self, key: &str) -> Result<Option<i64>> {
         match self.fields.get(key) {
             None => Ok(None),

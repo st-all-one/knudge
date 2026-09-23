@@ -62,6 +62,11 @@ kd ask [QUERY]
 O canal **vetorial** entra automaticamente quando `recall.semantic = true` (default) e há índice
 (`recall.semantic_top_k`); provedor fora do ar degrada para BM25 com `warnings` (D102).
 
+O **feedback tarefa→conhecimento** (X1/D108) é derivado em tempo de consulta: tarefas com
+`outcomes` de sucesso que compartilham `anchors` confirmam a nota — o peso
+`recall.confirmation_from_tasks` (float, default `0.1`) entra no boost do BM25 e em
+`hits[].confidence`, e o manifest de `rewind` promove a `star`. Sem `write` (D87).
+
 ## 4. `kd write` — toda escrita
 
 Create idempotente por conteúdo + protocolo de dedup (0.75/0.92). `--update` versiona;
@@ -120,7 +125,7 @@ kd task new <STATEMENT> --scope <plan|epic|issue|task>
   [--body <TXT|->] [--checks <NAME>...] [--anchor <PATH>...] [--source <F>]
   [--depends-on <ID>...] [--not-before <TS>] [--expires-at <TS>]
 kd task list [--scope ...] [--status ...] [--kind ...] [--parent <ID>]
-  [--ready|--blocked [--explain]] [--owner <A>|--mine]
+  [--ready|--blocked [--explain]] [--sort impact] [--owner <A>|--mine]
 kd task show <ID> [--history]
 kd task graph [--program <PATH>|--root <ID>]
 kd task update <ID> [--statement <S>] [--status <S>] [--parent <ID>] [--checks ...]
@@ -136,6 +141,10 @@ kd task plan <ID> [--prompt [--template <NOME>] | --submit --from <TXT|->]
 - `--kind` grava a **espécie** mantendo o `scope` (D113); `--owner`/`--mine` filtram pelo dono
   **derivado** de `claim`/`release` (D114, `KNUDGE_AGENT`).
 - `list --ready|--blocked` filtra pelas views derivadas; `--explain` acrescenta o motivo (D104).
+- `list --sort impact` ordena o **caminho crítico** por impacto de desbloqueio
+  (`impacto desc, created asc, id asc`); `--explain` acrescenta `unblocks=N` e o `--json` traz
+  `impact`. O modo ignora `closed`/`superseded`/`forgotten`, como o `next:` do `rewind`
+  (D109/D106).
 - `plan --prompt` deriva o prompt TOON do template (`feature`/`bug`/`refactor`,
   `.knudge/templates.toml`); `--submit --from -` lê o plano TOON e valida tudo **antes** de
   escrever (D105).

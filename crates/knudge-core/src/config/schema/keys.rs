@@ -37,6 +37,11 @@ pub const KEYS: &[KeySpec] = &[
         default: Default::Int(60),
     },
     KeySpec {
+        key: "recall.confirmation_from_tasks",
+        kind: Kind::Float,
+        default: Default::Float(0.1),
+    },
+    KeySpec {
         key: "recall.semantic",
         kind: Kind::Bool,
         default: Default::Bool(true),

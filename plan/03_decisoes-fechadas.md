@@ -310,6 +310,8 @@
 | D105 | Plano preenchível por LLM: `kd task plan --prompt` (derivado) e `--submit --from` (TOON); templates em `.knudge/templates.toml` (D97) sobrepõem built-ins; submissão **atômica**. |
 | D106 | `rewind` emite `next:` (tarefas `ready` abertas por impacto) e `fresh:` (`stale`/`expiring`/`pending`); `prime` permanece estático (D57). `impact` = tarefas abertas com `depends_on` reverso. |
 | D107 | `kd ask --tags` lista o vocabulário de tags (`tag\|count`, `count` desc, `tag` asc), ignorando `forgotten`/`superseded`. |
+| D108 | Feedback derivado **tarefa→conhecimento**: tarefas com `outcomes` de sucesso que compartilham `anchors` confirmam a nota (`task_confirmation`), alimentando o boost do BM25 e a confiança derivada — sem `write`. Peso em `recall.confirmation_from_tasks` (float, default 0.1); o manifest promove a `star`. |
+| D109 | Impacto de desbloqueio **derivado** como modo `kd task list --sort impact` (ordem `impacto desc, created asc, id asc`); `--explain` acrescenta `unblocks=N`; sem chave de prioridade. O modo filtra `closed`/`superseded`/`forgotten`. |
 | D113 | `scope` = nível, `type` = espécie; `kd task new --kind`; `scope` exigido só para `task`/`container`, opcional nos demais itens de trabalho. |
 | D114 | Dono **derivado de eventos** `claim`/`release`; `kd task claim`; `--owner`/`--mine` (`KNUDGE_AGENT`). Sem chave canônica. |
 | D115 | Papel (Initiative/Epic/Feature/Story/Sub-task/Bug/Spike/Risk/Decision) **derivado** de `(scope, type, tem_filhos)`; nunca armazenado. |

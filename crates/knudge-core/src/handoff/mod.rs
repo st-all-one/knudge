@@ -17,7 +17,7 @@ mod tests;
 pub use budget::{BudgetSummary, Budgeted, DEFAULT_BUDGET, MIN_TAIL, apply_into, estimate_tokens};
 pub use context::{CONTEXT_PREFIX, ContextStore, derive_id, is_valid_context_id};
 pub use manifest::{
-    ManifestItem, TrustTier, manifest_text, rank, render_item, tier_of, trust_score,
+    ManifestItem, TrustTier, manifest_text, rank, rank_with, render_item, tier_of, trust_score,
 };
 pub use next::{NextTask, manifest_at, next_tasks};
 pub use scope::{FLIP_CONTAINERS, FLIP_NOTES, detect_scope, should_flip};
@@ -89,6 +89,8 @@ pub struct RewindInput<'a> {
     pub changed_paths: &'a [String],
     /// Frescor do corpus (shelf-life + fila de embeddings — D106).
     pub freshness: Freshness,
+    /// Peso da confirmação derivada de tarefas (X1/D108).
+    pub task_confirmation_weight: f64,
     /// Instante atual (ms).
     pub now_ms: i64,
 }
@@ -140,7 +142,12 @@ pub fn rewind(
             (text, Vec::new(), false, dropped)
         }
         RewindMode::Scope(_) | RewindMode::Files(_) => {
-            let items = rank(input.index, input.graph, &mode);
+            let items = rank_with(
+                input.index,
+                input.graph,
+                &mode,
+                input.task_confirmation_weight,
+            );
             let lines: Vec<String> = items.iter().map(render_item).collect();
             let budgeted = budget::apply(&lines, request.budget);
             (budgeted.text, items, budgeted.truncated, budgeted.dropped)

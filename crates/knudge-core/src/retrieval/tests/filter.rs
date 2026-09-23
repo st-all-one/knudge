@@ -107,6 +107,7 @@ fn empty_meta() -> Meta {
     Meta {
         id: "fact_00000000".to_string(),
         note_type: NoteType::Fact,
+        scope: None,
         classification: Classification::Tactical,
         status: Status::Active,
         tags: Vec::new(),

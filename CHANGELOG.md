@@ -29,10 +29,31 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 ### Alterado
 - **`kd prime`** passa a listar `ask --tags` e as linhas `next:`/`fresh:` do `rewind`; goldens
   `prime.txt`/`json_prime.json` regenerados.
+- **`kd prime`** passa a listar `task list --sort impact`; goldens regenerados.
 - **`rewind`**: a linha `embeddings_pending=N` vira `fresh: stale=… expiring=… pending=N`
   (D106).
+- **Confiança derivada**: `ConfidenceInput` ganha `task_confirmation` (X1/D108); o `ask` reflete
+  a confirmação por tarefa em `hits[].confidence`. Novo campo `Meta.scope` (persistido no índice
+  derivado; opcional em índices antigos — D15).
 
 ### Adicionado
+- **`kd task list --sort impact`** (D109): ordena o caminho crítico por `(impacto desc,
+  created asc, id asc)`, onde impacto = tarefas **abertas** que dependem transitivamente
+  (`depends_on` reverso); `--explain` acrescenta `unblocks=N` e o `--json` traz `impact`. O
+  modo `--sort impact` ignora `closed`/`superseded`/`forgotten` (ao contrário da view `--ready`,
+  que os mantém — D104). `task::is_actionable` é compartilhado com o `next:` do `rewind`.
+  Regressão: `task::tests::impact::adding_dependency_never_decreases_impact`,
+  `task::tests::impact::actionable_excludes_terminal_statuses`,
+  `cli::task_list_sort_impact_orders_critical_path`, `cli::task_list_sort_impact_skips_closed`.
+- **Feedback derivado tarefa→conhecimento (X1/D108)**: tarefas com `outcomes` de sucesso que
+  compartilham `anchors` confirmam a nota — `task_confirmation` entra no boost do BM25 (canal
+  lexical), na confiança derivada (`hits[].confidence`) e promove a `star` no manifest de
+  `rewind`. Peso em `recall.confirmation_from_tasks` (float, 0.1); sem `write` (D87). Regressão:
+  `lifecycle::tests::from_tasks::*`, `lifecycle::tests::confidence::monotone_in_task_confirmation`,
+  `retrieval::tests::bm25::task_boost_raises_score`,
+  `retrieval::tests::recall::task_confirmation_raises_confidence_and_rank`,
+  `cli::task_outcome_promotes_anchored_note_in_ask`,
+  `cli::rewind_files_promotes_task_confirmed_note`.
 - **`rewind` com `next:` e `fresh:`** (D106): o manifest dinâmico lista as tarefas `ready`
   **abertas** de maior impacto (`next:`) e o frescor do corpus
   (`fresh: stale/expiring/pending`); `K` deriva do orçamento e o excedente vira `dropped`.

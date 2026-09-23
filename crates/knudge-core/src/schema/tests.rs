@@ -185,6 +185,17 @@ fn frontmatter_round_trips_via_toon() -> Result<()> {
 }
 
 #[test]
+fn created_at_reads_string_int_and_absent() -> Result<()> {
+    let mut fm = valid_frontmatter()?;
+    assert!(fm.created_at()? > 0, "RFC3339 deve virar ms");
+    fm.set("created_at", Value::Int(1_234))?;
+    assert_eq!(fm.created_at()?, 1_234);
+    let _removed = fm.remove("created_at");
+    assert_eq!(fm.created_at()?, 0);
+    Ok(())
+}
+
+#[test]
 fn not_before_is_optional_and_round_trips() -> Result<()> {
     let mut fm = valid_frontmatter()?;
     assert_eq!(fm.not_before()?, None);
