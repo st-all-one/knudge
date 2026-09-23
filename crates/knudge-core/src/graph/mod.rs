@@ -19,7 +19,7 @@ pub use suggestions::{SuggestionRecord, SuggestionStore};
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::schema::{EdgeKind, Frontmatter, NoteType, Status, Value, id};
+use crate::schema::{EdgeKind, Frontmatter, NoteType, Scope, Status, Value, id};
 use crate::store::{Note, Store};
 use crate::{Error, Result};
 
@@ -28,6 +28,7 @@ use crate::{Error, Result};
 struct Node {
     id: String,
     note_type: NoteType,
+    scope: Option<Scope>,
     status: Status,
     superseded_by: Option<String>,
     not_before: Option<i64>,
@@ -63,6 +64,7 @@ impl Graph {
             let frontmatter = &note.frontmatter;
             let id = note.id()?.to_string();
             let note_type = frontmatter.note_type()?;
+            let scope = frontmatter.scope()?;
             let status = frontmatter.status()?;
             let superseded_by = match frontmatter.get("superseded_by") {
                 Some(Value::Str(target)) => Some(target.clone()),
@@ -85,6 +87,7 @@ impl Graph {
                 Node {
                     id,
                     note_type,
+                    scope,
                     status,
                     superseded_by,
                     not_before,
@@ -123,6 +126,23 @@ impl Graph {
     #[must_use]
     pub fn note_type(&self, id: &str) -> Option<NoteType> {
         self.nodes.get(id).map(|node| node.note_type)
+    }
+
+    /// Escopo de tarefa, quando houver (D113).
+    #[must_use]
+    pub fn scope(&self, id: &str) -> Option<Scope> {
+        self.nodes.get(id).and_then(|node| node.scope)
+    }
+
+    /// `true` se `id` é **item de trabalho** (D113): espécie de trabalho **com** `scope`.
+    ///
+    /// Exclui containers (plan/epic) e notas de conhecimento (ex.: um `error` sem `scope`).
+    /// É o critério das views `ready`/`blocked` e do `impact`.
+    #[must_use]
+    pub fn is_work_item(&self, id: &str) -> bool {
+        self.nodes
+            .get(id)
+            .is_some_and(|node| node.note_type.is_work_kind() && node.scope.is_some())
     }
 
     /// Status da nota.

@@ -5,6 +5,19 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 ## [Não publicado]
 
 ### Corrigido
+- **Views `ready`/`blocked`, `impact` e `next:` ignoravam espécies de trabalho (D120).**
+  `compute_views_at`/`block_reason`/`impact` filtravam `type == task`, então itens criados com
+  `--kind error|question|risk|decision` (D113) — que têm `scope` — sumiam das views embora
+  aparecessem no `task list`/`graph`. Agora o critério é **espécie de trabalho com `scope`**
+  (`NoteType::is_work_kind` + `Graph::is_work_item`); containers e conhecimento ficam de fora.
+  Regressão: `retrieval::tests::views::error_kind_work_item_is_ready_but_knowledge_error_is_not`,
+  `task::tests::impact::error_kind_work_item_counts_as_dependent`.
+- **O canal lexical casava stopwords e afogava o vetorial (D122).** Termos funcionais (`de`,
+  `a`, `o`…) e fragmentos de 1 caractere (o tokenizador ASCII quebra `são` → `s`,`o`) geravam
+  votos lexicais espúrios: em `ask "tempestade de requisições"` o topo era um erro casado só por
+  `de`. Agora `retrieval::token::content_terms` os descarta. Regressão:
+  `retrieval::tests::token::content_terms_drop_stopwords_and_short_fragments`,
+  `retrieval::tests::token::stopwords_are_sorted_for_binary_search`.
 - **`kd ask --anchor <path>` voltava vazio sem query textual e ignorava âncoras-glob.** Agora
   `--anchor` alimenta o **canal** de âncoras (D81) — a consulta funciona só com o path, sem
   query — e `Filter.anchors` casa nas **duas direções** (o pedido como glob e a âncora da nota
@@ -27,6 +40,8 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   Goldens `prime.txt`/`json_prime.json` atualizados; `kd` continua byte-idêntico a `kd prime`.
 
 ### Alterado
+- **`recall.default_limit` cai de 10 para 5** (D121): o `ask` devolvia hits demais para contexto
+  de LLM. Ajuste por config (`kd config set recall.default_limit N`).
 - **`kd prime`** passa a listar `write --batch`, `ask --rank`, `task show` multi-id,
   `task close --note`, os filtros `--tag`/`--anchor` de `task list` e `maintenance prune`;
   goldens `prime.txt`/`json_prime.json` regenerados.
@@ -40,6 +55,11 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   derivado; opcional em índices antigos — D15).
 
 ### Adicionado
+- **`why = semantic` no `ask`** (D121): um hit que veio pelo canal vetorial deixa de ser rotulado
+  `recent` e passa a mostrar `semantic`, com precedência acima da recência genérica (mas abaixo
+  de `stars`/`file_match`/`anchor_match`/`tracker_match`). Regressão:
+  `retrieval::tests::recall::vector_channel_labels_hit_as_semantic`,
+  `retrieval::tests::recall::stars_take_precedence_over_semantic`.
 - **`kd ask --rank`** (K2/D107): ranqueia por confiança **derivada** sem query textual —
   `id|statement|confidence|why` (ordem `confidence desc, id asc`); o universo é só conhecimento
   (notas sem `scope`), já que itens de trabalho têm `task list --sort impact`. Reusa

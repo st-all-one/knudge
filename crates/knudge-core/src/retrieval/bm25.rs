@@ -8,7 +8,7 @@ use std::collections::BTreeSet;
 
 use crate::retrieval::filter::Meta;
 use crate::retrieval::index::{Field, Index, NoteDoc};
-use crate::retrieval::token::query_terms;
+use crate::retrieval::token::content_terms;
 use crate::schema::NoteType;
 
 /// Constante de saturação de termo do BM25.
@@ -62,7 +62,7 @@ impl Index {
         allowed: &BTreeSet<String>,
         boost: F,
     ) -> Vec<Bm25Hit> {
-        let terms = query_terms(query);
+        let terms = content_terms(query);
         if terms.is_empty() {
             return Vec::new();
         }

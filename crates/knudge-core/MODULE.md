@@ -19,12 +19,12 @@ existem no mesmo crate, mas o domínio **nunca** as importa — só as portas.
 | `store` | Notas, eventos, lock, rebuild, purge e sweep (E03). |
 | `config` | Config em dois níveis, schema e codec TOML próprio (E04). |
 | `git` | Worktree principal, `info/exclude`, `AGENTS.md`, `sync` (E04). |
-| `graph` | Arestas explícitas, integridade, ciclos e sugestões (E05). |
-| `retrieval` | Índice derivado, BM25, âncoras, filtros, views, RRF, pipeline de hits, ranking por confiança (`rank`, D107) e vocabulário de tags (`tag_counts`, D107). |
+| `graph` | Arestas explícitas, integridade, ciclos, sugestões e **item de trabalho** (`scope`/`is_work_item`, D120) (E05). |
+| `retrieval` | Índice derivado, BM25, âncoras, filtros, views, RRF, pipeline de hits, ranking por confiança (`rank`, D107), vocabulário de tags (`tag_counts`, D107), `why` semântico (D121) e stopwords/fragmentos (`content_terms`, D122). |
 | `write` | Escrita idempotente, dedup em duas fases, update/supersede, ciclo de vida, `outcomes[]` para qualquer nota (D103) e lote JSONL (`batch`, D110). |
 | `handoff` | `rewind` (manifest com `next:`/`fresh:` — D106, escopo/files), orçamento sem tokenizer e `context_id` (E08). |
 | `maintenance` | `diff`, `learn` (write-gap, quase-duplicata, lacuna de grafo e tarefa→conhecimento — X2/D111) e `compact` como propostas (E08). |
-| `task` | Hierarquia `plan ⊃ epic ⊃ issue ⊃ task`, ciclo de vida, **espécie** (`--kind`, D113), dono derivado (`claim`, D114), **papel/modo** derivados (D115/D116), **impacto** (`impact`/`is_actionable`, D106/D109), **tags/âncoras** (D104), **templates de plano** (`--prompt`/`--from`, D105) e **programas externos** (D119). |
+| `task` | Hierarquia `plan ⊃ epic ⊃ issue ⊃ task`, ciclo de vida, **espécie** (`--kind`, D113), dono derivado (`claim`, D114), **papel/modo** derivados (D115/D116), **impacto** (`impact`/`is_actionable`, D106/D109/D120), **tags/âncoras** (D104), **templates de plano** (`--prompt`/`--from`, D105) e **programas externos** (D119). |
 | `health` | Validators, evidência, `audit`, `doctor --fix` (inclui `program-anchor` — D119), leitura tolerante e âncoras por hash (E09). |
 | `lifecycle` | Shelf-life, frescor (`freshness`, D106), confirmação por tarefa (`from_tasks`, D108), decay de âncoras, purga com retenção, confiança derivada e clusters (E09/E10). |
 | `embeddings` | Provedor HTTP plugável, cache por `body_hash`, fila lazy, purga/flush, ranking de query (`rank_query`, D102) e avaliação A/B (E11). |

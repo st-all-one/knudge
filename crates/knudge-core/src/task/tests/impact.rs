@@ -2,7 +2,7 @@
 
 use crate::Result;
 use crate::graph::Graph;
-use crate::schema::{Scope, Status};
+use crate::schema::{NoteType, Scope, Status};
 use crate::store::Note;
 use crate::task::{TaskSpec, impact, is_actionable, submit};
 use proptest::prelude::*;
@@ -34,6 +34,25 @@ fn impact_counts_open_dependents_transitively() -> Result<()> {
     assert_eq!(impact(&graph, &a), 2);
     assert_eq!(impact(&graph, &b), 1);
     assert_eq!(impact(&graph, &c), 0);
+    Ok(())
+}
+
+#[test]
+fn error_kind_work_item_counts_as_dependent() -> Result<()> {
+    let fs = MemFs::new();
+    let ctx = context(&fs)?;
+    let a = submit(&ctx, &TaskSpec::new(Scope::Task, "a"))?.id;
+    let mut b = TaskSpec::new(Scope::Task, "corrigir bug");
+    b.kind = Some(NoteType::Error);
+    b.depends_on = vec![a.clone()];
+    let _b = submit(&ctx, &b)?;
+
+    let graph = graph_of(&fs)?;
+    assert_eq!(
+        impact(&graph, &a),
+        1,
+        "espécie `error` deve contar no impacto"
+    );
     Ok(())
 }
 

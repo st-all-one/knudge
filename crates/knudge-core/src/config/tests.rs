@@ -70,7 +70,7 @@ fn effective_without_global_uses_defaults_then_project() -> Result<()> {
     project.set_str("mcp.hints_cap", "7")?;
     let effective = Config::effective(None, Some(&project));
     assert_eq!(effective.get_int("mcp.hints_cap"), Some(7));
-    assert_eq!(effective.get_int("recall.default_limit"), Some(10));
+    assert_eq!(effective.get_int("recall.default_limit"), Some(5));
     Ok(())
 }
 

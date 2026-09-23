@@ -6,7 +6,7 @@
 use std::collections::BTreeSet;
 
 use crate::graph::Graph;
-use crate::schema::{EdgeKind, NoteType, Status};
+use crate::schema::{EdgeKind, Status};
 
 /// Número de tarefas **abertas** que dependem de `id` transitivamente (`depends_on` reverso).
 ///
@@ -19,7 +19,7 @@ pub fn impact(graph: &Graph, id: &str) -> usize {
         .iter()
         .copied()
         .filter(|other| *other != id)
-        .filter(|other| graph.note_type(other) == Some(NoteType::Task))
+        .filter(|other| graph.is_work_item(other))
         .filter(|other| is_open(graph, other))
         .filter(|other| depends_on_transitively(graph, other, id))
         .count()

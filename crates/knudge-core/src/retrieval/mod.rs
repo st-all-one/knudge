@@ -32,18 +32,24 @@ pub use tags::tag_counts;
 pub use views::{BlockReason, Views, block_reason, compute_views, compute_views_at};
 pub use why::Why;
 
+use std::collections::BTreeSet;
+
 use crate::graph::Graph;
 use crate::lifecycle::confidence::DEFAULT_TASK_CONFIRMATION;
 use crate::store::{Note, Store};
 use crate::{Error, Result};
 
-use pipeline::{build_hits, candidates, lexical_channel, semantic_channel, task_confirmers};
+use pipeline::{
+    FusedChannels, build_hits, candidates, lexical_channel, semantic_channel, task_confirmers,
+};
 
 /// `k` padrão da fusão RRF (config `recall.rrf_k`).
 pub const DEFAULT_RRF_K: u32 = 60;
 
 /// Limite padrão de hits (config `recall.default_limit`).
-pub const DEFAULT_LIMIT: usize = 10;
+///
+/// 5 (D121): contexto de LLM é caro e o `ask` devolvia hits demais. Ajuste por config.
+pub const DEFAULT_LIMIT: usize = 5;
 
 /// Janela de recência do `why = recent` (7 dias em ms).
 pub const RECENT_WINDOW_MS: i64 = 604_800_000;
@@ -141,7 +147,19 @@ pub fn recall(index: &Index, graph: &Graph, query: &RecallQuery) -> Result<Recal
     } else {
         query.limit
     };
-    let hits = build_hits(&fused, index, query, graph, limit);
+    let hits = {
+        let semantic_ids: BTreeSet<&str> = semantic.iter().map(String::as_str).collect();
+        build_hits(
+            index,
+            query,
+            graph,
+            &FusedChannels {
+                fused: &fused,
+                semantic: &semantic_ids,
+            },
+            limit,
+        )
+    };
 
     if query.strict && !warnings.is_empty() {
         return Err(Error::config(format!(

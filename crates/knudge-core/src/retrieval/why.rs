@@ -18,6 +18,8 @@ pub enum Why {
     TrackerMatch,
     /// Há confirmação registrada em `outcomes` (`stars`).
     Stars,
+    /// Veio pelo **canal vetorial** (`semantic`, D121).
+    Semantic,
     /// Criada dentro da janela de recência (`recent`).
     Recent,
     /// Canal lexical geral, sem motivo mais forte (`universal`).
@@ -26,11 +28,12 @@ pub enum Why {
 
 impl Why {
     /// Todos os motivos, na ordem canônica.
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::FileMatch,
         Self::AnchorMatch,
         Self::TrackerMatch,
         Self::Stars,
+        Self::Semantic,
         Self::Recent,
         Self::Universal,
     ];
@@ -43,6 +46,7 @@ impl Why {
             Self::AnchorMatch => "anchor_match",
             Self::TrackerMatch => "tracker_match",
             Self::Stars => "stars",
+            Self::Semantic => "semantic",
             Self::Recent => "recent",
             Self::Universal => "universal",
         }

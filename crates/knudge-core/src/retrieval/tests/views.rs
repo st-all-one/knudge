@@ -3,11 +3,11 @@
 use crate::Result;
 use crate::graph::{Graph, link};
 use crate::retrieval::{BlockReason, block_reason, compute_views, compute_views_at};
-use crate::schema::{EdgeKind, NoteType, Status, Value, id};
+use crate::schema::{EdgeKind, NoteType, Scope, Status, Value, id};
 use crate::store::Note;
 use crate::time::Timestamp;
 
-use super::{base, with_status};
+use super::{base, with_scope, with_status};
 
 #[test]
 fn ready_and_blocked_follow_dependencies() -> Result<()> {
@@ -126,6 +126,26 @@ fn block_reason_reports_schedule_and_ready() -> Result<()> {
         Some(BlockReason::Scheduled(2_000))
     );
     assert_eq!(block_reason(&graph, &scheduled_id, 3_000), None);
+    Ok(())
+}
+
+#[test]
+fn error_kind_work_item_is_ready_but_knowledge_error_is_not() -> Result<()> {
+    // Espécie `error` **com** `scope` é item de trabalho (D113/D120): entra em `ready`.
+    let work_id = id::note_id(NoteType::Error, "corrigir bug");
+    let work = Note::new(
+        with_scope(base(NoteType::Error, "corrigir bug")?, Scope::Task)?,
+        "",
+    );
+    // Espécie `error` **sem** `scope` é conhecimento: não entra nas views.
+    let knowledge_id = id::note_id(NoteType::Error, "bug conhecido");
+    let knowledge = Note::new(base(NoteType::Error, "bug conhecido")?, "");
+
+    let graph = Graph::from_notes(vec![work, knowledge])?;
+    let views = compute_views(&graph);
+    assert!(views.ready.contains(&work_id));
+    assert!(!views.ready.contains(&knowledge_id));
+    assert!(!views.blocked.contains(&knowledge_id));
     Ok(())
 }
 

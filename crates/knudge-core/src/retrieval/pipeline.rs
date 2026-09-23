@@ -60,24 +60,33 @@ pub(super) fn lexical_channel(
         .collect()
 }
 
+/// Entradas da montagem dos hits: a fusão e os ids do canal vetorial (D121).
+pub(super) struct FusedChannels<'a> {
+    /// Fusão RRF já ordenada.
+    pub fused: &'a [Fused],
+    /// Ids que vieram pelo canal vetorial (para o `why`).
+    pub semantic: &'a BTreeSet<&'a str>,
+}
+
 /// Monta os hits finais (com confiança derivada e `why`) a partir da fusão RRF.
 pub(super) fn build_hits(
-    fused: &[Fused],
     index: &Index,
     query: &RecallQuery,
     graph: &Graph,
+    channels: &FusedChannels<'_>,
     limit: usize,
 ) -> Vec<RecallHit> {
     let confirmers = task_confirmers(index);
     let weight = query.task_confirmation_weight;
-    let max_score = fused.first().map_or(0.0, |hit| hit.score);
+    let semantic_ids = channels.semantic;
+    let max_score = channels.fused.first().map_or(0.0, |hit| hit.score);
     let by_id: BTreeMap<&str, &NoteDoc> = index
         .docs
         .iter()
         .map(|doc| (doc.meta.id.as_str(), doc))
         .collect();
     let mut hits = Vec::new();
-    for fused_hit in fused.iter().take(limit) {
+    for fused_hit in channels.fused.iter().take(limit) {
         let Some(doc) = by_id.get(fused_hit.id.as_str()) else {
             continue;
         };
@@ -98,7 +107,7 @@ pub(super) fn build_hits(
             statement: doc.statement.clone(),
             score: fused_hit.score,
             confidence,
-            why: choose_why(doc, query, graph),
+            why: choose_why(doc, query, graph, semantic_ids),
         });
     }
     hits
@@ -140,7 +149,7 @@ fn belongs_to(graph: &Graph, id: &str, container: &str) -> bool {
     false
 }
 
-fn choose_why(doc: &NoteDoc, query: &RecallQuery, graph: &Graph) -> Why {
+fn choose_why(doc: &NoteDoc, query: &RecallQuery, graph: &Graph, semantic: &BTreeSet<&str>) -> Why {
     let matched = anchor::match_note(&doc.meta, &query.working_paths, &query.working_ids);
     if matched.file {
         return Why::FileMatch;
@@ -155,6 +164,11 @@ fn choose_why(doc: &NoteDoc, query: &RecallQuery, graph: &Graph) -> Why {
     }
     if doc.meta.confirmation > 0.0 {
         return Why::Stars;
+    }
+    // O canal vetorial é um sinal mais forte que a recência genérica (D121): um hit que veio
+    // de um sinônimo não deve ser rotulado `recent` só por ser novo.
+    if semantic.contains(doc.meta.id.as_str()) {
+        return Why::Semantic;
     }
     if let Some(now) = query.now_ms
         && now.saturating_sub(doc.meta.created_ms) <= RECENT_WINDOW_MS

@@ -54,14 +54,16 @@ kd ask [QUERY]
   --container <ID>
   --anchor <PATH>...      # repetível; aceita vírgula (`--anchor a,b`)
   --since <TS> / --until <TS>
-  --limit <N>             # default: config recall.default_limit
+  --limit <N>             # default: config recall.default_limit (5 — D121)
   --tags                  # vocabulário de tags: tag|count (count desc, D107)
   --rank                  # ranking por confiança derivada, sem query (D107)
   --json
 ```
 
 O canal **vetorial** entra automaticamente quando `recall.semantic = true` (default) e há índice
-(`recall.semantic_top_k`); provedor fora do ar degrada para BM25 com `warnings` (D102).
+(`recall.semantic_top_k`); provedor fora do ar degrada para BM25 com `warnings` (D102). Um hit
+que veio pelo vetor aparece com `why = semantic` (D121); o canal lexical descarta stopwords e
+fragmentos de 1 char (`content_terms`, D122).
 
 O **feedback tarefa→conhecimento** (X1/D108) é derivado em tempo de consulta: tarefas com
 `outcomes` de sucesso que compartilham `anchors` confirmam a nota — o peso

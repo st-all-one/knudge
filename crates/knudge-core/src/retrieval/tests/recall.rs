@@ -88,6 +88,46 @@ fn vector_channel_respects_deterministic_filters() -> Result<()> {
 }
 
 #[test]
+fn vector_channel_labels_hit_as_semantic() -> Result<()> {
+    let fact = note(NoteType::Fact, "alpha", "")?;
+    let other = note(NoteType::Fact, "beta", "")?;
+    let fact_id = fact.id()?.to_string();
+    let index = Index::build(&[fact, other])?;
+    let graph = Graph::from_notes(Vec::new())?;
+
+    let mut query = RecallQuery::new("alpha");
+    // O canal vetorial aponta para o `fact`; a nota é recente, mas o `why` deve ser `semantic`
+    // (o sinal do vetor vence a recência genérica — D121).
+    query.vector = Some(vec![fact_id.clone()]);
+    query.now_ms = Some(1_700_000_000_000);
+    let output = recall(&index, &graph, &query)?;
+
+    let hit = output.hits.iter().find(|hit| hit.id == fact_id);
+    assert_eq!(hit.map(|hit| hit.why), Some(Why::Semantic));
+    Ok(())
+}
+
+#[test]
+fn stars_take_precedence_over_semantic() -> Result<()> {
+    let confirmed = Note::new(
+        with_outcomes(base(NoteType::Fact, "alpha")?, &["success"])?,
+        "",
+    );
+    let confirmed_id = confirmed.id()?.to_string();
+    let index = Index::build(&[confirmed])?;
+    let graph = Graph::from_notes(Vec::new())?;
+
+    let mut query = RecallQuery::new("alpha");
+    query.vector = Some(vec![confirmed_id]);
+    query.now_ms = Some(1_700_000_000_000);
+    let output = recall(&index, &graph, &query)?;
+
+    let hit = output.hits.first();
+    assert_eq!(hit.map(|hit| hit.why), Some(Why::Stars));
+    Ok(())
+}
+
+#[test]
 fn failed_channel_degrades_and_strict_errors() -> Result<()> {
     let index = Index::build(&[note(NoteType::Fact, "alpha", "")?])?;
     let graph = Graph::from_notes(Vec::new())?;

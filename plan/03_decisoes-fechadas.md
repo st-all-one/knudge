@@ -320,6 +320,9 @@
 | D115 | Papel (Initiative/Epic/Feature/Story/Sub-task/Bug/Spike/Risk/Decision) **derivado** de `(scope, type, tem_filhos)`; nunca armazenado. |
 | D116 | Modo de execução (sequential/concurrent/supervisor/handoff/magentic) **derivado** do grafo/eventos; `kd task graph` projeta `role\|kind\|status\|owner\|mode`. |
 | D119 | **Programa = arquivo externo `plan/*.md` ancorado ao Épico-raiz** (`scope=epic`, sem pai); `scope=plan` deprecado; `kd task graph --program`; check `program-anchor` no `doctor`; config `programs.glob`; `--source` em `task new`. |
+| D120 | **Item de trabalho = espécie de trabalho com `scope`** (`NoteType::is_work_kind` + `Graph::is_work_item`); as views `ready`/`blocked`, o `impact` e o `next:` passam a enxergar `--kind error\|question\|risk\|decision`. Containers e conhecimento (sem `scope`) ficam de fora. |
+| D121 | `why` do `ask` ganha **`semantic`** (canal vetorial), com precedência `file_match > anchor_match > tracker_match > stars > semantic > recent > universal`; o default de `recall.default_limit` cai de 10 para **5**. |
+| D122 | O canal lexical descarta **stopwords PT+EN** e **fragmentos de 1 caractere** (`retrieval::token::content_terms`); corrige votos espúrios (ex.: `de`) que afogavam o canal vetorial em consultas por sinônimo. |
 
 ## Pendências / pontos de atenção
 

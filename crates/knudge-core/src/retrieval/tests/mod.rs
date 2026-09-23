@@ -16,11 +16,17 @@ mod token;
 mod views;
 
 /// Frontmatter mínimo válido.
+///
+/// `Task` exige `scope` (D93/D113), então já o define; assim as views o enxergam como item de
+/// trabalho. `Error`/`Question`/`Risk`/`Decision` **não** ganham `scope` (continuam conhecimento).
 pub(super) fn base(note_type: NoteType, statement: &str) -> Result<Frontmatter> {
     let mut frontmatter = Frontmatter::new();
     frontmatter.set("id", Value::Str(id::note_id(note_type, statement)))?;
     frontmatter.set("type", Value::Str(note_type.as_str().to_string()))?;
     frontmatter.set("statement", Value::Str(statement.to_string()))?;
+    if note_type == NoteType::Task {
+        frontmatter.set("scope", Value::Str(Scope::Task.as_str().to_string()))?;
+    }
     frontmatter.set("created_at", Value::Int(1_700_000_000_000))?;
     frontmatter.set("confidence", Value::Float(0.7))?;
     frontmatter.set("body_hash", Value::Str(body::body_hash(statement, "")))?;

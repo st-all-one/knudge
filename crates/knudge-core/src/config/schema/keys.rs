@@ -29,7 +29,7 @@ pub const KEYS: &[KeySpec] = &[
     KeySpec {
         key: "recall.default_limit",
         kind: Kind::Int,
-        default: Default::Int(10),
+        default: Default::Int(5),
     },
     KeySpec {
         key: "recall.expand_depth",

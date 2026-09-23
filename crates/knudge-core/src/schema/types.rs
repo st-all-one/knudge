@@ -84,21 +84,22 @@ impl NoteType {
     /// `true` se o tipo **pode** carregar `scope` (item de trabalho ou container) — D93/D113.
     #[must_use]
     pub const fn is_scoped(self) -> bool {
-        matches!(
-            self,
-            Self::Task
-                | Self::Container
-                | Self::Error
-                | Self::Question
-                | Self::Risk
-                | Self::Decision
-        )
+        self.is_work_kind() || self.is_container()
     }
 
     /// `true` se o tipo **exige** `scope` (D93): containers e a tarefa canônica.
     #[must_use]
     pub const fn requires_scope(self) -> bool {
         matches!(self, Self::Task | Self::Container)
+    }
+
+    /// `true` se é **espécie de trabalho** (D113): aceita `scope` e não é container.
+    #[must_use]
+    pub const fn is_work_kind(self) -> bool {
+        matches!(
+            self,
+            Self::Task | Self::Error | Self::Question | Self::Risk | Self::Decision
+        )
     }
 }
 

@@ -140,7 +140,7 @@ pub fn validate_kind(scope: Scope, kind: Option<NoteType>) -> Result<()> {
     };
     let valid = match scope {
         Scope::Plan | Scope::Epic => kind == NoteType::Container,
-        Scope::Issue | Scope::Task => WORK_KINDS.contains(&kind),
+        Scope::Issue | Scope::Task => kind.is_work_kind(),
     };
     if valid {
         Ok(())

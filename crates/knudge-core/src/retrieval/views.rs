@@ -11,7 +11,7 @@
 use std::collections::BTreeSet;
 
 use crate::graph::Graph;
-use crate::schema::{EdgeKind, NoteType, Status};
+use crate::schema::{EdgeKind, Status};
 
 /// Views de trabalho derivadas do grafo.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -36,7 +36,7 @@ pub enum BlockReason {
 /// Motivo do bloqueio de `id` em `now_ms`; `None` se `ready` ou não for tarefa (D104).
 #[must_use]
 pub fn block_reason(graph: &Graph, id: &str, now_ms: i64) -> Option<BlockReason> {
-    if graph.note_type(id) != Some(NoteType::Task) {
+    if !graph.is_work_item(id) {
         return None;
     }
     let cyclic: BTreeSet<String> = graph.dependency_cycles().into_iter().flatten().collect();
@@ -84,7 +84,7 @@ pub fn compute_views_at(graph: &Graph, now_ms: i64) -> Views {
     let cyclic: BTreeSet<String> = graph.dependency_cycles().into_iter().flatten().collect();
     let mut views = Views::default();
     for id in graph.ids() {
-        if graph.note_type(id) != Some(NoteType::Task) {
+        if !graph.is_work_item(id) {
             continue;
         }
         let scheduled = graph

@@ -51,6 +51,38 @@ pub fn query_terms(input: &str) -> Vec<Cow<'_, str>> {
     out
 }
 
+/// Palavras funcionais (PT+EN) descartadas do canal lexical (D122).
+///
+/// **Ordenadas** para busca binária. São termos de altíssima frequência: no `ask` criavam
+/// votos lexicais espúrios (ex.: `de` casando quase todo o corpus) que afogavam o canal
+/// vetorial — um sinônimo puro subia no ranking por causa de `de`, não da semântica.
+pub const STOPWORDS: &[&str] = &[
+    "a", "and", "ao", "aos", "are", "as", "at", "be", "by", "com", "como", "da", "das", "de", "do",
+    "dos", "e", "em", "essa", "esse", "esta", "este", "foi", "for", "from", "how", "in", "is",
+    "isso", "isto", "it", "mais", "mas", "mesmo", "na", "nas", "no", "nos", "nossa", "nosso",
+    "num", "o", "of", "on", "or", "os", "ou", "para", "pela", "pelo", "por", "qual", "que", "quem",
+    "se", "sem", "ser", "seu", "sua", "tem", "that", "the", "this", "to", "um", "uma", "was",
+    "what", "when", "where", "which", "who", "will", "with",
+];
+
+/// `true` se o termo é palavra funcional (D122).
+#[must_use]
+pub fn is_stopword(term: &str) -> bool {
+    STOPWORDS.binary_search(&term).is_ok()
+}
+
+/// Termos de **conteúdo** da consulta: sem stopwords e sem fragmentos de 1 caractere (D122).
+///
+/// O tokenizador ASCII (D36) quebra palavras acentuadas em fragmentos (`são` → `s`,`o`), então
+/// descartar tokens de 1 caractere remove ruído que casaria quase todo o corpus.
+#[must_use]
+pub fn content_terms(input: &str) -> Vec<Cow<'_, str>> {
+    query_terms(input)
+        .into_iter()
+        .filter(|term| term.chars().count() >= 2 && !is_stopword(term))
+        .collect()
+}
+
 fn push_token<'a>(input: &'a str, begin: usize, end: usize, out: &mut Vec<Cow<'a, str>>) {
     let Some(slice) = input.get(begin..end) else {
         return;

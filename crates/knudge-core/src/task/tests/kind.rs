@@ -14,6 +14,14 @@ fn work_kinds_are_accepted_for_issues() -> Result<()> {
 }
 
 #[test]
+fn work_kinds_match_is_work_kind() {
+    // O array público e o predicado canônico não podem divergir (D113/D120).
+    for kind in NoteType::ALL {
+        assert_eq!(WORK_KINDS.contains(&kind), kind.is_work_kind());
+    }
+}
+
+#[test]
 fn containers_only_accept_container_kind() -> Result<()> {
     validate_kind(Scope::Epic, Some(NoteType::Container))?;
     assert!(validate_kind(Scope::Epic, Some(NoteType::Error)).is_err());
