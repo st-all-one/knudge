@@ -726,3 +726,105 @@ fn missing_key_reports_not_found() -> TestResult {
     assert_eq!(out.status.code(), Some(3));
     Ok(())
 }
+
+#[test]
+fn task_plan_prompt_and_submit_from_file() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let epic = task_new(&dir, &["task", "new", "Programa", "--scope", "epic"])?;
+
+    let prompt = run_in(
+        &dir,
+        &["task", "plan", &epic, "--prompt", "--template", "feature"],
+    )?;
+    assert!(
+        prompt.status.success(),
+        "prompt falhou: {:?}",
+        prompt.stderr
+    );
+    let text = String::from_utf8(prompt.stdout)?;
+    assert!(text.contains("template: feature"), "{text}");
+    assert!(text.contains("min_steps: 2"), "{text}");
+
+    let plan = "template: feature\nsections:\n  context: ctx\n  approach: app\n  steps:\n    - title: Corrigir off-by-one\n      kind: error\n    - title: Implementar retry\n  acceptance:\n    - teste passa\n";
+    let path = dir.join("plan.toon");
+    std::fs::write(&path, plan)?;
+    let file = path.to_str().ok_or("path inválido")?;
+    let submit = run_in(&dir, &["task", "plan", &epic, "--submit", "--from", file])?;
+    assert!(
+        submit.status.success(),
+        "submit falhou: {:?}",
+        submit.stderr
+    );
+    let ids = String::from_utf8(submit.stdout)?;
+    assert_eq!(ids.lines().count(), 2, "esperava 2 filhos: {ids}");
+
+    let graph = run_in(&dir, &["task", "graph", "--root", &epic])?;
+    assert!(graph.status.success(), "graph falhou: {:?}", graph.stderr);
+    let tree = String::from_utf8(graph.stdout)?;
+    assert!(tree.contains("Bug"), "sem papel Bug: {tree}");
+    assert!(tree.contains("Epic"), "sem papel Epic: {tree}");
+    Ok(())
+}
+
+#[test]
+fn task_plan_invalid_from_writes_nothing() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let epic = task_new(&dir, &["task", "new", "Programa", "--scope", "epic"])?;
+    let before = run_in(&dir, &["--json", "task", "list"])?;
+    let before = json(&before)?;
+
+    // `acceptance` obrigatório ausente.
+    let plan = "template: feature\nsections:\n  context: ctx\n  approach: app\n  steps:\n    - title: A\n    - title: B\n";
+    let path = dir.join("plan.toon");
+    std::fs::write(&path, plan)?;
+    let file = path.to_str().ok_or("path inválido")?;
+    let out = run_in(&dir, &["task", "plan", &epic, "--submit", "--from", file])?;
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "esperava invalid_input: {out:?}"
+    );
+
+    let after = run_in(&dir, &["--json", "task", "list"])?;
+    assert_eq!(json(&after)?, before, "plano inválido escreveu algo");
+    Ok(())
+}
+
+#[test]
+fn task_graph_reports_supervisor_mode() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+
+    let epic = task_new(&dir, &["task", "new", "Épico", "--scope", "epic"])?;
+    let claimed = run_in(&dir, &["task", "claim", &epic, "--by", "supervisor"])?;
+    assert!(
+        claimed.status.success(),
+        "claim falhou: {:?}",
+        claimed.stderr
+    );
+    let first = task_new(
+        &dir,
+        &["task", "new", "A", "--scope", "issue", "--parent", &epic],
+    )?;
+    let second = task_new(
+        &dir,
+        &["task", "new", "B", "--scope", "issue", "--parent", &epic],
+    )?;
+    for (id, agent) in [(&first, "agente-a"), (&second, "agente-b")] {
+        let out = run_in(&dir, &["task", "claim", id, "--by", agent])?;
+        assert!(out.status.success(), "claim falhou: {:?}", out.stderr);
+    }
+
+    let graph = run_in(&dir, &["task", "graph", "--root", &epic])?;
+    assert!(graph.status.success());
+    let tree = String::from_utf8(graph.stdout)?;
+    assert!(tree.contains("supervisor"), "sem modo supervisor: {tree}");
+    assert!(tree.contains("agente-a"), "sem dono: {tree}");
+    Ok(())
+}

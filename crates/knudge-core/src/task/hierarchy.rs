@@ -24,6 +24,17 @@ pub const fn expected_parent(scope: Scope) -> Option<Scope> {
     scope.parent()
 }
 
+/// Escopo imediatamente interno (o filho esperado).
+#[must_use]
+pub const fn child(scope: Scope) -> Option<Scope> {
+    match scope {
+        Scope::Plan => Some(Scope::Epic),
+        Scope::Epic => Some(Scope::Issue),
+        Scope::Issue => Some(Scope::Task),
+        Scope::Task => None,
+    }
+}
+
 /// Valida que `parent_scope` é o pai imediato de `child_scope`.
 ///
 /// # Errors

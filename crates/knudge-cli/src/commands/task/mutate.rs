@@ -128,18 +128,45 @@ pub(super) fn close(session: &Session, id: &str, outcome_arg: Option<&str>) -> R
 
 /// Intenção de `kd task claim` (D114).
 #[derive(Debug, Clone, Copy)]
-pub(super) enum ClaimIntent<'a> {
+enum ClaimIntent<'a> {
     /// Assume a tarefa em nome de um agente.
     By(&'a str),
     /// Libera a tarefa (sem dono).
     Release,
 }
 
+/// `kd task claim` — resolve `--by`/`--release` e delega (D114).
+///
+/// # Errors
+/// Retorna `ErrorKind::InvalidInput` para combinação inválida; propaga I/O.
+#[allow(
+    clippy::fn_params_excessive_bools,
+    reason = "`release` é a flag de CLI `--release`"
+)]
+pub(super) fn claim_cmd(
+    session: &Session,
+    id: &str,
+    by: Option<&str>,
+    release: bool,
+) -> Result<Output> {
+    let intent = match (by, release) {
+        (Some(by), false) => ClaimIntent::By(by),
+        (None, true) => ClaimIntent::Release,
+        (Some(_), true) => {
+            return Err(Error::invalid_input(
+                "`--by` e `--release` são mutuamente exclusivos",
+            ));
+        }
+        (None, false) => return Err(Error::invalid_input("use `--by <agente>` ou `--release`")),
+    };
+    claim(session, id, intent)
+}
+
 /// `kd task claim` — registra `claim`/`release` e projeta o dono (D114).
 ///
 /// # Errors
 /// Propaga erro de escrita do evento e `not_found`/`schema` do core.
-pub(super) fn claim(session: &Session, id: &str, intent: ClaimIntent<'_>) -> Result<Output> {
+fn claim(session: &Session, id: &str, intent: ClaimIntent<'_>) -> Result<Output> {
     let ctx = session.write_context()?;
     let actor = match intent {
         ClaimIntent::By(by) => Some(by),

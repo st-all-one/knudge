@@ -3,9 +3,13 @@
 mod hierarchy;
 mod kind;
 mod lifecycle;
+mod mode;
 mod ownership;
+mod plan;
 mod program;
+mod role;
 mod submit;
+mod template;
 
 use crate::Result;
 use crate::ports::fakes::MemFs;

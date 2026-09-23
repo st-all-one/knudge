@@ -37,6 +37,9 @@
 | 26 | **Canal vetorial vs filtros** | o `ask` semântico furar `--type`/`--status`/`--anchor` | o canal vetorial é intersectado com `allowed` em `recall` (D102) | `retrieval::tests::recall::vector_channel_respects_deterministic_filters` |
 | 27 | **Espécie × nível** | `--kind` reescrever `scope` ou exigir `scope` para conhecimento | `scope` é nível, `type` é espécie; `scope` é exigido só para `task`/`container`, opcional nos demais itens de trabalho (D113) | `task::tests::kind::containers_only_accept_container_kind` |
 | 28 | **Dono derivado** | `claim` virar campo e conflitar sob merge | dono é projeção de eventos (`op=claim`/`release`), dedup por `id` (D96/D114) | `task::tests::ownership::ownership_follows_last_claim_not_released`, `task::tests::ownership::close_clears_ownership` |
+| 29 | **Papel derivado** | o rótulo (Story/Feature/Bug…) virar campo e divergir da árvore | papel é função pura `(scope, type, tem_filhos)`; a espécie manda, senão o nível (D115) | `task::tests::role::species_wins_over_level`, `task::tests::role::issue_with_children_is_feature` |
+| 30 | **Modo derivado** | o modo de execução depender de ordem de eventos/iteração | precedência fixa (`handoff > supervisor > magentic > sequential > concurrent`); filhos ordenados por `id` (D116) | `task::tests::mode::handoff_has_precedence`, `task::tests::mode::chain_is_sequential` |
+| 31 | **Plano atômico** | `--submit` criar parte dos filhos e falhar no meio | o plano é validado por inteiro (seções, passos, colisão de id) **antes** de qualquer `commit` (D105) | `task::tests::plan::invalid_plan_writes_nothing`, `cli::task_plan_invalid_from_writes_nothing` |
 
 ## Notas
 

@@ -7,19 +7,27 @@
 pub mod hierarchy;
 pub mod lifecycle;
 pub mod membership;
+pub mod mode;
 pub mod ownership;
+pub mod plan;
 pub mod program;
+pub mod role;
 pub mod spec;
+pub mod template;
 
 #[cfg(test)]
 mod tests;
 
-pub use hierarchy::{children, expected_parent, validate_blocks, validate_parent};
+pub use hierarchy::{child, children, expected_parent, validate_blocks, validate_parent};
 pub use lifecycle::{OutcomeStatus, TaskAction, apply, outcome, reorder, validate_transition};
 pub use membership::Marker;
+pub use mode::{Child, Container, Mode};
 pub use ownership::{claim, ownership};
+pub use plan::{PlanPrompt, PlanSpec, PlanStep};
 pub use program::{ProgramNode, program_of, root_for_path, subtree};
+pub use role::Role;
 pub use spec::{TaskSpec, WORK_KINDS, validate_kind};
+pub use template::{PlanTemplate, TemplateCatalog};
 
 use crate::graph;
 use crate::schema::{EdgeKind, Value};

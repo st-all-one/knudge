@@ -61,36 +61,53 @@ pub enum TaskCommand {
         #[arg(long)]
         release: bool,
     },
-    /// Renderiza a árvore de um programa externo (`plan/*.md`) — D119.
+    /// Renderiza a árvore de um programa externo (`plan/*.md`) ou de um container — D119/D116.
     Graph {
         /// Arquivo do programa.
         #[arg(long, value_name = "PATH")]
-        program: String,
+        program: Option<String>,
+        /// Id do container-raiz.
+        #[arg(long, value_name = "ID")]
+        root: Option<String>,
     },
-    /// Ciclo de vida do plano (`submit`/`adopt`/`reorder`/`release`/`review`).
-    Plan {
-        /// Id do plano.
-        #[arg(value_name = "ID")]
-        id: String,
-        /// Passos.
-        #[arg(long = "step", value_name = "TXT")]
-        steps: Vec<String>,
-        /// Submete o plano.
-        #[arg(long)]
-        submit: bool,
-        /// Adota o plano.
-        #[arg(long)]
-        adopt: bool,
-        /// Reordena para a posição 1-based.
-        #[arg(long, value_name = "N")]
-        reorder: Option<u32>,
-        /// Libera o plano.
-        #[arg(long)]
-        release: bool,
-        /// Marca para revisão.
-        #[arg(long)]
-        review: bool,
-    },
+    /// Ciclo de vida do plano (`prompt`/`submit`/`adopt`/`reorder`/`release`/`review`).
+    Plan(TaskPlanArgs),
+}
+
+/// Argumentos de `kd task plan`.
+#[allow(clippy::struct_excessive_bools, reason = "flags de CLI")]
+#[derive(Debug, Args)]
+pub struct TaskPlanArgs {
+    /// Id do plano.
+    #[arg(value_name = "ID")]
+    pub id: String,
+    /// Passos.
+    #[arg(long = "step", value_name = "TXT")]
+    pub steps: Vec<String>,
+    /// Submete o plano.
+    #[arg(long)]
+    pub submit: bool,
+    /// Imprime o prompt do plano (read-only).
+    #[arg(long)]
+    pub prompt: bool,
+    /// Template do plano (`feature`/`bug`/`refactor`).
+    #[arg(long, value_name = "NOME")]
+    pub template: Option<String>,
+    /// Plano preenchido (TOON): `-` lê stdin, senão um arquivo.
+    #[arg(long, value_name = "FONTE")]
+    pub from: Option<String>,
+    /// Adota o plano.
+    #[arg(long)]
+    pub adopt: bool,
+    /// Reordena para a posição 1-based.
+    #[arg(long, value_name = "N")]
+    pub reorder: Option<u32>,
+    /// Libera o plano.
+    #[arg(long)]
+    pub release: bool,
+    /// Marca para revisão.
+    #[arg(long)]
+    pub review: bool,
 }
 
 /// Argumentos de `kd task list`.

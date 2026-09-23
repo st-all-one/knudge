@@ -1,8 +1,9 @@
 # task_universe.md — fechando o universo de tasks com elegância
 
-> **Status:** C1/C2 (D113/D114) e **PR0.5** (Programa externo, §10.7/D119) implementados —
-> `--kind`, `kd task claim`/`--owner`/`--mine`, `task::program`, `kd task graph --program`,
-> check `program-anchor` e config `programs.glob`. C3/C4 seguem pendentes.
+> **Status:** C1–C4 (D113–D116) e **PR0.5** (Programa externo, §10.7/D119) implementados —
+> `--kind`, `kd task claim`/`--owner`/`--mine`, `task::program`, `kd task graph [--root]`
+> (com papel e modo derivados), `task::template`/`plan` (`--prompt`/`--from`), check
+> `program-anchor` e config `programs.glob`. C5/C6 são reuso/documentação.
 >
 > Síntese dos dois brainstorms (WBS/Jira/SAFe e orquestração multi-agente) sobre o modelo de
 > tarefas do knudge. **Proposta de desenho**, não decisão fechada. Continua

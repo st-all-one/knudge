@@ -1,7 +1,7 @@
 # upgrade_plan.md — implementação das melhorias de conhecimento e tarefas
 
-> **Status (implementado):** K7 (D102), K1 (D103), T1 (D104) e PR0.5 (D119). O restante segue
-> pendente; ver `CHANGELOG.md` e as decisões em `plan/03_decisoes-fechadas.md`.
+> **Status (implementado):** K7 (D102), K1 (D103), T1 (D104), T3 (D105) e PR0.5 (D119). O
+> restante segue pendente; ver `CHANGELOG.md` e as decisões em `plan/03_decisoes-fechadas.md`.
 >
 > Plano de execução do documento [`melhorias_conhecimento_tarefas.md`](melhorias_conhecimento_tarefas.md).
 > Cada item traz **CLI**, **core**, **contrato/config**, **determinismo**, **erros**, **testes** e

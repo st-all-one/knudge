@@ -118,12 +118,12 @@ kd task new <STATEMENT> --scope <plan|epic|issue|task>
 kd task list [--scope ...] [--status ...] [--kind ...] [--parent <ID>]
   [--ready|--blocked [--explain]] [--owner <A>|--mine]
 kd task show <ID> [--history]
-kd task graph --program <PATH>
+kd task graph [--program <PATH>|--root <ID>]
 kd task update <ID> [--statement <S>] [--status <S>] [--parent <ID>] [--checks ...]
 kd task close <ID> [--outcome success|partial|failure|abandoned]
 kd task claim <ID> --by <A>|--release
-kd task plan <ID> [--submit|--adopt|--reorder <N>|--release|--review]
-  --step <TXT>...
+kd task plan <ID> [--prompt [--template <NOME>] | --submit --from <TXT|->]
+  [--step <TXT>...] [--adopt|--reorder <N>|--release|--review]
 ```
 
 - `close` roda os validators e grava `outcomes[]`/`evidence` (D48/D55) — nunca declara sem evidência.
@@ -132,6 +132,11 @@ kd task plan <ID> [--submit|--adopt|--reorder <N>|--release|--review]
 - `--kind` grava a **espécie** mantendo o `scope` (D113); `--owner`/`--mine` filtram pelo dono
   **derivado** de `claim`/`release` (D114, `KNUDGE_AGENT`).
 - `list --ready|--blocked` filtra pelas views derivadas; `--explain` acrescenta o motivo (D104).
+- `plan --prompt` deriva o prompt TOON do template (`feature`/`bug`/`refactor`,
+  `.knudge/templates.toml`); `--submit --from -` lê o plano TOON e valida tudo **antes** de
+  escrever (D105).
+- `graph` projeta **papel** (`role`, D115) e **modo** (`mode`, D116) derivados da árvore/eventos:
+  `role|kind|status|owner|mode|statement`.
 - **Programa externo** (D119): `plan/<slug>.md` ancorado a um Épico-raiz (`--anchors`);
   `task graph --program` imprime a subárvore; `programs.glob` define o que é um programa.
 

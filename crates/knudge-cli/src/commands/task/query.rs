@@ -9,7 +9,7 @@ use knudge_core::ports::Env;
 use knudge_core::retrieval::{BlockReason, block_reason, compute_views_at};
 use knudge_core::schema::{NoteType, Scope, Status};
 use knudge_core::store::Note;
-use knudge_core::task::{is_task, ownership, parent_of, root_for_path, subtree};
+use knudge_core::task::{is_task, ownership, parent_of};
 use knudge_core::time::Timestamp;
 use knudge_core::write::history;
 use serde_json::json;
@@ -215,49 +215,6 @@ fn reason_label(reason: &BlockReason) -> String {
         }
         BlockReason::Cycle => "cycle".to_string(),
     }
-}
-
-/// `kd task graph --program` — árvore do programa externo (`plan/*.md`) — D119.
-///
-/// # Errors
-/// Retorna `ErrorKind::NotFound` se o programa não tiver Épico-raiz; propaga erros de I/O.
-pub(super) fn program_tree(session: &Session, path: &str) -> Result<Output> {
-    let store = session.store();
-    let mut notes = Vec::new();
-    for id in store.list_ids()? {
-        notes.push(store.read(&id)?);
-    }
-    let Some(root) = root_for_path(&notes, path)? else {
-        return Err(Error::not_found(format!(
-            "nenhum Épico-raiz ancorado a {path}"
-        )));
-    };
-    let graph = session.graph()?;
-    let tree = subtree(&graph, &root);
-    let mut lines = vec![path.to_string()];
-    let mut json_rows = Vec::new();
-    for entry in &tree {
-        let note = store.read(&entry.id)?;
-        let statement = note.frontmatter.statement().unwrap_or_default().to_string();
-        let scope = note.frontmatter.scope()?;
-        let status = note.frontmatter.status()?;
-        let indent = "  ".repeat(entry.depth.saturating_add(1));
-        lines.push(format!(
-            "{indent}{}|{}|{}|{statement}",
-            entry.id,
-            scope.map_or("", Scope::as_str),
-            status.as_str()
-        ));
-        json_rows.push(json!({
-            "id": entry.id,
-            "depth": entry.depth,
-            "scope": scope.map(Scope::as_str),
-            "status": status.as_str(),
-            "statement": statement,
-        }));
-    }
-    let data = json!({ "program": path, "root": root, "nodes": json_rows });
-    Ok(Output::new(lines.join("\n"), data))
 }
 
 /// `kd task show`.

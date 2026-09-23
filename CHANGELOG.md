@@ -27,10 +27,23 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   Goldens `prime.txt`/`json_prime.json` atualizados; `kd` continua byte-idêntico a `kd prime`.
 
 ### Alterado
-- **`kd prime`** passa a listar `kd task graph` e `kd write --outcome`; goldens
-  `prime.txt`/`json_prime.json` regenerados.
+- **`kd prime`** passa a listar `kd task plan --prompt/--from` e `kd task graph` (com
+  `--root`); goldens `prime.txt`/`json_prime.json` regenerados.
 
 ### Adicionado
+- **Plano preenchível por LLM (`kd task plan --prompt`/`--from`)** (D105): `--prompt` deriva um
+  prompt TOON read-only do template (`feature`/`bug`/`refactor`, com `min_steps`/`min_acceptance`);
+  `--submit --from -|<arquivo>` lê o plano TOON, valida tudo **antes** de escrever (seções
+  obrigatórias, passos, colisão de id) e cria os filhos. Templates em `.knudge/templates.toml`
+  (subset TOML próprio, D97) sobrepõem os built-ins. Regressão: `task::tests::template::*`,
+  `task::tests::plan::*`, `cli::task_plan_*`.
+- **Papel derivado (`Role`)** (D115): `role(scope, type, tem_filhos)` projeta
+  Initiative/Epic/Feature/Story/Sub-task/Bug/Spike/Risk/Decision — nunca armazenado.
+  Regressão: `task::tests::role::*`.
+- **Modo derivado (`Mode`)** (D116): `mode(container)` classifica
+  sequential/concurrent/supervisor/handoff/magentic a partir de dono, filhos e sinais do log;
+  `kd task graph [--root ID]` imprime `role|kind|status|owner|mode|statement` (antes só
+  `--program`). Regressão: `task::tests::mode::*`, `cli::task_graph_reports_supervisor_mode`.
 - **Canal vetorial no `kd ask`** (D102): quando `recall.semantic=true` (default) e há índice
   vetorial, o `ask` embute a query, ranqueia por similaridade (`rank_query`) e funde o canal via
   RRF — sem flag nova (D94). O canal é **filtrado** pelos filtros determinísticos
