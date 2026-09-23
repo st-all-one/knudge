@@ -6,7 +6,8 @@ use knudge_core::health::close_task;
 use knudge_core::schema::{Status, Value};
 use knudge_core::store::{Event, Note};
 use knudge_core::task::{
-    OutcomeStatus, TaskAction, apply, membership, outcome, validate_parent, validate_transition,
+    OutcomeStatus, TaskAction, apply, claim as record_claim, membership, outcome, ownership,
+    validate_parent, validate_transition,
 };
 use knudge_core::write::WriteContext;
 use serde_json::json;
@@ -123,4 +124,34 @@ pub(super) fn close(session: &Session, id: &str, outcome_arg: Option<&str>) -> R
         data,
     )
     .with_warnings(run.warnings))
+}
+
+/// Intenção de `kd task claim` (D114).
+#[derive(Debug, Clone, Copy)]
+pub(super) enum ClaimIntent<'a> {
+    /// Assume a tarefa em nome de um agente.
+    By(&'a str),
+    /// Libera a tarefa (sem dono).
+    Release,
+}
+
+/// `kd task claim` — registra `claim`/`release` e projeta o dono (D114).
+///
+/// # Errors
+/// Propaga erro de escrita do evento e `not_found`/`schema` do core.
+pub(super) fn claim(session: &Session, id: &str, intent: ClaimIntent<'_>) -> Result<Output> {
+    let ctx = session.write_context()?;
+    let actor = match intent {
+        ClaimIntent::By(by) => Some(by),
+        ClaimIntent::Release => None,
+    };
+    record_claim(&ctx, id, actor)?;
+    let (events, _warnings) = ctx.events().read_all()?;
+    let owner = ownership(&events, id);
+    let op = if actor.is_some() { "claim" } else { "release" };
+    let data = json!({ "id": id, "op": op, "owner": owner });
+    Ok(Output::new(
+        format!("{op}|{id}|{}", owner.as_deref().unwrap_or("-")),
+        data,
+    ))
 }

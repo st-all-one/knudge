@@ -80,6 +80,26 @@ impl NoteType {
     pub const fn is_container(self) -> bool {
         matches!(self, Self::Container)
     }
+
+    /// `true` se o tipo **pode** carregar `scope` (item de trabalho ou container) — D93/D113.
+    #[must_use]
+    pub const fn is_scoped(self) -> bool {
+        matches!(
+            self,
+            Self::Task
+                | Self::Container
+                | Self::Error
+                | Self::Question
+                | Self::Risk
+                | Self::Decision
+        )
+    }
+
+    /// `true` se o tipo **exige** `scope` (D93): containers e a tarefa canônica.
+    #[must_use]
+    pub const fn requires_scope(self) -> bool {
+        matches!(self, Self::Task | Self::Container)
+    }
 }
 
 impl fmt::Display for NoteType {
@@ -100,7 +120,7 @@ impl FromStr for NoteType {
     }
 }
 
-/// Escopo de tarefa — enum fechado, só para `type ∈ {task, container}` (D93).
+/// Escopo de tarefa — enum fechado, só para `type` de trabalho/container (D93/D113).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Scope {
     /// Agregação raiz.

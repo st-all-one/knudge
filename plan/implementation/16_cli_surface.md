@@ -58,6 +58,9 @@ kd ask [QUERY]
   --json
 ```
 
+O canal **vetorial** entra automaticamente quando `recall.semantic = true` (default) e há índice
+(`recall.semantic_top_k`); provedor fora do ar degrada para BM25 com `warnings` (D102).
+
 ## 4. `kd write` — toda escrita
 
 Create idempotente por conteúdo + protocolo de dedup (0.75/0.92). `--update` versiona;
@@ -103,19 +106,22 @@ kd rewind
 ## 7. `kd task` — plan/epic/issue/task (D93)
 
 Hierarquia **fechada**: `plan ⊃ epic ⊃ issue ⊃ task`, profundidade máx. **4**. Campo `scope`
-(enum fechado) em `type=container` (plan/epic) ou `type=task` (issue/task). Pai único via
+(enum fechado) marca o **nível**; o `type` é a **espécie** (D113): `container` para plan/epic,
+`task`/`error`/`question`/`risk`/`decision` para itens de trabalho. Pai único via
 membership/backref (D52); dependências via aresta `depends_on`.
 
 ```
-kd task new <STATEMENT> --scope <plan|epic|issue|task> [--parent <ID>]
+kd task new <STATEMENT> --scope <plan|epic|issue|task>
+  [--kind <task|error|question|risk|decision>] [--parent <ID>]
   [--body <TXT|->] [--checks <NAME>...] [--anchor <PATH>...] [--source <F>]
   [--depends-on <ID>...] [--not-before <TS>] [--expires-at <TS>]
-kd task list [--scope ...] [--status ...] [--parent <ID>]
-  [--ready|--blocked [--explain]]
+kd task list [--scope ...] [--status ...] [--kind ...] [--parent <ID>]
+  [--ready|--blocked [--explain]] [--owner <A>|--mine]
 kd task show <ID> [--history]
 kd task graph --program <PATH>
 kd task update <ID> [--statement <S>] [--status <S>] [--parent <ID>] [--checks ...]
 kd task close <ID> [--outcome success|partial|failure|abandoned]
+kd task claim <ID> --by <A>|--release
 kd task plan <ID> [--submit|--adopt|--reorder <N>|--release|--review]
   --step <TXT>...
 ```
@@ -123,6 +129,8 @@ kd task plan <ID> [--submit|--adopt|--reorder <N>|--release|--review]
 - `close` roda os validators e grava `outcomes[]`/`evidence` (D48/D55) — nunca declara sem evidência.
 - `plan` implementa o ciclo de vida de D53 (`blocks` 1-based, sem self-reference, detecção de ciclo).
 - `plan`/`epic` são **views derivadas** (sem verdade própria); `issue`/`task` são atômicas.
+- `--kind` grava a **espécie** mantendo o `scope` (D113); `--owner`/`--mine` filtram pelo dono
+  **derivado** de `claim`/`release` (D114, `KNUDGE_AGENT`).
 - `list --ready|--blocked` filtra pelas views derivadas; `--explain` acrescenta o motivo (D104).
 - **Programa externo** (D119): `plan/<slug>.md` ancorado a um Épico-raiz (`--anchors`);
   `task graph --program` imprime a subárvore; `programs.glob` define o que é um programa.

@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 
 use knudge_core::Result;
+use knudge_core::embeddings::{EmbeddingIndex, rank_query};
 use knudge_core::graph::Graph;
 use knudge_core::retrieval::{
     DEFAULT_LIMIT, DEFAULT_RRF_K, Filter, RecallHit, RecallQuery, format_brief, format_hit, get,
@@ -16,6 +17,8 @@ use crate::cli::AskArgs;
 use crate::commands::parse;
 use crate::output::Output;
 use crate::session::Session;
+
+use super::embedder;
 
 /// Executa `kd ask` no modo adequado (get > expand > recall).
 ///
@@ -111,6 +114,9 @@ fn recall_query(session: &Session, args: &AskArgs) -> Result<Output> {
     query.container.clone_from(&args.container);
     query.now_ms = Some(session.now_ms());
     query.strict = config.strict();
+    if !text.is_empty() {
+        attach_semantic(session, &text, &mut query);
+    }
     let out = recall(&index, &graph, &query)?;
     let format = if args.brief {
         HitFormat::Brief
@@ -133,6 +139,54 @@ fn recall_query(session: &Session, args: &AskArgs) -> Result<Output> {
         "hits": out.hits.iter().map(|hit| hit_json(hit, format, &bodies)).collect::<Vec<_>>(),
     });
     Ok(Output::new(body, data).with_warnings(out.warnings))
+}
+
+/// Liga o canal vetorial quando `recall.semantic` está ligado e há índice (D102).
+///
+/// Degradação graciosa (R33): falha do provedor vira `channel_warnings` e o `recall` cai no
+/// lexical; `strict` promove o aviso a erro. Índice ausente/vazio ⇒ canal desligado e **nenhum**
+/// HTTP é feito.
+fn attach_semantic(session: &Session, text: &str, query: &mut RecallQuery) {
+    if !session.config().get_bool("recall.semantic").unwrap_or(true) {
+        return;
+    }
+    match semantic_ids(session, text, &mut query.channel_warnings) {
+        Ok(Some(ids)) => query.vector = Some(ids),
+        Ok(None) => {}
+        Err(error) => query.channel_warnings.push(format!("vetorial: {error}")),
+    }
+}
+
+/// Ids do índice vetorial mais próximos de `text` (ou `None` sem índice/embedder).
+fn semantic_ids(
+    session: &Session,
+    text: &str,
+    warnings: &mut Vec<String>,
+) -> Result<Option<Vec<String>>> {
+    let Some(embedder) = embedder::build(session)? else {
+        return Ok(None);
+    };
+    let Some(index) = EmbeddingIndex::load(
+        session.fs_dyn(),
+        &session.knowledge_dir(),
+        embedder.meta(),
+        warnings,
+    )?
+    else {
+        return Ok(None);
+    };
+    if index.is_empty() {
+        return Ok(None);
+    }
+    let Some(vector) = embedder.embed(&[text.to_string()])?.pop() else {
+        return Ok(None);
+    };
+    let top_k = session
+        .config()
+        .get_int("recall.semantic_top_k")
+        .and_then(|raw| usize::try_from(raw).ok())
+        .unwrap_or(50);
+    Ok(Some(rank_query(&index, &vector, top_k, 0.0)))
 }
 
 /// Formato de renderização de um hit no pipe/JSON.

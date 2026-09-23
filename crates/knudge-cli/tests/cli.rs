@@ -22,6 +22,19 @@ fn run_in(dir: &Path, args: &[&str]) -> std::io::Result<Output> {
         .output()
 }
 
+/// Executa `kd` num diretório isolado com variáveis de ambiente extras.
+fn run_env(dir: &Path, args: &[&str], envs: &[(&str, &str)]) -> std::io::Result<Output> {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_kd"));
+    command
+        .args(args)
+        .current_dir(dir)
+        .env("XDG_CONFIG_HOME", dir);
+    for (key, value) in envs {
+        command.env(key, value);
+    }
+    command.output()
+}
+
 /// Cria um diretório temporário único para um teste.
 fn temp_project() -> PathBuf {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -348,6 +361,98 @@ fn task_list_ready_blocked_and_explain() -> TestResult {
 }
 
 #[test]
+fn task_kind_sets_type_and_filters() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let bug = task_new(
+        &dir,
+        &[
+            "task",
+            "new",
+            "off-by-one",
+            "--scope",
+            "issue",
+            "--kind",
+            "error",
+        ],
+    )?;
+    assert!(bug.starts_with("error_"), "id inesperado: {bug}");
+    let story = task_new(
+        &dir,
+        &[
+            "task",
+            "new",
+            "medir latencia",
+            "--scope",
+            "issue",
+            "--kind",
+            "question",
+        ],
+    )?;
+
+    let out = run_in(&dir, &["task", "list", "--kind", "error"])?;
+    assert!(out.status.success(), "list falhou: {:?}", out.stderr);
+    let text = String::from_utf8(out.stdout)?;
+    assert!(text.contains(&bug), "--kind error não achou {bug}: {text}");
+    assert!(
+        !text.contains(&story),
+        "--kind error incluiu {story}: {text}"
+    );
+    Ok(())
+}
+
+#[test]
+fn task_claim_sets_and_clears_owner() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    let task = task_new(&dir, &["task", "new", "fazer", "--scope", "task"])?;
+
+    let claim = run_in(&dir, &["task", "claim", &task, "--by", "agente-a"])?;
+    assert!(claim.status.success(), "claim falhou: {:?}", claim.stderr);
+    let owned = run_in(&dir, &["--json", "task", "list", "--owner", "agente-a"])?;
+    assert!(owned.status.success(), "list falhou: {:?}", owned.stderr);
+    let value = json(&owned)?;
+    let tasks = value
+        .get("data")
+        .and_then(|data| data.get("tasks"))
+        .and_then(|tasks| tasks.as_array())
+        .ok_or("sem tasks")?;
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(
+        tasks
+            .first()
+            .and_then(|row| row.get("owner"))
+            .and_then(|owner| owner.as_str()),
+        Some("agente-a")
+    );
+
+    let mine = run_env(
+        &dir,
+        &["--json", "task", "list", "--mine"],
+        &[("KNUDGE_AGENT", "agente-a")],
+    )?;
+    assert!(mine.status.success(), "mine falhou: {:?}", mine.stderr);
+    let missing = run_in(&dir, &["task", "list", "--mine"])?;
+    assert_eq!(missing.status.code(), Some(2));
+
+    let release = run_in(&dir, &["task", "claim", &task, "--release"])?;
+    assert!(
+        release.status.success(),
+        "release falhou: {:?}",
+        release.stderr
+    );
+    let after = run_in(&dir, &["task", "list", "--owner", "agente-a"])?;
+    assert!(
+        !String::from_utf8(after.stdout)?.contains(&task),
+        "release não limpou o dono de {task}"
+    );
+    Ok(())
+}
+
+#[test]
 fn task_graph_program_renders_subtree() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
@@ -543,6 +648,71 @@ fn config_set_get_roundtrip() -> TestResult {
             .and_then(|data| data.get("value"))
             .and_then(|value| value.as_str()),
         Some("7")
+    );
+    Ok(())
+}
+
+#[test]
+fn ask_semantic_channel_reads_vector_index() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let write = run_in(
+        &dir,
+        &["--json", "write", "o cache usa body_hash", "--type", "fact"],
+    )?;
+    assert!(write.status.success(), "write falhou: {:?}", write.stderr);
+    let envelope = json(&write)?;
+    let id = envelope
+        .get("data")
+        .and_then(|data| data.get("id"))
+        .and_then(|id| id.as_str())
+        .ok_or("write sem id")?
+        .to_string();
+
+    let provider = run_in(
+        &dir,
+        &["config", "set", "embeddings.provider", "lightweight"],
+    )?;
+    assert!(
+        provider.status.success(),
+        "config falhou: {:?}",
+        provider.stderr
+    );
+    let drain = run_in(&dir, &["maintenance", "index", "--drain"])?;
+    assert!(drain.status.success(), "index falhou: {:?}", drain.stderr);
+
+    // Com o canal vetorial ligado (default), o `ask` acha a nota indexada.
+    let ask = run_in(&dir, &["--json", "ask", "body_hash cache"])?;
+    assert!(ask.status.success(), "ask falhou: {:?}", ask.stderr);
+    let value = json(&ask)?;
+    let hits = value
+        .get("data")
+        .and_then(|data| data.get("hits"))
+        .and_then(|hits| hits.as_array())
+        .ok_or("ask sem hits")?;
+    assert!(
+        hits.iter()
+            .any(|hit| hit.get("id").and_then(|id| id.as_str()) == Some(id.as_str())),
+        "hit ausente: {hits:?}"
+    );
+
+    // Desligar o canal preserva o resultado lexical.
+    let off = run_in(&dir, &["config", "set", "recall.semantic", "false"])?;
+    assert!(off.status.success(), "config falhou: {:?}", off.stderr);
+    let ask_off = run_in(&dir, &["--json", "ask", "body_hash cache"])?;
+    assert!(ask_off.status.success(), "ask falhou: {:?}", ask_off.stderr);
+    let off_hits = json(&ask_off)?;
+    assert!(
+        off_hits
+            .get("data")
+            .and_then(|data| data.get("hits"))
+            .and_then(|hits| hits.as_array())
+            .is_some_and(|hits| {
+                hits.iter()
+                    .any(|hit| hit.get("id").and_then(|id| id.as_str()) == Some(id.as_str()))
+            })
     );
     Ok(())
 }

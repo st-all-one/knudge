@@ -24,8 +24,11 @@ ESTADO / HANDOFF:
   kd rewind [--scope CONTAINER] [--files PATH...] [--budget N] [--resume ID]
   Orçamento ceil(len/4) tokens (default 4000); emite context_id retomável 1:1.
 
-TAREFAS: kd task new|list|show|update|close|graph|plan  (plan ⊃ epic ⊃ issue ⊃ task, máx. 4)
-  kd task list --ready|--blocked [--explain]   kd task graph --program plan/<slug>.md
+TAREFAS: kd task new|list|show|update|close|claim|graph|plan  (plan ⊃ epic ⊃ issue ⊃ task, máx. 4)
+  kd task new ... --kind error|question|risk|decision   # espécie (D113)
+  kd task claim <ID> --by <agente>|--release             # dono derivado (D114)
+  kd task list --ready|--blocked [--explain] [--kind K] [--owner A|--mine]
+  kd task graph --program plan/<slug>.md
 MANUTENÇÃO: kd maintenance doctor|audit|compact|eval|index|learn  (learn/compact só propõem)
 CICLO DE VIDA: kd forget <ID>  (soft; --restore; --purge após retenção)
 CONFIG: kd config get|set|unset|list [--global]  (strict é config, não flag)

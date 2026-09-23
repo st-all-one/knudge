@@ -165,13 +165,16 @@ impl Draft {
     }
 
     fn validate_scope(&self) -> Result<()> {
-        let scoped = matches!(self.note_type, NoteType::Task | NoteType::Container);
-        match (self.scope.is_some(), scoped) {
-            (true, true) | (false, false) => Ok(()),
-            (true, false) => Err(Error::schema(
-                "scope só vale para `type` task/container (D93)",
-            )),
-            (false, true) => Err(Error::schema("`type` task/container exige scope (D93)")),
+        if self.scope.is_some() && !self.note_type.is_scoped() {
+            return Err(Error::schema(
+                "scope só vale para item de trabalho/container (D93/D113)",
+            ));
         }
+        if self.note_type.requires_scope() && self.scope.is_none() {
+            return Err(Error::schema(
+                "`type` de trabalho/container exige scope (D93/D113)",
+            ));
+        }
+        Ok(())
     }
 }

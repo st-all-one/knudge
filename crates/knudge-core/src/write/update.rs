@@ -261,12 +261,15 @@ pub fn history(store: &Store<'_>, id: &str) -> Result<Vec<Note>> {
 }
 
 fn validate_scope(note_type: NoteType, scope: Option<Scope>) -> Result<()> {
-    let scoped = matches!(note_type, NoteType::Task | NoteType::Container);
-    if scope.is_some() == scoped {
-        Ok(())
-    } else {
-        Err(Error::schema(
-            "scope só vale para `type` task/container (D93)",
-        ))
+    if scope.is_some() && !note_type.is_scoped() {
+        return Err(Error::schema(
+            "scope só vale para item de trabalho/container (D93/D113)",
+        ));
     }
+    if note_type.requires_scope() && scope.is_none() {
+        return Err(Error::schema(
+            "`type` de trabalho/container exige scope (D93/D113)",
+        ));
+    }
+    Ok(())
 }

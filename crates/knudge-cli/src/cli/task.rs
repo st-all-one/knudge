@@ -3,6 +3,10 @@
 use clap::{Args, Subcommand};
 
 /// Subcomandos de tarefa.
+#[allow(
+    clippy::large_enum_variant,
+    reason = "variantes são argumentos de CLI derivados pelo clap, sem Box"
+)]
 #[derive(Debug, Subcommand)]
 pub enum TaskCommand {
     /// Cria uma tarefa.
@@ -44,6 +48,18 @@ pub enum TaskCommand {
         /// Resultado: `success|partial|failure|abandoned`.
         #[arg(long, value_name = "OUTCOME")]
         outcome: Option<String>,
+    },
+    /// Reivindica (`--by`) ou libera (`--release`) um item de trabalho (D114).
+    Claim {
+        /// Id.
+        #[arg(value_name = "ID")]
+        id: String,
+        /// Agente que assume a tarefa.
+        #[arg(long, value_name = "AGENTE")]
+        by: Option<String>,
+        /// Libera a tarefa (sem dono).
+        #[arg(long)]
+        release: bool,
     },
     /// Renderiza a árvore de um programa externo (`plan/*.md`) — D119.
     Graph {
@@ -87,6 +103,15 @@ pub struct TaskListArgs {
     /// Filtro por status.
     #[arg(long, value_name = "STATUS")]
     pub status: Option<String>,
+    /// Filtro por espécie (`type`) — D113.
+    #[arg(long, value_name = "ESPECIE")]
+    pub kind: Option<String>,
+    /// Filtro por dono derivado de `claim` (D114).
+    #[arg(long, value_name = "AGENTE")]
+    pub owner: Option<String>,
+    /// Só o que o ator atual reivindicou (D114).
+    #[arg(long)]
+    pub mine: bool,
     /// Filtro por pai.
     #[arg(long, value_name = "ID")]
     pub parent: Option<String>,
@@ -110,6 +135,9 @@ pub struct TaskNewArgs {
     /// Escopo fechado.
     #[arg(long, value_name = "ESCOPO")]
     pub scope: String,
+    /// Espécie (`type`) do item: `task|error|question|risk|decision` (D113).
+    #[arg(long, value_name = "ESPECIE")]
+    pub kind: Option<String>,
     /// Pai na hierarquia.
     #[arg(long, value_name = "ID")]
     pub parent: Option<String>,

@@ -10,8 +10,10 @@ use super::{hierarchy, membership};
 /// Especificação de uma tarefa ou container (`plan`/`epic`/`issue`/`task`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct TaskSpec {
-    /// Escopo fechado (define `type` e profundidade).
+    /// Escopo fechado (define a profundidade e o `type` default).
     pub scope: Scope,
+    /// Espécie (`type`), quando difere do default por escopo (D113).
+    pub kind: Option<NoteType>,
     /// Afirmação (≤ 120 escalares).
     pub statement: String,
     /// Corpo (contexto).
@@ -46,6 +48,7 @@ impl TaskSpec {
     pub fn new(scope: Scope, statement: impl Into<String>) -> Self {
         Self {
             scope,
+            kind: None,
             statement: statement.into(),
             body: String::new(),
             parent: None,
@@ -62,12 +65,18 @@ impl TaskSpec {
         }
     }
 
-    /// Tipo derivado do escopo: `plan`/`epic` são `container`, `issue`/`task` são `task`.
+    /// Tipo derivado: `kind` quando presente (D113); senão o default por escopo.
+    ///
+    /// `plan`/`epic` são `container`; `issue`/`task` são `task`. Uma espécie de trabalho
+    /// (`error`/`question`/`risk`/`decision`) é válida só para `issue`/`task`.
     #[must_use]
     pub const fn note_type(&self) -> NoteType {
-        match self.scope {
-            Scope::Plan | Scope::Epic => NoteType::Container,
-            Scope::Issue | Scope::Task => NoteType::Task,
+        match self.kind {
+            Some(kind) => kind,
+            None => match self.scope {
+                Scope::Plan | Scope::Epic => NoteType::Container,
+                Scope::Issue | Scope::Task => NoteType::Task,
+            },
         }
     }
 
@@ -82,6 +91,7 @@ impl TaskSpec {
         if self.blocks.is_some() && self.parent.is_none() {
             return Err(Error::schema("`blocks` exige `parent` (D53)"));
         }
+        validate_kind(self.scope, self.kind)?;
         let mut draft = Draft::new(self.note_type(), &self.statement);
         draft.body = match &self.parent {
             Some(parent) => membership::set(&self.body, parent, self.blocks),
@@ -102,5 +112,39 @@ impl TaskSpec {
             .map(|id| (EdgeKind::DependsOn, id.clone()))
             .collect();
         draft.to_note(now_ms)
+    }
+}
+
+/// Espécies válidas para um item de trabalho (`--kind`) — relaxa D93 (D113).
+pub const WORK_KINDS: [NoteType; 5] = [
+    NoteType::Task,
+    NoteType::Error,
+    NoteType::Question,
+    NoteType::Risk,
+    NoteType::Decision,
+];
+
+/// `true` se `kind` é coerente com `scope`.
+///
+/// Containers (`plan`/`epic`) só podem ser `container`; itens de trabalho aceitam [`WORK_KINDS`].
+///
+/// # Errors
+/// Retorna `ErrorKind::Schema` para combinação inválida.
+pub fn validate_kind(scope: Scope, kind: Option<NoteType>) -> Result<()> {
+    let Some(kind) = kind else {
+        return Ok(());
+    };
+    let valid = match scope {
+        Scope::Plan | Scope::Epic => kind == NoteType::Container,
+        Scope::Issue | Scope::Task => WORK_KINDS.contains(&kind),
+    };
+    if valid {
+        Ok(())
+    } else {
+        Err(Error::schema(format!(
+            "`kind {}` inválido para escopo `{}`",
+            kind.as_str(),
+            scope.as_str()
+        )))
     }
 }

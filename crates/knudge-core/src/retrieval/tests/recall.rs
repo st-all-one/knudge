@@ -68,6 +68,26 @@ fn anchor_channel_recalls_with_empty_text() -> Result<()> {
 }
 
 #[test]
+fn vector_channel_respects_deterministic_filters() -> Result<()> {
+    let fact = note(NoteType::Fact, "alpha", "")?;
+    let decision = note(NoteType::Decision, "alpha", "")?;
+    let fact_id = fact.id()?.to_string();
+    let decision_id = decision.id()?.to_string();
+    let index = Index::build(&[fact, decision])?;
+    let graph = Graph::from_notes(Vec::new())?;
+
+    let mut query = RecallQuery::new("alpha");
+    query.filter.types = vec![NoteType::Fact];
+    // O canal vetorial aponta para a decisão (fora do filtro); só o `fact` pode sair.
+    query.vector = Some(vec![decision_id.clone(), fact_id.clone()]);
+    let output = recall(&index, &graph, &query)?;
+
+    assert!(output.hits.iter().all(|hit| hit.id != decision_id));
+    assert!(output.hits.iter().any(|hit| hit.id == fact_id));
+    Ok(())
+}
+
+#[test]
 fn failed_channel_degrades_and_strict_errors() -> Result<()> {
     let index = Index::build(&[note(NoteType::Fact, "alpha", "")?])?;
     let graph = Graph::from_notes(Vec::new())?;

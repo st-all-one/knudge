@@ -34,6 +34,9 @@
 | 23 | **Ordem da árvore do programa** | `task graph`/`rewind --files` divergirem entre execuções | `subtree` em pré-ordem com filhos `id asc`; `program_roots` ordenados (D119) | `task::tests::program::subtree_is_deterministic_preorder` |
 | 24 | **Programa ↔ Épico-raiz** | épico sem programa ou programa órfão passarem batido | check `program-anchor` (warn): **menor id** no match; `programs.glob` define o programa (D119) | `health::tests::doctor::program_anchor_reports_epic_without_program`, `health::tests::doctor::program_anchor_reports_orphan_program` |
 | 25 | **Motivo de bloqueio** | `--explain` escolher dependência não-determinística | **menor id** pendente na travessia transitiva (`blocked_by`); ciclo e `not_before` têm precedência (D104) | `retrieval::tests::views::block_reason_reports_smallest_pending_dependency` |
+| 26 | **Canal vetorial vs filtros** | o `ask` semântico furar `--type`/`--status`/`--anchor` | o canal vetorial é intersectado com `allowed` em `recall` (D102) | `retrieval::tests::recall::vector_channel_respects_deterministic_filters` |
+| 27 | **Espécie × nível** | `--kind` reescrever `scope` ou exigir `scope` para conhecimento | `scope` é nível, `type` é espécie; `scope` é exigido só para `task`/`container`, opcional nos demais itens de trabalho (D113) | `task::tests::kind::containers_only_accept_container_kind` |
+| 28 | **Dono derivado** | `claim` virar campo e conflitar sob merge | dono é projeção de eventos (`op=claim`/`release`), dedup por `id` (D96/D114) | `task::tests::ownership::ownership_follows_last_claim_not_released`, `task::tests::ownership::close_clears_ownership` |
 
 ## Notas
 

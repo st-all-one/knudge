@@ -70,6 +70,37 @@ pub fn neighbors(index: &EmbeddingIndex, id: &str, top_k: usize, min_score: f64)
     found
 }
 
+/// Ranqueia ids do índice por similaridade com `query`, decrescente (empate: `id asc`).
+///
+/// Filtra `min_score` e corta em `top_k` (`0` = sem corte). É a base do **canal vetorial** do
+/// `ask` (D102): a fusão RRF combina este ranking com o lexical e o de âncoras.
+#[must_use]
+pub fn rank_query(
+    index: &EmbeddingIndex,
+    query: &[f32],
+    top_k: usize,
+    min_score: f64,
+) -> Vec<String> {
+    let metric = index.meta.similarity;
+    let mut found: Vec<Neighbor> = index
+        .ids()
+        .into_iter()
+        .filter_map(|id| {
+            let vector = index.vector(id)?;
+            let score = f64::from(similarity(query, vector, metric));
+            (score >= min_score).then(|| Neighbor {
+                id: id.to_string(),
+                score,
+            })
+        })
+        .collect();
+    found.sort_by(|a, b| b.score.total_cmp(&a.score).then_with(|| a.id.cmp(&b.id)));
+    if top_k > 0 {
+        found.truncate(top_k);
+    }
+    found.into_iter().map(|neighbor| neighbor.id).collect()
+}
+
 /// Pares de notas acima de `threshold` (candidatos a merge/supersede).
 #[must_use]
 pub fn duplicate_pairs(index: &EmbeddingIndex, threshold: f64) -> Vec<DuplicatePair> {

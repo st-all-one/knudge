@@ -37,6 +37,16 @@ pub const KEYS: &[KeySpec] = &[
         default: Default::Int(60),
     },
     KeySpec {
+        key: "recall.semantic",
+        kind: Kind::Bool,
+        default: Default::Bool(true),
+    },
+    KeySpec {
+        key: "recall.semantic_top_k",
+        kind: Kind::Int,
+        default: Default::Int(50),
+    },
+    KeySpec {
         key: "mcp.observation_mode",
         kind: Kind::Bool,
         default: Default::Bool(true),

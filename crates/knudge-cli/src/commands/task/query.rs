@@ -1,14 +1,15 @@
 //! Listagem e exibição de tarefas (`kd task list`/`show`) (E12-T01).
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::graph::Graph;
+use knudge_core::ports::Env;
 use knudge_core::retrieval::{BlockReason, block_reason, compute_views_at};
-use knudge_core::schema::{Scope, Status};
+use knudge_core::schema::{NoteType, Scope, Status};
 use knudge_core::store::Note;
-use knudge_core::task::{is_task, parent_of, root_for_path, subtree};
+use knudge_core::task::{is_task, ownership, parent_of, root_for_path, subtree};
 use knudge_core::time::Timestamp;
 use knudge_core::write::history;
 use serde_json::json;
@@ -17,43 +18,93 @@ use crate::cli::TaskListArgs;
 use crate::output::Output;
 use crate::session::Session;
 
-use super::ShowMode;
+use super::{AGENT_ENV, ShowMode};
 
 /// Conjunto de ids permitidos por uma view + o grafo (para `--explain`).
 type View = (Graph, BTreeSet<String>);
 
-/// `kd task list` (com views `--ready`/`--blocked` e `--explain` — D104).
+/// Filtros resolvidos de `kd task list` (evita excesso de parâmetros).
+struct ListFilters<'a> {
+    scope: Option<Scope>,
+    status: Option<Status>,
+    kind: Option<NoteType>,
+    parent: Option<&'a str>,
+    owner: Option<String>,
+    view: Option<View>,
+}
+
+impl<'a> ListFilters<'a> {
+    fn resolve(session: &Session, args: &'a TaskListArgs) -> Result<Self> {
+        let owner = if args.mine {
+            Some(session.env().var(AGENT_ENV).ok_or_else(|| {
+                Error::invalid_input(format!("`--mine` exige a variável {AGENT_ENV}"))
+            })?)
+        } else {
+            args.owner.clone()
+        };
+        Ok(Self {
+            scope: args.scope.as_deref().map(str::parse::<Scope>).transpose()?,
+            status: args
+                .status
+                .as_deref()
+                .map(str::parse::<Status>)
+                .transpose()?,
+            kind: args
+                .kind
+                .as_deref()
+                .map(str::parse::<NoteType>)
+                .transpose()?,
+            parent: args.parent.as_deref(),
+            owner,
+            view: list_view(session, args)?,
+        })
+    }
+}
+
+/// `kd task list` (views `--ready`/`--blocked`, `--explain` e filtros `--kind`/`--owner`).
 ///
 /// # Errors
 /// Propaga erros de leitura do store e valida a combinação de flags.
 pub(super) fn list(session: &Session, args: &TaskListArgs) -> Result<Output> {
     validate_list_args(args)?;
     let store = session.store();
-    let scope = args.scope.as_deref().map(str::parse::<Scope>).transpose()?;
-    let status = args
-        .status
-        .as_deref()
-        .map(str::parse::<Status>)
-        .transpose()?;
-    let view = list_view(session, args)?;
+    let filters = ListFilters::resolve(session, args)?;
+    let owners = if filters.owner.is_some() {
+        owners_of(session)?
+    } else {
+        BTreeMap::new()
+    };
     let mut rows = Vec::new();
     let mut json_rows = Vec::new();
     for id in store.list_ids()? {
         let note = store.read(&id)?;
-        if !passes_filters(&note, scope, status, args.parent.as_deref(), view.as_ref())? {
+        if !passes_filters(&note, &filters, &owners)? {
             continue;
         }
+        let owner = owners.get(&id).and_then(Option::as_deref);
         let reason = if args.explain {
-            view.as_ref()
+            filters
+                .view
+                .as_ref()
                 .and_then(|(graph, _)| block_reason(graph, &id, session.now_ms()))
         } else {
             None
         };
-        let (line, row) = render_row(&note, &id, reason.as_ref())?;
+        let (line, row) = render_row(&note, &id, reason.as_ref(), owner)?;
         rows.push(line);
         json_rows.push(row);
     }
     Ok(Output::new(rows.join("\n"), json!({ "tasks": json_rows })))
+}
+
+/// Dono derivado (`claim`/`release`) por id (D114).
+fn owners_of(session: &Session) -> Result<BTreeMap<String, Option<String>>> {
+    let (events, _warnings) = session.events().read_all()?;
+    let mut owners = BTreeMap::new();
+    for id in session.store().list_ids()? {
+        let _ignored = owners.insert(id.clone(), ownership(&events, &id));
+    }
+    Ok(owners)
 }
 
 fn validate_list_args(args: &TaskListArgs) -> Result<()> {
@@ -84,31 +135,40 @@ fn list_view(session: &Session, args: &TaskListArgs) -> Result<Option<View>> {
 
 fn passes_filters(
     note: &Note,
-    scope: Option<Scope>,
-    status: Option<Status>,
-    parent: Option<&str>,
-    view: Option<&View>,
+    filters: &ListFilters<'_>,
+    owners: &BTreeMap<String, Option<String>>,
 ) -> Result<bool> {
     if !is_task(note) {
         return Ok(false);
     }
-    if let Some(scope) = scope
+    let id = note.id()?;
+    if let Some(scope) = filters.scope
         && note.frontmatter.scope()? != Some(scope)
     {
         return Ok(false);
     }
-    if let Some(status) = status
+    if let Some(status) = filters.status
         && note.frontmatter.status()? != status
     {
         return Ok(false);
     }
-    if let Some(parent) = parent
+    if let Some(kind) = filters.kind
+        && note.frontmatter.note_type()? != kind
+    {
+        return Ok(false);
+    }
+    if let Some(parent) = filters.parent
         && parent_of(note).as_deref() != Some(parent)
     {
         return Ok(false);
     }
-    if let Some((_, allowed)) = view
-        && !allowed.contains(note.id()?)
+    if let Some(owner) = &filters.owner
+        && owners.get(id).and_then(Option::as_deref) != Some(owner.as_str())
+    {
+        return Ok(false);
+    }
+    if let Some((_, allowed)) = &filters.view
+        && !allowed.contains(id)
     {
         return Ok(false);
     }
@@ -119,9 +179,11 @@ fn render_row(
     note: &Note,
     id: &str,
     reason: Option<&BlockReason>,
+    owner: Option<&str>,
 ) -> Result<(String, serde_json::Value)> {
     let statement = note.frontmatter.statement().unwrap_or_default().to_string();
     let scope = note.frontmatter.scope()?;
+    let kind = note.frontmatter.note_type()?;
     let status = note.frontmatter.status()?;
     let mut line = format!(
         "{id}|{}|{}|{statement}",
@@ -135,9 +197,11 @@ fn render_row(
     let row = json!({
         "id": id,
         "scope": scope.map(Scope::as_str),
+        "kind": kind.as_str(),
         "status": status.as_str(),
         "statement": statement,
         "parent": parent_of(note),
+        "owner": owner,
         "blocked_reason": reason.map(reason_label),
     });
     Ok((line, row))

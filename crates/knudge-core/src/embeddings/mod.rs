@@ -33,7 +33,7 @@ pub use meta::{EmbeddingMeta, Similarity};
 pub use pipeline::{DrainInput, DrainOutcome, drain, embedding_text};
 pub use semantic::{
     DuplicatePair, LinkSuggestion, Neighbor, clusters, duplicate_pairs, link_suggestions,
-    neighbors, unlinked_ids,
+    neighbors, rank_query, unlinked_ids,
 };
 pub use state::{EmbeddingMode, EmbeddingState, classify, is_backlogged};
 pub use vector::{cosine, dot, is_normalized, l2_norm, normalize, similarity};

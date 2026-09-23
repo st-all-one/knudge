@@ -124,8 +124,9 @@ pub fn recall(index: &Index, graph: &Graph, query: &RecallQuery) -> Result<Recal
     let anchored = anchor::rank(index, &allowed, &query.working_paths, &query.working_ids);
 
     let mut channels: Vec<&[String]> = vec![lexical.as_slice(), anchored.as_slice()];
-    if let Some(vector) = &query.vector {
-        channels.push(vector.as_slice());
+    let semantic = semantic_channel(query, &allowed);
+    if !semantic.is_empty() {
+        channels.push(semantic.as_slice());
     }
     let fused = fuse(&channels, query.rrf_k);
     let max_score = fused.first().map_or(0.0, |hit| hit.score);
@@ -197,6 +198,23 @@ pub fn get(store: &Store<'_>, ids: &[String]) -> Result<GetOutput> {
         }
     }
     Ok(output)
+}
+
+/// Canal vetorial **filtrado** por `allowed` (D102).
+///
+/// As views/filtros determinísticos são contrato e não podem ser furados por uma nota só
+/// semanticamente próxima.
+fn semantic_channel(query: &RecallQuery, allowed: &BTreeSet<String>) -> Vec<String> {
+    query
+        .vector
+        .as_ref()
+        .map(|ids| {
+            ids.iter()
+                .filter(|id| allowed.contains(id.as_str()))
+                .cloned()
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn candidates(index: &Index, graph: &Graph, query: &RecallQuery) -> BTreeSet<String> {

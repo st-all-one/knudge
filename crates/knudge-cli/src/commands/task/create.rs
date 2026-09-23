@@ -21,6 +21,9 @@ pub(super) fn new_task(session: &Session, args: &TaskNewArgs) -> Result<Output> 
     let ctx = session.write_context()?;
     let scope: Scope = args.scope.parse()?;
     let mut spec = TaskSpec::new(scope, args.statement.join(" "));
+    if let Some(kind) = &args.kind {
+        spec.kind = Some(kind.parse()?);
+    }
     spec.body = read_body(args.body.as_deref())?;
     spec.parent.clone_from(&args.parent);
     spec.depends_on.clone_from(&args.depends_on);

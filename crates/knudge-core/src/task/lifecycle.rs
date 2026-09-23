@@ -1,6 +1,6 @@
 //! Ciclo de vida de tarefa: `adopt`/`release`/`review`, `outcome` e `reorder` (D53).
 
-use crate::schema::{NoteType, Status, Value};
+use crate::schema::{Status, Value};
 use crate::store::Note;
 use crate::write::{WriteAction, WriteContext, event};
 use crate::{Error, Result};
@@ -87,9 +87,10 @@ pub fn reorder(ctx: &WriteContext<'_>, id: &str, blocks: u32) -> Result<u32> {
 }
 
 fn ensure_task(note: &Note) -> Result<()> {
-    match note.frontmatter.note_type()? {
-        NoteType::Task | NoteType::Container => Ok(()),
-        other => Err(Error::schema(format!("`{other}` não é tarefa/container"))),
+    if note.frontmatter.scope()?.is_some() {
+        Ok(())
+    } else {
+        Err(Error::schema("nota sem `scope` não é item de trabalho"))
     }
 }
 

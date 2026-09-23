@@ -31,6 +31,24 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   `prime.txt`/`json_prime.json` regenerados.
 
 ### Adicionado
+- **Canal vetorial no `kd ask`** (D102): quando `recall.semantic=true` (default) e há índice
+  vetorial, o `ask` embute a query, ranqueia por similaridade (`rank_query`) e funde o canal via
+  RRF — sem flag nova (D94). O canal é **filtrado** pelos filtros determinísticos
+  (`--type`/`--class`/`--status`/`--tag`/`--anchor`), então não fura views. Provedor fora do ar
+  degrada para BM25 com `warnings` (`strict` promove a erro). Config: `recall.semantic`,
+  `recall.semantic_top_k`. Regressão: `embeddings::tests::semantic::rank_query_*`,
+  `retrieval::tests::recall::vector_channel_respects_deterministic_filters`,
+  `cli::ask_semantic_channel_reads_vector_index`.
+- **Espécie do item de trabalho (`kd task new --kind`)** (D113): `scope` = nível, `type` =
+  espécie. `--kind error|question|risk|decision|task` grava o `type` mantendo o `scope`;
+  `scope` passa a ser aceito por qualquer item de trabalho e continua **exigido** para
+  `task`/`container`. `kd task list --kind <K>`. Regressão: `task::tests::kind::*`,
+  `cli::task_kind_sets_type_and_filters`.
+- **Dono derivado de eventos (`kd task claim`)** (D114): `kd task claim <ID> --by <agente>` e
+  `--release` gravam eventos `op=claim`/`release`; o dono é a projeção `ownership(events, id)`
+  (último `claim` sem `release`/`close`). `kd task list --owner <A> | --mine` (usa
+  `KNUDGE_AGENT`). Sem chave canônica. Regressão: `task::tests::ownership::*`,
+  `cli::task_claim_sets_and_clears_owner`.
 - **`kd write --outcome <status> <ID> [--note TXT]`** anexa evidência (`outcomes[]`) a
   **qualquer** nota (D103), não só a tarefas: a confiança derivada (D87) e o boost BM25 (E06)
   passam a valer para conhecimento confirmado por trabalho. Core: `write::outcome` (generaliza o

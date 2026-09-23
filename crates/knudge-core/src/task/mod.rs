@@ -7,6 +7,7 @@
 pub mod hierarchy;
 pub mod lifecycle;
 pub mod membership;
+pub mod ownership;
 pub mod program;
 pub mod spec;
 
@@ -16,11 +17,12 @@ mod tests;
 pub use hierarchy::{children, expected_parent, validate_blocks, validate_parent};
 pub use lifecycle::{OutcomeStatus, TaskAction, apply, outcome, reorder, validate_transition};
 pub use membership::Marker;
+pub use ownership::{claim, ownership};
 pub use program::{ProgramNode, program_of, root_for_path, subtree};
-pub use spec::TaskSpec;
+pub use spec::{TaskSpec, WORK_KINDS, validate_kind};
 
 use crate::graph;
-use crate::schema::{EdgeKind, NoteType, Value};
+use crate::schema::{EdgeKind, Value};
 use crate::store::{Note, commit};
 use crate::write::{WriteAction, WriteContext, event};
 use crate::{Error, Result};
@@ -73,13 +75,10 @@ pub fn parent_of(note: &Note) -> Option<String> {
     membership::parse(&note.body).map(|marker| marker.parent)
 }
 
-/// `true` se a nota é tarefa ou container.
+/// `true` se a nota é item de trabalho (tem `scope`) — C1/D113.
 #[must_use]
 pub fn is_task(note: &Note) -> bool {
-    matches!(
-        note.frontmatter.note_type(),
-        Ok(NoteType::Task | NoteType::Container)
-    )
+    note.frontmatter.scope().is_ok_and(|scope| scope.is_some())
 }
 
 fn attach(ctx: &WriteContext<'_>, parent: &str, child: &str) -> Result<()> {

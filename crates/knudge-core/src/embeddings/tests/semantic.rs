@@ -4,7 +4,7 @@ use crate::Result;
 use crate::embeddings::EmbeddingIndex;
 use crate::embeddings::meta::{EmbeddingMeta, Similarity};
 use crate::embeddings::semantic::{
-    clusters, duplicate_pairs, link_suggestions, neighbors, unlinked_ids,
+    clusters, duplicate_pairs, link_suggestions, neighbors, rank_query, unlinked_ids,
 };
 use crate::graph::Graph;
 
@@ -49,6 +49,27 @@ fn neighbors_rank_by_similarity() -> Result<()> {
         Some(fixture.c.as_str())
     );
     assert!(!found.iter().any(|n| n.id == fixture.b));
+    Ok(())
+}
+
+#[test]
+fn rank_query_orders_by_similarity_and_breaks_ties_by_id() -> Result<()> {
+    let fixture = setup()?;
+    let ranked = rank_query(&fixture.index, &[1.0, 0.0], 0, 0.0);
+    let mut expected = vec![fixture.a.clone(), fixture.c.clone()];
+    expected.sort();
+    expected.push(fixture.b);
+    assert_eq!(ranked, expected);
+    Ok(())
+}
+
+#[test]
+fn rank_query_filters_by_min_score_and_caps_top_k() -> Result<()> {
+    let fixture = setup()?;
+    let ranked = rank_query(&fixture.index, &[0.0, 1.0], 1, 0.5);
+    assert_eq!(ranked, vec![fixture.b.clone()]);
+    let strict = rank_query(&fixture.index, &[0.0, 1.0], 0, 0.99);
+    assert_eq!(strict, vec![fixture.b]);
     Ok(())
 }
 

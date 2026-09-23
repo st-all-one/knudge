@@ -47,6 +47,21 @@ pub fn run(session: &Session, command: &TaskCommand) -> Result<Output> {
             checks,
         ),
         TaskCommand::Close { id, outcome } => mutate::close(session, id, outcome.as_deref()),
+        TaskCommand::Claim { id, by, release } => {
+            let intent = match (by.as_deref(), *release) {
+                (Some(by), false) => mutate::ClaimIntent::By(by),
+                (None, true) => mutate::ClaimIntent::Release,
+                (Some(_), true) => {
+                    return Err(Error::invalid_input(
+                        "`--by` e `--release` são mutuamente exclusivos",
+                    ));
+                }
+                (None, false) => {
+                    return Err(Error::invalid_input("use `--by <agente>` ou `--release`"));
+                }
+            };
+            mutate::claim(session, id, intent)
+        }
         TaskCommand::Graph { program } => query::program_tree(session, program),
         TaskCommand::Plan {
             id,
@@ -83,6 +98,9 @@ pub(super) enum ShowMode {
     /// Tarefa + histórico de supersessão.
     History,
 }
+
+/// Variável de ambiente com o nome do agente atual (D114).
+pub(super) const AGENT_ENV: &str = "KNUDGE_AGENT";
 
 /// Intenção de `kd task plan`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
