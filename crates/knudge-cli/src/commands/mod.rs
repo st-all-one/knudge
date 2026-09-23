@@ -13,6 +13,7 @@ pub mod rewind;
 pub mod self_cmd;
 pub mod task;
 pub mod validators;
+pub mod write_batch;
 pub mod write_cmd;
 
 use knudge_core::{Error, Result};

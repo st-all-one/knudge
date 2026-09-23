@@ -21,9 +21,9 @@ pub fn run(session: &Session, command: &TaskCommand) -> Result<Output> {
     match command {
         TaskCommand::New(args) => create::new_task(session, args),
         TaskCommand::List(args) => query::list(session, args),
-        TaskCommand::Show { id, history } => query::show(
+        TaskCommand::Show { ids, history } => query::show(
             session,
-            id,
+            ids,
             if *history {
                 ShowMode::History
             } else {
@@ -44,7 +44,9 @@ pub fn run(session: &Session, command: &TaskCommand) -> Result<Output> {
             parent.as_deref(),
             checks,
         ),
-        TaskCommand::Close { id, outcome } => mutate::close(session, id, outcome.as_deref()),
+        TaskCommand::Close { id, outcome, note } => {
+            mutate::close(session, id, outcome.as_deref(), note.as_deref())
+        }
         TaskCommand::Claim { id, by, release } => {
             mutate::claim_cmd(session, id, by.as_deref(), *release)
         }

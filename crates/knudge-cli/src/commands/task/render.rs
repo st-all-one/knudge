@@ -6,7 +6,7 @@ use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::graph::Graph;
 use knudge_core::ports::Env;
-use knudge_core::retrieval::{BlockReason, compute_views_at};
+use knudge_core::retrieval::{BlockReason, Filter, Meta, compute_views_at};
 use knudge_core::schema::{NoteType, Scope, Status};
 use knudge_core::store::Note;
 use knudge_core::task::{is_task, parent_of};
@@ -14,6 +14,7 @@ use knudge_core::time::Timestamp;
 use serde_json::json;
 
 use crate::cli::TaskListArgs;
+use crate::commands::parse;
 use crate::session::Session;
 
 use super::AGENT_ENV;
@@ -26,6 +27,8 @@ pub(super) struct ListFilters<'a> {
     parent: Option<&'a str>,
     pub(super) owner: Option<String>,
     allowed: Option<BTreeSet<String>>,
+    structural: Filter,
+    since_ms: Option<i64>,
 }
 
 impl<'a> ListFilters<'a> {
@@ -56,6 +59,12 @@ impl<'a> ListFilters<'a> {
             parent: args.parent.as_deref(),
             owner,
             allowed: allowed_ids(session, args, graph),
+            structural: Filter {
+                tags: args.tag.clone(),
+                anchors: args.anchor.clone(),
+                ..Filter::new()
+            },
+            since_ms: parse::timestamp_opt(args.since.as_ref())?,
         })
     }
 }
@@ -124,6 +133,15 @@ pub(super) fn passes_filters(
     }
     if let Some(allowed) = &filters.allowed
         && !allowed.contains(id)
+    {
+        return Ok(false);
+    }
+    let meta = Meta::from_frontmatter(&note.frontmatter)?;
+    if !filters.structural.matches(&meta) {
+        return Ok(false);
+    }
+    if let Some(since) = filters.since_ms
+        && meta.created_ms < since
     {
         return Ok(false);
     }

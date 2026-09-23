@@ -10,6 +10,7 @@ pub mod filter;
 pub mod format;
 pub mod index;
 pub mod pipeline;
+pub mod rank;
 pub mod rrf;
 pub mod tags;
 pub mod token;
@@ -25,6 +26,7 @@ pub use format::{format_brief, format_hit};
 pub use index::{
     Field, FieldTf, INDEX_FILE, INDEX_WARN_BYTES, Index, NoteDoc, Stats, size_warning,
 };
+pub use rank::{RankQuery, Universe, rank};
 pub use rrf::{Fused, fuse};
 pub use tags::tag_counts;
 pub use views::{BlockReason, Views, block_reason, compute_views, compute_views_at};

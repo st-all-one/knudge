@@ -26,6 +26,8 @@ pub struct TaskSpec {
     pub checks: Vec<String>,
     /// Âncoras.
     pub anchors: Vec<String>,
+    /// Tags declaradas.
+    pub tags: Vec<String>,
     /// Proveniência (`source`).
     pub source: Option<String>,
     /// Ordem 1-based dentro do pai.
@@ -55,6 +57,7 @@ impl TaskSpec {
             depends_on: Vec::new(),
             checks: Vec::new(),
             anchors: Vec::new(),
+            tags: Vec::new(),
             source: None,
             blocks: None,
             classification: None,
@@ -103,6 +106,7 @@ impl TaskSpec {
         draft.status = self.status;
         draft.checks.clone_from(&self.checks);
         draft.anchors.clone_from(&self.anchors);
+        draft.tags.clone_from(&self.tags);
         draft.source.clone_from(&self.source);
         draft.expires_at = self.expires_at;
         draft.not_before = self.not_before;

@@ -46,6 +46,9 @@
 | 35 | **Confirmação por tarefa** | o peso depender de distância no grafo ou de ordem | o vínculo tarefa↔nota é a **âncora** (não há aresta), então a distância colapsa a `0`: `Σ W` por tarefa de sucesso distinta, saturado em `1.0` (D108) | `lifecycle::tests::from_tasks::*` |
 | 36 | **`scope` no índice derivado** | índices antigos sem `scope` perderem a confirmação por tarefa | `Meta.scope` é opcional e o índice é reconstruído do store no `ask`/`rewind` (D15); ausente ⇒ sem tarefa confirmadora | `retrieval::tests::index::scope_survives_round_trip` |
 | 37 | **`--sort impact` vs `--ready`** | o caminho crítico listar tarefa `closed` no topo | a view `ready` mantém `closed` (D104), mas `--sort impact` filtra `closed`/`superseded`/`forgotten` (`is_actionable`), como o `next:` (D106/D109) | `task::tests::impact::actionable_excludes_terminal_statuses`, `cli::task_list_sort_impact_skips_closed` |
+| 38 | **`ask --rank`** | tarefa confirmada dominar o ranking de conhecimento | `--rank` usa o universo **conhecimento** (`scope` ausente) e ordena por `(confidence desc, id asc)`; `Universe::All` existe no core para inspeção (K2/D107) | `retrieval::tests::rank::rank_promotes_task_confirmed_note`, `retrieval::tests::rank::rank_breaks_ties_by_id` |
+| 39 | **`write --batch`** | uma linha inválida derrubar o lote | linha malformada/inválida vira `warnings[]` e o lote continua (R33), preservando a ordem dos itens válidos; `write.batch_max` limita o total (K4/D110) | `write::tests::batch::batch_skips_invalid_item_and_continues`, `cli::write_batch_jsonl_creates_and_dry_run` |
+| 40 | **`maintenance prune`** | a proposta apagar de fato ou incluir ciclo | `prune` só propõe `forget|id|motivo` (D47); membros de ciclo nunca entram (D45); `--dry-run` é aceito mas redundante (a operação é sempre read-only) | `cli::maintenance_prune_proposes_forget_for_expired` |
 
 ## Notas
 

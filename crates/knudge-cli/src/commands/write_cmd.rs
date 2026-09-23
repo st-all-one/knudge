@@ -6,8 +6,8 @@ use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::schema::NoteType;
 use knudge_core::write::{
-    DedupDecision, Draft, OutcomeStatus, Patch, UpdateOutcome, WriteAction, WriteProposal, link,
-    outcome, propose, update, write,
+    BatchMode, DedupDecision, Draft, OutcomeStatus, Patch, UpdateOutcome, WriteAction,
+    WriteProposal, link, outcome, propose, update, write,
 };
 use serde_json::json;
 
@@ -23,6 +23,14 @@ use super::hooks::{self, HookEvent};
 /// # Errors
 /// Propaga erros de validação, dedup e I/O do domínio.
 pub fn run(session: &Session, args: &WriteArgs) -> Result<Output> {
+    if let Some(source) = &args.batch {
+        let mode = if args.dry_run {
+            BatchMode::DryRun
+        } else {
+            BatchMode::Apply
+        };
+        return super::write_batch::batch_note(session, source, mode);
+    }
     if args.outcome.is_some() {
         return outcome_note(session, args);
     }

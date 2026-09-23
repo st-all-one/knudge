@@ -27,6 +27,9 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   Goldens `prime.txt`/`json_prime.json` atualizados; `kd` continua byte-idêntico a `kd prime`.
 
 ### Alterado
+- **`kd prime`** passa a listar `write --batch`, `ask --rank`, `task show` multi-id,
+  `task close --note`, os filtros `--tag`/`--anchor` de `task list` e `maintenance prune`;
+  goldens `prime.txt`/`json_prime.json` regenerados.
 - **`kd prime`** passa a listar `ask --tags` e as linhas `next:`/`fresh:` do `rewind`; goldens
   `prime.txt`/`json_prime.json` regenerados.
 - **`kd prime`** passa a listar `task list --sort impact`; goldens regenerados.
@@ -37,6 +40,31 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   derivado; opcional em índices antigos — D15).
 
 ### Adicionado
+- **`kd ask --rank`** (K2/D107): ranqueia por confiança **derivada** sem query textual —
+  `id|statement|confidence|why` (ordem `confidence desc, id asc`); o universo é só conhecimento
+  (notas sem `scope`), já que itens de trabalho têm `task list --sort impact`. Reusa
+  `confidence_score` + a confirmação por tarefa (X1). Regressão:
+  `retrieval::tests::rank::*`, `cli::ask_rank_orders_by_confidence`.
+- **`kd write --batch -`** (K4/D110): aplica um lote de rascunhos **JSONL** pelo mesmo protocolo
+  de dedup (0.75/0.92), uma linha `action|id` por item; linha inválida vira `warnings[]` e o
+  lote continua (R33); `--dry-run` só avalia. Teto `write.batch_max` (int, 100) ⇒ `invalid_input`.
+  `Draft::from_value` rejeita chave desconhecida. Regressão: `write::tests::batch::*`,
+  `cli::write_batch_jsonl_creates_and_dry_run`.
+- **`kd task list --tag/--anchor/--since`** (T5/D104): reusa `retrieval::Filter` (tags/âncoras) e
+  filtra por `created_at`; `kd task new` passa a aceitar `--tag`. Regressão:
+  `cli::task_list_filters_by_tag_anchor_and_since`.
+- **`kd task show <ID> [<ID>…]`** (T5/D104): mostra vários ids separados por `\n---\n`; `--json`
+  devolve `data.tasks[]`; id ausente vira `warnings[]` (parcial) sem derrubar os demais.
+  Regressão: `cli::task_show_multiple_ids_separator_and_partial`.
+- **`kd task close --note <TXT>`** (T6/D104): o motivo entra em `outcomes[].notes` (exige
+  `--outcome`). Regressão: `cli::task_close_note_records_outcome_reason`.
+- **`kd maintenance prune`** (K5/D112): propõe `forget|id|motivo` por shelf-life vencido ou
+  âncoras decaídas, reusando `demotion_candidates`; membros de ciclo ficam de fora (D45) e nada
+  é gravado (D47) — a aplicação é `kd forget`. Regressão:
+  `cli::maintenance_prune_proposes_forget_for_expired`.
+- **`learn` com sinal de tarefa** (X2/D111): tarefa com `outcomes` de sucesso cuja âncora não tem
+  nota ancorada vira proposta `create_note` (`why="tarefa fechada sem nota"`); read-only (D47).
+  Regressão: `maintenance::tests::learn::success_task_*`.
 - **`kd task list --sort impact`** (D109): ordena o caminho crítico por `(impacto desc,
   created asc, id asc)`, onde impacto = tarefas **abertas** que dependem transitivamente
   (`depends_on` reverso); `--explain` acrescenta `unblocks=N` e o `--json` traz `impact`. O

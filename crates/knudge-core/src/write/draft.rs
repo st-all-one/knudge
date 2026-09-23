@@ -90,6 +90,52 @@ impl Draft {
         self
     }
 
+    /// Lê um rascunho de um objeto JSON (K4/D110).
+    ///
+    /// # Errors
+    /// Retorna `ErrorKind::Schema`/`InvalidInput` para chave desconhecida, tipo inválido ou
+    /// `statement` ausente.
+    pub fn from_value(value: &Value) -> Result<Self> {
+        let map = value
+            .as_map()
+            .ok_or_else(|| Error::schema("rascunho deve ser um objeto JSON"))?;
+        for key in map.keys() {
+            if !DRAFT_KEYS.contains(&key.as_str()) {
+                return Err(Error::schema(format!(
+                    "chave de rascunho desconhecida: {key}"
+                )));
+            }
+        }
+        let mut draft = Self::default();
+        if let Some(note_type) = map.get("type").and_then(Value::as_str) {
+            draft.note_type = note_type.parse()?;
+        }
+        if let Some(statement) = map.get("statement").and_then(Value::as_str) {
+            draft.statement = statement.to_string();
+        }
+        if draft.statement.is_empty() {
+            return Err(Error::invalid_input("rascunho sem `statement`"));
+        }
+        if let Some(body) = map.get("body").and_then(Value::as_str) {
+            draft.body = body.to_string();
+        }
+        if let Some(confidence) = map.get("confidence").and_then(Value::as_f64) {
+            draft.confidence = confidence;
+        }
+        if let Some(source) = map.get("source").and_then(Value::as_str) {
+            draft.source = Some(source.to_string());
+        }
+        if let Some(class) = map.get("classification").and_then(Value::as_str) {
+            draft.classification = Some(class.parse()?);
+        }
+        if let Some(status) = map.get("status").and_then(Value::as_str) {
+            draft.status = Some(status.parse()?);
+        }
+        draft.tags = string_list(map.get("tags"))?;
+        draft.anchors = string_list(map.get("anchors"))?;
+        Ok(draft)
+    }
+
     /// Texto usado no dedup (afirmação + corpo).
     #[must_use]
     pub fn text(&self) -> String {
@@ -176,5 +222,33 @@ impl Draft {
             ));
         }
         Ok(())
+    }
+}
+
+/// Chaves aceitas num rascunho JSONL (K4/D110).
+const DRAFT_KEYS: [&str; 9] = [
+    "type",
+    "statement",
+    "body",
+    "confidence",
+    "tags",
+    "anchors",
+    "source",
+    "classification",
+    "status",
+];
+
+fn string_list(value: Option<&Value>) -> Result<Vec<String>> {
+    match value {
+        None => Ok(Vec::new()),
+        Some(Value::List(items)) => items
+            .iter()
+            .map(|item| {
+                item.as_str()
+                    .map(str::to_string)
+                    .ok_or_else(|| Error::schema("lista deve conter só strings"))
+            })
+            .collect(),
+        Some(_) => Err(Error::schema("valor deve ser lista de strings")),
     }
 }

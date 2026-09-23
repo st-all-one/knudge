@@ -3,7 +3,8 @@
 > **Status:** C1–C4 (D113–D116) e **PR0.5** (Programa externo, §10.7/D119) implementados —
 > `--kind`, `kd task claim`/`--owner`/`--mine`, `task::program`, `kd task graph [--root]`
 > (com papel e modo derivados), `task::template`/`plan` (`--prompt`/`--from`), check
-> `program-anchor` e config `programs.glob`. C5/C6 são reuso/documentação.
+> `program-anchor` e config `programs.glob`. C5/C6 ficaram como **documentação** (checks = DoD
+> e ledger = eventos + learn no `prime`) — já refletidas em `prime.rs`.
 >
 > Síntese dos dois brainstorms (WBS/Jira/SAFe e orquestração multi-agente) sobre o modelo de
 > tarefas do knudge. **Proposta de desenho**, não decisão fechada. Continua

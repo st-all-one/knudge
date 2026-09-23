@@ -35,6 +35,23 @@ fn run_env(dir: &Path, args: &[&str], envs: &[(&str, &str)]) -> std::io::Result<
     command.output()
 }
 
+/// Executa `kd` num diretório isolado com `stdin` alimentado.
+fn run_stdin(dir: &Path, args: &[&str], input: &str) -> std::io::Result<Output> {
+    use std::io::Write;
+    let mut child = Command::new(env!("CARGO_BIN_EXE_kd"))
+        .args(args)
+        .current_dir(dir)
+        .env("XDG_CONFIG_HOME", dir)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+    if let Some(stdin) = child.stdin.as_mut() {
+        stdin.write_all(input.as_bytes())?;
+    }
+    child.wait_with_output()
+}
+
 /// Cria um diretório temporário único para um teste.
 fn temp_project() -> PathBuf {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -177,6 +194,34 @@ fn write_anchored(
     Ok(id)
 }
 
+/// Cria uma nota com expiração explícita e devolve o id.
+fn write_expiring(
+    dir: &Path,
+    statement: &str,
+    expires_at: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let out = run_in(
+        dir,
+        &[
+            "--json",
+            "write",
+            statement,
+            "--type",
+            "fact",
+            "--expires-at",
+            expires_at,
+        ],
+    )?;
+    assert!(out.status.success(), "write falhou: {:?}", out.stderr);
+    let id = json(&out)?
+        .get("data")
+        .and_then(|data| data.get("id"))
+        .and_then(|id| id.as_str())
+        .ok_or("write sem id")?
+        .to_string();
+    Ok(id)
+}
+
 /// Cria uma tarefa via CLI e devolve o id.
 fn task_new(dir: &Path, args: &[&str]) -> Result<String, Box<dyn std::error::Error>> {
     let mut full = vec!["--json"];
@@ -259,6 +304,132 @@ fn ask_anchor_accepts_comma_separated_and_repeated() -> TestResult {
         text.contains(&second_id),
         "repeat não achou {second_id}: {text}"
     );
+    Ok(())
+}
+
+#[test]
+fn write_batch_jsonl_creates_and_dry_run() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let drafts = concat!(
+        "{\"type\":\"fact\",\"statement\":\"batch alfa\"}\n",
+        "{\"type\":\"decision\",\"statement\":\"batch beta\",\"anchors\":[\"src/x.ts\"]}\n",
+    );
+    let out = run_stdin(&dir, &["--json", "write", "--batch", "-"], drafts)?;
+    assert!(out.status.success(), "batch falhou: {:?}", out.stderr);
+    let envelope = json(&out)?;
+    let items = envelope
+        .get("data")
+        .and_then(|data| data.get("items"))
+        .and_then(|items| items.as_array())
+        .ok_or("sem items")?;
+    assert_eq!(items.len(), 2);
+    assert!(
+        items.iter().all(|item| {
+            item.get("action").and_then(|action| action.as_str()) == Some("created")
+        })
+    );
+
+    let mixed = "{\"type\":\"fact\",\"statement\":\"efêmera\"}\n{\"type\":\"fact\"}\n";
+    let dry = run_stdin(
+        &dir,
+        &["--json", "write", "--batch", "-", "--dry-run"],
+        mixed,
+    )?;
+    assert!(dry.status.success(), "dry-run falhou: {:?}", dry.stderr);
+    let envelope = json(&dry)?;
+    let data = envelope.get("data").ok_or("sem data")?;
+    assert_eq!(
+        data.get("dry_run").and_then(serde_json::Value::as_bool),
+        Some(true)
+    );
+    let warnings = envelope
+        .get("warnings")
+        .and_then(|warnings| warnings.as_array())
+        .ok_or("sem warnings")?;
+    assert_eq!(warnings.len(), 1);
+
+    let ask = run_in(&dir, &["ask", "efêmera"])?;
+    assert!(
+        !String::from_utf8(ask.stdout)?.contains("efêmera"),
+        "dry-run gravou a nota efêmera"
+    );
+
+    let cap = run_in(&dir, &["config", "set", "write.batch_max", "1"])?;
+    assert!(cap.status.success(), "config set falhou: {:?}", cap.stderr);
+    let over = run_stdin(&dir, &["write", "--batch", "-"], drafts)?;
+    assert_eq!(over.status.code(), Some(2), "teto devia dar invalid_input");
+    Ok(())
+}
+
+#[test]
+fn ask_rank_orders_by_confidence() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let _plain = write_anchored(&dir, "o cache usa body_hash", "src/cache.rs")?;
+    let confirmed = write_anchored(&dir, "a fila usa backoff", "src/queue.rs")?;
+    let out = run_in(&dir, &["write", "--outcome", "success", &confirmed])?;
+    assert!(out.status.success(), "outcome falhou: {:?}", out.stderr);
+
+    let ranked = run_in(&dir, &["ask", "--rank"])?;
+    assert!(ranked.status.success(), "rank falhou: {:?}", ranked.stderr);
+    let text = String::from_utf8(ranked.stdout)?;
+    let first = text.lines().next().ok_or("sem linhas")?;
+    assert!(
+        first.starts_with(&confirmed),
+        "primeiro não é o confirmado: {text}"
+    );
+    assert!(first.contains("stars"), "why esperado stars: {first}");
+
+    let envelope = json(&run_in(&dir, &["--json", "ask", "--rank"])?)?;
+    let ranked_json = envelope
+        .get("data")
+        .and_then(|data| data.get("ranked"))
+        .and_then(|ranked| ranked.as_array())
+        .ok_or("sem ranked")?;
+    assert_eq!(
+        ranked_json
+            .first()
+            .and_then(|row| row.get("id"))
+            .and_then(|id| id.as_str()),
+        Some(confirmed.as_str())
+    );
+    Ok(())
+}
+
+#[test]
+fn maintenance_prune_proposes_forget_for_expired() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let expired = write_expiring(&dir, "nota vencida", "2000-01-01T00:00:00Z")?;
+    let fresh = write_anchored(&dir, "nota viva", "src/x.rs")?;
+
+    let out = run_in(&dir, &["--json", "maintenance", "prune"])?;
+    assert!(out.status.success(), "prune falhou: {:?}", out.stderr);
+    let envelope = json(&out)?;
+    let proposals = envelope
+        .get("data")
+        .and_then(|data| data.get("proposals"))
+        .and_then(|proposals| proposals.as_array())
+        .ok_or("sem proposals")?;
+    let ids: Vec<&str> = proposals
+        .iter()
+        .filter_map(|proposal| proposal.get("id").and_then(|id| id.as_str()))
+        .collect();
+    assert!(ids.contains(&expired.as_str()), "vencida ausente: {ids:?}");
+    assert!(!ids.contains(&fresh.as_str()), "viva proposta: {ids:?}");
+    assert!(proposals.iter().all(|proposal| {
+        proposal.get("reason").and_then(|reason| reason.as_str()) == Some("expired")
+    }));
+
+    let ask = run_in(&dir, &["ask", "--id", &expired])?;
+    assert!(ask.status.success(), "prune gravou: {:?}", ask.stderr);
     Ok(())
 }
 
@@ -429,6 +600,149 @@ fn task_list_sort_impact_skips_closed() -> TestResult {
     let ready = run_in(&dir, &["task", "list", "--ready"])?;
     let text = String::from_utf8(ready.stdout)?;
     assert!(text.contains(&done), "closed sumiu do --ready: {text}");
+    Ok(())
+}
+
+#[test]
+fn task_list_filters_by_tag_anchor_and_since() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let retry = task_new(
+        &dir,
+        &[
+            "task",
+            "new",
+            "Ajustar backoff",
+            "--scope",
+            "task",
+            "--tag",
+            "retry",
+            "--anchors",
+            "src/retry.ts",
+        ],
+    )?;
+    let storage = task_new(
+        &dir,
+        &[
+            "task",
+            "new",
+            "Trocar storage",
+            "--scope",
+            "task",
+            "--tag",
+            "storage",
+            "--anchors",
+            "src/storage.ts",
+        ],
+    )?;
+
+    let by_tag = run_in(&dir, &["task", "list", "--tag", "retry"])?;
+    let text = String::from_utf8(by_tag.stdout)?;
+    assert!(text.contains(&retry), "tag retry sumiu: {text}");
+    assert!(
+        !text.contains(&storage),
+        "storage vazou no filtro de tag: {text}"
+    );
+
+    let by_anchor = run_in(&dir, &["task", "list", "--anchor", "src/retry.ts"])?;
+    let text = String::from_utf8(by_anchor.stdout)?;
+    assert!(text.contains(&retry), "âncora retry sumiu: {text}");
+    assert!(
+        !text.contains(&storage),
+        "storage vazou no filtro de âncora: {text}"
+    );
+
+    let future = run_in(&dir, &["task", "list", "--since", "2999-01-01T00:00:00Z"])?;
+    let text = String::from_utf8(future.stdout)?;
+    assert!(
+        !text.contains(&retry),
+        "--since futuro devia excluir: {text}"
+    );
+    Ok(())
+}
+
+#[test]
+fn task_show_multiple_ids_separator_and_partial() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let first = task_new(&dir, &["task", "new", "Primeira", "--scope", "task"])?;
+    let second = task_new(&dir, &["task", "new", "Segunda", "--scope", "task"])?;
+
+    let out = run_in(&dir, &["task", "show", &first, &second])?;
+    assert!(out.status.success(), "show falhou: {:?}", out.stderr);
+    let text = String::from_utf8(out.stdout)?;
+    assert!(
+        text.contains(&first) && text.contains(&second),
+        "ids ausentes: {text}"
+    );
+    assert!(text.contains("\n---\n"), "separador ausente: {text}");
+
+    let partial = run_in(&dir, &["--json", "task", "show", &first, "task_zzzzzzzz"])?;
+    assert!(
+        partial.status.success(),
+        "show parcial falhou: {:?}",
+        partial.stderr
+    );
+    let value = json(&partial)?;
+    let tasks = value
+        .get("data")
+        .and_then(|data| data.get("tasks"))
+        .and_then(|tasks| tasks.as_array())
+        .ok_or("sem tasks")?;
+    assert_eq!(tasks.len(), 1);
+    let warnings = value
+        .get("warnings")
+        .and_then(|warnings| warnings.as_array())
+        .ok_or("sem warnings")?;
+    assert_eq!(warnings.len(), 1);
+
+    let missing = run_in(&dir, &["task", "show", "task_zzzzzzzz"])?;
+    assert!(!missing.status.success(), "id único ausente devia falhar");
+    Ok(())
+}
+
+#[test]
+fn task_close_note_records_outcome_reason() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let task = task_new(
+        &dir,
+        &["task", "new", "Fechar com motivo", "--scope", "task"],
+    )?;
+    let out = run_in(
+        &dir,
+        &[
+            "task",
+            "close",
+            &task,
+            "--outcome",
+            "success",
+            "--note",
+            "aplicado no job de retry",
+        ],
+    )?;
+    assert!(out.status.success(), "close falhou: {:?}", out.stderr);
+
+    let path = dir.join(".knudge").join("notas").join(format!("{task}.md"));
+    let text = std::fs::read_to_string(path)?;
+    assert!(
+        text.contains("aplicado no job de retry"),
+        "motivo ausente: {text}"
+    );
+    assert!(text.contains("outcomes"), "outcomes ausente: {text}");
+
+    let bad = run_in(&dir, &["task", "close", &task, "--note", "sem outcome"])?;
+    assert_eq!(
+        bad.status.code(),
+        Some(2),
+        "--note sem --outcome deve ser 2"
+    );
     Ok(())
 }
 

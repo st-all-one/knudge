@@ -5,6 +5,7 @@
 //! A escrita é **estrita na forma** (chave/tipo desconhecidos rejeitados, opcionais omitidos) e
 //! **tolerante na operação** (retry seguro, nada é apagado — D05/D16/D17/D52).
 
+pub mod batch;
 pub mod dedup;
 pub mod draft;
 pub mod lifecycle;
@@ -15,6 +16,7 @@ pub mod update;
 #[cfg(test)]
 mod tests;
 
+pub use batch::{BatchMode, BatchOutput, batch_jsonl};
 pub use dedup::{
     Candidate, DedupDecision, DedupThresholds, MergeProposal, WriteProposal, propose,
     propose_merges,

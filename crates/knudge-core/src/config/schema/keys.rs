@@ -22,6 +22,11 @@ pub const KEYS: &[KeySpec] = &[
         default: Default::Float(0.92),
     },
     KeySpec {
+        key: "write.batch_max",
+        kind: Kind::Int,
+        default: Default::Int(100),
+    },
+    KeySpec {
         key: "recall.default_limit",
         kind: Kind::Int,
         default: Default::Int(10),

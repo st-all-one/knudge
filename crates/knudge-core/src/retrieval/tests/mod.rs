@@ -8,6 +8,7 @@ mod anchor;
 mod bm25;
 mod filter;
 mod index;
+mod rank;
 mod recall;
 mod rrf;
 mod tags;

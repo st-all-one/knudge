@@ -1,8 +1,9 @@
 # upgrade_plan.md — implementação das melhorias de conhecimento e tarefas
 
-> **Status (implementado):** K7 (D102), K1 (D103), T1 (D104), T3 (D105), T4+K6 (D106),
-> K3 (D107), X1 (D108), T2+X3 (D109) e PR0.5 (D119). O restante segue pendente; ver
-> `CHANGELOG.md` e as decisões em `plan/03_decisoes-fechadas.md`.
+> **Status (implementado):** K7 (D102), K1 (D103), T1+T5+T6 (D104), T3 (D105), T4+K6 (D106),
+> K2+K3 (D107), X1 (D108), T2+X3 (D109), K4 (D110), X2 (D111), K5 (D112), C1–C4
+> (D113–D116), C5/C6 (documentação no `prime`) e PR0.5 (D119). Ver `CHANGELOG.md` e as decisões
+> em `plan/03_decisoes-fechadas.md`.
 >
 > Plano de execução do documento [`melhorias_conhecimento_tarefas.md`](melhorias_conhecimento_tarefas.md).
 > Cada item traz **CLI**, **core**, **contrato/config**, **determinismo**, **erros**, **testes** e

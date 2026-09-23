@@ -48,6 +48,7 @@ pub fn run(session: &Session, command: &MaintenanceCommand) -> Result<Output> {
             },
         ),
         MaintenanceCommand::Learn { scope } => extra::learn_cmd(session, scope.as_deref()),
+        MaintenanceCommand::Prune { scope, .. } => extra::prune(session, scope.as_deref()),
     }
 }
 

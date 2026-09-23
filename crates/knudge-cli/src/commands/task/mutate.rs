@@ -85,11 +85,21 @@ fn reparent(ctx: &WriteContext<'_>, note: &mut Note, parent: &str) -> Result<()>
 ///
 /// # Errors
 /// Propaga erros de evidência/validação e I/O.
-pub(super) fn close(session: &Session, id: &str, outcome_arg: Option<&str>) -> Result<Output> {
+pub(super) fn close(
+    session: &Session,
+    id: &str,
+    outcome_arg: Option<&str>,
+    note_arg: Option<&str>,
+) -> Result<Output> {
+    if note_arg.is_some() && outcome_arg.is_none() {
+        return Err(Error::invalid_input(
+            "`--note` exige `--outcome` (o motivo entra em `outcomes[].notes`)",
+        ));
+    }
     let ctx = session.write_context()?;
     if let Some(value) = outcome_arg {
         let status = value.parse::<OutcomeStatus>()?;
-        let _ignored = outcome(&ctx, id, status, None)?;
+        let _ignored = outcome(&ctx, id, status, note_arg)?;
         let revision = apply(&ctx, id, TaskAction::Review)?;
         let data = json!({ "id": id, "outcome": status.as_str(), "revision": revision });
         return Ok(Output::new(

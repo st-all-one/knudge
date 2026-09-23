@@ -7,6 +7,7 @@ use knudge_core::Result;
 use knudge_core::graph::Graph;
 use knudge_core::retrieval::block_reason;
 use knudge_core::schema::Scope;
+use knudge_core::store::Store;
 use knudge_core::task::{impact, is_actionable, ownership};
 use knudge_core::write::history;
 use serde_json::json;
@@ -122,18 +123,44 @@ fn validate_list_args(args: &TaskListArgs) -> Result<()> {
     Ok(())
 }
 
-/// `kd task show`.
+/// `kd task show <ID> [<ID> ...]` (T5/D104): separa por `\n---\n`; ids ausentes viram aviso.
 ///
 /// # Errors
-/// Propaga erros de leitura do store e de histórico.
-pub(super) fn show(session: &Session, id: &str, mode: ShowMode) -> Result<Output> {
+/// Propaga o erro do store quando **nenhum** id pôde ser lido.
+pub(super) fn show(session: &Session, ids: &[String], mode: ShowMode) -> Result<Output> {
     let store = session.store();
+    let mut blocks = Vec::new();
+    let mut data = Vec::new();
+    let mut warnings = Vec::new();
+    let mut last_error = None;
+    for id in ids {
+        match show_one(&store, id, mode) {
+            Ok((text, value)) => {
+                blocks.push(text);
+                data.push(value);
+            }
+            Err(error) => {
+                warnings.push(format!("{id}: {error}"));
+                last_error = Some(error);
+            }
+        }
+    }
+    if data.is_empty() {
+        let Some(error) = last_error else {
+            return Err(Error::not_found("nenhuma tarefa encontrada"));
+        };
+        return Err(error);
+    }
+    Ok(Output::new(blocks.join("\n---\n"), json!({ "tasks": data })).with_warnings(warnings))
+}
+
+fn show_one(store: &Store<'_>, id: &str, mode: ShowMode) -> Result<(String, serde_json::Value)> {
     let note = store.read(id)?;
     let statement = note.frontmatter.statement().unwrap_or_default().to_string();
     let scope = note.frontmatter.scope()?;
     let status = note.frontmatter.status()?;
     let chain = if mode == ShowMode::History {
-        history(&store, id)?
+        history(store, id)?
     } else {
         Vec::new()
     };
@@ -154,5 +181,5 @@ pub(super) fn show(session: &Session, id: &str, mode: ShowMode) -> Result<Output
         "body": note.body,
         "history": ids,
     });
-    Ok(Output::new(text, data))
+    Ok((text, data))
 }

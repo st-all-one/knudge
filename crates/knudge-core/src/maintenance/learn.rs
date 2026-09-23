@@ -4,10 +4,14 @@
 //! `kind ∈ {create_note, merge, supersede, link}` (D47). Três sinais: atividade sem registro
 //! (write-gap), quase-duplicata e lacuna de grafo (âncora compartilhada sem aresta explícita).
 
+use std::collections::BTreeSet;
+
 use crate::graph::Graph;
 use crate::handoff::manifest::belongs_to;
+use crate::lifecycle::confidence::is_success_task;
 use crate::retrieval::Index;
 use crate::retrieval::anchor::glob_match;
+use crate::retrieval::filter::anchor_matches;
 use crate::retrieval::index::NoteDoc;
 use crate::schema::EdgeKind;
 use crate::store::Event;
@@ -80,6 +84,7 @@ pub fn learn(input: &LearnInput<'_>) -> Vec<LearnProposal> {
     let docs = scoped_docs(input);
     let mut proposals = Vec::new();
     proposals.extend(write_gaps(input, &docs));
+    proposals.extend(task_gaps(&docs));
     proposals.extend(duplicates(input, &docs));
     proposals.extend(missing_links(input, &docs));
     proposals.sort_by(|left, right| {
@@ -88,6 +93,7 @@ pub fn learn(input: &LearnInput<'_>) -> Vec<LearnProposal> {
             .then_with(|| right.score.total_cmp(&left.score))
             .then_with(|| left.ids.cmp(&right.ids))
     });
+    proposals.dedup_by(|left, right| left.kind == right.kind && left.ids == right.ids);
     proposals.truncate(MAX_PROPOSALS);
     proposals
 }
@@ -127,6 +133,39 @@ fn write_gaps(input: &LearnInput<'_>, docs: &[&NoteDoc]) -> Vec<LearnProposal> {
         }
     }
     proposals
+}
+
+/// Lacuna tarefa→conhecimento (X2/D111): tarefa com `outcomes` de sucesso e âncora sem
+/// nenhuma nota de conhecimento ancorada no mesmo arquivo.
+fn task_gaps(docs: &[&NoteDoc]) -> Vec<LearnProposal> {
+    let knowledge: Vec<&NoteDoc> = docs
+        .iter()
+        .copied()
+        .filter(|doc| doc.meta.scope.is_none())
+        .collect();
+    let mut anchors = BTreeSet::new();
+    for task in docs.iter().filter(|doc| is_success_task(&doc.meta)) {
+        for anchor in &task.meta.anchors {
+            let covered = knowledge.iter().any(|doc| {
+                doc.meta
+                    .anchors
+                    .iter()
+                    .any(|other| anchor_matches(anchor, other))
+            });
+            if !covered {
+                let _ignored = anchors.insert(anchor.clone());
+            }
+        }
+    }
+    anchors
+        .into_iter()
+        .map(|anchor| LearnProposal {
+            kind: LearnKind::CreateNote,
+            ids: vec![anchor],
+            why: "tarefa fechada sem nota".to_string(),
+            score: 0.6,
+        })
+        .collect()
 }
 
 fn duplicates(input: &LearnInput<'_>, docs: &[&NoteDoc]) -> Vec<LearnProposal> {

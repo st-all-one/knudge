@@ -7,7 +7,7 @@ use crate::retrieval::Index;
 use crate::schema::NoteType;
 use crate::write::dedup::DedupThresholds;
 
-use super::{anchored, note};
+use super::{anchored, note, success_task};
 
 fn proposals<'a>(
     index: &'a Index,
@@ -45,6 +45,39 @@ fn covered_path_yields_no_gap() -> Result<()> {
     let changed = vec!["src/x.rs".to_string()];
     let found = proposals(&index, &graph, &changed, &DedupThresholds::default());
     assert!(!found.iter().any(|p| p.kind == LearnKind::CreateNote));
+    Ok(())
+}
+
+#[test]
+fn success_task_without_note_proposes_create_note() -> Result<()> {
+    let notes = [success_task("implementar retry", &["src/retry.ts"])?];
+    let index = Index::build(&notes)?;
+    let graph = Graph::from_notes(notes.to_vec())?;
+    let found = proposals(&index, &graph, &[], &DedupThresholds::default());
+    assert!(
+        found
+            .iter()
+            .any(|p| p.kind == LearnKind::CreateNote && p.why == "tarefa fechada sem nota"),
+        "propostas: {found:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn success_task_covered_by_note_yields_no_task_gap() -> Result<()> {
+    let notes = [
+        success_task("implementar retry", &["src/retry.ts"])?,
+        anchored("decisão de backoff", &["src/retry.ts"])?,
+    ];
+    let index = Index::build(&notes)?;
+    let graph = Graph::from_notes(notes.to_vec())?;
+    let found = proposals(&index, &graph, &[], &DedupThresholds::default());
+    assert!(
+        !found
+            .iter()
+            .any(|p| p.kind == LearnKind::CreateNote && p.why == "tarefa fechada sem nota"),
+        "propostas: {found:?}"
+    );
     Ok(())
 }
 

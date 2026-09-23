@@ -167,6 +167,9 @@ pub struct AskArgs {
     /// Lista o vocabulário de tags (`tag|count`, `count` desc).
     #[arg(long = "tags")]
     pub tag_vocab: bool,
+    /// Ranqueia por confiança derivada, sem query textual (D107).
+    #[arg(long)]
+    pub rank: bool,
     /// Inclui o corpo dos hits.
     #[arg(long)]
     pub with_body: bool,
@@ -248,6 +251,9 @@ pub struct WriteArgs {
     /// Simula sem gravar.
     #[arg(long)]
     pub dry_run: bool,
+    /// Aplica um lote de rascunhos JSONL (`-` lê stdin).
+    #[arg(long, value_name = "FONTE")]
+    pub batch: Option<String>,
     /// Anexa um resultado (`success|partial|failure|abandoned`) a uma nota existente.
     #[arg(long, value_name = "OUTCOME")]
     pub outcome: Option<String>,

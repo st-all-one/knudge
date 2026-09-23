@@ -164,7 +164,7 @@ fn choose_why(doc: &NoteDoc, query: &RecallQuery, graph: &Graph) -> Why {
     Why::Universal
 }
 
-fn age_days(doc: &NoteDoc, now_ms: Option<i64>) -> f64 {
+pub(super) fn age_days(doc: &NoteDoc, now_ms: Option<i64>) -> f64 {
     let Some(now) = now_ms else {
         return 0.0;
     };

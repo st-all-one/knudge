@@ -309,9 +309,12 @@
 | D104 | Views `ready`/`blocked` como **modos** de `task list` (`--ready`/`--blocked`/`--explain`); motivo de bloqueio derivado (`blocked_by`/`not_before`/`cycle`). |
 | D105 | Plano preenchível por LLM: `kd task plan --prompt` (derivado) e `--submit --from` (TOON); templates em `.knudge/templates.toml` (D97) sobrepõem built-ins; submissão **atômica**. |
 | D106 | `rewind` emite `next:` (tarefas `ready` abertas por impacto) e `fresh:` (`stale`/`expiring`/`pending`); `prime` permanece estático (D57). `impact` = tarefas abertas com `depends_on` reverso. |
-| D107 | `kd ask --tags` lista o vocabulário de tags (`tag\|count`, `count` desc, `tag` asc), ignorando `forgotten`/`superseded`. |
+| D107 | `kd ask --tags` lista o vocabulário de tags (`tag\|count`, `count` desc, `tag` asc), ignorando `forgotten`/`superseded`. `kd ask --rank` ranqueia por confiança derivada sem query (`id\|statement\|confidence\|why`), no universo conhecimento (`scope` ausente), ordem `(confidence desc, id asc)`. |
 | D108 | Feedback derivado **tarefa→conhecimento**: tarefas com `outcomes` de sucesso que compartilham `anchors` confirmam a nota (`task_confirmation`), alimentando o boost do BM25 e a confiança derivada — sem `write`. Peso em `recall.confirmation_from_tasks` (float, default 0.1); o manifest promove a `star`. |
 | D109 | Impacto de desbloqueio **derivado** como modo `kd task list --sort impact` (ordem `impacto desc, created asc, id asc`); `--explain` acrescenta `unblocks=N`; sem chave de prioridade. O modo filtra `closed`/`superseded`/`forgotten`. |
+| D110 | `kd write --batch -` aplica um lote de rascunhos **JSONL** pelo mesmo dedup (0.75/0.92); item inválido ⇒ `warnings[]` (R33); `--dry-run` só avalia; teto `write.batch_max` (int, 100). |
+| D111 | `learn` ganha o sinal **tarefa→conhecimento**: tarefa com `outcomes` de sucesso cuja âncora não tem nota vira proposta `create_note` (`why="tarefa fechada sem nota"`); read-only (D47). |
+| D112 | `kd maintenance prune` **propõe** `forget\|id\|motivo` (shelf-life/decay), excluindo membros de ciclo (D45) e sem gravar (D47); aplicação só via `kd forget`. |
 | D113 | `scope` = nível, `type` = espécie; `kd task new --kind`; `scope` exigido só para `task`/`container`, opcional nos demais itens de trabalho. |
 | D114 | Dono **derivado de eventos** `claim`/`release`; `kd task claim`; `--owner`/`--mine` (`KNUDGE_AGENT`). Sem chave canônica. |
 | D115 | Papel (Initiative/Epic/Feature/Story/Sub-task/Bug/Spike/Risk/Decision) **derivado** de `(scope, type, tem_filhos)`; nunca armazenado. |

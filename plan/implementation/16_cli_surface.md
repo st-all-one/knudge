@@ -56,6 +56,7 @@ kd ask [QUERY]
   --since <TS> / --until <TS>
   --limit <N>             # default: config recall.default_limit
   --tags                  # vocabulário de tags: tag|count (count desc, D107)
+  --rank                  # ranking por confiança derivada, sem query (D107)
   --json
 ```
 
@@ -82,6 +83,7 @@ kd write [STATEMENT]
   --update <ID>           # modo update (patch versionado)
   --link <ARESTA:ID>      # cria aresta (substitui o antigo `link`)
   --outcome <S> <ID>      # anexa evidência a qualquer nota (D103); com [--note <TXT>]
+  --batch <FONTE|->       # lote JSONL de rascunhos (D110); com [--dry-run]
   --dry-run
   --json                  # {action: created|merged|rejected|updated, id}
 ```
@@ -122,14 +124,15 @@ membership/backref (D52); dependências via aresta `depends_on`.
 ```
 kd task new <STATEMENT> --scope <plan|epic|issue|task>
   [--kind <task|error|question|risk|decision>] [--parent <ID>]
-  [--body <TXT|->] [--checks <NAME>...] [--anchor <PATH>...] [--source <F>]
+  [--body <TXT|->] [--checks <NAME>...] [--anchor <PATH>...] [--tag <T>...] [--source <F>]
   [--depends-on <ID>...] [--not-before <TS>] [--expires-at <TS>]
 kd task list [--scope ...] [--status ...] [--kind ...] [--parent <ID>]
-  [--ready|--blocked [--explain]] [--sort impact] [--owner <A>|--mine]
-kd task show <ID> [--history]
+  [--ready|--blocked [--explain]] [--sort impact] [--tag <T>...] [--anchor <PATH>...]
+  [--since <TS>] [--owner <A>|--mine]
+kd task show <ID> [<ID>...] [--history]
 kd task graph [--program <PATH>|--root <ID>]
 kd task update <ID> [--statement <S>] [--status <S>] [--parent <ID>] [--checks ...]
-kd task close <ID> [--outcome success|partial|failure|abandoned]
+kd task close <ID> [--outcome success|partial|failure|abandoned] [--note <TXT>]
 kd task claim <ID> --by <A>|--release
 kd task plan <ID> [--prompt [--template <NOME>] | --submit --from <TXT|->]
   [--step <TXT>...] [--adopt|--reorder <N>|--release|--review]
@@ -161,11 +164,13 @@ kd maintenance compact [--scope <C>]      # propõe merge/supersede (nunca em si
 kd maintenance eval --ab <A> <B>          # Recall@k / nDCG@k / MRR
 kd maintenance index [--drain|--status]   # fila de embeddings
 kd maintenance learn [--scope <C>]        # sugestões de notas/links/merges
+kd maintenance prune [--scope <C>]        # propõe forget por shelf-life/decay (nunca age, D112)
 ```
 
 - `audit` virou modo do `doctor` (relatório de integridade + arestas sugeridas).
 - `link` **não** mora aqui: virou `kd write --link`.
 - `index` é, por padrão, interno (worker); `--status`/`--drain` são diagnóstico.
+- `prune` **só propõe** (`forget|id|motivo`); a aplicação é `kd forget` (D47/D112).
 
 ## 9. `learn` em profundidade
 

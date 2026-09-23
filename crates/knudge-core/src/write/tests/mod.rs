@@ -1,5 +1,6 @@
 //! Testes da escrita (E07).
 
+mod batch;
 mod dedup;
 mod idempotent;
 mod lifecycle;

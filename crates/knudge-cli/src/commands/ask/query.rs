@@ -1,107 +1,70 @@
-//! `kd ask` — toda pesquisa: recall, get (`--id`) e expand (`--around`) (E12-T01).
+//! Modos de consulta de `kd ask`: `recall` (texto) e `--rank` (sem query) (E06, K2/D107).
 
 use std::collections::BTreeMap;
 
 use knudge_core::Result;
 use knudge_core::embeddings::{EmbeddingIndex, rank_query};
-use knudge_core::graph::Graph;
 use knudge_core::lifecycle::DEFAULT_TASK_CONFIRMATION;
 use knudge_core::retrieval::{
-    DEFAULT_LIMIT, DEFAULT_RRF_K, Filter, RecallHit, RecallQuery, format_brief, format_hit, get,
-    recall, tag_counts,
+    DEFAULT_LIMIT, DEFAULT_RRF_K, Filter, RankQuery, RecallHit, RecallQuery, Universe,
+    format_brief, format_hit, get, rank, recall,
 };
-use knudge_core::schema::{NoteType, Status};
-use knudge_core::store::Note;
+use knudge_core::schema::Status;
 use serde_json::json;
 
 use crate::cli::AskArgs;
+use crate::commands::embedder;
 use crate::commands::parse;
 use crate::output::Output;
 use crate::session::Session;
 
-use super::embedder;
-
-/// Executa `kd ask` no modo adequado (get > expand > recall).
+/// `kd ask --rank` — notas mais confiáveis, sem pergunta textual (K2/D107).
 ///
 /// # Errors
-/// Propaga erros de índice/grafo e `strict` (D94).
-pub fn run(session: &Session, args: &AskArgs) -> Result<Output> {
-    if args.tag_vocab {
-        return tag_vocab(session, args);
-    }
-    if !args.ids.is_empty() {
-        return get_ids(session, args);
-    }
-    if let Some(around) = &args.around {
-        return expand(session, args, around);
-    }
-    recall_query(session, args)
-}
-
-/// `kd ask --tags` — vocabulário de tags (`tag|count`, `count` desc, `tag` asc — D107).
-fn tag_vocab(session: &Session, args: &AskArgs) -> Result<Output> {
+/// Propaga erros de índice e validação de filtros.
+pub(super) fn rank_mode(session: &Session, args: &AskArgs) -> Result<Output> {
     let index = session.index()?;
-    let mut counts = tag_counts(&index);
-    if let Some(limit) = args.limit {
-        counts.truncate(limit);
-    }
-    let text = counts
-        .iter()
-        .map(|(tag, count)| format!("{tag}|{count}"))
-        .collect::<Vec<_>>()
-        .join("\n");
-    let data = json!({
-        "tags": counts.iter().map(|(tag, count)| json!({"tag": tag, "count": count})).collect::<Vec<_>>(),
-    });
-    Ok(Output::new(text, data))
-}
-
-fn get_ids(session: &Session, args: &AskArgs) -> Result<Output> {
-    let store = session.store();
-    let out = get(&store, &args.ids)?;
-    let blocks: Vec<String> = out
-        .notes
-        .iter()
-        .map(|note| {
-            let id = note.frontmatter.id().unwrap_or_default();
-            let statement = note.frontmatter.statement().unwrap_or_default();
-            if note.body.is_empty() || args.brief {
-                format!("{id}|{statement}")
-            } else {
-                format!("{id}|{statement}\n{}", note.body)
-            }
-        })
-        .collect();
-    let data = json!({
-        "notes": out.notes.iter().map(note_json).collect::<Vec<_>>(),
-    });
-    Ok(Output::new(blocks.join("\n"), data).with_warnings(out.warnings))
-}
-
-fn expand(session: &Session, args: &AskArgs, around: &str) -> Result<Output> {
-    let graph: Graph = session.graph()?;
-    let kind = match &args.via {
-        Some(value) => Some(value.parse()?),
-        None => None,
+    let config = session.config();
+    let filter = Filter {
+        types: parse::types(&args.types)?,
+        classifications: parse::classifications(&args.classes)?,
+        statuses: resolve_statuses(args)?,
+        tags: args.tags.clone(),
+        anchors: args.anchor.clone(),
     };
-    let hits = graph.expand(around, kind, u32::from(args.depth));
-    let text = hits
-        .iter()
-        .map(|hit| format!("{}|{}|{}", hit.id, hit.kind.as_str(), hit.depth))
-        .collect::<Vec<_>>()
-        .join("\n");
+    let limit = args
+        .limit
+        .unwrap_or_else(|| usize_from(config.get_int("recall.default_limit"), DEFAULT_LIMIT));
+    let weight = config
+        .get_float("recall.confirmation_from_tasks")
+        .unwrap_or(DEFAULT_TASK_CONFIRMATION);
+    let hits = rank(
+        &index,
+        &filter,
+        &RankQuery {
+            universe: Universe::Knowledge,
+            now_ms: Some(session.now_ms()),
+            limit,
+            task_weight: weight,
+        },
+    );
+    let text = hits.iter().map(format_hit).collect::<Vec<_>>().join("\n");
     let data = json!({
-        "around": around,
-        "hits": hits.iter().map(|hit| json!({
+        "ranked": hits.iter().map(|hit| json!({
             "id": hit.id,
-            "kind": hit.kind.as_str(),
-            "depth": hit.depth,
+            "statement": hit.statement,
+            "confidence": hit.confidence,
+            "why": hit.why.as_str(),
         })).collect::<Vec<_>>(),
     });
     Ok(Output::new(text, data))
 }
 
-fn recall_query(session: &Session, args: &AskArgs) -> Result<Output> {
+/// Executa o `recall` textual com filtros, canal vetorial e `strict` (D94/D102).
+///
+/// # Errors
+/// Propaga erros de índice/grafo e `strict`.
+pub(super) fn recall_query(session: &Session, args: &AskArgs) -> Result<Output> {
     let index = session.index()?;
     let graph = session.graph()?;
     let config = session.config();
@@ -114,21 +77,10 @@ fn recall_query(session: &Session, args: &AskArgs) -> Result<Output> {
     query.task_confirmation_weight = config
         .get_float("recall.confirmation_from_tasks")
         .unwrap_or(DEFAULT_TASK_CONFIRMATION);
-    let statuses = parse::statuses(args.status.iter().cloned().collect::<Vec<_>>().as_slice())?;
-    let statuses = if statuses.is_empty() {
-        // Soft-delete/supersede ficam fora do `ask` por padrão (D43); peça
-        // `--status forgotten`/`--status superseded` para inspecionar a linhagem.
-        Status::ALL
-            .into_iter()
-            .filter(|status| !matches!(status, Status::Superseded | Status::Forgotten))
-            .collect()
-    } else {
-        statuses
-    };
     query.filter = Filter {
         types: parse::types(&args.types)?,
         classifications: parse::classifications(&args.classes)?,
-        statuses,
+        statuses: resolve_statuses(args)?,
         tags: args.tags.clone(),
         anchors: args.anchor.clone(),
     };
@@ -164,6 +116,20 @@ fn recall_query(session: &Session, args: &AskArgs) -> Result<Output> {
         "hits": out.hits.iter().map(|hit| hit_json(hit, format, &bodies)).collect::<Vec<_>>(),
     });
     Ok(Output::new(body, data).with_warnings(out.warnings))
+}
+
+/// Statuses efetivos: os pedidos ou o default que esconde soft-delete/supersede (D43).
+fn resolve_statuses(args: &AskArgs) -> Result<Vec<Status>> {
+    let statuses = parse::statuses(args.status.iter().cloned().collect::<Vec<_>>().as_slice())?;
+    Ok(if statuses.is_empty() {
+        // `--status forgotten`/`--status superseded` inspecionam a linhagem (D43).
+        Status::ALL
+            .into_iter()
+            .filter(|status| !matches!(status, Status::Superseded | Status::Forgotten))
+            .collect()
+    } else {
+        statuses
+    })
 }
 
 /// Liga o canal vetorial quando `recall.semantic` está ligado e há índice (D102).
@@ -272,17 +238,7 @@ fn hit_json(
     value
 }
 
-fn note_json(note: &Note) -> serde_json::Value {
-    json!({
-        "id": note.frontmatter.id().unwrap_or_default(),
-        "type": note.frontmatter.note_type().map(NoteType::as_str).unwrap_or_default(),
-        "statement": note.frontmatter.statement().unwrap_or_default(),
-        "status": note.frontmatter.status().map(Status::as_str).unwrap_or_default(),
-        "body": note.body,
-    })
-}
-
-fn usize_from(value: Option<i64>, fallback: usize) -> usize {
+pub(super) fn usize_from(value: Option<i64>, fallback: usize) -> usize {
     value
         .and_then(|raw| usize::try_from(raw).ok())
         .unwrap_or(fallback)

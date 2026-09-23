@@ -29,6 +29,7 @@ pub(super) fn new_task(session: &Session, args: &TaskNewArgs) -> Result<Output> 
     spec.depends_on.clone_from(&args.depends_on);
     spec.checks.clone_from(&args.checks);
     spec.anchors.clone_from(&args.anchors);
+    spec.tags.clone_from(&args.tag);
     spec.source.clone_from(&args.source);
     spec.expires_at = parse::timestamp_opt(args.expires_at.as_ref())?;
     spec.not_before = parse::timestamp_opt(args.not_before.as_ref())?;

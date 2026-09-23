@@ -41,6 +41,15 @@ pub enum MaintenanceCommand {
         #[arg(long, value_name = "CONTAINER")]
         scope: Option<String>,
     },
+    /// Propõe aposentadoria (`forget`) por shelf-life/decay — nunca age (D112).
+    Prune {
+        /// Container/domínio de escopo.
+        #[arg(long, value_name = "CONTAINER")]
+        scope: Option<String>,
+        /// Proposta é sempre read-only (D47); a flag existe por paridade.
+        #[arg(long)]
+        dry_run: bool,
+    },
 }
 
 /// Subcomandos de `kd config`.

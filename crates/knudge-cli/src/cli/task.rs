@@ -13,11 +13,11 @@ pub enum TaskCommand {
     New(TaskNewArgs),
     /// Lista tarefas.
     List(TaskListArgs),
-    /// Mostra uma tarefa.
+    /// Mostra uma ou mais tarefas.
     Show {
-        /// Id.
-        #[arg(value_name = "ID")]
-        id: String,
+        /// Ids.
+        #[arg(value_name = "ID", required = true, num_args = 1..)]
+        ids: Vec<String>,
         /// Inclui o histórico de supersessão.
         #[arg(long)]
         history: bool,
@@ -48,6 +48,9 @@ pub enum TaskCommand {
         /// Resultado: `success|partial|failure|abandoned`.
         #[arg(long, value_name = "OUTCOME")]
         outcome: Option<String>,
+        /// Motivo do fechamento (entra em `outcomes[].notes`) — T6/D104.
+        #[arg(long, value_name = "TXT")]
+        note: Option<String>,
     },
     /// Reivindica (`--by`) ou libera (`--release`) um item de trabalho (D114).
     Claim {
@@ -145,6 +148,15 @@ pub struct TaskListArgs {
     /// Ordenação derivada do grafo (D109).
     #[arg(long, value_enum, value_name = "CAMPO")]
     pub sort: Option<TaskSort>,
+    /// Filtro por tag (repetível; basta uma).
+    #[arg(long, value_name = "TAG")]
+    pub tag: Vec<String>,
+    /// Filtro por âncora (repetível; aceita lista com vírgula: `--anchor a,b`).
+    #[arg(long, value_name = "PATH", value_delimiter = ',')]
+    pub anchor: Vec<String>,
+    /// Só o que foi criado a partir do instante (`TS` RFC3339/epoch).
+    #[arg(long, value_name = "TS")]
+    pub since: Option<String>,
 }
 
 /// Campo de ordenação de `kd task list` (D109).
@@ -178,6 +190,9 @@ pub struct TaskNewArgs {
     /// Âncoras.
     #[arg(long, value_name = "PATH")]
     pub anchors: Vec<String>,
+    /// Tags declaradas (repetível).
+    #[arg(long, value_name = "TAG")]
+    pub tag: Vec<String>,
     /// Proveniência (`source`) — ex.: o arquivo do programa.
     #[arg(long, value_name = "FONTE")]
     pub source: Option<String>,

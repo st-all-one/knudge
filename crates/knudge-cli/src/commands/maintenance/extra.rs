@@ -1,10 +1,17 @@
-//! Subcomandos de manutenção: compact, eval, index e learn (E12-T01).
+//! Subcomandos de manutenção: compact, eval, index, learn e prune (E12-T01).
+
+use std::collections::BTreeMap;
 
 use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::embeddings::{DrainInput, drain};
 use knudge_core::handoff::manifest::belongs_to;
+use knudge_core::lifecycle::{
+    AnchorValidity, DecayPolicy, DemotionInput, ShelfLife, compute_anchor_validity,
+    demotion_candidates,
+};
 use knudge_core::maintenance::{LearnInput, learn, propose_compact};
+use knudge_core::store::Note;
 use serde_json::json;
 
 use crate::output::Output;
@@ -167,4 +174,64 @@ pub fn eval(session: &Session, ab: &[String]) -> Result<Output> {
         "ab": ab,
     });
     Ok(Output::new(format!("docs: {}", index.docs.len()), data).with_warnings(warnings))
+}
+
+/// `kd maintenance prune` — propõe aposentadoria (`forget`) por shelf-life/decay (D112).
+///
+/// Nunca grava (D47): o agente aplica com `kd forget`. Membros de ciclo ficam de fora (D45).
+///
+/// # Errors
+/// Propaga erros de leitura do store/grafo e varredura de âncoras.
+pub fn prune(session: &Session, scope: Option<&str>) -> Result<Output> {
+    let store = session.store();
+    let graph = session.graph()?;
+    let mut notes = Vec::new();
+    for id in store.list_ids()? {
+        notes.push(store.read(&id)?);
+    }
+    let shelf_life = ShelfLife::from_config(session.config());
+    let decay = DecayPolicy::from_config(session.config());
+    let validity = validity_map(session, &notes)?;
+    let input = DemotionInput {
+        now_ms: session.now_ms(),
+        shelf_life: &shelf_life,
+        decay: &decay,
+        validity: &validity,
+    };
+    let mut candidates = demotion_candidates(&notes, &input, &graph)?;
+    if let Some(container) = scope {
+        candidates.retain(|candidate| belongs_to(&graph, &candidate.id, container));
+    }
+    let text = candidates
+        .iter()
+        .map(|candidate| format!("forget|{}|{}", candidate.id, candidate.reason.as_str()))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let data = json!({
+        "proposals": candidates.iter().map(|candidate| json!({
+            "action": "forget",
+            "id": candidate.id,
+            "reason": candidate.reason.as_str(),
+        })).collect::<Vec<_>>(),
+    });
+    Ok(Output::new(text, data))
+}
+
+/// Validade de âncoras por id (varredura off-path) para o plano de demolição.
+fn validity_map(session: &Session, notes: &[Note]) -> Result<BTreeMap<String, AnchorValidity>> {
+    let mut map = BTreeMap::new();
+    for note in notes {
+        let anchors: Vec<String> = note
+            .frontmatter
+            .string_list("anchors")?
+            .into_iter()
+            .map(str::to_string)
+            .collect();
+        if anchors.is_empty() {
+            continue;
+        }
+        let validity = compute_anchor_validity(session.fs_dyn(), session.project_root(), &anchors);
+        let _ignored = map.insert(note.id()?.to_string(), validity);
+    }
+    Ok(map)
 }
