@@ -26,6 +26,7 @@ pub use sweep::sweep_residues;
 
 use std::path::{Path, PathBuf};
 
+use crate::Error;
 use crate::Result;
 use crate::ports::Fs;
 
@@ -86,9 +87,14 @@ impl<'a> Store<'a> {
     /// Lê e valida uma nota.
     ///
     /// # Errors
-    /// Retorna `ErrorKind::NotFound`/`Io`/`Schema` conforme o caso.
+    /// Retorna `ErrorKind::NotFound` se a nota não existir, e `ErrorKind::Io`/`Schema`
+    /// conforme o caso.
     pub fn read(&self, id: &str) -> Result<Note> {
-        let bytes = self.fs.read(&self.note_path(id))?;
+        let path = self.note_path(id);
+        if !self.fs.exists(&path) {
+            return Err(Error::not_found(format!("nota ausente: {id}")));
+        }
+        let bytes = self.fs.read(&path)?;
         Note::parse(&bytes)
     }
 

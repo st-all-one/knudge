@@ -1,0 +1,1 @@
+erro: não encontrado: nota ausente: fact_zzzzzzzz

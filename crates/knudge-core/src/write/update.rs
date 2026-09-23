@@ -55,6 +55,11 @@ impl Patch {
                 .set("type", Value::Str(note_type.as_str().to_string()))?;
         }
         if let Some(statement) = &self.statement {
+            if statement.trim().is_empty() {
+                return Err(Error::invalid_input(
+                    "statement vazio: informe a afirmação da nota",
+                ));
+            }
             note.frontmatter
                 .set("statement", Value::Str(statement.clone()))?;
         }

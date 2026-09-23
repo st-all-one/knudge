@@ -279,7 +279,7 @@ no Docker): a superfície v2 está congelada em `implementation/16_cli_surface.m
 | `kd ask` | `recall`, `get`, `expand` | toda pesquisa |
 | `kd write` | `write`, `update`, `link` | toda escrita |
 | `kd task` | `plan`, containers de tarefa | plan/epic/issue/task (D93) |
-| `kd maintenance` | `doctor`, `audit`, `compact`, `eval`, `embed`, `learn` | manutenção |
+| `kd maintenance` | `doctor` (`--audit`), `compact`, `eval`, `index`, `learn`, `prune` | manutenção |
 | `kd config` | `config` | `.knudge/config.toml` |
 | `kd forget` | `forget`, `restore` | soft-delete |
 | `kd sync` | `sync` | commit git |

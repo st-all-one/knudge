@@ -5,6 +5,16 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 ## [Não publicado]
 
 ### Adicionado
+- **`kd prime` reorganizado por fluxo e economia de tokens (D57/D130).** O protocolo agora abre
+  com o **CICLO** (`ask → write → task → sync`), separa **CONHECIMENTO / PESQUISA / TAREFAS**,
+  explicita os modos do `ask` (`--id`/`--around`/`--rank`/`--tags`) e recomenda `--limit N` e
+  `--brief` para gastar menos contexto. Inclui `kd sync` (faltava) e `kd task update`. Goldens
+  `prime.txt`/`json_prime.json` regenerados (~1.2k tokens).
+- **README: ambiente, integração e modelo.** Novas seções **Preparar o ambiente** (Rust 1.97+,
+  git, embedding opcional), **Integrar ao projeto** (`kd init`/`.gitignore`/MCP) e
+  **Embeddings** com o modelo recomendado
+  (`ibm-granite/granite-embedding-97m-multilingual-r2`, `llama.cpp --pooling mean`, config e
+  `kd maintenance index --drain`).
 - **`kd task show` resolve o contexto do item (D125).** Cada id agora traz `parent`,
   `blocked_by`, `blocks` e `children` com **título** e estado — em texto
   (`pai:`/`bloqueado_por:`/`bloqueia:`/`filhos:`) e no `--json`. Um comando responde "onde isto
@@ -46,6 +56,17 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   `retrieval::tests::rrf::weight_scales_channel_contribution`.
 
 ### Corrigido
+- **Entrada vazia virava lixo ou silêncio (D130).** `kd write`/`kd task new` sem `statement`
+  criavam nota/tarefa com `statement: ""`; `kd ask` sem nenhum modo saía com exit 0 e stdout
+  vazio. Agora `write`/`task new` vazios são `invalid_input` (2) e o `ask` sem modo devolve o uso
+  do comando (2). Regressão: `cli::write_without_statement_is_invalid`,
+  `cli::task_new_without_statement_is_invalid`, `cli::ask_without_mode_returns_usage`.
+- **Nota ausente era `io` (5), não `not_found` (3).** `Store::read` propagava o erro de I/O do
+  arquivo ausente, então `kd ask --id <id>` morria com 5 e a degradação que o `get` já previa
+  (`Err(Error::NotFound(_)) => warnings`) nunca disparava. Agora `read` devolve `not_found`:
+  `ask --id` volta com warning e `ask --around` falha alto com 3. Goldens de erro
+  (`error_not_found.txt`/`json_error_not_found.json`) e teste
+  `cli::ask_missing_id_degrades_to_warning`.
 - **Views `ready`/`blocked`, `impact` e `next:` ignoravam espécies de trabalho (D120).**
   `compute_views_at`/`block_reason`/`impact` filtravam `type == task`, então itens criados com
   `--kind error|question|risk|decision` (D113) — que têm `scope` — sumiam das views embora

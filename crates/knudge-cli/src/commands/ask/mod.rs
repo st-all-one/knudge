@@ -1,10 +1,10 @@
 //! `kd ask` — toda pesquisa: rank, recall, get (`--id`) e expand (`--around`) (E12-T01).
 
-use knudge_core::Result;
 use knudge_core::graph::Graph;
 use knudge_core::retrieval::{get, tag_counts};
 use knudge_core::schema::{NoteType, Status};
 use knudge_core::store::Note;
+use knudge_core::{Error, Result};
 use serde_json::json;
 
 use crate::cli::AskArgs;
@@ -15,10 +15,23 @@ mod query;
 
 use query::{rank_mode, recall_query};
 
+/// Uso resumido quando nenhum modo de busca é selecionado (token-optimized).
+const ASK_USAGE: &str = "\
+nenhum modo de busca: informe uma QUERY ou um modo.
+  kd ask <QUERY> [--type T] [--class C] [--tag T] [--status S] [--container ID]
+                 [--anchor PATH] [--since TS] [--until TS] [--limit N] [--brief] [--with-body]
+  kd ask --id <ID>...                              # corpos por id
+  kd ask --around <ID> [--via ARESTA] [--depth N]  # expande o grafo
+  kd ask --rank                                    # mais confiáveis (D107)
+  kd ask --tags                                    # vocabulário de tags
+  kd ask --anchor <PATH>                           # por âncora, sem query
+veja: kd ask --help";
+
 /// Executa `kd ask` no modo adequado (rank > tags > get > expand > recall).
 ///
 /// # Errors
-/// Propaga erros de índice/grafo e `strict` (D94).
+/// Propaga erros de índice/grafo e `strict` (D94). Sem modo selecionado (query e âncora
+/// vazias), devolve o uso do comando em vez de sair silenciosamente.
 pub fn run(session: &Session, args: &AskArgs) -> Result<Output> {
     if args.rank {
         return rank_mode(session, args);
@@ -31,6 +44,9 @@ pub fn run(session: &Session, args: &AskArgs) -> Result<Output> {
     }
     if let Some(around) = &args.around {
         return expand(session, args, around);
+    }
+    if args.query.is_empty() && args.anchor.is_empty() {
+        return Err(Error::invalid_input(ASK_USAGE));
     }
     recall_query(session, args)
 }
@@ -76,6 +92,9 @@ fn get_ids(session: &Session, args: &AskArgs) -> Result<Output> {
 }
 
 fn expand(session: &Session, args: &AskArgs, around: &str) -> Result<Output> {
+    if !session.store().exists(around) {
+        return Err(Error::not_found(format!("nota ausente: {around}")));
+    }
     let graph: Graph = session.graph()?;
     let kind = match &args.via {
         Some(value) => Some(value.parse()?),

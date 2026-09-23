@@ -36,8 +36,17 @@ pub(super) fn graph_tree(
     for root_id in &roots {
         render_subtree(&store, &graph, &signals, root_id, &mut tree)?;
     }
+    let empty = roots.is_empty();
     let data = json!({ "program": program, "roots": roots, "nodes": tree.json_rows });
-    Ok(Output::new(tree.lines.join("\n"), data))
+    let output = Output::new(tree.lines.join("\n"), data);
+    Ok(if empty {
+        output.with_warnings(vec![
+            "nenhum container: crie um épico com `kd task new --scope epic` (ou use --program/--root)"
+                .to_string(),
+        ])
+    } else {
+        output
+    })
 }
 
 /// Acumulador da árvore (linhas do pipe + nós JSON).

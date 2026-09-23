@@ -15,47 +15,51 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Corpo estático do protocolo. `{TYPES}` é preenchido a partir do schema (fonte única).
 const PRIME_BODY: &str = "\
 knudge (kd) — memória por projeto, otimizada para LLM.
-
 TIPOS: {TYPES}
 CLASSIFICAÇÃO: foundational, tactical, observational
 STATUS: active, in_progress, blocked, closed, superseded, forgotten
 
-ESCRITA (duas fases, idempotente por conteúdo):
+CICLO: kd ask (buscar) → kd write (gravar conhecimento) → kd task (executar) → kd sync (commit).
+  Sempre busque antes de gravar (evita duplicata); para gastar menos, use --limit N e --brief.
+
+CONHECIMENTO (kd write — fatos, decisões, erros, riscos, perguntas):
   1. kd ask \"<rascunho>\"                # dedup lexical (BM25) antes de criar
   2. score < 0.75 cria | 0.75-0.92 faz merge | >= 0.92 rejeita
-     kd write --type <T> \"<...>\" [--body -|TXT] [--tag T...] [--anchors PATH...]
-     kd write --update <ID> \"<...>\"    # versiona, não sobrescreve
-     kd write --link <FROM:ARESTA:TO>    # aresta explícita (via única; inclui depends_on)
-     kd write --outcome <S> <ID>         # evidência: success|partial|failure|abandoned
-     kd write --batch - [--dry-run]      # lote JSONL de rascunhos (D110)
-     --type task|container é rejeitado: use kd task
+  kd write --type <fact|decision|error|risk|question> \"<...>\" [--body -|TXT] [--tag T...] [--anchors PATH...]
+  kd write --update <ID> \"<...>\"       # versiona; mudar type/statement cria novo id + supersede
+  kd write --link <FROM:ARESTA:TO>        # aresta explícita (via única; inclui depends_on)
+  kd write --outcome <success|partial|failure|abandoned> <ID> [--note TXT]   # evidência (D55)
+  kd write --batch - [--dry-run]          # lote JSONL de rascunhos (D110)
+  --type task|container é rejeitado: use kd task.
 
-PESQUISA (uma tool):
-  kd ask [QUERY] [--id ID...] [--around ID] [--via ARESTA] [--depth N]
-         [--type T...] [--class C...] [--tag T...] [--status S...] [--container ID]
-         [--anchor PATH...] [--since TS] [--until TS] [--limit N] [--brief] [--with-body]
-         [--tags] [--rank]              # vocabulário de tags | ranking por confiança (D107)
+PESQUISA (kd ask — uma tool para tudo):
+  kd ask <QUERY> [--type T...] [--class C...] [--tag T...] [--status S...] [--container ID]
+        [--anchor PATH...] [--since TS] [--until TS] [--limit N] [--brief] [--with-body]
+  kd ask --id <ID>...                     # corpos por id
+  kd ask --around <ID> [--via ARESTA] [--depth N]   # expande o grafo
+  kd ask --rank                           # mais confiáveis, sem query (D107)
+  kd ask --tags                           # vocabulário de tags
   Pipe (LLM): id|statement|score|why  (1 hit por linha). Corpo só com --id/--with-body.
   forgotten/superseded ficam fora do ask por padrão; use --status para incluí-los.
 
-ESTADO / HANDOFF:
-  kd rewind [--scope CONTAINER] [--files PATH...] [--budget N] [--resume ID]
-  Orçamento ceil(len/4) tokens (default 4000); emite context_id retomável 1:1.
-  Manifest: next: (ready por impacto) e fresh: (stale/expiring/pending) — D106.
-
-TAREFAS: kd task new|list|show|update|close|claim|graph|plan  (plan ⊃ epic ⊃ issue ⊃ task, máx. 4)
-  kd task new ... --kind error|question|risk|decision [--checks NOME]  # espécie (D113); checks = DoD (D54)
+TAREFAS (kd task — plan ⊃ epic ⊃ issue ⊃ task, máx. 4):
+  kd task new \"<...>\" --scope <plan|epic|issue|task> [--kind error|question|risk|decision]
+        [--parent ID] [--checks NOME] [--body TXT] [--tag T] [--anchor PATH]
+  kd task list --ready|--blocked [--explain] [--sort impact] [--kind K] [--tag T] [--owner A|--mine]
+  kd task show <ID> [<ID>...] [--history]   # + contexto (parent/blocked_by/children) e épico (D125/D127)
+  kd task update <ID> ...                   # edita campos no lugar
   kd task close <ID> [--outcome S] [--note TXT]   # só declara com evidência (D55); + épico e progresso (D127)
-  kd task claim <ID> --by <agente>|--release             # dono derivado (D114)
-  kd task list --ready|--blocked [--explain] [--sort impact] [--kind K] [--tag T] [--anchor P] [--owner A|--mine]
-  kd task show <ID> [<ID>...] [--history]                # multi-id (D104); + contexto e progresso do épico (D125/D127)
-  kd task plan <ID> --prompt [--template T]  |  --submit --from -   # plano TOON (D105)
+  kd task claim <ID> --by <agente>|--release       # dono derivado (D114)
   kd task graph [--program plan/<slug>.md|--root ID]   # role|kind|status|owner|mode|progresso (D116/D127)
-CONHECIMENTO: kd knowledge map [--axis A] [--scope C] [--semantic] [--members]  # clusters/mapa (D128)
-MANUTENÇÃO: kd maintenance doctor|audit|compact|eval|index|learn|prune  (learn/compact/prune só propõem)
+  kd task plan <ID> --prompt [--template T] | --submit --from -   # plano TOON (D105)
+
+ESTADO / HANDOFF: kd rewind [--scope CONTAINER] [--files PATH...] [--budget N] [--resume ID]
+  Orçamento ceil(len/4) tokens (default 4000); context_id retomável 1:1; next:/fresh: (D106).
+MAPA: kd knowledge map [--axis anchor|type|classification|container] [--scope C] [--semantic] [--members]
+MANUTENÇÃO: kd maintenance doctor [--audit]|compact|eval|index|learn|prune  (learn/compact/prune só propõem)
 CICLO DE VIDA: kd forget <ID>  (soft; --restore; --purge após retenção)
 CONFIG: kd config get|set|unset|list [--global]  (strict é config, não flag)
-INIT: kd init  (funda .knudge/ + AGENTS.md)
+INIT/SYNC: kd init  (funda .knudge/ + AGENTS.md)  ·  kd sync  (commit de notas/ + eventos/)
 
 ID: <tipo>_<base36(8)> = hash(type + U+001F + normalize(statement)); reclassificar não reescreve o id.
 TOON: frontmatter em ordem canônica; opcionais omitidos, nunca null.

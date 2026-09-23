@@ -153,6 +153,11 @@ impl Draft {
     /// Retorna `ErrorKind::Schema`/`InvalidInput` para chave/tipo/aresta/escopo inválidos ou
     /// `statement` acima do limite.
     pub fn to_note(&self, now_ms: i64) -> Result<Note> {
+        if self.statement.trim().is_empty() {
+            return Err(Error::invalid_input(
+                "statement vazio: informe a afirmação da nota",
+            ));
+        }
         let mut frontmatter = Frontmatter::new();
         frontmatter.set(
             "id",

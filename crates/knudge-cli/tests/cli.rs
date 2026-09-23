@@ -1031,6 +1031,39 @@ fn task_graph_program_renders_subtree() -> TestResult {
 }
 
 #[test]
+fn task_graph_without_containers_warns() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let new = run_in(&dir, &["task", "new", "tarefa solta", "--scope", "task"])?;
+    assert!(new.status.success(), "task falhou: {:?}", new.stderr);
+    let out = run_in(&dir, &["task", "graph"])?;
+    assert!(out.status.success(), "graph falhou: {:?}", out.stderr);
+    let stderr = String::from_utf8(out.stderr)?;
+    assert!(
+        stderr.contains("nenhum container"),
+        "aviso de container ausente: {stderr}"
+    );
+    Ok(())
+}
+
+#[test]
+fn maintenance_doctor_audit_lists_integrity() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let out = run_in(&dir, &["maintenance", "doctor", "--audit"])?;
+    assert!(
+        out.status.success(),
+        "doctor --audit falhou: {:?}",
+        out.stderr
+    );
+    let text = String::from_utf8(out.stdout)?;
+    assert!(text.contains("audit"), "saída sem audit: {text}");
+    Ok(())
+}
+
+#[test]
 fn forgotten_note_is_hidden_from_default_ask() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
@@ -1165,6 +1198,40 @@ fn task_new_requires_scope() -> TestResult {
         .and_then(|id| id.as_str())
         .ok_or("task sem id")?;
     assert!(id.starts_with("task_"), "id inesperado: {id}");
+    Ok(())
+}
+
+#[test]
+fn ask_without_mode_returns_usage() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let out = run_in(&dir, &["ask"])?;
+    assert_eq!(out.status.code(), Some(2), "ask vazio devia ser 2");
+    let text = String::from_utf8(out.stderr)?;
+    assert!(text.contains("kd ask"), "uso ausente: {text}");
+    Ok(())
+}
+
+#[test]
+fn write_without_statement_is_invalid() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let out = run_in(&dir, &["--json", "write", "--type", "fact"])?;
+    assert_eq!(out.status.code(), Some(2), "write vazio devia ser 2");
+    let value = json(&out)?;
+    assert_eq!(value.get("success"), Some(&serde_json::Value::Bool(false)));
+    Ok(())
+}
+
+#[test]
+fn task_new_without_statement_is_invalid() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let out = run_in(&dir, &["task", "new", "", "--scope", "task"])?;
+    assert_eq!(out.status.code(), Some(2), "tarefa vazia devia ser 2");
     Ok(())
 }
 

@@ -30,7 +30,7 @@
 | `kd write` | `write`, `update`, `link` | toda escrita |
 | `kd task` | `plan`, containers de tarefa | plan/epic/issue/task |
 | `kd knowledge` | `clusters` | mapa de conhecimento (D128) |
-| `kd maintenance` | `doctor`, `audit`, `compact`, `eval`, `embed`, `learn` | manutenção |
+| `kd maintenance` | `doctor` (`--audit`), `compact`, `eval`, `index`, `learn`, `prune` | manutenção |
 | `kd config` | `config` | `.knudge/config.toml` |
 | `kd forget` | `forget`, `restore` | soft-delete |
 | `kd sync` | `sync` | commit git |
@@ -66,6 +66,10 @@ O canal **vetorial** entra automaticamente quando `recall.semantic = true` (defa
 que veio pelo vetor aparece com `why = semantic` (D121); o canal lexical descarta stopwords e
 fragmentos de 1 char (`content_terms`, D122).
 
+Sem nenhum modo (query e âncora vazias, sem `--id`/`--around`/`--rank`/`--tags`), o `ask` devolve
+o **uso** do comando com exit 2 em vez de sair vazio (D130). `--id` de nota ausente degrada para
+`warnings`; `--around` de nota ausente é `not_found` (3).
+
 O **feedback tarefa→conhecimento** (X1/D108) é derivado em tempo de consulta: tarefas com
 `outcomes` de sucesso que compartilham `anchors` confirmam a nota — o peso
 `recall.confirmation_from_tasks` (float, default `0.1`) entra no boost do BM25 e em
@@ -74,7 +78,8 @@ O **feedback tarefa→conhecimento** (X1/D108) é derivado em tempo de consulta:
 ## 4. `kd write` — toda escrita
 
 Create idempotente por conteúdo + protocolo de dedup (0.75/0.92). `--update` versiona;
-`--link` cria aresta explícita. **Rejeita `--type task|container`** (use `kd task`).
+`--link` cria aresta explícita. **Rejeita `--type task|container`** (use `kd task`) e
+`statement` vazio é `invalid_input` (2) — nunca cria nota vazia (D130).
 
 ```
 kd write [STATEMENT]
@@ -95,6 +100,8 @@ kd write [STATEMENT]
 
 **Sempre a mesma resposta** para uma dada versão do binário (cacheável, byte-idêntico):
 tipos, tools, regras, orçamento, formato de saída. `kd` sem argumentos executa `kd prime`.
+O corpo é organizado por **fluxo** — `CICLO` (ask→write→task→sync), `CONHECIMENTO`,
+`PESQUISA`, `TAREFAS` — e recomenda `--limit`/`--brief` para economizar contexto (D130).
 
 ```
 kd prime [--long]         # --long inclui a gramática TOON e o schema completo
@@ -274,7 +281,7 @@ strict = false   # true promove warnings (leitura, retrieval, embeddings) a erro
 | `prime(scope)` / `get_context` / `diff` | `kd rewind` / `kd rewind --resume` / `kd rewind --since` |
 | `learn` | `kd maintenance learn` |
 | `plan` | `kd task` |
-| `compact` / `audit` / `doctor` / `eval` / `embed` | `kd maintenance …` |
+| `compact` / `doctor --audit` / `eval` / `index` / `learn` / `prune` | `kd maintenance …` |
 | `onboard` | `kd init` |
 | `setup` / `completions` / `upgrade` / `version` | `kd self …` |
 

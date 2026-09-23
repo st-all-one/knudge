@@ -49,6 +49,9 @@ fn emit_success(cli: &Cli, command: &str, output: &Output) -> ExitCode {
             Envelope::success(command, Some(output.json.clone()), output.warnings.clone());
         emit_stdout(format!("{}\n", envelope.to_json_line()).as_bytes())
     } else {
+        for warning in &output.warnings {
+            emit_stderr(format!("aviso: {warning}\n").as_bytes());
+        }
         emit_stdout(format!("{}\n", output.text).as_bytes())
     }
 }

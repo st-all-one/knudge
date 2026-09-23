@@ -81,18 +81,46 @@ fn json_version_matches_golden() -> TestResult {
 #[test]
 fn json_error_envelope_matches_golden() -> TestResult {
     let dir = temp_project();
-    let out = run_in(&dir, &["--json", "ask", "--id", "fact_zzzzzzzz"])?;
-    assert_eq!(out.status.code(), Some(5));
-    assert_golden(&out.stdout, include_str!("golden/json_error_io.json"), &dir);
+    let out = run_in(&dir, &["--json", "ask", "--around", "fact_zzzzzzzz"])?;
+    assert_eq!(out.status.code(), Some(3));
+    assert_golden(
+        &out.stdout,
+        include_str!("golden/json_error_not_found.json"),
+        &dir,
+    );
     Ok(())
 }
 
 #[test]
 fn text_error_matches_golden() -> TestResult {
     let dir = temp_project();
-    let out = run_in(&dir, &["ask", "--id", "fact_zzzzzzzz"])?;
-    assert_eq!(out.status.code(), Some(5));
-    assert_golden(&out.stderr, include_str!("golden/error_io.txt"), &dir);
+    let out = run_in(&dir, &["ask", "--around", "fact_zzzzzzzz"])?;
+    assert_eq!(out.status.code(), Some(3));
+    assert_golden(
+        &out.stderr,
+        include_str!("golden/error_not_found.txt"),
+        &dir,
+    );
+    Ok(())
+}
+
+#[test]
+fn ask_missing_id_degrades_to_warning() -> TestResult {
+    let dir = temp_project();
+    let out = run_in(&dir, &["--json", "ask", "--id", "fact_zzzzzzzz"])?;
+    assert!(out.status.success(), "id ausente não devia falhar");
+    let text = String::from_utf8(out.stdout)?;
+    assert!(
+        text.contains("nota ausente"),
+        "warning de degradação ausente: {text}"
+    );
+    let plain = run_in(&dir, &["ask", "--id", "fact_zzzzzzzz"])?;
+    assert!(plain.status.success());
+    let stderr = String::from_utf8(plain.stderr)?;
+    assert!(
+        stderr.contains("aviso: nota ausente"),
+        "warning não foi para o stderr: {stderr}"
+    );
     Ok(())
 }
 
