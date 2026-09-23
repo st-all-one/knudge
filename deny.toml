@@ -28,6 +28,8 @@ confidence-threshold = 0.8
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
+# Deps internas de workspace (path, sem versão de registry) não são wildcards de supply chain.
+allow-wildcard-paths = true
 deny = [
     # Sem runtime assíncrono pesado no núcleo local (R16/R43).
     "tokio",

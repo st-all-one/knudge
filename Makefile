@@ -5,7 +5,7 @@ PREFIX ?= $(HOME)/.local
 BINDIR ?= $(PREFIX)/bin
 
 .PHONY: check fmt clippy test build file-length clean install uninstall \
-        nextest doc deny audit machete typos miri fuzz coverage ci dist
+        update-version nextest doc deny audit machete typos miri fuzz coverage ci dist
 
 ## Portão completo local: formatação, lints, testes e gate de tamanho de arquivo.
 check: fmt clippy test file-length
@@ -44,6 +44,17 @@ install:
 uninstall:
 	INSTALL_DIR="$(DESTDIR)$(BINDIR)" ./install.sh --uninstall
 
+# --- Versão (tag == Cargo.toml, exigido pelo portão da release) ---
+
+## Atualiza a versão em Cargo.toml/Cargo.lock/goldens/install.sh/README/CHANGELOG.
+## Uso: make update-version VERSION=v0.2.1   (ou: make update-version v0.2.1)
+update-version:
+	./scripts/bump-version.sh "$(or $(VERSION),$(filter v%,$(MAKECMDGOALS)))"
+
+# Absorve o argumento posicional de `make update-version vX.Y.Z` (sem regra real).
+v%:
+	@:
+
 # --- Empacotamento local (mesmo padrão do GitHub Release) ---
 
 ## Compila release e empacota a plataforma atual em `dist/` (`knudge-<versão>-<target>.*`).
@@ -78,7 +89,7 @@ typos:
 
 ## Verificação dinâmica de UB nos crates puros (E13-T08).
 miri:
-	@command -v cargo-miri >/dev/null 2>&1 && $(CARGO) miri test -p knudge-core --lib \
+	@command -v cargo-miri >/dev/null 2>&1 && $(CARGO) miri test -p knudge-core --lib -- --skip adapters:: \
 		|| echo "miri ausente; pule (rustup +nightly component add miri)"
 
 ## Fuzz smoke dos parsers (E13-T08).

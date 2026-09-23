@@ -29,6 +29,7 @@ make test      # cargo test --workspace
 make build     # cargo build --workspace
 make install   # release + binários + config global + completions + PATH (source)
 make uninstall # invalida os binários (move para o lixo)
+make update-version VERSION=v0.2.1  # bump em Cargo.toml/lock/goldens/install.sh/README/CHANGELOG
 
 # alvos extras (E13) — pulam se a ferramenta não estiver instalada
 make ci        # check + nextest + deny + audit + machete + typos
@@ -53,6 +54,7 @@ crates/knudge-mcp/    # servidor MCP: gatilhos + transporte JSON-RPC stdio (bin�
 plan/                 # visão (00), decisões (Dxx), implementação por épico (E0x-T0y) e políticas (Rn)
 refs/                 # projetos de referência (mulch-rs, seeds-rs, arags) — leitura, não editar
 fuzz/                 # alvos de fuzz (TOON, JSONL) — fora do workspace
+scripts/              # utilitários: bump-version.sh, knudge-idle.sh, package.sh, check_file_length.sh
 .agents/skill/rust/   # skill de Rust (SKILL.md + capítulos)
 DIVERGENCES.md        # bordas (Unicode, ordem, lock, atomicidade…) + teste que trava cada uma
 SKILL.md              # guia de uso ativo do knudge para agentes (dos projetos que o adotam)

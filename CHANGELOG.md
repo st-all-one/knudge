@@ -4,7 +4,18 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
-## [0.2.0] - 2026-09-23
+### Adicionado
+- **`make update-version VERSION=vX.Y.Z`** (`scripts/bump-version.sh`): atualiza a versão em
+  `Cargo.toml`, `Cargo.lock`, goldens do `prime`/`version`, `install.sh`, `README.md` e
+  `CHANGELOG.md` de uma vez — o portão da release exige `tag == Cargo.toml`.
+
+### Corrigido
+- **CI de push**: `cargo deny` deixou de falhar por wildcard de path interno
+  (`allow-wildcard-paths`); `miri` pula `adapters::*` (tocam SO/rede/processos, fora do núcleo
+  puro); removidos o `nextest` (redundante com `make check`) e o build release multi-SO (coberto
+  pelo `release.yml`, por tag).
+
+## [0.2.1] - 2026-09-23
 
 ### Adicionado
 - **`kd maintenance watch-service` (D132).** Gerencia o worker de auto-drain ocioso. Ações

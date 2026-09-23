@@ -1,5 +1,7 @@
 name: CI
 
+# Push em qualquer branch + PRs. O release (binários por plataforma) fica no `release.yml`,
+# disparado por tag `v*` — aqui não se compila release.
 on:
   push:
     branches: ["**"]
@@ -19,26 +21,8 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+      # `cargo test --workspace` já cobre doc-tests; nextest fica para `make ci` local.
       - run: make check
-      - name: nextest
-        run: |
-          cargo install cargo-nextest --locked
-          cargo nextest run --workspace
-          cargo test --doc --workspace
-
-  build:
-    name: build release (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      # Valida o perfil otimizado (LTO fat, codegen-units=1, strip) em cada SO.
-      - run: cargo build --release --locked -p knudge-cli -p knudge-mcp
 
   supply-chain:
     name: deny + audit + machete + typos
@@ -54,7 +38,7 @@ jobs:
       - uses: crate-ci/typos@master
 
   miri:
-    name: miri (crates puros)
+    name: miri (núcleo puro)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -63,7 +47,8 @@ jobs:
           components: miri
       - uses: Swatinem/rust-cache@v2
       - run: cargo miri setup
-      - run: cargo miri test -p knudge-core --lib
+      # `adapters::*` toca SO/rede/processos (isolamento do miri não permite) — fora do escopo.
+      - run: "cargo miri test -p knudge-core --lib -- --skip adapters::"
 
   fuzz:
     name: fuzz (TOON + JSONL, smoke)
