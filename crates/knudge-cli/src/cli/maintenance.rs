@@ -58,7 +58,8 @@ pub enum MaintenanceCommand {
 #[allow(clippy::struct_excessive_bools, reason = "flags de CLI")]
 #[derive(Debug, Args)]
 pub struct WatchServiceArgs {
-    /// Instala o sistema (unidades + timer) e cadastra o projeto atual (com pré-flight).
+    /// Instala o agendador (systemd/launchd), o servidor de embeddings persistente e cadastra
+    /// o projeto atual. Baixa llama.cpp + GGUF se ausentes (use `--no-deps` para pular).
     #[arg(long, group = "action")]
     pub install: bool,
     /// Cadastra o projeto atual (multi-projeto; exige o sistema instalado).
@@ -67,10 +68,10 @@ pub struct WatchServiceArgs {
     /// Descadastra o projeto atual (mantém o sistema instalado).
     #[arg(long, group = "action")]
     pub unsubscribe: bool,
-    /// Mostra a saúde atual (timer, servidor, fila por projeto). É o default.
+    /// Mostra a saúde atual (agendador, servidor, fila por projeto). É o default.
     #[arg(long, group = "action")]
     pub status: bool,
-    /// Remove o sistema (unidades + config + binário).
+    /// Remove o sistema (agendador + servidor + config + binário).
     #[arg(long, group = "action")]
     pub uninstall: bool,
     /// Não pergunta: assume que sim.
@@ -79,7 +80,7 @@ pub struct WatchServiceArgs {
     /// Só mostra o plano (não baixa nem executa).
     #[arg(long)]
     pub dry_run: bool,
-    /// Período do timer (ex.: `1h`, `15min`).
+    /// Período do drain (ex.: `1h`, `15min`).
     #[arg(long, value_name = "DUR", default_value = "1h")]
     pub every: String,
     /// Porta do servidor de embeddings local.
@@ -88,6 +89,9 @@ pub struct WatchServiceArgs {
     /// Caminho do modelo GGUF (default: ao lado do config.toml global).
     #[arg(long, value_name = "PATH")]
     pub model: Option<String>,
+    /// Não instala dependências (llama.cpp + GGUF) no `--install`; falha se faltarem.
+    #[arg(long)]
+    pub no_deps: bool,
     /// Usa um script local em vez do embutido (offline/testes).
     #[arg(long, value_name = "PATH")]
     pub script: Option<String>,

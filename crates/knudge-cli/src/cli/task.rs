@@ -187,8 +187,13 @@ pub struct TaskNewArgs {
     /// Checks (validators).
     #[arg(long, value_name = "NOME")]
     pub checks: Vec<String>,
-    /// Âncoras.
-    #[arg(long, value_name = "PATH")]
+    /// Âncoras (repetível; aceita lista com vírgula: `--anchor a,b`).
+    #[arg(
+        long = "anchor",
+        visible_alias = "anchors",
+        value_name = "PATH",
+        value_delimiter = ','
+    )]
     pub anchors: Vec<String>,
     /// Tags declaradas (repetível).
     #[arg(long, value_name = "TAG")]

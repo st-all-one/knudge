@@ -3,9 +3,13 @@
 //! Uma nota não-embeddável **não** pode travar a fila: quando o lote falha, o worker tenta as
 //! notas individualmente, indexa as boas e mantém as ruins `pending` (R33/D83).
 
+use crate::ErrorKind;
 use crate::ports::Embedder;
 
 use super::cache::EmbeddingCache;
+
+/// Texto curto para sondar se o provedor está alcançável antes de isolar notas.
+const PROBE_TEXT: &str = "knudge probe";
 
 /// Nota pendente de digestão.
 pub(super) struct PendingNote {
@@ -89,10 +93,12 @@ impl<'a> Resolver<'a> {
             Ok(_) => self.isolate(
                 &misses,
                 "provedor devolveu número de vetores diferente do pedido",
+                None,
             ),
             Err(error) => {
+                let kind = error.kind();
                 let detail = format!("provedor de embeddings falhou: {error}");
-                self.isolate(&misses, &detail);
+                self.isolate(&misses, &detail, Some(kind));
             }
         }
     }
@@ -106,9 +112,20 @@ impl<'a> Resolver<'a> {
             .push((id.to_string(), body_hash.to_string(), vector));
     }
 
-    fn isolate(&mut self, misses: &[Miss], detail: &str) {
+    /// Isola as notas de um lote que falhou: com um único miss, mantém `pending` (R33/D83);
+    /// com vários, só tenta individualmente se o provedor estiver **alcançável** — um servidor
+    /// fora do ar não deve virar uma tentativa (e um warning) por nota.
+    fn isolate(&mut self, misses: &[Miss], detail: &str, kind: Option<ErrorKind>) {
         if misses.len() == 1 {
             self.warnings.push(detail.to_string());
+            return;
+        }
+        let reachable = kind != Some(ErrorKind::Timeout) && self.provider_reachable();
+        if !reachable {
+            self.warnings.push(format!(
+                "{detail}; provedor inalcançável, mantendo {} nota(s) pending",
+                misses.len()
+            ));
             return;
         }
         self.warnings.push(format!(
@@ -116,6 +133,12 @@ impl<'a> Resolver<'a> {
             misses.len()
         ));
         self.embed_individually(misses);
+    }
+
+    /// Sonda o provedor com um texto curto (não cacheado) para separar falha de conectividade
+    /// de rejeição de uma nota específica.
+    fn provider_reachable(&self) -> bool {
+        self.embedder.embed(&[PROBE_TEXT.to_string()]).is_ok()
     }
 
     fn embed_individually(&mut self, misses: &[Miss]) {

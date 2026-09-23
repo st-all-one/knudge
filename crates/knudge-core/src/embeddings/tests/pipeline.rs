@@ -197,6 +197,28 @@ fn non_embeddable_note_does_not_block_queue() -> Result<()> {
     Ok(())
 }
 
+#[test]
+fn unreachable_provider_does_not_isolate_every_note() -> Result<()> {
+    let fs = MemFs::new();
+    let notes = vec![note("a", "corpo a")?, note("b", "corpo b")?];
+    let store = seeded(&fs, &notes)?;
+    let embedder = FakeEmbedder::new(8)?;
+    embedder.fail_next(2); // lote + sonda de alcançabilidade
+    let config = config();
+
+    let outcome = drain(&input(&store, &embedder, &config))?;
+    assert_eq!(outcome.indexed, 0);
+    assert_eq!(outcome.pending, 2);
+    assert_eq!(outcome.warnings.len(), 1);
+    assert!(
+        outcome
+            .warnings
+            .first()
+            .is_some_and(|warning| warning.contains("inalcançável"))
+    );
+    Ok(())
+}
+
 /// Embedder que rejeita o lote inteiro quando qualquer texto contém `marker`, mas embute os
 /// demais isoladamente — reproduz um provedor que estoura contexto em uma nota só.
 struct RejectingEmbedder {

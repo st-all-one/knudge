@@ -16,7 +16,7 @@
 #
 # Uso:
 #   curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/st-all-one/knudge/main/install.sh | bash
-#   curl ... | VERSION=v0.2.2 bash
+#   curl ... | VERSION=v0.2.3 bash
 #   curl ... | INSTALL_DIR=/usr/local/bin bash
 #   ./install.sh --from-source
 #   ./install.sh --uninstall
@@ -444,12 +444,15 @@ echo ""
 info "Próximos passos:"
 echo "  cd ~/meu-projeto"
 echo "  kd init                     # funda .knudge/ e o AGENTS.md"
-echo "  kd write --type fact \"...\"      # o statement é posicional (aceita --anchors PATH)"
+echo "  kd write --type fact \"...\"      # o statement é posicional (aceita --anchor PATH)"
 echo "  kd ask \"...\"                # busca no corpus"
 echo ""
 echo "  # Config global (template copiado pelo \`kd init\`):"
 echo "  #   $(tilde "${XDG_CONFIG_HOME:-$HOME/.config}/local/knudge/config.toml")"
 echo "  # Config do projeto: .knudge/config.toml"
 echo "  kd config set mcp.hints_cap 3 --global   # exemplo"
+echo ""
+echo "  # Busca semântica (opcional): baixa llama.cpp + modelo e sobe o servidor persistente"
+echo "  kd maintenance watch-service --install"
 echo ""
 info "Docs: https://github.com/${REPO}"

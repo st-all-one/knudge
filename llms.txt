@@ -11,6 +11,9 @@ Coisas para lembrar ao usar o knudge:
   ensina o ciclo `ask → write → task → sync`. `kd prime --long` anexa a gramática TOON + schema.
 - **Sempre busque antes de gravar:** `kd ask "<rascunho>"`; score `< 0.75` cria, `0.75–0.92` faz
   merge, `≥ 0.92` rejeita (dedup lexical).
+- **Âncoras (`--anchor PATH`) ligam a nota ao código** — repetível e com vírgula; glob (`src/**`)
+  casa subárvores; `kd ask --anchor PATH` busca sem query textual; `doctor --audit` lista âncoras
+  quebradas. Use em toda nota/tarefa que fala de arquivo; `--anchors` também é aceito.
 - **stdout = dados** (pipe/`--json`); **stderr = logs**. Em `--json`, stdout é **só** o envelope
   `{success, command, data?, error?, warnings?}` — nenhum log vaza. EPIPE → exit 0 (D73).
 - **Exit codes** (contrato): `2` invalid, `3` not_found, `4` conflict, `5` io, `6` timeout,
@@ -38,6 +41,7 @@ Coisas para lembrar ao usar o knudge:
 ### Index
 
 - [`README.md`](README.md) — instalação + quickstart.
+- [`docs/`](docs/README.md) — guias de uso por grupo de comandos (instalação, `ask`, `write`, `task`, embeddings, manutenção, MCP).
 - [`SKILL.md`](SKILL.md) — guia de uso ativo para agentes de IA.
 - [`AGENTS.md`](AGENTS.md) — contribuir no código do knudge.
 - [`plan/implementation/16_cli_surface.md`](plan/implementation/16_cli_surface.md) — referência completa da CLI (fonte de verdade dos verbos).
@@ -58,7 +62,7 @@ Coisas para lembrar ao usar o knudge:
 - **`kd ask`** cobre recall + get (`--id`) + expand (`--around`); filtros `--type/--class/--tag/--status/--container/--anchor/--since/--until`; `--rank` e `--tags`; `--limit` (default 5), `--brief`, `--with-body`.
 - **`kd task`:** `new/list/show/update/close/claim/graph/plan`; `--ready`/`--blocked`, `--sort impact`; rollup de progresso por épico (D127).
 - **`kd knowledge map [--axis anchor|type|classification|container] [--semantic] [--members]`** — clusters estruturais + fase 2 semântica complete-link (D128/D129).
-- **`kd maintenance`:** `doctor [--fix] [--audit]` · `compact` · `eval --ab` · `index [--drain|--status]` · `learn` · `prune` · `watch-service [--install|--subscribe|--unsubscribe|--status|--uninstall]` (compact/learn/prune só propõem; watch-service = worker de auto-drain, multi-projeto).
+- **`kd maintenance`:** `doctor [--fix] [--audit]` · `compact` · `eval --ab` · `index [--drain|--status]` · `learn` · `prune` · `watch-service [--install|--subscribe|--unsubscribe|--status|--uninstall]` (compact/learn/prune só propõem; watch-service = worker de auto-drain + servidor persistente, systemd/launchd, multi-projeto).
 - **`kd rewind`:** handoff ponto-no-tempo; orçamento `ceil(len/4)` tokens (default 4000); `--resume` retomável 1:1 (D88).
 - **`kd self setup <claude|cursor|codex|pi>`**, `kd self completions <bash|zsh|fish>`.
 - **Config global** (template): `~/.config/local/knudge/config.toml` (Linux), `~/Library/Application Support/knudge/config.toml` (macOS), `%APPDATA%\knudge\config.toml` (Windows). **Projeto** (efetivo): `.knudge/config.toml`.
@@ -66,8 +70,9 @@ Coisas para lembrar ao usar o knudge:
 
 ## Examples
 
-- Gravar um fato: `kd write --type fact "O parser de TOON é byte-exato" --tag toon`
+- Gravar um fato: `kd write --type fact "O parser de TOON é byte-exato" --tag toon --anchor src/toon/parse.rs`
 - Buscar: `kd ask "como o parser trata whitespace" --brief`
+- Buscar por arquivo: `kd ask --anchor src/toon/parse.rs`
 - Expandir o grafo: `kd ask --around fact_01m81b6h --depth 2`
 - Tarefa (épico → tarefa): `kd task new "Sync offline-first" --scope epic` e
   `kd task new "Conflito de merge" --scope task --parent <epic>`

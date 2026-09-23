@@ -36,12 +36,14 @@ if [ "$old" = "$new" ]; then
 fi
 echo "atualizando versão: $old -> $new"
 
-# Substitui `from` por `to` no arquivo (via tmp + mv; sem `rm`).
+# Substitui `from` por `to` no arquivo (via tmp + mv; sem `rm`), preservando o modo.
 replace() {
-    local file=$1 from=$2 to=$3
+    local file=$1 from=$2 to=$3 mode
     [ -f "$file" ] || return 0
+    mode="$(stat -c '%a' "$file" 2>/dev/null || stat -f '%Lp' "$file" 2>/dev/null || true)"
     sed "s|$from|$to|g" "$file" >"$file.bump.tmp"
     mv "$file.bump.tmp" "$file"
+    [ -n "$mode" ] && chmod "$mode" "$file" 2>/dev/null || true
 }
 
 # 1. Cargo.toml — só a linha de versão do workspace.

@@ -227,8 +227,13 @@ pub struct WriteArgs {
     /// Tags.
     #[arg(long = "tag", value_name = "TAG")]
     pub tags: Vec<String>,
-    /// Âncoras.
-    #[arg(long, value_name = "PATH")]
+    /// Âncoras (repetível; aceita lista com vírgula: `--anchor a,b`).
+    #[arg(
+        long = "anchor",
+        visible_alias = "anchors",
+        value_name = "PATH",
+        value_delimiter = ','
+    )]
     pub anchors: Vec<String>,
     /// Checks (validators).
     #[arg(long, value_name = "NOME")]

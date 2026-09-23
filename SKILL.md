@@ -73,6 +73,21 @@ estático (byte-idêntico): `kd` sem argumentos = `kd prime`.
 | Esquecer (soft) | `kd forget <ID>` (`--restore`, `--purge`) |
 | Commit | `kd sync` |
 
+### Âncoras (`--anchor PATH`) — o que liga memória a código
+
+Ancorar é amarrar a nota/tarefa a um arquivo ou glob. É o canal que faz o `ask` responder “o
+que já sei sobre `src/gateway.rs`” mesmo sem query textual.
+
+- **Use em toda nota/tarefa que fala de código:**
+  `kd write --type decision "..." --anchor src/gateway.rs` e
+  `kd task new "..." --scope task --anchor plan/016.md`.
+- **Repetível e com vírgula:** `--anchor src/a.rs --anchor src/b.rs` ou `--anchor src/a.rs,src/b.rs`.
+- **Glob casa subárvores:** `--anchor src/gateway/**`.
+- **Busca por âncora (sem query):** `kd ask --anchor src/gateway.rs`.
+- **NÃO ancore** nota de conceito global (sem arquivo) nem path que ainda não existe.
+- **Manutenção:** `kd maintenance doctor --audit` lista âncoras quebradas (arquivo removido).
+- **Alias:** `--anchors` (plural) continua aceito em `write`/`task new`.
+
 ---
 
 ## Orientação (leia primeiro)
@@ -87,7 +102,7 @@ O knudge é **medir/registrar, não adivinhar**. Três invariantes:
 
 Regras de bolso:
 
-- **Nota boa é curta e autocontida** — um fato por nota; ancore código com `--anchors PATH`.
+- **Nota boa é curta e autocontida** — um fato por nota; ancore código com `--anchor PATH`.
 - **Classifique certo** — `foundational` (dura), `tactical` (muda), `observational` (efêmera).
 - **Confirmação é derivada** — tarefas com `--outcome` de sucesso que compartilham âncoras
   confirmam a nota (X1/D108); não escreva "confirmado" à mão.
@@ -152,14 +167,15 @@ kd maintenance learn                    # o que deveria virar nota?
 kd knowledge map --axis container --semantic
 kd maintenance prune                    # propõe forget por shelf-life
 kd maintenance index --status           # fila de embeddings (pending) por projeto
-kd maintenance watch-service --status   # saúde do worker de auto-drain (timer systemd)
+kd maintenance watch-service --status   # saúde do worker de auto-drain (systemd/launchd)
 ```
 
 O worker de auto-drain é gerenciado por `kd maintenance watch-service`: `--install` (pré-flight +
-unidades + timer systemd + cadastra o projeto), `--subscribe`/`--unsubscribe` (multi-projeto; não
-desinstalam o sistema), `--status` (default) e `--uninstall`. O script é **embutido** no binário
-(sem download) e o GGUF mora ao lado do `config.toml` global. Com `embeddings.mode=lazy` (default)
-o próprio `kd` já drena um lote ao fim de cada verbo.
+agendador `systemd --user`/`launchd` + servidor de embeddings persistente `knudge-embed` +
+cadastra o projeto), `--subscribe`/`--unsubscribe` (multi-projeto; não desinstalam o sistema),
+`--status` (default) e `--uninstall`. O script é **embutido** no binário (sem download) e o GGUF
+mora ao lado do `config.toml` global. Com `embeddings.mode=lazy` (default) o próprio `kd` já
+drena um lote ao fim de cada verbo.
 
 ### Integração MCP
 
@@ -210,7 +226,7 @@ embeddings são opcionais. `kd init` funda `.knudge/` e escreve o bloco no `AGEN
 Antes de concluir qualquer operação de memória:
 
 - [ ] **Busquei antes de gravar** (`kd ask "<rascunho>"`)?
-- [ ] **Statement curto e autocontido**, com `--anchors` do código?
+- [ ] **Statement curto e autocontido**, com `--anchor` do código?
 - [ ] **Classificação/status** corretos (`foundational`/`tactical`/`observational`)?
 - [ ] **Id não inventado** — copiado da saída?
 - [ ] **Arestas via `kd write --link`**?

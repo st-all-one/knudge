@@ -72,10 +72,12 @@ impl Action {
     fn question(self) -> &'static str {
         match self {
             Self::Install => {
-                "Instalar o worker de auto-drain (timer systemd) e cadastrar este projeto?"
+                "Instalar o worker de auto-drain (systemd/launchd), o servidor de embeddings persistente e cadastrar este projeto? Baixa llama.cpp + modelo GGUF (~100 MB) se ausentes (--no-deps pula)."
             }
             Self::Subscribe => "Cadastrar este projeto no worker de auto-drain?",
-            Self::Uninstall => "Remover o worker de auto-drain (unidades + config + binário)?",
+            Self::Uninstall => {
+                "Remover o worker de auto-drain e o servidor de embeddings (unidades/agentes + config + binário)?"
+            }
             Self::Unsubscribe | Self::Status => "Continuar?",
         }
     }
@@ -133,6 +135,9 @@ fn worker_args(action: Action, root: &Path, args: &WatchServiceArgs) -> Vec<Stri
         if let Some(model) = &args.model {
             out.push("--model".to_string());
             out.push(model.clone());
+        }
+        if args.no_deps {
+            out.push("--no-deps".to_string());
         }
     }
     out

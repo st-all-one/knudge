@@ -58,6 +58,7 @@ scripts/              # utilitários: bump-version.sh, knudge-idle.sh, package.s
 .agents/skill/rust/   # skill de Rust (SKILL.md + capítulos)
 DIVERGENCES.md        # bordas (Unicode, ordem, lock, atomicidade…) + teste que trava cada uma
 SKILL.md              # guia de uso ativo do knudge para agentes (dos projetos que o adotam)
+docs/                 # guias de uso (didáticos) por grupo de comandos: ask, write, task, embeddings…
 llms.txt              # índice do projeto para modelos de linguagem
 ```
 

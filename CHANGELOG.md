@@ -4,6 +4,48 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+## [0.2.3] - 2026-09-23
+
+### Adicionado
+- **`watch-service` multiplataforma com servidor de embeddings persistente (D133).** O worker
+  detecta o agendador em runtime — `systemd --user` (Linux) ou `launchd` (macOS,
+  `~/Library/LaunchAgents`) — e o llama.cpp passa a rodar como unidade/agente próprio
+  (`knudge-embed`, `Restart=on-failure`/`KeepAlive`), então o `--drain` manual e o auto-drain
+  lazy sempre encontram o servidor. `--uninstall` derruba agendador + servidor; sem
+  systemd/launchd, o `--install` recusa e imprime a linha de cron.
+- **`watch-service --install` instala as dependências de embeddings.** Se faltarem, baixa o
+  `llama.cpp` (script oficial `llama.app` + fallback para `brew`/`winget`/`scoop`/`choco`/`apt`/
+  `dnf`/`pacman`/`zypper`) e o GGUF recomendado (com `curl` e fallback para `wget`); `--no-deps`
+  pula e exige que já estejam presentes.
+- **`watch-service` imprime um guia manual por SO quando o ambiente é inválido.** Em falha (sem
+  `systemd`/`launchd`, `llama.cpp`/GGUF ausentes ou servidor que não sobe), o worker mostra como
+  instalar o `llama.cpp` e subir o servidor em Windows, macOS, Ubuntu, Fedora e Arch, além do
+  fallback sem agendador (`nohup`/cron) e de como apontar o `kd`.
+- **Guias de uso em `docs/`.** Nove guias didáticos (instalação, primeiros passos e um por grupo
+  de comandos — `ask`, `write`, `task`, embeddings, manutenção, MCP) com todos os comandos e
+  orientação de quando (não) usar. O README ficou enxuto (resumo + instalação com embeddings +
+  quickstart dos comandos principais) e aponta para os guias.
+
+### Corrigido
+- **Provedor de embeddings fora do ar não vira um warning por nota.** O dreno só isola as notas
+  individualmente quando o lote falha e o provedor está **alcançável** (sonda curta); com o
+  provedor inalcançável, sai **um** warning e a fila segue `pending`, em vez de tentar (e avisar)
+  nota a nota (R33/D83).
+- **`watch-service`: o timer volta a disparar após reinstalar/reiniciar.** O `OnUnitActiveSec`
+  só reagenda depois que o serviço roda; um timer reiniciado depois da última execução ficava
+  com `NextElapse=infinity` e o worker nunca mais rodava. O unit agora usa `OnActiveSec=5min`
+  (arma ao instalar/reiniciar) + `OnUnitActiveSec=$EVERY` (reagenda após cada run).
+- **`make update-version` preserva o bit de execução do `install.sh`.** O `replace` do
+  `bump-version.sh` usava `sed > tmp; mv`, perdendo o modo; agora restaura o modo original
+  (`stat` GNU/BSD). Sem isso, `make install` falhava com `Permission denied` logo após o bump.
+- **`--anchor` é o nome canônico em `kd write` e `kd task new`.** O `--anchors` (plural) era o
+  único aceito nessas duas escritas, divergindo de `kd ask`/`kd task list` e da superfície
+  documentada (`16_cli_surface.md`). Agora `--anchor` funciona (canônico) e `--anchors` segue
+  aceito como alias; os dois também aceitam lista com vírgula.
+- **`kd prime` agora traz o guia de uso e as âncoras.** O protocolo (byte-idêntico por versão)
+  ganhou um “guia rápido” por verbo (quando usar e quando NÃO usar) e uma seção dedicada a
+  `--anchor` (o canal que liga a memória ao código), além de corrigir `--anchors`→`--anchor`.
+
 ## [0.2.2] - 2026-09-23
 
 ### Adicionado

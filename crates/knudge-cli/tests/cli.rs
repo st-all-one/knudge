@@ -181,13 +181,7 @@ fn write_anchored(
     let out = run_in(
         dir,
         &[
-            "--json",
-            "write",
-            statement,
-            "--type",
-            "fact",
-            "--anchors",
-            anchor,
+            "--json", "write", statement, "--type", "fact", "--anchor", anchor,
         ],
     )?;
     assert!(out.status.success(), "write falhou: {:?}", out.stderr);
@@ -1238,6 +1232,51 @@ fn task_new_without_statement_is_invalid() -> TestResult {
     assert!(init.status.success());
     let out = run_in(&dir, &["task", "new", "", "--scope", "task"])?;
     assert_eq!(out.status.code(), Some(2), "tarefa vazia devia ser 2");
+    Ok(())
+}
+
+#[test]
+fn task_new_accepts_anchor_singular_and_plural() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    // Canônico `--anchor` e alias `--anchors` produzem a mesma âncora.
+    let mut ids = Vec::new();
+    for (flag, statement) in [
+        ("--anchor", "Ajustar backoff (singular)"),
+        ("--anchors", "Ajustar backoff (plural)"),
+    ] {
+        let out = run_in(
+            &dir,
+            &[
+                "--json",
+                "task",
+                "new",
+                statement,
+                "--scope",
+                "task",
+                flag,
+                "src/retry.ts",
+            ],
+        )?;
+        assert!(
+            out.status.success(),
+            "task new {flag} falhou: {:?}",
+            out.stderr
+        );
+        let id = json(&out)?
+            .get("data")
+            .and_then(|data| data.get("id"))
+            .and_then(|id| id.as_str())
+            .ok_or("task sem id")?
+            .to_string();
+        ids.push(id);
+    }
+    let list = run_in(&dir, &["task", "list", "--anchor", "src/retry.ts"])?;
+    let text = String::from_utf8(list.stdout)?;
+    for id in ids {
+        assert!(text.contains(&id), "âncora não filtrou {id}: {text}");
+    }
     Ok(())
 }
 

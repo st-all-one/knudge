@@ -6,10 +6,35 @@ STATUS: active, in_progress, blocked, closed, superseded, forgotten
 CICLO: kd ask (buscar) → kd write (gravar conhecimento) → kd task (executar) → kd sync (commit).
   Sempre busque antes de gravar (evita duplicata); para gastar menos, use --limit N e --brief.
 
+GUIA RÁPIDO (o que usar, quando e quando NÃO usar):
+  kd ask <QUERY>     RECUPERAR antes de agir; use no início de qualquer tarefa.
+                     NÃO use para criar/editar (é read-only) nem como histórico (use rewind).
+  kd write <...>     GRAVAR fato/decisão/erro/risco/pergunta. Antes, `kd ask "<rascunho>"`.
+                     NÃO use para trabalho (`--type task` é rejeitado) — use kd task.
+  kd task new <...>  PLANEJAR/EXECUTAR trabalho (plan ⊃ epic ⊃ issue ⊃ task, máx. 4).
+                     NÃO use para conhecimento/observação — use kd write.
+  kd rewind          RECONSTRUIR contexto no início de sessão (orçamento de tokens).
+                     NÃO use como busca dirigida — use kd ask.
+  kd knowledge map   VISÃO de clusters (estrutural/semântico). NÃO use para achar 1 nota.
+  kd maintenance ..  SAÚDE (doctor/--audit), índice (index), limpeza (compact/learn/prune).
+                     learn/compact/prune só PROPÕEM; watch-service = auto-drain ocioso.
+  kd forget <ID>     SOFT-DELETE (--restore; --purge só após retenção).
+  kd sync            COMMIT de notas/ + eventos/ (--message).
+  kd init|config|self|prime — fundação, ajustes, binário e este protocolo.
+
+ÂNCORAS (--anchor PATH) — o que liga a memória ao código (alto valor):
+  Toda nota/tarefa que fala de um arquivo ou módulo deve ser ancorada:
+    kd write --type decision "Cache usa LRU" --anchor src/cache.rs --anchor src/cache/**
+    kd task new "Migrar cache" --scope task --anchor plan/016.md
+  Repetível; aceita vírgula (`--anchor a,b --anchor c`). Glob (`src/**`) casa subárvores.
+  `kd ask --anchor PATH` busca só o ancorado, mesmo sem query textual (canal de âncoras).
+  Onde NÃO usar: nota de conceito global sem arquivo, ou path que ainda não existe.
+  Manutenção: `kd maintenance doctor --audit` lista âncoras quebradas (arquivo removido).
+
 CONHECIMENTO (kd write — fatos, decisões, erros, riscos, perguntas):
   1. kd ask "<rascunho>"                # dedup lexical (BM25) antes de criar
   2. score < 0.75 cria | 0.75-0.92 faz merge | >= 0.92 rejeita
-  kd write --type <fact|decision|error|risk|question> "<...>" [--body -|TXT] [--tag T...] [--anchors PATH...]
+  kd write --type <fact|decision|error|risk|question> "<...>" [--body -|TXT] [--tag T...] [--anchor PATH...]
   kd write --update <ID> "<...>"       # versiona; mudar type/statement cria novo id + supersede
   kd write --link <FROM:ARESTA:TO>        # aresta explícita (via única; inclui depends_on)
   kd write --outcome <success|partial|failure|abandoned> <ID> [--note TXT]   # evidência (D55)
@@ -47,7 +72,7 @@ INIT/SYNC: kd init  (funda .knudge/ + AGENTS.md)  ·  kd sync  (commit de notas/
 
 ID: <tipo>_<base36(8)> = hash(type + U+001F + normalize(statement)); reclassificar não reescreve o id.
 TOON: frontmatter em ordem canônica; opcionais omitidos, nunca null.
-REGRAS: nunca invente id; statement curto e autocontido; ancore código com --anchors PATH.
+REGRAS: nunca invente id; statement curto e autocontido; ancore código com --anchor PATH.
 SAÍDA: stdout = dados, stderr = logs. --json = {success, command, data?, error{code,message,retryable}, warnings?}
 EXIT: 2 invalid, 3 not_found, 4 conflict, 5 io, 6 timeout, 7 config, 8 schema, 70 internal
 
