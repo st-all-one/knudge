@@ -55,6 +55,7 @@ kd ask [QUERY]
   --anchor <PATH>...      # repetível; aceita vírgula (`--anchor a,b`)
   --since <TS> / --until <TS>
   --limit <N>             # default: config recall.default_limit
+  --tags                  # vocabulário de tags: tag|count (count desc, D107)
   --json
 ```
 
@@ -102,6 +103,9 @@ kd rewind
   --resume <CONTEXT_ID>   # handoff 1:1 (D88)
   --json
 ```
+
+O manifest (default) ganha `next:` (tarefas `ready` abertas por impacto) e `fresh:`
+(`stale`/`expiring`/`pending`) — D106. `K` deriva do orçamento; o excedente vira `dropped`.
 
 ## 7. `kd task` — plan/epic/issue/task (D93)
 

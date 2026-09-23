@@ -40,6 +40,9 @@
 | 29 | **Papel derivado** | o rótulo (Story/Feature/Bug…) virar campo e divergir da árvore | papel é função pura `(scope, type, tem_filhos)`; a espécie manda, senão o nível (D115) | `task::tests::role::species_wins_over_level`, `task::tests::role::issue_with_children_is_feature` |
 | 30 | **Modo derivado** | o modo de execução depender de ordem de eventos/iteração | precedência fixa (`handoff > supervisor > magentic > sequential > concurrent`); filhos ordenados por `id` (D116) | `task::tests::mode::handoff_has_precedence`, `task::tests::mode::chain_is_sequential` |
 | 31 | **Plano atômico** | `--submit` criar parte dos filhos e falhar no meio | o plano é validado por inteiro (seções, passos, colisão de id) **antes** de qualquer `commit` (D105) | `task::tests::plan::invalid_plan_writes_nothing`, `cli::task_plan_invalid_from_writes_nothing` |
+| 32 | **`next:` vs `ready`** | `--ready` listar tarefa `closed` como pronta e o `next:` herdar isso | `next_tasks` filtra tarefas **abertas** (fora `closed`/`superseded`/`forgotten`); a view `ready` continua sendo "sem dependência pendente" (D104/D106) | `handoff::tests::next::closed_ready_tasks_are_skipped` |
+| 33 | **Impacto** | ordem de `next:`/`--sort impact` depender de iteração | impacto = tarefas **abertas** com caminho `depends_on` reverso; empate `(impact desc, created asc, id asc)` (D106/D109) | `task::tests::impact::impact_counts_open_dependents_transitively`, `handoff::tests::next::next_orders_by_impact` |
+| 34 | **Vocabulário de tags** | `ask --tags` divergir entre execuções | `BTreeMap` + ordem `(count desc, tag asc)`, ignorando `forgotten`/`superseded` (D107) | `retrieval::tests::tags::tag_counts_orders_by_count_then_name` |
 
 ## Notas
 

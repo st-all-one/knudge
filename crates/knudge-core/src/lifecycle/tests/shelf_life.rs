@@ -2,7 +2,9 @@
 
 use crate::Result;
 use crate::config::Config;
-use crate::lifecycle::shelf_life::{DAY_MS, ShelfLife, age_days, expiry_for, is_expired};
+use crate::lifecycle::shelf_life::{
+    DAY_MS, ShelfLife, age_days, expiry_for, freshness, is_expired,
+};
 use crate::schema::{Classification, NoteType};
 use crate::write::Draft;
 
@@ -98,5 +100,31 @@ fn age_days_is_clamped_and_floored() -> Result<()> {
         2
     );
     assert_eq!(age_days(&note, NOW.saturating_sub(DAY_MS)), 0);
+    Ok(())
+}
+
+#[test]
+fn freshness_counts_stale_expiring_and_pending() -> Result<()> {
+    let policy = ShelfLife::default();
+    let expired = classified(
+        "velha",
+        Classification::Observational,
+        NOW.saturating_sub(days(31)),
+    )?;
+    let expiring = classified(
+        "quase",
+        Classification::Observational,
+        NOW.saturating_sub(days(28)),
+    )?;
+    let fresh = classified(
+        "nova",
+        Classification::Observational,
+        NOW.saturating_sub(days(1)),
+    )?;
+    let result = freshness(&[expired, expiring, fresh], NOW, &policy, 4)?;
+    assert_eq!(result.stale, 1);
+    assert_eq!(result.expiring, 1);
+    assert_eq!(result.pending, 4);
+    assert_eq!(result.render(), "stale=1 expiring=1 pending=4");
     Ok(())
 }

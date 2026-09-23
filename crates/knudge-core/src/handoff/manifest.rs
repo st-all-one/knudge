@@ -217,7 +217,7 @@ fn compare(left: &ManifestItem, right: &ManifestItem) -> Ordering {
         .then_with(|| left.id.cmp(&right.id))
 }
 
-fn sanitize(statement: &str) -> String {
+pub(super) fn sanitize(statement: &str) -> String {
     let mut out = String::with_capacity(statement.len());
     let mut pending = false;
     for ch in statement.chars() {

@@ -15,11 +15,12 @@
 | `kd` / `kd prime` | protocolo estático, byte-idêntico | `{protocol, version}` | — | nada (read-only) | `golden::prime_matches_golden`, `cli::no_args_equals_prime` |
 | `kd prime --long` | protocolo + gramática TOON | idem + schema | — | nada | `cli::json_envelope_for_prime_is_valid` |
 | `kd init` | `projeto <nome> fundado em <root>/.knudge` | `{project, root}` | `config` (7) se já existe sem `--force` | cria `notas/`, `eventos/`, `.idx/`, `.locks/`, `config.toml`, `AGENTS.md` | `golden::init_message_matches_golden`, `cli::init_write_ask_roundtrip` |
-| `kd rewind` | manifest/escopo formatado | `{context_id, items[], embeddings_pending}` | `io` (5) se store ausente | escreve `.idx/contexts/<context_id>.json` | `handoff::tests::rewind` |
+| `kd rewind` | manifest/escopo formatado (`next:` + `fresh:` no manifest) | `{context_id, items[], dropped, embeddings_pending}` | `io` (5) se store ausente | escreve `.idx/contexts/<context_id>.json` | `handoff::tests::rewind`, `handoff::tests::next::*`, `cli::rewind_manifest_shows_next_and_fresh` |
 | `kd rewind --resume <id>` | handoff 1:1 | idem | `not_found` (3) se `context_id` desconhecido | lê `.idx/contexts/` | `handoff::tests::context` |
 | `kd ask` | `id\|statement\|score\|why` (1/linha; canal vetorial se `recall.semantic`) | `{hits[], warnings[]}` | `io` (5) se índice ilegível | nada (read-only) | `retrieval::tests::recall`, `cli::init_write_ask_roundtrip`, `cli::ask_semantic_channel_reads_vector_index` |
 | `kd ask --id <id>` | corpo da nota | `{notes[]}` | `not_found`/`io` (3/5) se id ausente | nada | `golden::json_error_envelope_matches_golden` |
 | `kd ask --around <id>` | subgrafo formatado | `{nodes[], edges[]}` | `not_found` (3) | nada | `graph::tests::*` |
+| `kd ask --tags [--limit N]` | `tag\|count` (1/linha; `count` desc, `tag` asc) | `{tags[]}` | — | nada (read-only) | `retrieval::tests::tags::*`, `cli::ask_tags_lists_vocabulary` |
 | `kd ask --anchor <path...>` | `id\|statement\|score\|why` das notas ancoradas (só o path basta; repetível, aceita vírgula) | `{hits[]}` | — (vazio se nada casa) | nada (read-only) | `retrieval::tests::recall::anchor_channel_recalls_with_empty_text`, `cli::ask_anchor_finds_note_without_query`, `cli::ask_anchor_accepts_comma_separated_and_repeated` |
 | `kd write` | `created\|merged\|rejected\|unchanged\|<id>\|r<N>` | `{action, id, revision}` | `schema` (8)/`invalid_input` (2) | nota nova em `notas/<id>.md` + evento `write` | `write::tests::*`, `cli::init_write_ask_roundtrip` |
 | `kd write --update <id>` | `updated\|<id>\|r<N>` | `{action, id, revision}` | `conflict` (4) se id inexistente/`forgotten` | nova revisão + evento `update` | `write::tests::update` |

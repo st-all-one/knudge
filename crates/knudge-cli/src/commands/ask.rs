@@ -7,7 +7,7 @@ use knudge_core::embeddings::{EmbeddingIndex, rank_query};
 use knudge_core::graph::Graph;
 use knudge_core::retrieval::{
     DEFAULT_LIMIT, DEFAULT_RRF_K, Filter, RecallHit, RecallQuery, format_brief, format_hit, get,
-    recall,
+    recall, tag_counts,
 };
 use knudge_core::schema::{NoteType, Status};
 use knudge_core::store::Note;
@@ -25,6 +25,9 @@ use super::embedder;
 /// # Errors
 /// Propaga erros de índice/grafo e `strict` (D94).
 pub fn run(session: &Session, args: &AskArgs) -> Result<Output> {
+    if args.tag_vocab {
+        return tag_vocab(session, args);
+    }
     if !args.ids.is_empty() {
         return get_ids(session, args);
     }
@@ -32,6 +35,24 @@ pub fn run(session: &Session, args: &AskArgs) -> Result<Output> {
         return expand(session, args, around);
     }
     recall_query(session, args)
+}
+
+/// `kd ask --tags` — vocabulário de tags (`tag|count`, `count` desc, `tag` asc — D107).
+fn tag_vocab(session: &Session, args: &AskArgs) -> Result<Output> {
+    let index = session.index()?;
+    let mut counts = tag_counts(&index);
+    if let Some(limit) = args.limit {
+        counts.truncate(limit);
+    }
+    let text = counts
+        .iter()
+        .map(|(tag, count)| format!("{tag}|{count}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let data = json!({
+        "tags": counts.iter().map(|(tag, count)| json!({"tag": tag, "count": count})).collect::<Vec<_>>(),
+    });
+    Ok(Output::new(text, data))
 }
 
 fn get_ids(session: &Session, args: &AskArgs) -> Result<Output> {

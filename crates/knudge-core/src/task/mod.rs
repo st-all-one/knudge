@@ -5,6 +5,7 @@
 //! `results_in` no grafo. `kd write` rejeita `task`/`container` — tudo de tarefa passa aqui.
 
 pub mod hierarchy;
+pub mod impact;
 pub mod lifecycle;
 pub mod membership;
 pub mod mode;
@@ -19,6 +20,7 @@ pub mod template;
 mod tests;
 
 pub use hierarchy::{child, children, expected_parent, validate_blocks, validate_parent};
+pub use impact::impact;
 pub use lifecycle::{OutcomeStatus, TaskAction, apply, outcome, reorder, validate_transition};
 pub use membership::Marker;
 pub use mode::{Child, Container, Mode};

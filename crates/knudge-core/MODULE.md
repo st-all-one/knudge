@@ -20,13 +20,13 @@ existem no mesmo crate, mas o domínio **nunca** as importa — só as portas.
 | `config` | Config em dois níveis, schema e codec TOML próprio (E04). |
 | `git` | Worktree principal, `info/exclude`, `AGENTS.md`, `sync` (E04). |
 | `graph` | Arestas explícitas, integridade, ciclos e sugestões (E05). |
-| `retrieval` | Índice derivado, BM25, âncoras, filtros, views e RRF (E06). |
+| `retrieval` | Índice derivado, BM25, âncoras, filtros, views, RRF e vocabulário de tags (`tag_counts`, D107). |
 | `write` | Escrita idempotente, dedup em duas fases, update/supersede, ciclo de vida e `outcomes[]` para qualquer nota (D103). |
-| `handoff` | `rewind` (manifest/escopo/files), orçamento sem tokenizer e `context_id` (E08). |
+| `handoff` | `rewind` (manifest com `next:`/`fresh:` — D106, escopo/files), orçamento sem tokenizer e `context_id` (E08). |
 | `maintenance` | `diff`, `learn` e `compact` como propostas (E08). |
-| `task` | Hierarquia `plan ⊃ epic ⊃ issue ⊃ task`, ciclo de vida, **espécie** (`--kind`, D113), dono derivado (`claim`, D114), **papel/modo** derivados (D115/D116), **templates de plano** (`--prompt`/`--from`, D105) e **programas externos** (D119). |
+| `task` | Hierarquia `plan ⊃ epic ⊃ issue ⊃ task`, ciclo de vida, **espécie** (`--kind`, D113), dono derivado (`claim`, D114), **papel/modo** derivados (D115/D116), **impacto** (`impact`, D106), **templates de plano** (`--prompt`/`--from`, D105) e **programas externos** (D119). |
 | `health` | Validators, evidência, `audit`, `doctor --fix` (inclui `program-anchor` — D119), leitura tolerante e âncoras por hash (E09). |
-| `lifecycle` | Shelf-life, decay de âncoras, purga com retenção, confiança derivada e clusters (E09/E10). |
+| `lifecycle` | Shelf-life, frescor (`freshness`, D106), decay de âncoras, purga com retenção, confiança derivada e clusters (E09/E10). |
 | `embeddings` | Provedor HTTP plugável, cache por `body_hash`, fila lazy, purga/flush, ranking de query (`rank_query`, D102) e avaliação A/B (E11). |
 
 ## Invariantes

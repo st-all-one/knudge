@@ -4,12 +4,15 @@ use knudge_core::Result;
 use knudge_core::handoff::{
     ContextStore, DEFAULT_BUDGET, RewindInput, RewindMode, RewindRequest, rewind,
 };
+use knudge_core::lifecycle::{ShelfLife, freshness};
 use serde_json::json;
 
 use crate::cli::RewindArgs;
 use crate::commands::parse;
 use crate::output::Output;
 use crate::session::Session;
+
+use super::embedder;
 
 /// Executa `kd rewind`.
 ///
@@ -28,12 +31,20 @@ pub fn run(session: &Session, args: &RewindArgs) -> Result<Output> {
         resume: args.resume.clone(),
     };
     let contexts = ContextStore::new(session.fs_dyn(), session.knowledge_dir());
+    let store = session.store();
+    let mut notes = Vec::new();
+    for id in store.list_ids()? {
+        notes.push(store.read(&id)?);
+    }
+    let policy = ShelfLife::from_config(session.config());
+    let pending = embedder::pending(session)?;
+    let fresh = freshness(&notes, session.now_ms(), &policy, pending)?;
     let input = RewindInput {
         index: &index,
         graph: &graph,
         events: &events,
         changed_paths: &changed,
-        embeddings_pending: 0,
+        freshness: fresh,
         now_ms: session.now_ms(),
     };
     let out = rewind(&input, &request, &contexts)?;

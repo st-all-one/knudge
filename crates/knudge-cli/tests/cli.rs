@@ -828,3 +828,67 @@ fn task_graph_reports_supervisor_mode() -> TestResult {
     assert!(tree.contains("agente-a"), "sem dono: {tree}");
     Ok(())
 }
+
+#[test]
+fn ask_tags_lists_vocabulary() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    for (statement, tag) in [
+        ("fila com retry", "retry"),
+        ("backoff", "retry"),
+        ("buffer", "queue"),
+    ] {
+        let out = run_in(&dir, &["write", statement, "--type", "fact", "--tag", tag])?;
+        assert!(out.status.success(), "write falhou: {:?}", out.stderr);
+    }
+
+    let out = run_in(&dir, &["ask", "--tags"])?;
+    assert!(out.status.success(), "ask --tags falhou: {:?}", out.stderr);
+    let text = String::from_utf8(out.stdout)?;
+    let mut lines = text.lines();
+    assert_eq!(lines.next(), Some("retry|2"));
+    assert_eq!(lines.next(), Some("queue|1"));
+
+    let json_out = run_in(&dir, &["--json", "ask", "--tags"])?;
+    let tags = json(&json_out)?
+        .get("data")
+        .and_then(|data| data.get("tags"))
+        .and_then(|tags| tags.as_array())
+        .cloned()
+        .ok_or("sem tags")?;
+    assert_eq!(tags.len(), 2);
+    Ok(())
+}
+
+#[test]
+fn rewind_manifest_shows_next_and_fresh() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let epic = task_new(&dir, &["task", "new", "Épico", "--scope", "epic"])?;
+    let story = task_new(
+        &dir,
+        &[
+            "task", "new", "Story", "--scope", "issue", "--parent", &epic,
+        ],
+    )?;
+    let _ready = task_new(
+        &dir,
+        &[
+            "task", "new", "Pronta", "--scope", "task", "--parent", &story,
+        ],
+    )?;
+
+    let out = run_in(&dir, &["rewind"])?;
+    assert!(out.status.success(), "rewind falhou: {:?}", out.stderr);
+    let text = String::from_utf8(out.stdout)?;
+    assert!(text.contains("\nnext: "), "sem next: {text}");
+    assert!(
+        text.contains("\nfresh: stale=0 expiring=0 pending="),
+        "sem fresh: {text}"
+    );
+    Ok(())
+}

@@ -109,6 +109,61 @@ pub fn expired_ids(notes: &[Note], now_ms: i64, policy: &ShelfLife) -> Result<Ve
     Ok(ids)
 }
 
+/// Janela de aviso antes da expiração (dias).
+pub const EXPIRING_GRACE_DAYS: i64 = 7;
+
+/// Contagem de frescor do corpus (D106): expiradas, prestes a expirar e pendentes.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Freshness {
+    /// Notas já expiradas (fora da shelf-life).
+    pub stale: usize,
+    /// Notas que expiram dentro da janela de aviso.
+    pub expiring: usize,
+    /// Notas pendentes na fila de embeddings.
+    pub pending: usize,
+}
+
+impl Freshness {
+    /// Linha canônica `stale=N expiring=N pending=N`.
+    #[must_use]
+    pub fn render(&self) -> String {
+        format!(
+            "stale={} expiring={} pending={}",
+            self.stale, self.expiring, self.pending
+        )
+    }
+}
+
+/// Conta `stale`/`expiring` do corpus (o `pending` vem da fila de embeddings).
+///
+/// # Errors
+/// Retorna `ErrorKind::Schema` se os campos tipados estiverem malformados.
+pub fn freshness(
+    notes: &[Note],
+    now_ms: i64,
+    policy: &ShelfLife,
+    pending: usize,
+) -> Result<Freshness> {
+    let grace = EXPIRING_GRACE_DAYS.saturating_mul(DAY_MS);
+    let mut stale = 0_usize;
+    let mut expiring = 0_usize;
+    for note in notes {
+        let Some(expiry) = expiry_for(note, policy)? else {
+            continue;
+        };
+        if now_ms >= expiry {
+            stale = stale.saturating_add(1);
+        } else if expiry.saturating_sub(now_ms) <= grace {
+            expiring = expiring.saturating_add(1);
+        }
+    }
+    Ok(Freshness {
+        stale,
+        expiring,
+        pending,
+    })
+}
+
 /// Idade da nota em dias (`>= 0`) a partir de `created_at`.
 #[must_use]
 pub fn age_days(note: &Note, now_ms: i64) -> i64 {

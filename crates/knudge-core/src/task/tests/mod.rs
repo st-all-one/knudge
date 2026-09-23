@@ -1,6 +1,7 @@
 //! Testes de tarefa/container (E08-T07).
 
 mod hierarchy;
+mod impact;
 mod kind;
 mod lifecycle;
 mod mode;

@@ -33,12 +33,14 @@ PESQUISA (uma tool):
   kd ask [QUERY] [--id ID...] [--around ID] [--via ARESTA] [--depth N]
          [--type T...] [--class C...] [--tag T...] [--status S...] [--container ID]
          [--anchor PATH...] [--since TS] [--until TS] [--limit N] [--brief] [--with-body]
+         [--tags]                       # vocabulário de tags (tag|count, D107)
   Pipe (LLM): id|statement|score|why  (1 hit por linha). Corpo só com --id/--with-body.
   forgotten/superseded ficam fora do ask por padrão; use --status para incluí-los.
 
 ESTADO / HANDOFF:
   kd rewind [--scope CONTAINER] [--files PATH...] [--budget N] [--resume ID]
   Orçamento ceil(len/4) tokens (default 4000); emite context_id retomável 1:1.
+  Manifest: next: (ready por impacto) e fresh: (stale/expiring/pending) — D106.
 
 TAREFAS: kd task new|list|show|update|close|claim|graph|plan  (plan ⊃ epic ⊃ issue ⊃ task, máx. 4)
   kd task new ... --kind error|question|risk|decision   # espécie (D113)

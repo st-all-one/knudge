@@ -3,6 +3,7 @@
 mod budget;
 mod context;
 mod manifest;
+mod next;
 mod rewind;
 mod scope;
 
@@ -56,6 +57,16 @@ pub(super) fn confirmed(statement: &str) -> Result<Note> {
 pub(super) fn container(statement: &str) -> Result<Note> {
     let mut draft = Draft::new(NoteType::Container, statement);
     draft.scope = Some(Scope::Plan);
+    draft.to_note(NOW)
+}
+
+/// Tarefa com escopo e dependência opcional.
+pub(super) fn task(statement: &str, scope: Scope, depends: Option<&str>) -> Result<Note> {
+    let mut draft = Draft::new(NoteType::Task, statement);
+    draft.scope = Some(scope);
+    if let Some(dep) = depends {
+        draft.edges = vec![(EdgeKind::DependsOn, dep.to_string())];
+    }
     draft.to_note(NOW)
 }
 

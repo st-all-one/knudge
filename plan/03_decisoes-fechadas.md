@@ -308,6 +308,8 @@
 | D103 | `outcomes[]` vale para **qualquer** nota; `kd write --outcome <status> <ID>`; a confirmação continua **derivada** (D87). Evento `op=outcome`. |
 | D104 | Views `ready`/`blocked` como **modos** de `task list` (`--ready`/`--blocked`/`--explain`); motivo de bloqueio derivado (`blocked_by`/`not_before`/`cycle`). |
 | D105 | Plano preenchível por LLM: `kd task plan --prompt` (derivado) e `--submit --from` (TOON); templates em `.knudge/templates.toml` (D97) sobrepõem built-ins; submissão **atômica**. |
+| D106 | `rewind` emite `next:` (tarefas `ready` abertas por impacto) e `fresh:` (`stale`/`expiring`/`pending`); `prime` permanece estático (D57). `impact` = tarefas abertas com `depends_on` reverso. |
+| D107 | `kd ask --tags` lista o vocabulário de tags (`tag\|count`, `count` desc, `tag` asc), ignorando `forgotten`/`superseded`. |
 | D113 | `scope` = nível, `type` = espécie; `kd task new --kind`; `scope` exigido só para `task`/`container`, opcional nos demais itens de trabalho. |
 | D114 | Dono **derivado de eventos** `claim`/`release`; `kd task claim`; `--owner`/`--mine` (`KNUDGE_AGENT`). Sem chave canônica. |
 | D115 | Papel (Initiative/Epic/Feature/Story/Sub-task/Bug/Spike/Risk/Decision) **derivado** de `(scope, type, tem_filhos)`; nunca armazenado. |

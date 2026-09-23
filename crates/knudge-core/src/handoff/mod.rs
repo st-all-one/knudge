@@ -8,6 +8,7 @@
 pub mod budget;
 pub mod context;
 pub mod manifest;
+pub mod next;
 pub mod scope;
 
 #[cfg(test)]
@@ -18,9 +19,11 @@ pub use context::{CONTEXT_PREFIX, ContextStore, derive_id, is_valid_context_id};
 pub use manifest::{
     ManifestItem, TrustTier, manifest_text, rank, render_item, tier_of, trust_score,
 };
+pub use next::{NextTask, manifest_at, next_tasks};
 pub use scope::{FLIP_CONTAINERS, FLIP_NOTES, detect_scope, should_flip};
 
 use crate::graph::Graph;
+use crate::lifecycle::Freshness;
 use crate::retrieval::Index;
 use crate::schema::NoteType;
 use crate::store::Event;
@@ -84,8 +87,8 @@ pub struct RewindInput<'a> {
     pub events: &'a [Event],
     /// Arquivos tocados no working set.
     pub changed_paths: &'a [String],
-    /// Notas ainda `pending`/`stale` na fila de embeddings (E11-T03).
-    pub embeddings_pending: usize,
+    /// Frescor do corpus (shelf-life + fila de embeddings — D106).
+    pub freshness: Freshness,
     /// Instante atual (ms).
     pub now_ms: i64,
 }
@@ -126,15 +129,16 @@ pub fn rewind(
     let container_count = count_containers(input.graph);
     let mode = effective_mode(&request.mode, input, container_count);
     let (text, items, truncated, dropped) = match &mode {
-        RewindMode::Manifest | RewindMode::Auto => (
-            manifest_with_pending(
-                manifest_text(input.index, input.graph, input.changed_paths),
-                input.embeddings_pending,
-            ),
-            Vec::new(),
-            false,
-            0,
-        ),
+        RewindMode::Manifest | RewindMode::Auto => {
+            let (text, dropped) = manifest_at(
+                input.index,
+                input.graph,
+                input.changed_paths,
+                &input.freshness,
+                request.budget,
+            );
+            (text, Vec::new(), false, dropped)
+        }
         RewindMode::Scope(_) | RewindMode::Files(_) => {
             let items = rank(input.index, input.graph, &mode);
             let lines: Vec<String> = items.iter().map(render_item).collect();
@@ -150,7 +154,7 @@ pub fn rewind(
         items,
         truncated,
         dropped,
-        embeddings_pending: input.embeddings_pending,
+        embeddings_pending: input.freshness.pending,
         warnings: Vec::new(),
     })
 }
@@ -173,14 +177,6 @@ fn resume_context(resume: &str, contexts: &ContextStore<'_>) -> Result<RewindOut
         embeddings_pending: 0,
         warnings: Vec::new(),
     })
-}
-
-fn manifest_with_pending(text: String, pending: usize) -> String {
-    if pending == 0 {
-        text
-    } else {
-        format!("{text}\nembeddings_pending={pending}")
-    }
 }
 
 fn effective_mode(

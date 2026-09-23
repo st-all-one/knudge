@@ -164,6 +164,9 @@ pub struct AskArgs {
     /// Saída mínima (`id|statement`).
     #[arg(long)]
     pub brief: bool,
+    /// Lista o vocabulário de tags (`tag|count`, `count` desc).
+    #[arg(long = "tags")]
+    pub tag_vocab: bool,
     /// Inclui o corpo dos hits.
     #[arg(long)]
     pub with_body: bool,

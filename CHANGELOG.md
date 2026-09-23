@@ -27,10 +27,22 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   Goldens `prime.txt`/`json_prime.json` atualizados; `kd` continua byte-idêntico a `kd prime`.
 
 ### Alterado
-- **`kd prime`** passa a listar `kd task plan --prompt/--from` e `kd task graph` (com
-  `--root`); goldens `prime.txt`/`json_prime.json` regenerados.
+- **`kd prime`** passa a listar `ask --tags` e as linhas `next:`/`fresh:` do `rewind`; goldens
+  `prime.txt`/`json_prime.json` regenerados.
+- **`rewind`**: a linha `embeddings_pending=N` vira `fresh: stale=… expiring=… pending=N`
+  (D106).
 
 ### Adicionado
+- **`rewind` com `next:` e `fresh:`** (D106): o manifest dinâmico lista as tarefas `ready`
+  **abertas** de maior impacto (`next:`) e o frescor do corpus
+  (`fresh: stale/expiring/pending`); `K` deriva do orçamento e o excedente vira `dropped`.
+  Novos `task::impact` (tarefas abertas que dependem transitivamente) e `lifecycle::freshness`
+  (shelf-life + fila). Regressão: `task::tests::impact::*`, `handoff::tests::next::*`,
+  `lifecycle::tests::shelf_life::freshness_counts_stale_expiring_and_pending`,
+  `cli::rewind_manifest_shows_next_and_fresh`.
+- **`kd ask --tags`** (D107): lista o vocabulário de tags (`tag|count`, `count` desc, `tag` asc),
+  ignorando `forgotten`/`superseded`; `--limit N` e `--json` (`data.tags[]`). Regressão:
+  `retrieval::tests::tags::*`, `cli::ask_tags_lists_vocabulary`.
 - **Plano preenchível por LLM (`kd task plan --prompt`/`--from`)** (D105): `--prompt` deriva um
   prompt TOON read-only do template (`feature`/`bug`/`refactor`, com `min_steps`/`min_acceptance`);
   `--submit --from -|<arquivo>` lê o plano TOON, valida tudo **antes** de escrever (seções

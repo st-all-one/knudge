@@ -10,6 +10,7 @@ mod filter;
 mod index;
 mod recall;
 mod rrf;
+mod tags;
 mod token;
 mod views;
 

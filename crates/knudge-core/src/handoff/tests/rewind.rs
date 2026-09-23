@@ -4,6 +4,7 @@ use crate::Result;
 use crate::graph::Graph;
 use crate::handoff::context::{ContextStore, derive_id, is_valid_context_id};
 use crate::handoff::{RewindInput, RewindMode, RewindRequest, rewind};
+use crate::lifecycle::Freshness;
 use crate::ports::fakes::MemFs;
 use crate::retrieval::Index;
 use crate::schema::NoteType;
@@ -16,7 +17,7 @@ fn input<'a>(index: &'a Index, graph: &'a Graph, changed_paths: &'a [String]) ->
         graph,
         events: &[],
         changed_paths,
-        embeddings_pending: 0,
+        freshness: Freshness::default(),
         now_ms: NOW,
     }
 }
@@ -153,9 +154,9 @@ fn manifest_reports_embeddings_pending() -> Result<()> {
     let contexts = ContextStore::new(&fs, "/p/.knudge");
     let request = RewindRequest::new();
     let mut input = input(&index, &graph, &[]);
-    input.embeddings_pending = 2;
+    input.freshness.pending = 2;
     let output = rewind(&input, &request, &contexts)?;
-    assert!(output.text.contains("embeddings_pending=2"));
+    assert!(output.text.contains("fresh: stale=0 expiring=0 pending=2"));
     assert_eq!(output.embeddings_pending, 2);
     Ok(())
 }
