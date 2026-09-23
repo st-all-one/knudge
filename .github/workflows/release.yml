@@ -105,12 +105,22 @@ jobs:
         if: contains(matrix.target, 'linux-musl')
         run: sudo apt-get update && sudo apt-get install -y musl-tools
 
-      # Windows ARM64: habilita o linker/lib do MSVC ARM64 (sem Docker, sem runner extra).
+      # Windows ARM64: cross x64→arm64. `amd64_arm64` é o host x64 com alvo ARM64 (o valor
+      # `arm64` pediria um host ARM64 nativo, inexistente no runner, e o `link.exe` do Git
+      # Bash acabava sendo usado). Sem Docker, sem runner extra.
       - name: Toolchain MSVC ARM64 (Windows)
         if: matrix.msvc_arch == 'arm64'
         uses: ilammy/msvc-dev-cmd@v1
         with:
-          arch: arm64
+          arch: amd64_arm64
+
+      # Diagnóstico: o primeiro `link` do PATH é o que o rustc usa (deve ser o do MSVC).
+      - name: Verificar linker ARM64
+        if: matrix.msvc_arch == 'arm64'
+        shell: pwsh
+        run: |
+          where.exe link
+          where.exe cl
 
       - name: Build release (otimizado)
         run: cargo build --release --locked -p knudge-cli -p knudge-mcp --target ${{ matrix.target }}
