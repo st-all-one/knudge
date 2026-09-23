@@ -9,7 +9,7 @@ use knudge_core::schema::{EdgeKind, NoteType, Value};
 use knudge_core::store::Store;
 use knudge_core::task::ownership::CLAIM;
 use knudge_core::task::{
-    Child, Container, Mode, children, mode, ownership, role, root_for_path, subtree,
+    Child, Container, Mode, children, mode, ownership, progress_of, role, root_for_path, subtree,
 };
 use serde_json::json;
 
@@ -188,9 +188,12 @@ fn render_subtree(
             None
         };
         let mode_label = mode.map_or("-", Mode::as_str);
+        let progress = (kind == NoteType::Container).then(|| progress_of(graph, &entry.id));
+        let progress_label =
+            progress.map_or(String::new(), |value| format!(" ({})", value.label()));
         let indent = "  ".repeat(entry.depth.saturating_add(1));
         tree.lines.push(format!(
-            "{indent}{}|{}|{}|{}|{owner}|{mode_label}|{statement}",
+            "{indent}{}|{}|{}|{}|{owner}|{mode_label}|{statement}{progress_label}",
             entry.id,
             role.as_str(),
             kind.as_str(),
@@ -205,6 +208,7 @@ fn render_subtree(
             "owner": if owner == "-" { None } else { Some(owner) },
             "mode": mode.map(Mode::as_str),
             "statement": statement,
+            "progress": progress.map(|value| json!({"done": value.done, "total": value.total})),
         }));
     }
     Ok(())

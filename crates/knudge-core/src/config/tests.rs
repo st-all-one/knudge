@@ -134,6 +134,23 @@ fn mcp_observation_defaults() {
     assert_eq!(config.get_int("mcp.hints_cap"), Some(3));
 }
 
+#[test]
+fn recall_weights_defaults() {
+    let config = Config::defaults();
+    assert_eq!(config.get_float("recall.lexical_weight"), Some(1.0));
+    assert_eq!(config.get_float("recall.anchor_weight"), Some(1.0));
+    assert_eq!(config.get_float("recall.semantic_weight"), Some(30.0));
+}
+
+#[test]
+fn embeddings_default_model_is_multilingual() {
+    let config = Config::defaults();
+    assert_eq!(
+        config.get_str("embeddings.model"),
+        Some("ibm-granite/granite-embedding-97m-multilingual-r2")
+    );
+}
+
 /// Testes do schema canônico (movidos de `schema.rs` para respeitar o limite de 300 linhas).
 mod schema {
     use crate::config::ConfigValue;

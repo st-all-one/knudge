@@ -124,7 +124,7 @@ O provedor vive no `config.toml` (global como template, projeto com precedência
 [embeddings]
 enabled      = true
 provider     = "http"                                     # http | lightweight | none
-model        = "sentence-transformers/msmarco-MiniLM-L12-cos-v5"
+model        = "ibm-granite/granite-embedding-97m-multilingual-r2"
 revision     = "main"                                     # pinar commit/tag p/ reprodutibilidade
 dimensions   = 384
 similarity   = "cosine"                                   # cosine | dot
@@ -156,7 +156,7 @@ api_key_env  = "KNUDGE_EMBEDDING_API_KEY"
 
 ```sh
 # llama.cpp; expõe /v1/embeddings (OpenAI-compatible)
-llama-server -m msmarco-MiniLM-L12-cos-v5.Q5_K_M.gguf --embeddings --port 8080
+llama-server -m granite-embedding-97M-multilingual-r2-Q8_0.gguf --embeddings --port 8080
 ```
 
 O `kd` consome `http://127.0.0.1:8080/v1/embeddings` por padrão; aponte
@@ -192,7 +192,9 @@ D101.
 | Decisão | Antes | Agora |
 |---|---|---|
 | **D42** | Embeddings só depois de `learn()`/dedup semântico | Embeddings **configuráveis desde já** via `config.toml`; default `enabled=true` com `cos-v5`, mas o sistema funciona com `none` |
-| **D79** (nova) | — | **Modelo default = `msmarco-MiniLM-L12-cos-v5`**, provedor plugável; validar idioma e A/B no corpus |
+| **D79** (nova) | — | **Modelo default = `ibm-granite/granite-embedding-97m-multilingual-r2`** (**D123**, 384d, Apache-2.0, PT explícito), provedor plugável; validado por bancada PT-BR (`bench/`) |
+| **D123** (nova) | default `msmarco-MiniLM-L12-cos-v5` (inglês) | **Default multilíngue** `granite-embedding-97m-multilingual-r2`; +0.070 nDCG@5 sobre BM25 no corpus PT-BR, mesmo índice |
+| **D124** (nova) | RRF sem peso por canal (D81) | **Peso por canal** (`recall.*_weight`); default `semantic_weight=30` Pareto-domina o neutro |
 | **D101** (nova) | `provider = local\|http\|lightweight\|none` | **`provider = http`** (default) consumindo um **servidor local** OpenAI-compatible (`llama-server` com o GGUF); inferência in-process recusada (R16/R43); `lightweight`/`none` para CI/BM25 |
 | **D65** | Módulos por escopo temático | Ganha o escopo **`embeddings`** (provedor + cliente), separado do `retrieval` |
 | **D68** | MCP + CLI; FFI/WASM no planejamento | O provedor `http` (D101) mantém o binário leve; WASM/FFI deixam de ser necessários para inferência |
@@ -205,4 +207,37 @@ D101.
 
 ## 6. Em uma frase
 
-**`msmarco-MiniLM-L12-cos-v5` como default** (qualidade, mesmo índice do L6, embedding em lote), com **`msmarco-MiniLM-L6-cos-v5` como perfil rápido** para latência/edge — ambos treinados para cosseno, na mesma dimensão e custo de armazenamento. O usuário sobe um **servidor local** (`llama-server` com o GGUF) e o knudge consome via **`provider = http`** (OpenAI-compatible), **assíncrono e lazy** (nunca bloqueia; fila de digestão com gap tolerado), **cache por `body_hash`** e **flush coalescido**, sempre derivado e re-embebido quando o modelo muda; `lightweight` cobre testes/CI e `none` cai para BM25; a escolha do modelo se decide por **`kd eval --ab`** sobre o corpus; com a ressalva de que, se o corpus for PT-BR, um modelo multilíngue deve ser avaliado.
+**`ibm-granite/granite-embedding-97m-multilingual-r2` como default** (D123: 384d, Apache-2.0, 200+ idiomas com PT explícito, mesmo índice do `cos-v5`) e **fusão RRF com peso por canal** (D124: `semantic_weight=30` faz o canal vetorial dominar, corrigindo a diluição por votos lexicais) — o usuário sobe um **servidor local** (`llama-server` com o GGUF) e o knudge consome via **`provider = http`** (OpenAI-compatible), **assíncrono e lazy** (nunca bloqueia; fila de digestão com gap tolerado), **cache por `body_hash`** e **flush coalescido**, sempre derivado e re-embebido quando o modelo muda; `lightweight` cobre testes/CI e `none` cai para BM25; a escolha do modelo se decide por **`kd maintenance eval --ab`** sobre o corpus real.
+
+---
+
+## 7. Bancada PT-BR (`bench/`, D123/D124)
+
+Harness: `bench/bench.py` (fim-a-fim: escreve 51 notas de um projeto TS simulado, drena e roda 30 consultas — 6 lexicais, 20 semânticas, 4 mistas) e `bench/probe.py` (cosseno puro, isolando o modelo da fusão). Servidores via `llama serve --embeddings`.
+
+### 7.1 Modelos (fusão neutra 1:1, `rrf_k=60`)
+
+| modelo | dims | licença | prompt | R@1 | R@5 | nDCG@5 | índice |
+|---|---:|---|---|---:|---:|---:|---:|
+| BM25 (`none`) | — | — | — | 0.669 | 0.792 | 0.771 | 0 |
+| msmarco-MiniLM-L12-cos-v5 (default antigo) | 384 | Apache | — | 0.669 | 0.825 | 0.775 | 404K |
+| paraphrase-multilingual-MiniLM-L12-v2 | 384 | Apache | — | 0.653 | 0.867 | 0.804 | 404K |
+| embeddinggemma-300m | 768 | Gemma | sim | 0.703 | 0.900 | 0.841 | 810K |
+| **granite-embedding-97m-multilingual-r2** | **384** | **Apache** | **—** | **0.719** | 0.900 | **0.845** | **407K** |
+| granite-embedding-311m-multilingual-r2 | 768 | Apache | — | 0.686 | 0.900 | 0.833 | 816K |
+| jina-embeddings-v5-text-nano-retrieval | 768 | CC-BY-NC | sim | 0.653 | 0.925 | 0.825 | 811K |
+
+No **embedding puro** (com prompt quando exigido): jina 0.946 > gemma 0.935 > granite97 0.892 > paraphrase 0.832 > msmarco 0.704. O default antigo (inglês) **empatava com BM25** nas consultas semânticas (nDCG 0.671 vs 0.665).
+
+### 7.2 Efeito do peso semântico (granite97, `rrf_k=60`)
+
+| `semantic_weight` | R@1 | R@5 | MRR | nDCG@5 |
+|---:|---:|---:|---:|---:|
+| 1 (neutro) | 0.719 | 0.900 | 0.894 | 0.845 |
+| 2–20 | 0.686 | 0.900–0.967 | 0.878–0.894 | 0.832–0.869 |
+| **30 (default, D124)** | 0.719 | **0.967** | **0.911** | **0.880** |
+| ≥80 | 0.753 | 0.950 | 0.933 | 0.892 |
+
+Peso modesto (1–20) **piora** (o `rrf_k=60` comprime os ranks e o lexical segue competitivo); a partir de 30 a fusão Pareto-domina o neutro, e ≥80 converge para o vetorial puro **sem regressão** nas consultas lexicais. Ajuste por config.
+
+> **Caveat:** corpus pequeno (51 notas) e 30 consultas **sintéticas** → sem significância estatística; serve para ordenar candidatos, não para cravar números. Um A/B no corpus real (com `kd maintenance eval --ab`, hoje stub) é o próximo passo.

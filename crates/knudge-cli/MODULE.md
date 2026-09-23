@@ -13,7 +13,7 @@ do núcleo para o **contrato de saída** (D71):
 |---|---|
 | `cli/` | Definição dos argumentos/subcomandos (`clap`) — superfície v2. |
 | `session.rs` | Resolve o projeto, carrega a config efetiva e monta store/eventos/índice/grafo. |
-| `commands/` | Um módulo por verbo (`prime`, `init`, `rewind`, `ask`, `write_cmd`, `task`, `maintenance`, `config_cmd`, `forget_sync`, `self_cmd`) + `hooks`/`validators`/`embedder`. |
+| `commands/` | Um módulo por verbo (`prime`, `init`, `rewind`, `ask`, `write_cmd`, `task`, `knowledge`, `maintenance`, `config_cmd`, `forget_sync`, `self_cmd`) + `hooks`/`validators`/`embedder`; `knowledge/map` e `maintenance/extra` separam os subcomandos. |
 | `envelope.rs` | Serialização do envelope JSON. |
 | `output.rs` | Escrita em stdout/stderr com tratamento de `EPIPE`. |
 | `logging.rs` | Adaptador `tracing` do port `Logger` com redação. |

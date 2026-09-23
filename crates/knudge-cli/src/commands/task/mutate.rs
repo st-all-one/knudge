@@ -6,8 +6,8 @@ use knudge_core::health::close_task;
 use knudge_core::schema::{Status, Value};
 use knudge_core::store::{Event, Note};
 use knudge_core::task::{
-    OutcomeStatus, TaskAction, apply, claim as record_claim, membership, outcome, ownership,
-    validate_parent, validate_transition,
+    OutcomeStatus, TaskAction, apply, claim as record_claim, epic_of, membership, outcome,
+    ownership, progress_of, validate_parent, validate_transition,
 };
 use knudge_core::write::WriteContext;
 use serde_json::json;
@@ -102,10 +102,13 @@ pub(super) fn close(
         let _ignored = outcome(&ctx, id, status, note_arg)?;
         let revision = apply(&ctx, id, TaskAction::Review)?;
         let data = json!({ "id": id, "outcome": status.as_str(), "revision": revision });
-        return Ok(Output::new(
+        return finish_close(
+            session,
+            id,
             format!("closed|{id}|{}|r{revision}", status.as_str()),
             data,
-        ));
+            Vec::new(),
+        );
     }
     let note = ctx.store().read(id)?;
     let run = validators::run(session, &note)?;
@@ -125,15 +128,58 @@ pub(super) fn close(
             "severity": check.severity.as_str(),
         })).collect::<Vec<_>>(),
     });
-    Ok(Output::new(
+    finish_close(
+        session,
+        id,
         format!(
             "closed|{id}|{}|r{}",
             closed.status.as_str(),
             closed.revision
         ),
         data,
+        run.warnings,
     )
-    .with_warnings(run.warnings))
+}
+
+/// Monta a saída de `close` com o rollup do épico (D127).
+fn finish_close(
+    session: &Session,
+    id: &str,
+    mut text: String,
+    mut data: serde_json::Value,
+    warnings: Vec<String>,
+) -> Result<Output> {
+    if let Some((epic_text, epic_json)) = epic_rollup(session, id)? {
+        text.push('\n');
+        text.push_str(&epic_text);
+        if let Some(map) = data.as_object_mut() {
+            let _ignored = map.insert("epic".to_string(), epic_json);
+        }
+    }
+    Ok(Output::new(text, data).with_warnings(warnings))
+}
+
+/// Épico mais próximo + progresso derivado; `None` se o item não pertence a um épico (D127).
+fn epic_rollup(session: &Session, id: &str) -> Result<Option<(String, serde_json::Value)>> {
+    let graph = session.graph()?;
+    let Some(epic_id) = epic_of(&graph, id) else {
+        return Ok(None);
+    };
+    let progress = progress_of(&graph, &epic_id);
+    let statement = session
+        .store()
+        .read(&epic_id)
+        .ok()
+        .and_then(|note| note.frontmatter.statement().ok().map(str::to_string))
+        .unwrap_or_default();
+    let text = format!("epico: {epic_id}|{statement} ({})", progress.label());
+    let value = json!({
+        "id": epic_id,
+        "statement": statement,
+        "done": progress.done,
+        "total": progress.total,
+    });
+    Ok(Some((text, value)))
 }
 
 /// Intenção de `kd task claim` (D114).

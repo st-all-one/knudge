@@ -29,6 +29,7 @@
 | `kd ask` | `recall`, `get`, `expand` | toda pesquisa |
 | `kd write` | `write`, `update`, `link` | toda escrita |
 | `kd task` | `plan`, containers de tarefa | plan/epic/issue/task |
+| `kd knowledge` | `clusters` | mapa de conhecimento (D128) |
 | `kd maintenance` | `doctor`, `audit`, `compact`, `eval`, `embed`, `learn` | manutenção |
 | `kd config` | `config` | `.knudge/config.toml` |
 | `kd forget` | `forget`, `restore` | soft-delete |
@@ -121,18 +122,19 @@ O manifest (default) ganha `next:` (tarefas `ready` abertas por impacto) e `fres
 Hierarquia **fechada**: `plan ⊃ epic ⊃ issue ⊃ task`, profundidade máx. **4**. Campo `scope`
 (enum fechado) marca o **nível**; o `type` é a **espécie** (D113): `container` para plan/epic,
 `task`/`error`/`question`/`risk`/`decision` para itens de trabalho. Pai único via
-membership/backref (D52); dependências via aresta `depends_on`.
+membership/backref (D52); dependências via aresta `depends_on`, criada **só** com
+`kd write --link <FROM:depends_on:TO>` (via única, D126).
 
 ```
 kd task new <STATEMENT> --scope <plan|epic|issue|task>
   [--kind <task|error|question|risk|decision>] [--parent <ID>]
   [--body <TXT|->] [--checks <NAME>...] [--anchor <PATH>...] [--tag <T>...] [--source <F>]
-  [--depends-on <ID>...] [--not-before <TS>] [--expires-at <TS>]
+  [--not-before <TS>] [--expires-at <TS>]
 kd task list [--scope ...] [--status ...] [--kind ...] [--parent <ID>]
   [--ready|--blocked [--explain]] [--sort impact] [--tag <T>...] [--anchor <PATH>...]
   [--since <TS>] [--owner <A>|--mine]
-kd task show <ID> [<ID>...] [--history]
-kd task graph [--program <PATH>|--root <ID>]
+kd task show <ID> [<ID>...] [--history]   # + pai/bloqueadores/filhos/épico (D125/D127)
+kd task graph [--program <PATH>|--root <ID>]   # containers com progresso (D127)
 kd task update <ID> [--statement <S>] [--status <S>] [--parent <ID>] [--checks ...]
 kd task close <ID> [--outcome success|partial|failure|abandoned] [--note <TXT>]
 kd task claim <ID> --by <A>|--release
@@ -140,7 +142,17 @@ kd task plan <ID> [--prompt [--template <NOME>] | --submit --from <TXT|->]
   [--step <TXT>...] [--adopt|--reorder <N>|--release|--review]
 ```
 
-- `close` roda os validators e grava `outcomes[]`/`evidence` (D48/D55) — nunca declara sem evidência.
+- `close` roda os validators e grava `outcomes[]`/`evidence` (D48/D55) — nunca declara sem
+  evidência; acrescenta o **épico mais próximo** e o **progresso** dele (D127).
+- `show` resolve o **contexto** de cada id — `parent`, `blocked_by`, `blocks`, `children` e o
+  **épico com progresso** — com **título** e estado, para responder "onde isto se encaixa e o
+  que o bloqueia" num só comando (D125/D127); no `--json`, os campos vêm estruturados.
+- **Rollup de progresso por épico (D127):** `epic_of`/`progress_of` contam os **itens de trabalho
+  folha** (`is_work_item` sem filhos de trabalho) no subárvore e quantos estão `closed` —
+  derivado, sem verdade nova. Aparece no `close` (`epico: <id>|<título> (<done>/<total>)`), no
+  `show` e nos containers do `task graph` (`(done/total)`).
+- **Arestas (inclui `depends_on`) têm uma via única:** `kd write --link <FROM:ARESTA:TO>` (D126).
+  `kd task new` não cria arestas — reduz a superfície e reaproveita o caminho de grafo.
 - `plan` implementa o ciclo de vida de D53 (`blocks` 1-based, sem self-reference, detecção de ciclo).
 - `plan`/`epic` são **views derivadas** (sem verdade própria); `issue`/`task` são atômicas.
 - `--kind` grava a **espécie** mantendo o `scope` (D113); `--owner`/`--mine` filtram pelo dono
@@ -158,7 +170,23 @@ kd task plan <ID> [--prompt [--template <NOME>] | --submit --from <TXT|->]
 - **Programa externo** (D119): `plan/<slug>.md` ancorado a um Épico-raiz (`--anchors`);
   `task graph --program` imprime a subárvore; `programs.glob` define o que é um programa.
 
-## 8. `kd maintenance` — manutenção
+## 8. `kd knowledge` — mapa de conhecimento (D128)
+
+```
+kd knowledge map [--axis <anchor|type|classification|container>] [--scope <CONTAINER>]
+                [--semantic] [--members]
+```
+
+- **Fase 1** é determinística e sem embeddings: agrega por `anchor`, `type`, `classification` e
+  `container` (o container ancestral sobe pela **hierarquia** `results_in`, com fallback para
+  `depends_on`).
+- **`--semantic`** roda a fase 2 (`complete-link`) dentro de cada cluster acima de
+  `clusters.min_volume`, com `clusters.similarity_threshold` — off-path, read-only (D47).
+- `--scope` restringe aos membros de um container; `--members` lista os membros.
+- Pipe: `<axis>|<key>|<count>` (container acrescenta `|<título>`); com `--members`, membros
+  indentados `id|statement`. Fase 2: `semantic|<axis>|<key>|groups=N` + grupos.
+
+## 9. `kd maintenance` — manutenção
 
 ```
 kd maintenance doctor [--fix] [--audit]   # relatório por padrão; --fix corrige o reversível
@@ -174,7 +202,7 @@ kd maintenance prune [--scope <C>]        # propõe forget por shelf-life/decay 
 - `index` é, por padrão, interno (worker); `--status`/`--drain` são diagnóstico.
 - `prune` **só propõe** (`forget|id|motivo`); a aplicação é `kd forget` (D47/D112).
 
-## 9. `learn` em profundidade
+## 10. `learn` em profundidade
 
 `learn` é o **motor de institucionalização de conhecimento**: uma operação **read-only** que olha
 para o que **aconteceu** (eventos + `anchors` + grafo + vetores) e responde
@@ -203,7 +231,7 @@ Restrições:
 - **Session-close**: o MCP gatilho 3 chama `learn` quando houve diff significativo e zero writes.
 - **Onde vive**: `kd maintenance learn` (é relatório/sugestão, como `doctor`/`compact`).
 
-## 10. `kd config`, `kd forget`, `kd sync`, `kd init`, `kd self`
+## 11. `kd config`, `kd forget`, `kd sync`, `kd init`, `kd self`
 
 ```
 kd config get <KEY>
@@ -225,7 +253,7 @@ kd self upgrade
 kd self version
 ```
 
-## 11. `strict` como config (D94)
+## 12. `strict` como config (D94)
 
 `strict` **não é flag nem subcomando**: é chave de projeto em `.knudge/config.toml`:
 
@@ -234,7 +262,7 @@ kd self version
 strict = false   # true promove warnings (leitura, retrieval, embeddings) a erro
 ```
 
-## 12. Mapa antigo → novo
+## 13. Mapa antigo → novo
 
 | Antes | Agora |
 |---|---|
@@ -250,13 +278,13 @@ strict = false   # true promove warnings (leitura, retrieval, embeddings) a erro
 | `onboard` | `kd init` |
 | `setup` / `completions` / `upgrade` / `version` | `kd self …` |
 
-## 13. MCP espelhado
+## 14. MCP espelhado
 
 As tools MCP usam os mesmos nomes e modos. Os 3 gatilhos (E12-T03) passam a apontar para:
 pré-`write` (quase-duplicados), pré-edição (`kd rewind --files` contínuo), fim de sessão
 (`kd maintenance learn`).
 
-## 14. Aceite
+## 15. Aceite
 
 - [x] `kd` sem argumentos == `kd prime`; `prime` byte-idêntico por versão (teste de golden).
 - [x] `ask` cobre recall/get/expand com um só envelope.

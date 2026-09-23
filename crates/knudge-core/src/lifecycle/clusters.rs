@@ -26,6 +26,29 @@ pub enum ClusterAxis {
     Container(String),
 }
 
+impl ClusterAxis {
+    /// Nome canônico do eixo (`anchor`/`type`/`classification`/`container`).
+    #[must_use]
+    pub const fn axis(&self) -> &'static str {
+        match self {
+            Self::Anchor(_) => "anchor",
+            Self::NoteType(_) => "type",
+            Self::Classification(_) => "classification",
+            Self::Container(_) => "container",
+        }
+    }
+
+    /// Chave do eixo (o valor agrupado).
+    #[must_use]
+    pub fn key(&self) -> &str {
+        match self {
+            Self::Anchor(value) | Self::Container(value) => value.as_str(),
+            Self::NoteType(value) => value.as_str(),
+            Self::Classification(value) => value.as_str(),
+        }
+    }
+}
+
 /// Cluster estrutural: eixo + membros ordenados.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cluster {
@@ -71,9 +94,31 @@ pub fn structural_clusters(index: &Index, graph: &Graph) -> Vec<Cluster> {
         .collect()
 }
 
-/// Container ancestral mais próximo de `id` (via `depends_on` transitivo), se houver.
+/// Container ancestral mais próximo de `id`.
+///
+/// Prioriza a **hierarquia** (pai via `results_in`, D52/D93) — a mesma relação de
+/// `Graph::parent`/`belongs_to` — e, se não houver, cai para o `depends_on` transitivo
+/// (container declarado explicitamente). Determinístico.
 #[must_use]
 pub fn container_of(graph: &Graph, id: &str) -> Option<String> {
+    hierarchy_container(graph, id).or_else(|| depends_container(graph, id))
+}
+
+/// Sobe pelos pais (`results_in`) até o primeiro container.
+fn hierarchy_container(graph: &Graph, id: &str) -> Option<String> {
+    let mut current = id;
+    for _ in 0..MAX_CONTAINER_DEPTH {
+        let parent = graph.parent(current)?;
+        if graph.note_type(parent) == Some(NoteType::Container) {
+            return Some(parent.to_string());
+        }
+        current = parent;
+    }
+    None
+}
+
+/// Container mais próximo por `depends_on` transitivo (fallback).
+fn depends_container(graph: &Graph, id: &str) -> Option<String> {
     let mut visited: BTreeSet<String> = BTreeSet::new();
     let mut best: Option<(u32, String)> = None;
     let mut stack: Vec<(String, u32)> = vec![(id.to_string(), 0)];

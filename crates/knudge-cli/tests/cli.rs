@@ -497,10 +497,13 @@ fn task_list_ready_blocked_and_explain() -> TestResult {
             "task",
             "--parent",
             &issue,
-            "--depends-on",
-            &ready,
         ],
     )?;
+    let link = run_in(
+        &dir,
+        &["write", "--link", &format!("{blocked}:depends_on:{ready}")],
+    )?;
+    assert!(link.status.success(), "link falhou: {:?}", link.stderr);
 
     let out = run_in(&dir, &["task", "list", "--ready"])?;
     assert!(out.status.success(), "list falhou: {:?}", out.stderr);
@@ -746,20 +749,143 @@ fn task_close_note_records_outcome_reason() -> TestResult {
     Ok(())
 }
 
-/// Cria uma tarefa `--scope task` dependente de `dep`.
+/// Cria uma tarefa `--scope task` dependente de `dep` (dependência via `write --link`).
 fn task_dep(dir: &Path, statement: &str, dep: &str) -> Result<String, Box<dyn std::error::Error>> {
-    task_new(
-        dir,
+    let id = task_new(dir, &["task", "new", statement, "--scope", "task"])?;
+    let link = run_in(dir, &["write", "--link", &format!("{id}:depends_on:{dep}")])?;
+    if !link.status.success() {
+        return Err(format!("link falhou: {:?}", link.stderr).into());
+    }
+    Ok(id)
+}
+
+#[test]
+fn task_show_includes_context() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let issue = task_new(&dir, &["task", "new", "Issue", "--scope", "issue"])?;
+    let a = task_new(
+        &dir,
+        &["task", "new", "A", "--scope", "task", "--parent", &issue],
+    )?;
+    let b = task_new(
+        &dir,
+        &["task", "new", "B", "--scope", "task", "--parent", &issue],
+    )?;
+    let link = run_in(&dir, &["write", "--link", &format!("{b}:depends_on:{a}")])?;
+    assert!(link.status.success(), "link falhou: {:?}", link.stderr);
+
+    let out = run_in(&dir, &["task", "show", &b])?;
+    assert!(out.status.success(), "show falhou: {:?}", out.stderr);
+    let text = String::from_utf8(out.stdout)?;
+    assert!(
+        text.contains(&format!("pai: {issue}|Issue")),
+        "pai ausente: {text}"
+    );
+    assert!(
+        text.contains(&format!("bloqueado_por: {a}|A")),
+        "bloqueador ausente: {text}"
+    );
+
+    let out = run_in(&dir, &["task", "show", &a, "--json"])?;
+    let json = String::from_utf8(out.stdout)?;
+    assert!(json.contains("\"blocks\""), "blocks ausente: {json}");
+    assert!(
+        json.contains(&format!("\"id\":\"{b}\"")),
+        "blocks sem {b}: {json}"
+    );
+    Ok(())
+}
+
+#[test]
+fn task_close_reports_epic_progress() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let epic = task_new(&dir, &["task", "new", "Épico", "--scope", "epic"])?;
+    let issue = task_new(
+        &dir,
         &[
-            "task",
-            "new",
-            statement,
-            "--scope",
-            "task",
-            "--depends-on",
-            dep,
+            "task", "new", "Issue", "--scope", "issue", "--parent", &epic,
         ],
-    )
+    )?;
+    let a = task_new(
+        &dir,
+        &["task", "new", "A", "--scope", "task", "--parent", &issue],
+    )?;
+    let _b = task_new(
+        &dir,
+        &["task", "new", "B", "--scope", "task", "--parent", &issue],
+    )?;
+
+    let out = run_in(&dir, &["task", "close", &a, "--outcome", "success"])?;
+    assert!(out.status.success(), "close falhou: {:?}", out.stderr);
+    let text = String::from_utf8(out.stdout)?;
+    assert!(
+        text.contains(&format!("epico: {epic}|Épico (1/2)")),
+        "rollup ausente: {text}"
+    );
+
+    let out = run_in(&dir, &["task", "show", &a])?;
+    let text = String::from_utf8(out.stdout)?;
+    assert!(
+        text.contains(&format!("epico: {epic}|Épico (1/2)")),
+        "show sem épico: {text}"
+    );
+
+    let out = run_in(&dir, &["task", "graph", "--root", &epic])?;
+    let text = String::from_utf8(out.stdout)?;
+    assert!(text.contains("(1/2)"), "graph sem progresso: {text}");
+    Ok(())
+}
+
+#[test]
+fn knowledge_map_reports_container_axis() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let epic = task_new(&dir, &["task", "new", "Épico", "--scope", "epic"])?;
+    let issue = task_new(
+        &dir,
+        &[
+            "task", "new", "Issue", "--scope", "issue", "--parent", &epic,
+        ],
+    )?;
+    let a = task_new(
+        &dir,
+        &["task", "new", "A", "--scope", "task", "--parent", &issue],
+    )?;
+
+    let out = run_in(
+        &dir,
+        &["knowledge", "map", "--axis", "container", "--members"],
+    )?;
+    assert!(out.status.success(), "map falhou: {:?}", out.stderr);
+    let text = String::from_utf8(out.stdout)?;
+    assert!(
+        text.contains(&format!("container|{epic}|Épico|2")),
+        "cluster do épico ausente: {text}"
+    );
+    assert!(text.contains(&format!("{a}|A")), "membro A ausente: {text}");
+
+    let out = run_in(&dir, &["--json", "knowledge", "map", "--axis", "container"])?;
+    let json = String::from_utf8(out.stdout)?;
+    assert!(
+        json.contains("\"axis\":\"container\""),
+        "json sem eixo: {json}"
+    );
+    assert!(
+        json.contains(&format!("\"key\":\"{epic}\"")),
+        "json sem o épico: {json}"
+    );
+
+    let bad = run_in(&dir, &["knowledge", "map", "--axis", "foo"])?;
+    assert_eq!(bad.status.code(), Some(2), "eixo inválido deve ser 2");
+    Ok(())
 }
 
 /// Linha de `task list` que começa com `id`.

@@ -1,10 +1,11 @@
 //! Impacto derivado: tarefas abertas que dependem de um nó (D106/D109).
 
 use crate::Result;
-use crate::graph::Graph;
-use crate::schema::{NoteType, Scope, Status};
+use crate::graph::{self, Graph};
+use crate::schema::{EdgeKind, NoteType, Scope, Status};
 use crate::store::Note;
 use crate::task::{TaskSpec, impact, is_actionable, submit};
+use crate::write;
 use proptest::prelude::*;
 
 use super::{MemFs, NOW, context};
@@ -23,12 +24,10 @@ fn impact_counts_open_dependents_transitively() -> Result<()> {
     let fs = MemFs::new();
     let ctx = context(&fs)?;
     let a = submit(&ctx, &TaskSpec::new(Scope::Task, "a"))?.id;
-    let mut b = TaskSpec::new(Scope::Task, "b");
-    b.depends_on = vec![a.clone()];
-    let b = submit(&ctx, &b)?.id;
-    let mut c = TaskSpec::new(Scope::Task, "c");
-    c.depends_on = vec![b.clone()];
-    let c = submit(&ctx, &c)?.id;
+    let b = submit(&ctx, &TaskSpec::new(Scope::Task, "b"))?.id;
+    let _ab = write::link(&ctx, &b, EdgeKind::DependsOn, &a)?;
+    let c = submit(&ctx, &TaskSpec::new(Scope::Task, "c"))?.id;
+    let _bc = write::link(&ctx, &c, EdgeKind::DependsOn, &b)?;
 
     let graph = graph_of(&fs)?;
     assert_eq!(impact(&graph, &a), 2);
@@ -44,8 +43,8 @@ fn error_kind_work_item_counts_as_dependent() -> Result<()> {
     let a = submit(&ctx, &TaskSpec::new(Scope::Task, "a"))?.id;
     let mut b = TaskSpec::new(Scope::Task, "corrigir bug");
     b.kind = Some(NoteType::Error);
-    b.depends_on = vec![a.clone()];
-    let _b = submit(&ctx, &b)?;
+    let b = submit(&ctx, &b)?.id;
+    let _ab = write::link(&ctx, &b, EdgeKind::DependsOn, &a)?;
 
     let graph = graph_of(&fs)?;
     assert_eq!(
@@ -62,9 +61,9 @@ fn closed_dependents_do_not_count() -> Result<()> {
     let ctx = context(&fs)?;
     let a = submit(&ctx, &TaskSpec::new(Scope::Task, "a"))?.id;
     let mut b = TaskSpec::new(Scope::Task, "b");
-    b.depends_on = vec![a.clone()];
     b.status = Some(Status::Closed);
-    let _b = submit(&ctx, &b)?;
+    let b = submit(&ctx, &b)?.id;
+    let _ab = write::link(&ctx, &b, EdgeKind::DependsOn, &a)?;
 
     let graph = graph_of(&fs)?;
     assert_eq!(impact(&graph, &a), 0);
@@ -104,18 +103,14 @@ fn task_id(index: usize) -> Result<String> {
 /// store, então o id pode ser recalculado com a mesma afirmação.
 fn graph_with(edges: &[(usize, usize)]) -> Result<Graph> {
     let ids: Vec<String> = (0..4).map(task_id).collect::<Result<Vec<_>>>()?;
-    let mut specs: Vec<TaskSpec> = (0..4)
-        .map(|index| TaskSpec::new(Scope::Task, format!("t{index}")))
-        .collect();
+    let mut notes: Vec<Note> = (0..4)
+        .map(|index| TaskSpec::new(Scope::Task, format!("t{index}")).to_note(NOW))
+        .collect::<Result<Vec<_>>>()?;
     for (from, to) in edges {
-        if let (Some(spec), Some(id)) = (specs.get_mut(*from), ids.get(*to)) {
-            spec.depends_on.push(id.clone());
+        if let (Some(note), Some(id)) = (notes.get_mut(*from), ids.get(*to)) {
+            let _linked = graph::link(&mut note.frontmatter, EdgeKind::DependsOn, id)?;
         }
     }
-    let notes = specs
-        .iter()
-        .map(|spec| spec.to_note(NOW))
-        .collect::<Result<Vec<_>>>()?;
     Graph::from_notes(notes)
 }
 

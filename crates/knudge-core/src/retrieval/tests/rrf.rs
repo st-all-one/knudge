@@ -1,16 +1,16 @@
-//! Fusão RRF (D81).
+//! Fusão RRF (D81/D123).
 
 use std::collections::BTreeSet;
 
 use proptest::prelude::*;
 
-use crate::retrieval::rrf::fuse;
+use crate::retrieval::rrf::{Channel, fuse};
 
 #[test]
 fn fuses_by_reciprocal_rank() {
     let first = vec!["x".to_string(), "y".to_string()];
     let second = vec!["y".to_string(), "z".to_string()];
-    let fused = fuse(&[first.as_slice(), second.as_slice()], 60);
+    let fused = fuse(&[Channel::uniform(&first), Channel::uniform(&second)], 60);
     let ids: Vec<&str> = fused.iter().map(|hit| hit.id.as_str()).collect();
     assert_eq!(ids, ["y", "x", "z"]);
     assert_eq!(fused.first().map(|hit| hit.channels), Some(2));
@@ -20,7 +20,7 @@ fn fuses_by_reciprocal_rank() {
 fn ties_break_by_id() {
     let first = vec!["b".to_string()];
     let second = vec!["a".to_string()];
-    let fused = fuse(&[first.as_slice(), second.as_slice()], 60);
+    let fused = fuse(&[Channel::uniform(&first), Channel::uniform(&second)], 60);
     let ids: Vec<&str> = fused.iter().map(|hit| hit.id.as_str()).collect();
     assert_eq!(ids, ["a", "b"]);
 }
@@ -29,7 +29,7 @@ fn ties_break_by_id() {
 fn union_is_preserved() {
     let first = vec!["x".to_string(), "y".to_string()];
     let second = vec!["z".to_string()];
-    let fused = fuse(&[first.as_slice(), second.as_slice()], 60);
+    let fused = fuse(&[Channel::uniform(&first), Channel::uniform(&second)], 60);
     let ids: BTreeSet<&str> = fused.iter().map(|hit| hit.id.as_str()).collect();
     assert_eq!(ids, BTreeSet::from(["x", "y", "z"]));
 }
@@ -38,7 +38,35 @@ fn union_is_preserved() {
 fn empty_channels_are_fine() {
     assert!(fuse(&[], 60).is_empty());
     let empty: Vec<String> = Vec::new();
-    assert!(fuse(&[empty.as_slice()], 60).is_empty());
+    assert!(fuse(&[Channel::uniform(&empty)], 60).is_empty());
+}
+
+#[test]
+fn weight_scales_channel_contribution() {
+    let ids = vec!["a".to_string()];
+    let one = fuse(&[Channel::new(&ids, 1.0)], 60);
+    let two = fuse(&[Channel::new(&ids, 2.0)], 60);
+    let single = one.first().map(|hit| hit.score).unwrap_or_default();
+    let doubled = two.first().map(|hit| hit.score).unwrap_or_default();
+    assert!((doubled - single * 2.0).abs() < f64::EPSILON);
+}
+
+#[test]
+fn semantic_weight_can_flip_the_winner() {
+    let lexical = vec!["lex".to_string()];
+    let semantic = vec!["sem".to_string()];
+    let neutral = fuse(
+        &[Channel::uniform(&lexical), Channel::uniform(&semantic)],
+        60,
+    );
+    // Empate neutro → desempate determinístico por id (`lex` < `sem`).
+    assert_eq!(neutral.first().map(|hit| hit.id.as_str()), Some("lex"));
+    // Peso maior no canal vetorial inverte o vencedor.
+    let weighted = fuse(
+        &[Channel::new(&lexical, 1.0), Channel::new(&semantic, 2.0)],
+        60,
+    );
+    assert_eq!(weighted.first().map(|hit| hit.id.as_str()), Some("sem"));
 }
 
 proptest! {
@@ -52,7 +80,10 @@ proptest! {
         ),
         k in 0_u32..200,
     ) {
-        let refs: Vec<&[String]> = channels.iter().map(Vec::as_slice).collect();
+        let refs: Vec<Channel<'_>> = channels
+            .iter()
+            .map(|channel| Channel::uniform(channel.as_slice()))
+            .collect();
         prop_assert_eq!(fuse(&refs, k), fuse(&refs, k));
     }
 
@@ -61,7 +92,7 @@ proptest! {
         size in 1_usize..8,
     ) {
         let channel: Vec<String> = (0..size).map(|index| format!("id{index}")).collect();
-        let fused = fuse(&[channel.as_slice()], 60);
+        let fused = fuse(&[Channel::uniform(&channel)], 60);
         let scores: Vec<f64> = fused.iter().map(|hit| hit.score).collect();
         let mut sorted = scores.clone();
         sorted.sort_by(|a, b| b.total_cmp(a));
@@ -77,7 +108,10 @@ proptest! {
     fn fuse_contains_union_of_ids(
         channels in prop::collection::vec(prop::collection::vec("[a-e][0-9]", 0..6), 0..3),
     ) {
-        let refs: Vec<&[String]> = channels.iter().map(Vec::as_slice).collect();
+        let refs: Vec<Channel<'_>> = channels
+            .iter()
+            .map(|channel| Channel::uniform(channel.as_slice()))
+            .collect();
         let fused = fuse(&refs, 60);
         let mut expected: BTreeSet<String> = BTreeSet::new();
         for channel in &channels {

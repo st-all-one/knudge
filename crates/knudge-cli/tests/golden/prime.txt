@@ -9,7 +9,7 @@ ESCRITA (duas fases, idempotente por conteúdo):
   2. score < 0.75 cria | 0.75-0.92 faz merge | >= 0.92 rejeita
      kd write --type <T> "<...>" [--body -|TXT] [--tag T...] [--anchors PATH...]
      kd write --update <ID> "<...>"    # versiona, não sobrescreve
-     kd write --link <FROM:ARESTA:TO>    # aresta explícita
+     kd write --link <FROM:ARESTA:TO>    # aresta explícita (via única; inclui depends_on)
      kd write --outcome <S> <ID>         # evidência: success|partial|failure|abandoned
      kd write --batch - [--dry-run]      # lote JSONL de rascunhos (D110)
      --type task|container é rejeitado: use kd task
@@ -29,12 +29,13 @@ ESTADO / HANDOFF:
 
 TAREFAS: kd task new|list|show|update|close|claim|graph|plan  (plan ⊃ epic ⊃ issue ⊃ task, máx. 4)
   kd task new ... --kind error|question|risk|decision [--checks NOME]  # espécie (D113); checks = DoD (D54)
-  kd task close <ID> [--outcome S] [--note TXT]   # só declara com evidência (D55); ledger = eventos + learn (D47)
+  kd task close <ID> [--outcome S] [--note TXT]   # só declara com evidência (D55); + épico e progresso (D127)
   kd task claim <ID> --by <agente>|--release             # dono derivado (D114)
   kd task list --ready|--blocked [--explain] [--sort impact] [--kind K] [--tag T] [--anchor P] [--owner A|--mine]
-  kd task show <ID> [<ID>...] [--history]                # multi-id (D104)
+  kd task show <ID> [<ID>...] [--history]                # multi-id (D104); + contexto e progresso do épico (D125/D127)
   kd task plan <ID> --prompt [--template T]  |  --submit --from -   # plano TOON (D105)
-  kd task graph [--program plan/<slug>.md|--root ID]   # role|kind|status|owner|mode (D116)
+  kd task graph [--program plan/<slug>.md|--root ID]   # role|kind|status|owner|mode|progresso (D116/D127)
+CONHECIMENTO: kd knowledge map [--axis A] [--scope C] [--semantic] [--members]  # clusters/mapa (D128)
 MANUTENÇÃO: kd maintenance doctor|audit|compact|eval|index|learn|prune  (learn/compact/prune só propõem)
 CICLO DE VIDA: kd forget <ID>  (soft; --restore; --purge após retenção)
 CONFIG: kd config get|set|unset|list [--global]  (strict é config, não flag)

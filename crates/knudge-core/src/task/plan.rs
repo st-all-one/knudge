@@ -7,9 +7,9 @@ use std::collections::BTreeSet;
 
 use indexmap::IndexMap;
 
-use crate::schema::{NoteType, Scope, Value};
+use crate::schema::{EdgeKind, NoteType, Scope, Value};
 use crate::toon;
-use crate::write::WriteContext;
+use crate::write::{WriteContext, link};
 use crate::{Error, Result};
 
 use super::template::PlanTemplate;
@@ -150,8 +150,12 @@ pub fn submit_plan(
         .ok_or_else(|| Error::schema(format!("{id} ({parent_scope}) não aceita filhos")))?;
     let specs = prepare(ctx, child_scope, id, &steps)?;
     let mut out = Vec::new();
-    for child in &specs {
-        out.push(submit(ctx, child)?);
+    for (spec, step) in specs.iter().zip(&steps) {
+        let outcome = submit(ctx, spec)?;
+        for dependency in &step.depends_on {
+            link(ctx, &outcome.id, EdgeKind::DependsOn, dependency)?;
+        }
+        out.push(outcome);
     }
     Ok(out)
 }
@@ -268,7 +272,6 @@ fn prepare(
             .map_err(|_| Error::invalid_input("plano com passos demais"))?;
         spec.blocks = Some(position);
         spec.kind = step.kind;
-        spec.depends_on.clone_from(&step.depends_on);
         spec.checks.clone_from(&step.checks);
         spec.anchors.clone_from(&step.anchors);
         let note = spec.to_note(ctx.now_ms())?;

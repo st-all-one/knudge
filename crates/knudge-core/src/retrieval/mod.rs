@@ -27,7 +27,7 @@ pub use index::{
     Field, FieldTf, INDEX_FILE, INDEX_WARN_BYTES, Index, NoteDoc, Stats, size_warning,
 };
 pub use rank::{RankQuery, Universe, rank};
-pub use rrf::{Fused, fuse};
+pub use rrf::{Channel, Fused, fuse};
 pub use tags::tag_counts;
 pub use views::{BlockReason, Views, block_reason, compute_views, compute_views_at};
 pub use why::Why;
@@ -46,6 +46,42 @@ use pipeline::{
 /// `k` padrão da fusão RRF (config `recall.rrf_k`).
 pub const DEFAULT_RRF_K: u32 = 60;
 
+/// Peso default do canal lexical na fusão (config `recall.lexical_weight`, D123).
+pub const DEFAULT_LEXICAL_WEIGHT: f64 = 1.0;
+/// Peso default do canal de âncoras (config `recall.anchor_weight`, D123).
+pub const DEFAULT_ANCHOR_WEIGHT: f64 = 1.0;
+/// Peso default do canal vetorial (config `recall.semantic_weight`, D123).
+///
+/// Alto de propósito: com `rrf_k=60` num corpus pequeno os ranks ficam comprimidos e o canal
+/// lexical continua competitivo, então um peso modesto (1–20) deixa a fusão **pior** que o
+/// neutro. Medido no corpus PT-BR da bancada, `30` já Pareto-domina o neutro (R@1, R@5, MRR e
+/// nDCG@5 ≥ neutro) e `≥80` converge para o ranking vetorial puro. Ajuste por config.
+pub const DEFAULT_SEMANTIC_WEIGHT: f64 = 30.0;
+
+/// Pesos dos canais na fusão RRF (D123).
+///
+/// Um peso maior deixa o canal “vencer” o outro em RRF: o default dá ao canal vetorial o
+/// dobro do peso do lexical, porque em PT-BR o lexical sozinho quase não distingue sinônimos.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FusionWeights {
+    /// Canal lexical (BM25).
+    pub lexical: f64,
+    /// Canal de âncoras (working set).
+    pub anchor: f64,
+    /// Canal vetorial.
+    pub semantic: f64,
+}
+
+impl Default for FusionWeights {
+    fn default() -> Self {
+        Self {
+            lexical: DEFAULT_LEXICAL_WEIGHT,
+            anchor: DEFAULT_ANCHOR_WEIGHT,
+            semantic: DEFAULT_SEMANTIC_WEIGHT,
+        }
+    }
+}
+
 /// Limite padrão de hits (config `recall.default_limit`).
 ///
 /// 5 (D121): contexto de LLM é caro e o `ask` devolvia hits demais. Ajuste por config.
@@ -63,6 +99,8 @@ pub struct RecallQuery {
     pub limit: usize,
     /// Constante da fusão RRF.
     pub rrf_k: u32,
+    /// Pesos dos canais na fusão (D123).
+    pub weights: FusionWeights,
     /// Filtros estruturais.
     pub filter: Filter,
     /// Container pedido (pertencimento via `depends_on` transitivo).
@@ -135,10 +173,13 @@ pub fn recall(index: &Index, graph: &Graph, query: &RecallQuery) -> Result<Recal
     let lexical = lexical_channel(index, &allowed, query, &confirmers, weight);
     let anchored = anchor::rank(index, &allowed, &query.working_paths, &query.working_ids);
 
-    let mut channels: Vec<&[String]> = vec![lexical.as_slice(), anchored.as_slice()];
+    let mut channels: Vec<Channel<'_>> = vec![
+        Channel::new(&lexical, query.weights.lexical),
+        Channel::new(&anchored, query.weights.anchor),
+    ];
     let semantic = semantic_channel(query, &allowed);
     if !semantic.is_empty() {
-        channels.push(semantic.as_slice());
+        channels.push(Channel::new(&semantic, query.weights.semantic));
     }
     let fused = fuse(&channels, query.rrf_k);
 

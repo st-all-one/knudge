@@ -4,7 +4,7 @@ use crate::Result;
 use crate::graph::Graph;
 use crate::schema::{EdgeKind, NoteType, Scope, Value};
 use crate::task::{TaskSpec, is_task, parent_of, submit};
-use crate::write::WriteContext;
+use crate::write::{WriteContext, link};
 
 use super::MemFs;
 
@@ -107,7 +107,7 @@ fn duplicate_task_conflicts() -> Result<()> {
 }
 
 #[test]
-fn depends_on_becomes_edge() -> Result<()> {
+fn link_creates_depends_on_edge() -> Result<()> {
     let fs = MemFs::new();
     let ctx = new_ctx(&fs)?;
     let plan = submit(&ctx, &spec(Scope::Plan, "plano"))?;
@@ -119,9 +119,9 @@ fn depends_on_becomes_edge() -> Result<()> {
     let issue = submit(&ctx, &issue)?;
 
     let mut task = spec(Scope::Task, "tarefa");
-    task.depends_on = vec![epic.id.clone()];
     task.parent = Some(issue.id);
     let task = submit(&ctx, &task)?;
+    let _linked = link(&ctx, &task.id, EdgeKind::DependsOn, &epic.id)?;
     let note = ctx.store().read(&task.id)?;
     assert_eq!(
         note.frontmatter.string_list("depends_on")?,

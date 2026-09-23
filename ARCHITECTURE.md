@@ -129,7 +129,7 @@ volatilidade, não CAS (D48).
 | BM25 | `k1=1.5`, `b=0.75`, **IDF por campo** (`statement` domina, peso 3) e **peso por tipo** (D35/D37). |
 | Boost | `score * (1 + 0.1 * (success + partial*0.5))` a partir de `outcomes` (D38). |
 | Âncoras | Canal determinístico por `path`/`id` com globs `?`/`*`/`**` (D81/D86). |
-| RRF | `1/(k+rank+1)`, `k=60`; desempate `(score desc, id asc)`; canal ausente só não soma (D81). |
+| RRF | `Σ peso_canal/(k+rank+1)`, `k=60`, `semantic_weight=30` (D81/D124); desempate `(score desc, id asc)`; canal ausente só não soma. |
 | Filtros | `type`/`classification`/`status`/`tags`/`anchors` antes do BM25; `container` via `depends_on` transitivo (D41). |
 | Views | `ready`/`blocked` computadas do `depends_on` transitivo; ciclo de dependência = `blocked` (D53). |
 | Contrato | `recall` em pipe `id\|statement\|score\|why`; `why` fechado (`file_match|anchor_match|tracker_match|stars|recent|universal`); corpo só via `get` (D39). |
@@ -196,7 +196,7 @@ volatilidade, não CAS (D48).
 |---|---|
 | Provedor | `http` (default; servidor local OpenAI-compatible — `llama-server`/TEI/Ollama), `lightweight` (hash, testes/CI) ou `none` (BM25). Sem inferência in-process (D101/R16/R43). |
 | Porta | Trait `Embedder` (`ports`); o domínio nunca fala HTTP. `adapters::http::HttpEmbedder` é cliente HTTP/1.1 bloqueante sobre `std::net` (timeout + retry idempotente). |
-| Índice | `.idx/embeddings.jsonl` com cabeçalho `meta` (provider/model/revision/dimensões/similaridade); mudança de modelo **invalida** e força re-embed (D79). |
+| Índice | `.idx/embeddings.jsonl` com cabeçalho `meta` (provider/model/revision/dimensões/similaridade); mudança de modelo **invalida** e força re-embed (D79). Default `granite-embedding-97m-multilingual-r2` (D123). |
 | Cache | `.idx/emb_cache.jsonl` por `body_hash`, com teto e eviction LRU; falha degrada para *pass-through* (D83/R14). |
 | Fila | Estado `indexed\|pending\|stale` **derivado** do `body_hash`; falha do provedor marca `pending`, nunca descarta (D80/D83). `max_pending` é backpressure; acima, catch-up. |
 | Flush | *Dirty flag* + debounce `flush_ms`, com flush forçado na saída (D85). |

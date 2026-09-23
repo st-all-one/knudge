@@ -86,7 +86,7 @@ impl EmbeddingMeta {
         let provider = config.get_str("embeddings.provider").unwrap_or("none");
         let model = config
             .get_str("embeddings.model")
-            .unwrap_or("sentence-transformers/msmarco-MiniLM-L12-cos-v5")
+            .unwrap_or("ibm-granite/granite-embedding-97m-multilingual-r2")
             .to_string();
         let revision = config.get_str("embeddings.revision").unwrap_or("main");
         let dimensions = config.get_int("embeddings.dimensions").unwrap_or(384);

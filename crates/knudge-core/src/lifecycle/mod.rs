@@ -28,7 +28,10 @@ pub use plan::{DemotionCandidate, DemotionInput, DemotionReason, demotion_candid
 pub use retire::{
     DEFAULT_RETIRED_DAYS, Retention, Retirement, due_for_purge, purge_due, retirements,
 };
-pub use semantic::{MIN_SEMANTIC_VOLUME, cluster_by_similarity, semantic_phase2, should_run};
+pub use semantic::{
+    MIN_SEMANTIC_VOLUME, SemanticCluster, cluster_by_similarity, semantic_clusters,
+    semantic_phase2, should_run,
+};
 pub use shelf_life::{
     DAY_MS, EXPIRING_GRACE_DAYS, Freshness, ShelfLife, age_days, expired_ids, expiry_for,
     freshness, is_expired,

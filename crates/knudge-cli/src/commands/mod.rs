@@ -6,6 +6,7 @@ pub mod embedder;
 pub mod forget_sync;
 pub mod hooks;
 pub mod init;
+pub mod knowledge;
 pub mod maintenance;
 pub mod parse;
 pub mod prime;
@@ -63,6 +64,7 @@ fn dispatch(session: &Session, command: &Command) -> Result<Output> {
         Command::Ask(args) => ask::run(session, args),
         Command::Write(args) => write_cmd::run(session, args),
         Command::Task { command } => task::run(session, command),
+        Command::Knowledge { command } => knowledge::run(session, command),
         Command::Maintenance { command } => maintenance::run(session, command),
         Command::Config { command } => config_cmd::run(session, command),
         Command::Forget(args) => forget_sync::forget(session, args),

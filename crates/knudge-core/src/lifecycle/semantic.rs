@@ -15,10 +15,11 @@ pub fn should_run(member_count: usize, min_volume: usize) -> bool {
     member_count >= min_volume
 }
 
-/// Agrupa `ids` por similaridade **greedy single-link** (representante = primeiro membro).
+/// Agrupa `ids` por similaridade com **complete-link** (greedy).
 ///
-/// Determinístico: a ordem de `ids` e o resultado são estáveis; empates vão para o primeiro
-/// cluster compatível.
+/// Um id só entra num cluster se for similar (`>= threshold`) a **todos** os membros — evita o
+/// encadeamento em que um item central puxa vizinhos dissimilares entre si. Determinístico: a
+/// ordem de `ids` (canônica) define o resultado; o primeiro cluster compatível recebe o id.
 pub fn cluster_by_similarity<F>(ids: &[String], threshold: f64, similarity: F) -> Vec<Vec<String>>
 where
     F: Fn(&str, &str) -> f64,
@@ -27,9 +28,10 @@ where
     for id in ids {
         let mut placed = false;
         for cluster in &mut clusters {
-            if let Some(representative) = cluster.first()
-                && similarity(representative, id) >= threshold
-            {
+            let compatible = cluster
+                .iter()
+                .all(|member| similarity(member, id) >= threshold);
+            if compatible {
                 cluster.push(id.clone());
                 placed = true;
                 break;
@@ -61,6 +63,40 @@ where
                 &similarity,
             ));
         }
+    }
+    out
+}
+
+/// Fase 2 aplicada a um cluster estrutural, preservando a origem (D128).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SemanticCluster {
+    /// Cluster estrutural de origem.
+    pub parent: Cluster,
+    /// Grupos de ids similares (complete-link).
+    pub groups: Vec<Vec<String>>,
+}
+
+/// Roda a fase 2 e preserva o cluster estrutural de origem (D128).
+///
+/// Só inclui clusters acima de `min_volume`; a similaridade é injetada (determinístico).
+pub fn semantic_clusters<F>(
+    structural: &[Cluster],
+    min_volume: usize,
+    threshold: f64,
+    similarity: F,
+) -> Vec<SemanticCluster>
+where
+    F: Fn(&str, &str) -> f64,
+{
+    let mut out = Vec::new();
+    for cluster in structural {
+        if !should_run(cluster.members.len(), min_volume) {
+            continue;
+        }
+        out.push(SemanticCluster {
+            parent: cluster.clone(),
+            groups: cluster_by_similarity(&cluster.members, threshold, &similarity),
+        });
     }
     out
 }

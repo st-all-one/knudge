@@ -1,8 +1,10 @@
 //! Argumentos e subcomandos do `kd` (superfície v2, ver `plan/implementation/16_cli_surface.md`).
 
+mod knowledge;
 mod maintenance;
 mod task;
 
+pub use knowledge::KnowledgeCommand;
 pub use maintenance::{ConfigCommand, MaintenanceCommand, SelfCommand};
 pub use task::{TaskCommand, TaskListArgs, TaskNewArgs, TaskPlanArgs, TaskSort};
 
@@ -54,6 +56,12 @@ pub enum Command {
         #[command(subcommand)]
         command: TaskCommand,
     },
+    /// Mapa de conhecimento (clusters estruturais e semânticos).
+    Knowledge {
+        /// Subcomando de conhecimento.
+        #[command(subcommand)]
+        command: KnowledgeCommand,
+    },
     /// Manutenção (doctor, compact, eval, index, learn).
     Maintenance {
         /// Subcomando de manutenção.
@@ -90,6 +98,7 @@ impl Command {
             Self::Ask(_) => "ask",
             Self::Write(_) => "write",
             Self::Task { .. } => "task",
+            Self::Knowledge { .. } => "knowledge",
             Self::Maintenance { .. } => "maintenance",
             Self::Config { .. } => "config",
             Self::Forget(_) => "forget",

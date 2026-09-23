@@ -6,7 +6,8 @@ use knudge_core::Result;
 use knudge_core::embeddings::{EmbeddingIndex, rank_query};
 use knudge_core::lifecycle::DEFAULT_TASK_CONFIRMATION;
 use knudge_core::retrieval::{
-    DEFAULT_LIMIT, DEFAULT_RRF_K, Filter, RankQuery, RecallHit, RecallQuery, Universe,
+    DEFAULT_ANCHOR_WEIGHT, DEFAULT_LEXICAL_WEIGHT, DEFAULT_LIMIT, DEFAULT_RRF_K,
+    DEFAULT_SEMANTIC_WEIGHT, Filter, FusionWeights, RankQuery, RecallHit, RecallQuery, Universe,
     format_brief, format_hit, get, rank, recall,
 };
 use knudge_core::schema::Status;
@@ -77,6 +78,17 @@ pub(super) fn recall_query(session: &Session, args: &AskArgs) -> Result<Output> 
     query.task_confirmation_weight = config
         .get_float("recall.confirmation_from_tasks")
         .unwrap_or(DEFAULT_TASK_CONFIRMATION);
+    query.weights = FusionWeights {
+        lexical: config
+            .get_float("recall.lexical_weight")
+            .unwrap_or(DEFAULT_LEXICAL_WEIGHT),
+        anchor: config
+            .get_float("recall.anchor_weight")
+            .unwrap_or(DEFAULT_ANCHOR_WEIGHT),
+        semantic: config
+            .get_float("recall.semantic_weight")
+            .unwrap_or(DEFAULT_SEMANTIC_WEIGHT),
+    };
     query.filter = Filter {
         types: parse::types(&args.types)?,
         classifications: parse::classifications(&args.classes)?,

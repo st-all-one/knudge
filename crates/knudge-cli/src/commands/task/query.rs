@@ -6,9 +6,9 @@ use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::graph::Graph;
 use knudge_core::retrieval::block_reason;
-use knudge_core::schema::Scope;
+use knudge_core::schema::{Scope, Status};
 use knudge_core::store::Store;
-use knudge_core::task::{impact, is_actionable, ownership};
+use knudge_core::task::{TaskContext, TaskRef, context_of, impact, is_actionable, ownership};
 use knudge_core::write::history;
 use serde_json::json;
 
@@ -129,12 +129,13 @@ fn validate_list_args(args: &TaskListArgs) -> Result<()> {
 /// Propaga o erro do store quando **nenhum** id pôde ser lido.
 pub(super) fn show(session: &Session, ids: &[String], mode: ShowMode) -> Result<Output> {
     let store = session.store();
+    let graph = session.graph()?;
     let mut blocks = Vec::new();
     let mut data = Vec::new();
     let mut warnings = Vec::new();
     let mut last_error = None;
     for id in ids {
-        match show_one(&store, id, mode) {
+        match show_one(&store, &graph, id, mode) {
             Ok((text, value)) => {
                 blocks.push(text);
                 data.push(value);
@@ -154,7 +155,12 @@ pub(super) fn show(session: &Session, ids: &[String], mode: ShowMode) -> Result<
     Ok(Output::new(blocks.join("\n---\n"), json!({ "tasks": data })).with_warnings(warnings))
 }
 
-fn show_one(store: &Store<'_>, id: &str, mode: ShowMode) -> Result<(String, serde_json::Value)> {
+fn show_one(
+    store: &Store<'_>,
+    graph: &Graph,
+    id: &str,
+    mode: ShowMode,
+) -> Result<(String, serde_json::Value)> {
     let note = store.read(id)?;
     let statement = note.frontmatter.statement().unwrap_or_default().to_string();
     let scope = note.frontmatter.scope()?;
@@ -168,11 +174,12 @@ fn show_one(store: &Store<'_>, id: &str, mode: ShowMode) -> Result<(String, serd
         .iter()
         .map(|note| note.frontmatter.id().unwrap_or_default().to_string())
         .collect();
-    let text = if ids.is_empty() {
-        format!("{id}|{statement}")
-    } else {
-        format!("{id}|{statement}\nhistorico: {}", ids.join(" -> "))
-    };
+    let context = context_of(store, graph, id)?;
+    let mut lines = vec![format!("{id}|{statement}")];
+    lines.extend(context_lines(id, &context));
+    if !ids.is_empty() {
+        lines.push(format!("historico: {}", ids.join(" -> ")));
+    }
     let data = json!({
         "id": id,
         "statement": statement,
@@ -180,6 +187,77 @@ fn show_one(store: &Store<'_>, id: &str, mode: ShowMode) -> Result<(String, serd
         "status": status.as_str(),
         "body": note.body,
         "history": ids,
+        "parent": context.parent.as_ref().map(ref_json),
+        "blocked_by": context.blocked_by.iter().map(ref_json).collect::<Vec<_>>(),
+        "blocks": context.blocks.iter().map(ref_json).collect::<Vec<_>>(),
+        "children": context.children.iter().map(ref_json).collect::<Vec<_>>(),
+        "epic": context.epic.as_ref().map(|entry| json!({
+            "id": entry.epic.id,
+            "statement": entry.epic.statement,
+            "scope": entry.epic.scope.map(Scope::as_str),
+            "status": entry.epic.status.as_str(),
+            "done": entry.progress.done,
+            "total": entry.progress.total,
+        })),
     });
-    Ok((text, data))
+    Ok((lines.join("\n"), data))
+}
+
+/// Linhas de contexto: `pai:`/`bloqueado_por:`/`bloqueia:`/`filhos:`/`epico:` (D125/D127).
+fn context_lines(id: &str, context: &TaskContext) -> Vec<String> {
+    let mut lines = Vec::new();
+    if let Some(parent) = &context.parent {
+        lines.push(format!("pai: {}", render_ref(parent)));
+    }
+    if !context.blocked_by.is_empty() {
+        lines.push(format!(
+            "bloqueado_por: {}",
+            render_refs(&context.blocked_by)
+        ));
+    }
+    if !context.blocks.is_empty() {
+        lines.push(format!("bloqueia: {}", render_refs(&context.blocks)));
+    }
+    if !context.children.is_empty() {
+        lines.push(format!("filhos: {}", render_refs(&context.children)));
+    }
+    if let Some(entry) = &context.epic {
+        if entry.epic.id == id {
+            lines.push(format!("progresso: {}", entry.progress.label()));
+        } else {
+            lines.push(format!(
+                "epico: {} ({})",
+                render_ref(&entry.epic),
+                entry.progress.label()
+            ));
+        }
+    }
+    lines
+}
+
+/// `id|statement [status]` — status omitido quando `active` (economia de tokens).
+fn render_ref(reference: &TaskRef) -> String {
+    if reference.status == Status::Active {
+        format!("{}|{}", reference.id, reference.statement)
+    } else {
+        format!(
+            "{}|{} [{}]",
+            reference.id,
+            reference.statement,
+            reference.status.as_str()
+        )
+    }
+}
+
+fn render_refs(refs: &[TaskRef]) -> String {
+    refs.iter().map(render_ref).collect::<Vec<_>>().join(", ")
+}
+
+fn ref_json(reference: &TaskRef) -> serde_json::Value {
+    json!({
+        "id": reference.id,
+        "statement": reference.statement,
+        "scope": reference.scope.map(Scope::as_str),
+        "status": reference.status.as_str(),
+    })
 }

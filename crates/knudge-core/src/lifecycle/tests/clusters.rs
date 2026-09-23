@@ -4,10 +4,13 @@ use crate::Result;
 use crate::graph::Graph;
 use crate::lifecycle::Cluster;
 use crate::lifecycle::clusters::{ClusterAxis, container_of, structural_clusters};
+use crate::ports::fakes::MemFs;
+use crate::retrieval::Index;
 use crate::schema::{Classification, EdgeKind, NoteType, Scope};
+use crate::task::{TaskSpec, submit};
 use crate::write::Draft;
 
-use super::{NOW, built, classified, note_created};
+use super::{NOW, built, classified, note_created, seeded};
 
 fn members_of(clusters: &[Cluster], axis: &ClusterAxis) -> Option<Vec<String>> {
     clusters
@@ -62,6 +65,63 @@ fn container_of_finds_nearest_container() -> Result<()> {
     let graph = Graph::from_notes(vec![plan_note, epic_note, task_note])?;
     assert_eq!(container_of(&graph, &task_id), Some(epic_id));
     Ok(())
+}
+
+#[test]
+fn container_of_uses_hierarchy_results_in() -> Result<()> {
+    let fs = MemFs::new();
+    let ctx = seeded(&fs, &[], NOW)?;
+    let epic = submit(&ctx, &TaskSpec::new(Scope::Epic, "épico"))?.id;
+    let mut issue = TaskSpec::new(Scope::Issue, "issue");
+    issue.parent = Some(epic.clone());
+    let issue = submit(&ctx, &issue)?.id;
+    let mut task = TaskSpec::new(Scope::Task, "tarefa");
+    task.parent = Some(issue.clone());
+    let task = submit(&ctx, &task)?.id;
+
+    let graph = Graph::build(ctx.store())?;
+    assert_eq!(container_of(&graph, &task), Some(epic.clone()));
+    assert_eq!(container_of(&graph, &issue), Some(epic.clone()));
+    assert_eq!(container_of(&graph, &epic), None);
+    Ok(())
+}
+
+#[test]
+fn structural_clusters_group_by_hierarchy_container() -> Result<()> {
+    let fs = MemFs::new();
+    let ctx = seeded(&fs, &[], NOW)?;
+    let epic = submit(&ctx, &TaskSpec::new(Scope::Epic, "épico"))?.id;
+    let mut issue = TaskSpec::new(Scope::Issue, "issue");
+    issue.parent = Some(epic.clone());
+    let issue = submit(&ctx, &issue)?.id;
+    let mut task = TaskSpec::new(Scope::Task, "tarefa");
+    task.parent = Some(issue.clone());
+    let task = submit(&ctx, &task)?.id;
+
+    let index = Index::from_store(ctx.store())?;
+    let graph = Graph::build(ctx.store())?;
+    let clusters = structural_clusters(&index, &graph);
+    let members = members_of(&clusters, &ClusterAxis::Container(epic)).unwrap_or_default();
+    assert_eq!(members.len(), 2);
+    assert!(members.contains(&issue));
+    assert!(members.contains(&task));
+    Ok(())
+}
+
+#[test]
+fn axis_names_and_keys() {
+    let fact = ClusterAxis::NoteType(NoteType::Fact);
+    assert_eq!(fact.axis(), "type");
+    assert_eq!(fact.key(), "fact");
+    let tactical = ClusterAxis::Classification(Classification::Tactical);
+    assert_eq!(tactical.axis(), "classification");
+    assert_eq!(tactical.key(), "tactical");
+    let anchor = ClusterAxis::Anchor("src/a.rs".to_string());
+    assert_eq!(anchor.axis(), "anchor");
+    assert_eq!(anchor.key(), "src/a.rs");
+    let container = ClusterAxis::Container("container_x".to_string());
+    assert_eq!(container.axis(), "container");
+    assert_eq!(container.key(), "container_x");
 }
 
 #[test]

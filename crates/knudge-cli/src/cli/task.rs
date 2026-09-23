@@ -196,9 +196,6 @@ pub struct TaskNewArgs {
     /// Proveniência (`source`) — ex.: o arquivo do programa.
     #[arg(long, value_name = "FONTE")]
     pub source: Option<String>,
-    /// Dependências (`depends_on`).
-    #[arg(long = "depends-on", value_name = "ID")]
-    pub depends_on: Vec<String>,
     /// Agendamento (`not_before`).
     #[arg(long, value_name = "TS")]
     pub not_before: Option<String>,

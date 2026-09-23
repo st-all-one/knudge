@@ -52,6 +52,7 @@ kd rewind       # estado/handoff ponto-no-tempo
 kd ask          # toda pesquisa (recall + get + expand)
 kd write        # toda escrita (create + update + arestas)
 kd task         # plan / epic / issue / task
+kd knowledge    # mapa de conhecimento (clusters)
 kd maintenance  # doctor, compact, eval, index, learn
 kd config       # .knudge/config.toml
 kd forget       # soft-delete / restore

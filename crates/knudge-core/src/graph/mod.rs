@@ -184,6 +184,19 @@ impl Graph {
         })
     }
 
+    /// Pai imediato de `id` (aresta `results_in` de entrada), se houver (D52/D127).
+    ///
+    /// Varredura reversa determinística (ordem de `BTreeMap`).
+    #[must_use]
+    pub fn parent(&self, id: &str) -> Option<&str> {
+        self.nodes.values().find_map(|node| {
+            node.edges
+                .get(&EdgeKind::ResultsIn)
+                .is_some_and(|targets| targets.iter().any(|target| target == id))
+                .then_some(node.id.as_str())
+        })
+    }
+
     /// Expansão BFS determinística até `depth` (arestas explícitas apenas).
     #[must_use]
     pub fn expand(&self, id: &str, kind: Option<EdgeKind>, depth: u32) -> Vec<ExpandHit> {

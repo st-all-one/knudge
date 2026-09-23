@@ -4,6 +4,7 @@
 //! `type=task`. O pai vive no **marcador do corpo** (D93) e é projetado como aresta
 //! `results_in` no grafo. `kd write` rejeita `task`/`container` — tudo de tarefa passa aqui.
 
+pub mod context;
 pub mod hierarchy;
 pub mod impact;
 pub mod lifecycle;
@@ -12,6 +13,7 @@ pub mod mode;
 pub mod ownership;
 pub mod plan;
 pub mod program;
+pub mod progress;
 pub mod role;
 pub mod spec;
 pub mod template;
@@ -19,6 +21,7 @@ pub mod template;
 #[cfg(test)]
 mod tests;
 
+pub use context::{TaskContext, TaskRef, context_of};
 pub use hierarchy::{child, children, expected_parent, validate_blocks, validate_parent};
 pub use impact::{impact, is_actionable};
 pub use lifecycle::{OutcomeStatus, TaskAction, apply, outcome, reorder, validate_transition};
@@ -27,6 +30,7 @@ pub use mode::{Child, Container, Mode};
 pub use ownership::{claim, ownership};
 pub use plan::{PlanPrompt, PlanSpec, PlanStep};
 pub use program::{ProgramNode, program_of, root_for_path, subtree};
+pub use progress::{EpicProgress, Progress, epic_of, progress_of};
 pub use role::Role;
 pub use spec::{TaskSpec, WORK_KINDS, validate_kind};
 pub use template::{PlanTemplate, TemplateCatalog};

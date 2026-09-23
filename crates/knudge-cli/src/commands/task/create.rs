@@ -26,7 +26,6 @@ pub(super) fn new_task(session: &Session, args: &TaskNewArgs) -> Result<Output> 
     }
     spec.body = read_body(args.body.as_deref())?;
     spec.parent.clone_from(&args.parent);
-    spec.depends_on.clone_from(&args.depends_on);
     spec.checks.clone_from(&args.checks);
     spec.anchors.clone_from(&args.anchors);
     spec.tags.clone_from(&args.tag);

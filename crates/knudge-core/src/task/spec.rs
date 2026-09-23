@@ -1,6 +1,6 @@
 //! Especificação de tarefa/container (E08-T07).
 
-use crate::schema::{Classification, EdgeKind, NoteType, Scope, Status};
+use crate::schema::{Classification, NoteType, Scope, Status};
 use crate::store::Note;
 use crate::write::Draft;
 use crate::{Error, Result};
@@ -20,8 +20,6 @@ pub struct TaskSpec {
     pub body: String,
     /// Pai (membership por marcador).
     pub parent: Option<String>,
-    /// Dependências (`depends_on`).
-    pub depends_on: Vec<String>,
     /// Validators.
     pub checks: Vec<String>,
     /// Âncoras.
@@ -54,7 +52,6 @@ impl TaskSpec {
             statement: statement.into(),
             body: String::new(),
             parent: None,
-            depends_on: Vec::new(),
             checks: Vec::new(),
             anchors: Vec::new(),
             tags: Vec::new(),
@@ -110,11 +107,6 @@ impl TaskSpec {
         draft.source.clone_from(&self.source);
         draft.expires_at = self.expires_at;
         draft.not_before = self.not_before;
-        draft.edges = self
-            .depends_on
-            .iter()
-            .map(|id| (EdgeKind::DependsOn, id.clone()))
-            .collect();
         draft.to_note(now_ms)
     }
 }

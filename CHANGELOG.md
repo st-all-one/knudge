@@ -4,6 +4,47 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+### Adicionado
+- **`kd task show` resolve o contexto do item (D125).** Cada id agora traz `parent`,
+  `blocked_by`, `blocks` e `children` com **título** e estado — em texto
+  (`pai:`/`bloqueado_por:`/`bloqueia:`/`filhos:`) e no `--json`. Um comando responde "onde isto
+  se encaixa e o que o bloqueia" sem puxar a árvore inteira. Testes:
+  `task::tests::context::*`, `cli::task_show_includes_context`.
+- **Rollup de progresso por épico (D127).** `epic_of`/`progress_of` contam os **itens de trabalho
+  folha** (`is_work_item` sem filhos de trabalho) no subárvore do épico e quantos estão `closed` —
+  derivado, sem verdade nova. Folhas = a fronteira acionável (`task` + `issue` não decomposta):
+  fechar um `issue` com tarefas abertas não infla, esquecer de fechá-lo não trava. Aparece no
+  `kd task close` (`epico: <id>|<título> (<done>/<total>)`), no `kd task show` e nos containers
+  do `kd task graph` (`(done/total)`). Testes: `task::tests::progress::*`,
+  `cli::task_close_reports_epic_progress`.
+- **Clusters ganham verbo próprio `kd knowledge map` e o eixo `container` passa a usar a
+  hierarquia (D128).** `container_of` sobe pelos pais (`results_in`) — a mesma relação de
+  `belongs_to` — com fallback para `depends_on`; o eixo Container deixa de ser vazio em projetos
+  reais. `kd knowledge map [--axis A] [--scope C] [--semantic] [--members]`: fase 1 determinística
+  e, com `--semantic`, fase 2 dentro de cada cluster acima de `clusters.min_volume` (config que
+  antes era ignorada). Read-only. Testes: `lifecycle::tests::clusters::*`,
+  `lifecycle::tests::semantic::semantic_clusters_preserve_parent`,
+  `cli::knowledge_map_reports_container_axis`.
+- **Fase 2 semântica usa complete-link (D129).** Um id só entra num cluster se for similar a
+  **todos** os membros — evita que um item central puxe vizinhos dissimilares (threshold 0.5
+  fundia tudo). Teste: `lifecycle::tests::semantic::complete_link_prevents_chaining`.
+
+### Alterado
+- **Arestas passam a ter via única: `kd write --link` (D126).** `kd task new` deixa de aceitar
+  `--depends-on` e `TaskSpec.depends_on` sai do core; `plan submit` cria as dependências dos
+  passos via `write::link`. Reduz a superfície de API e reaproveita o caminho de grafo (valida
+  id/auto-aresta, grava evento e revisão). Testes ajustados:
+  `task::tests::submit::link_creates_depends_on_edge`, `task::tests::impact::*`, `cli::*`.
+- **Modelo de embedding default passa a `ibm-granite/granite-embedding-97m-multilingual-r2`**
+  (384d, Apache-2.0, 200+ idiomas com **PT** explícito), substituindo o inglês
+  `msmarco-MiniLM-L12-cos-v5` (D123). Medido na bancada PT-BR (`bench/`): +0.070 nDCG@5 sobre
+  BM25 e melhor R@1/MRR que o default antigo, com o **mesmo tamanho de índice**.
+- **Fusão RRF agora tem peso por canal** (`recall.lexical_weight`, `recall.anchor_weight`,
+  `recall.semantic_weight`; D124 revê D81). Default `semantic_weight=30` **Pareto-domina** o
+  neutro no corpus PT-BR (R@1/R@5/MRR/nDCG@5 ≥ 1:1), corrigindo a diluição do canal vetorial
+  por votos lexicais. Regressão: `retrieval::tests::rrf::semantic_weight_can_flip_the_winner`,
+  `retrieval::tests::rrf::weight_scales_channel_contribution`.
+
 ### Corrigido
 - **Views `ready`/`blocked`, `impact` e `next:` ignoravam espécies de trabalho (D120).**
   `compute_views_at`/`block_reason`/`impact` filtravam `type == task`, então itens criados com

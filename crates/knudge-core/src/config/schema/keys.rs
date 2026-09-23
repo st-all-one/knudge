@@ -47,6 +47,21 @@ pub const KEYS: &[KeySpec] = &[
         default: Default::Float(0.1),
     },
     KeySpec {
+        key: "recall.lexical_weight",
+        kind: Kind::Float,
+        default: Default::Float(1.0),
+    },
+    KeySpec {
+        key: "recall.anchor_weight",
+        kind: Kind::Float,
+        default: Default::Float(1.0),
+    },
+    KeySpec {
+        key: "recall.semantic_weight",
+        kind: Kind::Float,
+        default: Default::Float(30.0),
+    },
+    KeySpec {
         key: "recall.semantic",
         kind: Kind::Bool,
         default: Default::Bool(true),
@@ -169,7 +184,7 @@ pub const KEYS: &[KeySpec] = &[
     KeySpec {
         key: "embeddings.model",
         kind: Kind::Text,
-        default: Default::Text("sentence-transformers/msmarco-MiniLM-L12-cos-v5"),
+        default: Default::Text("ibm-granite/granite-embedding-97m-multilingual-r2"),
     },
     KeySpec {
         key: "embeddings.revision",

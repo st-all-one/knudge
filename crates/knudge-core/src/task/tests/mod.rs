@@ -1,5 +1,6 @@
 //! Testes de tarefa/container (E08-T07).
 
+mod context;
 mod hierarchy;
 mod impact;
 mod kind;
@@ -8,6 +9,7 @@ mod mode;
 mod ownership;
 mod plan;
 mod program;
+mod progress;
 mod role;
 mod submit;
 mod template;
