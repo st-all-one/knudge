@@ -5,6 +5,7 @@ use std::path::Path;
 use super::sample_note;
 use crate::Result;
 use crate::ports::fakes::MemFs;
+use crate::schema::Value;
 use crate::store::{Store, purge_derived};
 
 #[test]
@@ -50,6 +51,38 @@ fn store_remove_purges_derived() -> Result<()> {
 
     let jsonl = read(&fs, "/p/.knudge/.idx/embeddings.jsonl");
     assert!(!jsonl.contains(note.id()?));
+    Ok(())
+}
+
+#[test]
+fn store_remove_detaches_incoming_edges() -> Result<()> {
+    let fs = MemFs::new();
+    let store = Store::new(&fs, "/p/.knudge");
+    let target = sample_note("alvo")?;
+    let target_id = target.id()?.to_string();
+    let mut referrer = sample_note("referente")?;
+    let list =
+        |ids: &[&str]| Value::List(ids.iter().map(|id| Value::Str((*id).to_string())).collect());
+    referrer
+        .frontmatter
+        .set("depends_on", list(&[target_id.as_str()]))?;
+    referrer
+        .frontmatter
+        .set("results_in", list(&[target_id.as_str()]))?;
+    referrer
+        .frontmatter
+        .set("superseded_by", Value::Str(target_id.clone()))?;
+    referrer.frontmatter.validate()?;
+    store.write(&target)?;
+    store.write(&referrer)?;
+
+    store.remove(&target_id)?;
+
+    let after = store.read(referrer.id()?)?;
+    assert!(after.frontmatter.get("depends_on").is_none());
+    assert!(after.frontmatter.get("results_in").is_none());
+    assert!(after.frontmatter.get("superseded_by").is_none());
+    assert_eq!(after.revision(), 2);
     Ok(())
 }
 

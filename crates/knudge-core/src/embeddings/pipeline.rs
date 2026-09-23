@@ -17,6 +17,7 @@ use super::cache::{CACHE_FILE, DEFAULT_MAX_BYTES, EmbeddingCache};
 use super::flush::FlushState;
 use super::index::EmbeddingIndex;
 use super::state::{EmbeddingMode, EmbeddingState, is_backlogged};
+use super::vectors::{PendingNote, resolve_vectors};
 
 /// Entrada do worker de dreno.
 pub struct DrainInput<'a> {
@@ -43,16 +44,6 @@ pub struct DrainOutcome {
     pub cache_hits: usize,
     /// Avisos de degradação graciosa.
     pub warnings: Vec<String>,
-}
-
-/// Vetor resolvido para uma nota: `(id, body_hash, vetor)`.
-type VectorRecord = (String, String, Vec<f32>);
-
-/// Nota pendente de digestão.
-struct PendingNote {
-    id: String,
-    body_hash: String,
-    text: String,
 }
 
 /// Configurações derivadas da config efetiva.
@@ -168,52 +159,6 @@ pub fn drain(input: &DrainInput<'_>) -> Result<DrainOutcome> {
         cache_hits,
         warnings,
     })
-}
-
-/// Resolve os vetores do lote: cache (hit pula inferência) + provedor para os *misses*.
-fn resolve_vectors(
-    queue: &[PendingNote],
-    cache: Option<&mut EmbeddingCache>,
-    embedder: &dyn Embedder,
-    now_ms: i64,
-    warnings: &mut Vec<String>,
-) -> (Vec<VectorRecord>, usize) {
-    let model = embedder.meta().model.as_str();
-    let mut vectors: Vec<VectorRecord> = Vec::new();
-    let mut cache_hits = 0_usize;
-    let mut misses: Vec<String> = Vec::new();
-    let mut miss_meta: Vec<(String, String)> = Vec::new();
-    let mut cache = cache;
-    for note in queue {
-        if let Some(cache) = cache.as_deref_mut()
-            && let Some(vector) = cache.get(&note.body_hash)
-        {
-            cache_hits = cache_hits.saturating_add(1);
-            vectors.push((note.id.clone(), note.body_hash.clone(), vector));
-            continue;
-        }
-        if let Some(cache) = cache.as_deref_mut() {
-            cache.record_miss();
-        }
-        misses.push(note.text.clone());
-        miss_meta.push((note.id.clone(), note.body_hash.clone()));
-    }
-    if misses.is_empty() {
-        return (vectors, cache_hits);
-    }
-    match embedder.embed(&misses) {
-        Ok(from_provider) if from_provider.len() == miss_meta.len() => {
-            for ((id, body_hash), vector) in miss_meta.iter().zip(from_provider) {
-                if let Some(cache) = cache.as_deref_mut() {
-                    let _inserted = cache.insert(body_hash, vector.clone(), model, now_ms);
-                }
-                vectors.push((id.clone(), body_hash.clone(), vector));
-            }
-        }
-        Ok(_) => warnings.push("provedor devolveu número de vetores diferente do pedido".into()),
-        Err(error) => warnings.push(format!("provedor de embeddings falhou: {error}")),
-    }
-    (vectors, cache_hits)
 }
 
 fn pending_queue(

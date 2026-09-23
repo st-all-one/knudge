@@ -3,7 +3,7 @@
 use crate::Result;
 use crate::config::{Config, ConfigValue};
 use crate::ports::fakes::MemFs;
-use crate::schema::NoteType;
+use crate::schema::{NoteType, Value};
 use crate::write::{
     DedupDecision, DedupThresholds, Draft, WriteAction, propose, thresholds_from_config, write,
 };
@@ -55,6 +55,22 @@ fn proposal_does_not_write() -> Result<()> {
     assert_eq!(proposal.candidates.len(), 1);
     assert!(matches!(proposal.decision, DedupDecision::Merge { .. }));
     assert_eq!(ctx.store().list_ids()?.len(), before);
+    Ok(())
+}
+
+#[test]
+fn propose_ignores_forgotten_candidate() -> Result<()> {
+    let fs = MemFs::new();
+    let mut candidate = note(NoteType::Fact, "alpha beta gamma delta", "")?;
+    candidate
+        .frontmatter
+        .set("status", Value::Str("forgotten".to_string()))?;
+    let ctx = seeded(&fs, &[candidate])?;
+    let draft = Draft::new(NoteType::Fact, "alpha beta gamma delta epsilon");
+
+    let proposal = propose(ctx.index(), &draft, &DedupThresholds::default())?;
+    assert_eq!(proposal.decision, DedupDecision::Create);
+    assert!(proposal.candidates.is_empty());
     Ok(())
 }
 

@@ -5,7 +5,7 @@ use std::path::Path;
 use crate::Result;
 use crate::config::{Config, ConfigValue};
 use crate::embeddings::pipeline::{DrainInput, drain, embedding_text};
-use crate::embeddings::{EmbeddingIndex, EmbeddingState};
+use crate::embeddings::{EmbeddingIndex, EmbeddingMeta, EmbeddingState};
 use crate::ports::fakes::{FakeEmbedder, MemFs};
 use crate::ports::{Embedder, Fs};
 use crate::store::Store;
@@ -18,7 +18,7 @@ fn config() -> Config {
 
 fn input<'a>(
     store: &'a Store<'a>,
-    embedder: &'a FakeEmbedder,
+    embedder: &'a dyn Embedder,
     config: &'a Config,
 ) -> DrainInput<'a> {
     DrainInput {
@@ -169,6 +169,52 @@ fn stale_note_is_reindexed() -> Result<()> {
         .unwrap_or_else(|| EmbeddingIndex::new(embedder.meta().clone()));
     assert_eq!(index.state_of(&id, "h"), EmbeddingState::Stale);
     Ok(())
+}
+
+#[test]
+fn non_embeddable_note_does_not_block_queue() -> Result<()> {
+    let fs = MemFs::new();
+    let notes = vec![
+        note("boa", "corpo bom")?,
+        note("ruim", "corpo que excede o contexto")?,
+    ];
+    let store = seeded(&fs, &notes)?;
+    let embedder = RejectingEmbedder {
+        inner: FakeEmbedder::new(8)?,
+        marker: "excede",
+    };
+    let config = config();
+
+    let outcome = drain(&input(&store, &embedder, &config))?;
+    assert_eq!(outcome.indexed, 1);
+    assert_eq!(outcome.pending, 1);
+    assert!(
+        outcome
+            .warnings
+            .iter()
+            .any(|warning| warning.contains("individualmente"))
+    );
+    Ok(())
+}
+
+/// Embedder que rejeita o lote inteiro quando qualquer texto contém `marker`, mas embute os
+/// demais isoladamente — reproduz um provedor que estoura contexto em uma nota só.
+struct RejectingEmbedder {
+    inner: FakeEmbedder,
+    marker: &'static str,
+}
+
+impl Embedder for RejectingEmbedder {
+    fn meta(&self) -> &EmbeddingMeta {
+        self.inner.meta()
+    }
+
+    fn embed(&self, texts: &[String]) -> Result<Vec<Vec<f32>>> {
+        if texts.iter().any(|text| text.contains(self.marker)) {
+            return Err(crate::Error::internal("contexto excedido (teste)"));
+        }
+        self.inner.embed(texts)
+    }
 }
 
 #[test]

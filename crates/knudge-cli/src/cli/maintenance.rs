@@ -28,7 +28,7 @@ pub enum MaintenanceCommand {
     },
     /// Fila de embeddings.
     Index {
-        /// Drena a fila agora.
+        /// Drena um lote da fila agora (repita para drenar mais).
         #[arg(long)]
         drain: bool,
         /// Mostra o estado da fila.

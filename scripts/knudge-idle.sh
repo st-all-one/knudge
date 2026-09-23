@@ -141,7 +141,10 @@ unify_legacy() {
 ensure_server() {
     local model=$1 port=$2 health="http://127.0.0.1:$port/health"
     mkdir -p "$LOG_DIR"
-    curl -fsS "$health" >/dev/null 2>&1 && return 0
+    if curl -fsS "$health" >/dev/null 2>&1; then
+        log "servidor já no ar em $health; o worker não o reconfigura (garanta -b 2048 -ub 2048)"
+        return 0
+    fi
     [ -x "$LLAMA" ] || die "llama não encontrado em $LLAMA (defina KNUDGE_LLAMA)"
     "$LLAMA" serve -m "$model" --embeddings --pooling mean \
         --host 127.0.0.1 --port "$port" -b 2048 -ub 2048 >>"$LOG" 2>&1 &
@@ -301,7 +304,11 @@ cmd_status() {
     printf 'modelo: %s\n' "$([ -f "$MODEL" ] && printf ok || printf AUSENTE)"
     printf 'unidades: %s\n' "$([ -e "$UNIT_DIR/$UNIT.timer" ] && printf ok || printf AUSENTE)"
     printf 'timer: %s\n' "$(systemctl --user is-active "$UNIT.timer" 2>/dev/null || printf inativo)"
-    printf 'servidor: %s\n' "$(curl -fsS "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 && printf ok || printf fora)"
+    if curl -fsS "http://127.0.0.1:$PORT/health" >/dev/null 2>&1; then
+        printf 'servidor: ok (já no ar; o worker não o reconfigura — garanta -b 2048 -ub 2048)\n'
+    else
+        printf 'servidor: fora\n'
+    fi
     printf 'projeto atual: %s\n' "$(has_project "$current" && printf cadastrado || printf não-cadastrado)"
     printf 'projetos (%s):\n' "${#PROJECTS[@]}"
     for p in "${PROJECTS[@]}"; do

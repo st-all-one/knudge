@@ -9,6 +9,7 @@ use std::collections::BTreeSet;
 
 use crate::config::Config;
 use crate::retrieval::{Field, Index, NoteDoc};
+use crate::schema::Status;
 use crate::{Error, Result};
 
 use super::Draft;
@@ -144,6 +145,16 @@ pub struct MergeProposal {
     pub reason: String,
 }
 
+/// Ids de notas que ainda participam do dedup (`forgotten`/`superseded` ficam fora — D43).
+fn live_ids(index: &Index) -> BTreeSet<String> {
+    index
+        .docs
+        .iter()
+        .filter(|doc| !matches!(doc.meta.status, Status::Forgotten | Status::Superseded))
+        .map(|doc| doc.meta.id.clone())
+        .collect()
+}
+
 /// Fase 1: ranqueia candidatos e decide sem escrever.
 ///
 /// # Errors
@@ -155,7 +166,7 @@ pub fn propose(
 ) -> Result<WriteProposal> {
     let note = draft.to_note(0)?;
     let draft_doc = NoteDoc::from_note(&note)?;
-    let allowed: BTreeSet<String> = index.docs.iter().map(|doc| doc.meta.id.clone()).collect();
+    let allowed = live_ids(index);
     let mut candidates = Vec::new();
     for hit in index
         .score(&draft.text(), &allowed)
@@ -225,10 +236,13 @@ pub fn dice(a: &NoteDoc, b: &NoteDoc) -> f64 {
 /// Propõe pares quase-duplicados para revisão (`compact`), sem escrever nada.
 #[must_use]
 pub fn propose_merges(index: &Index, thresholds: &DedupThresholds) -> Vec<MergeProposal> {
-    let allowed: BTreeSet<String> = index.docs.iter().map(|doc| doc.meta.id.clone()).collect();
+    let allowed = live_ids(index);
     let mut seen: BTreeSet<(String, String)> = BTreeSet::new();
     let mut proposals = Vec::new();
     for doc in &index.docs {
+        if !allowed.contains(&doc.meta.id) {
+            continue;
+        }
         for hit in index
             .score(&doc.statement, &allowed)
             .into_iter()

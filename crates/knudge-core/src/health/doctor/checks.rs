@@ -248,7 +248,7 @@ pub(super) fn program_anchor_check(input: &DoctorInput<'_>, notes: &[Note]) -> R
         "programas ancorados".to_string()
     } else {
         format!(
-            "{} épico(s)-raiz sem programa, {} programa(s) órfão(s); ancore com `--anchors <arquivo>`",
+            "{} épico(s)-raiz sem programa, {} programa(s) órfão(s); ancore o container-raiz com `--anchors <arquivo>`",
             missing.len(),
             orphans.len()
         )

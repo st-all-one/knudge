@@ -111,11 +111,11 @@ pub fn learn_cmd(session: &Session, scope: Option<&str>) -> Result<Output> {
 pub enum IndexAction {
     /// Mostra o estado da fila.
     Status,
-    /// Drena a fila agora.
+    /// Drena um lote da fila agora (repita para drenar mais).
     Drain,
 }
 
-/// `kd maintenance index` — status/drain da fila de embeddings.
+/// `kd maintenance index` — status/drain da fila de embeddings (um lote por `--drain`).
 ///
 /// # Errors
 /// Propaga erros de leitura do índice e de execução do provedor.

@@ -17,6 +17,8 @@ pub mod semantic;
 pub mod state;
 pub mod vector;
 
+mod vectors;
+
 #[cfg(test)]
 mod tests;
 

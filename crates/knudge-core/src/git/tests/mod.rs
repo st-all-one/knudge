@@ -1,6 +1,7 @@
 //! Testes do escopo `git` (E04).
 
 mod agents;
+mod attributes;
 mod exclude;
 mod onboard;
 mod project;

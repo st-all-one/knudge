@@ -165,7 +165,7 @@ pre_compact = ""
 timeout_ms  = 30000           # timeout por hook; acima, kill do grupo de processos
 ```
 
-O provedor de embedding é plugável via config (global como template, projeto com precedência). O default **`http`** consome um **servidor local** OpenAI-compatible — o usuário sobe `llama-server -m granite-embedding-97M-multilingual-r2-Q8_0.gguf --embeddings` e o knudge só aponta a URL (D101); **não** há inferência in-process (R16/R43). Detalhes, avaliação do modelo e alternativas multilíngues em **`04_embeddings.md`**. Os vetores são **derivados** (`.idx/embeddings.jsonl`, com cabeçalho `meta`), nunca gravados no frontmatter; trocar de modelo força re-embed. `lightweight` (hash) cobre testes/CI e `none` cai para BM25.
+O provedor de embedding é plugável via config (global como template, projeto com precedência). O default **`http`** consome um **servidor local** OpenAI-compatible — o usuário sobe `llama-server -m granite-embedding-97M-multilingual-r2-Q8_0.gguf --embeddings -b 2048 -ub 2048` e o knudge só aponta a URL (D101); **não** há inferência in-process (R16/R43). Detalhes, avaliação do modelo e alternativas multilíngues em **`04_embeddings.md`**. Os vetores são **derivados** (`.idx/embeddings.jsonl`, com cabeçalho `meta`), nunca gravados no frontmatter; trocar de modelo força re-embed. `lightweight` (hash) cobre testes/CI e `none` cai para BM25.
 
 Acesso via tool `config get/set/list`. Precedência (quando houver override): flag de CLI > `config.toml`. O LLM **não** altera limiares em runtime — são config, não decisão do agente.
 

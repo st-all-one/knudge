@@ -4,12 +4,33 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+## [0.2.2] - 2026-09-23
+
 ### Adicionado
 - **`make update-version VERSION=vX.Y.Z`** (`scripts/bump-version.sh`): atualiza a versão em
   `Cargo.toml`, `Cargo.lock`, goldens do `prime`/`version`, `install.sh`, `README.md` e
   `CHANGELOG.md` de uma vez — o portão da release exige `tag == Cargo.toml`.
 
+### Alterado
+- **`.gitattributes` cobre todos os arquivos do `.knudge/`.** O bloco gerenciado agora declara
+  explicitamente: notas (`notas/**`) e configuração (`config.toml`, `templates.toml`,
+  `validators.toml`) com `eol=lf` (`body_hash`/id estáveis entre plataformas), `merge=union` no
+  log de eventos append-only e `binary`/`linguist-generated` para o derivado descartável
+  (`.idx/`, `cache/`, `.locks/`, `*.tmp`) — sem auto-merge de índice reconstruível (D31/D34).
+
 ### Corrigido
+- **`forget --purge`/TTL não deixam mais arestas penduradas.** `Store::remove` remove as
+  referências de entrada (as 8 arestas explícitas e `superseded_by`) das demais notas antes de
+  apagar o arquivo, mantendo a integridade do grafo (D46/D84).
+- **Dedup ignora notas `forgotten`/`superseded`.** `propose`/`propose_merges` (e portanto
+  `doctor`/`compact`/`learn`) deixam de propor merge de notas mortas, alinhado a
+  `tags`/`next_tasks` (D43/D107).
+- **Uma nota não-embeddável não trava mais a fila inteira.** Quando o lote falha, o dreno tenta
+  as notas individualmente: as boas entram no índice e a ruim fica `pending` com warning, em vez
+  de descartar o lote e repetir para sempre (R33/D83).
+- **`watch-service`**: o worker avisa (log e `--status`) quando o servidor de embeddings já está
+  no ar, pois não o reconfigura — um llama iniciado fora do worker precisa de `-b 2048 -ub 2048`
+  para não deixar notas longas `pending`. Exemplos manuais nos docs atualizados.
 - **CI de push**: `cargo deny` deixou de falhar por wildcard de path interno
   (`allow-wildcard-paths`); `miri` pula `adapters::*` (tocam SO/rede/processos, fora do núcleo
   puro); removidos o `nextest` (redundante com `make check`) e o build release multi-SO (coberto

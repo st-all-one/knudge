@@ -62,10 +62,13 @@ E01, E03.
 - **Aceite:** commit no worktree certo; mensagem determinística e auditável.
 
 ### E04-T06 ☑ `.gitattributes` e derivados ignorados
-- **Objetivo:** `merge=union` para `eventos.jsonl`; `.idx/`, `cache/`, `*.lock` gitignored.
-- **Entregáveis:** escrita de `.gitattributes` e do ignore de derivados.
+- **Objetivo:** regras explícitas para todos os arquivos do `.knudge/`: `merge=union` para
+  `eventos.jsonl`, `eol=lf` para notas/config e `binary`/`linguist-generated` para o derivado
+  (`.idx/`, `cache/`, `.locks/`, `*.tmp`); derivados gitignored.
+- **Entregáveis:** escrita do bloco gerenciado de `.gitattributes` e do ignore de derivados.
 - **Decisões:** D31.
-- **Aceite:** merge simulado do log não conflita; derivados nunca entram no commit.
+- **Aceite:** merge simulado do log não conflita; derivados nunca entram no commit; bloco
+  idempotente e revertido em `persist_in_project=false`.
 
 ## Definition of Done
 

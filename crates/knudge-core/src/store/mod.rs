@@ -13,6 +13,8 @@ pub mod purge;
 pub mod rebuild;
 pub mod sweep;
 
+mod detach;
+
 #[cfg(test)]
 mod tests;
 
@@ -160,9 +162,13 @@ impl<'a> Store<'a> {
 
     /// Remove a nota (canônico **primeiro**) e purga o derivado (D84).
     ///
+    /// Antes de apagar o arquivo, remove as referências de entrada (arestas explícitas e
+    /// `superseded_by`) para não deixar arestas penduradas (D46).
+    ///
     /// # Errors
     /// Retorna `ErrorKind::Io` se remoção/purga falharem.
     pub fn remove(&self, id: &str) -> Result<()> {
+        detach::detach_referrers(self.fs, &self.root, id)?;
         self.fs.remove_file(&self.note_path(id))?;
         purge_derived(self.fs, &self.root, id)
     }

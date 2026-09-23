@@ -148,15 +148,18 @@ api_key_env  = "KNUDGE_EMBEDDING_API_KEY"
 
 | `provider` | Como funciona | Quando usar |
 |---|---|---|
-| `http` | Cliente HTTP/1.1 **bloqueante** para um servidor OpenAI-compatible. O modelo roda **fora** do binário: o usuário sobe `llama-server -m msmarco-MiniLM-L12-cos-v5.Q5_K_M.gguf --embeddings` (ou TEI/Ollama/vLLM) e o knudge só aponta a URL | **Default**; offline e local, sem dependência de runtime de IA no binário (R16/R43) |
+| `http` | Cliente HTTP/1.1 **bloqueante** para um servidor OpenAI-compatible. O modelo roda **fora** do binário: o usuário sobe `llama-server -m msmarco-MiniLM-L12-cos-v5.Q5_K_M.gguf --embeddings -b 2048 -ub 2048` (ou TEI/Ollama/vLLM) e o knudge só aponta a URL | **Default**; offline e local, sem dependência de runtime de IA no binário (R16/R43) |
 | `lightweight` | Embedder determinístico por hash (SHA-256 → vetor normalizado), **sem pesos** | Testes/CI e offline puro, sem download (D89) |
 | `none` | Sem vetores; só BM25 + estrutura | Corpus pequeno; quando `learn()`/dedup semântico ainda não existem |
 
 **Subindo o servidor local (exemplo com o GGUF do repositório):**
 
 ```sh
-# llama.cpp; expõe /v1/embeddings (OpenAI-compatible)
-llama-server -m granite-embedding-97M-multilingual-r2-Q8_0.gguf --embeddings --port 8080
+# llama.cpp; expõe /v1/embeddings (OpenAI-compatible).
+# `-b/-ub 2048` são obrigatórios: o default do llama.cpp (`-ub 512`) rejeita notas longas e o
+# drain fica com `indexed=0` (a nota não-embeddável agora é isolada, mas nunca indexa).
+llama-server -m granite-embedding-97M-multilingual-r2-Q8_0.gguf --embeddings --pooling mean \
+    -b 2048 -ub 2048 --port 8080
 ```
 
 O `kd` consome `http://127.0.0.1:8080/v1/embeddings` por padrão; aponte
