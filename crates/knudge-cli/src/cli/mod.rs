@@ -5,7 +5,7 @@ mod maintenance;
 mod task;
 
 pub use knowledge::KnowledgeCommand;
-pub use maintenance::{ConfigCommand, MaintenanceCommand, SelfCommand};
+pub use maintenance::{ConfigCommand, MaintenanceCommand, SelfCommand, WatchServiceArgs};
 pub use task::{TaskCommand, TaskListArgs, TaskNewArgs, TaskPlanArgs, TaskSort};
 
 use clap::{Args, Parser, Subcommand};
@@ -62,7 +62,7 @@ pub enum Command {
         #[command(subcommand)]
         command: KnowledgeCommand,
     },
-    /// Manutenção (doctor, compact, eval, index, learn).
+    /// Manutenção (doctor, compact, eval, index, learn, watch-service).
     Maintenance {
         /// Subcomando de manutenção.
         #[command(subcommand)]

@@ -39,14 +39,17 @@ E06, E07.
 - **Aceite:** re-embed do mesmo conteúdo não chama o modelo; cache respeita o teto; falha de
   cache não é fatal.
 
-### E11-T03 ☑ Fila assíncrona/lazy
-- **Objetivo:** `mode = lazy|eager|manual`, `async = true`, `max_pending`; estado derivado
+### E11-T03 ☑ Fila assíncrona/lazy + auto-drain ocioso
+- **Objetivo:** `mode = lazy|manual` (D131), `async = true`, `max_pending`; estado derivado
   `indexed|pending|stale` por nota; **nunca descarta nota**; `rewind` reporta
   `embeddings_pending`.
-- **Entregáveis:** fila; estados; contador no `rewind`.
-- **Decisões:** D80, D83.
+- **Entregáveis:** fila; estados; contador no `rewind`; **auto-drain ocioso** — com `mode=lazy`,
+  ao fim de cada invocação não-`maintenance` o CLI drena **um lote** *best-effort*, **depois** de
+  emitir a saída; falha não muda exit code nem `warnings[]`; `KNUDGE_NO_IDLE` desliga;
+  `kd maintenance watch-service` instala o worker contínuo (timer systemd) com consentimento (D132).
+- **Decisões:** D80, D83, D131.
 - **Aceite:** rajada de 10–20 notas não bloqueia `write`/`recall`; backlog visível e
-  drenável.
+  drenável; `lazy` esvazia a fila durante o uso, `manual` só com `--drain`.
 
 ### E11-T04 ☑ Worker de reconcile
 - **Objetivo:** re-embedar do **corpo canônico** as pendentes; I/O externo com **timeout

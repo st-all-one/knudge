@@ -3,7 +3,10 @@
 use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::adapters::HttpEmbedder;
-use knudge_core::embeddings::{EmbeddingIndex, EmbeddingMeta, EmbeddingState, LightweightEmbedder};
+use knudge_core::embeddings::{
+    DrainInput, DrainOutcome, EmbeddingIndex, EmbeddingMeta, EmbeddingState, LightweightEmbedder,
+    drain,
+};
 use knudge_core::ports::Embedder;
 use knudge_core::schema::Value;
 
@@ -80,4 +83,24 @@ pub fn pending(session: &Session) -> Result<usize> {
         }
     }
     Ok(pending)
+}
+
+/// Drena **um lote** da fila; `None` quando embeddings estão desligados (`provider = none`).
+///
+/// É o caminho único do `kd maintenance index --drain` e do auto-drain ocioso (E11-T03).
+///
+/// # Errors
+/// Propaga erros de leitura do índice e de execução do provedor.
+pub fn drain_once(session: &Session) -> Result<Option<DrainOutcome>> {
+    let Some(embedder) = build(session)? else {
+        return Ok(None);
+    };
+    let store = session.store();
+    let input = DrainInput {
+        store: &store,
+        embedder: embedder.as_ref(),
+        config: session.config(),
+        now_ms: session.now_ms(),
+    };
+    Ok(Some(drain(&input)?))
 }

@@ -9,8 +9,14 @@ use std::sync::atomic::{AtomicU64, Ordering};
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 /// Executa `kd` com os argumentos dados e captura a saída.
+///
+/// Roda no diretório do repositório (não isolado): desliga o auto-drain ocioso para os testes
+/// não tocarem o `.knudge/` real do desenvolvedor.
 fn run(args: &[&str]) -> std::io::Result<Output> {
-    Command::new(env!("CARGO_BIN_EXE_kd")).args(args).output()
+    Command::new(env!("CARGO_BIN_EXE_kd"))
+        .args(args)
+        .env("KNUDGE_NO_IDLE", "1")
+        .output()
 }
 
 /// Executa `kd` num diretório isolado (projeto temporário, sem config global).
@@ -1609,5 +1615,159 @@ fn rewind_files_promotes_task_confirmed_note() -> TestResult {
         .lines()
         .any(|line| line.starts_with(&format!("{confirmed}|")) && line.ends_with("|star"));
     assert!(promoted, "nota não promovida a star: {text}");
+    Ok(())
+}
+
+#[test]
+fn idle_lazy_drains_queue_after_command() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    let provider = run_in(
+        &dir,
+        &["config", "set", "embeddings.provider", "lightweight"],
+    )?;
+    assert!(
+        provider.status.success(),
+        "config falhou: {:?}",
+        provider.stderr
+    );
+
+    let write = run_in(
+        &dir,
+        &[
+            "write",
+            "o auto-drain ocioso indexa sozinho",
+            "--type",
+            "fact",
+        ],
+    )?;
+    assert!(write.status.success(), "write falhou: {:?}", write.stderr);
+
+    // `--status` é maintenance (não drena): reflete o que o auto-drain fez antes de sair.
+    let status = run_in(&dir, &["maintenance", "index", "--status"])?;
+    assert!(
+        status.status.success(),
+        "status falhou: {:?}",
+        status.stderr
+    );
+    let text = String::from_utf8(status.stdout)?;
+    assert_eq!(text.trim(), "pending: 0", "fila não drenou: {text}");
+    Ok(())
+}
+
+#[test]
+fn idle_manual_mode_leaves_queue_pending() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    let provider = run_in(
+        &dir,
+        &["config", "set", "embeddings.provider", "lightweight"],
+    )?;
+    assert!(
+        provider.status.success(),
+        "config falhou: {:?}",
+        provider.stderr
+    );
+    let mode = run_in(&dir, &["config", "set", "embeddings.mode", "manual"])?;
+    assert!(mode.status.success(), "config falhou: {:?}", mode.stderr);
+
+    let write = run_in(
+        &dir,
+        &[
+            "write",
+            "no modo manual nada drena sozinho",
+            "--type",
+            "fact",
+        ],
+    )?;
+    assert!(write.status.success(), "write falhou: {:?}", write.stderr);
+
+    let status = run_in(&dir, &["maintenance", "index", "--status"])?;
+    let text = String::from_utf8(status.stdout)?;
+    assert_eq!(text.trim(), "pending: 1", "modo manual drenou: {text}");
+    Ok(())
+}
+
+#[test]
+fn eager_mode_is_rejected() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    let out = run_in(&dir, &["config", "set", "embeddings.mode", "eager"])?;
+    assert_eq!(
+        out.status.code(),
+        Some(7),
+        "eager deveria ser config inválida"
+    );
+    Ok(())
+}
+
+#[test]
+fn watch_service_dry_run_reports_plan() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    let out = run_in(
+        &dir,
+        &["--json", "maintenance", "watch-service", "--dry-run"],
+    )?;
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let data = json(&out)?;
+    let data = data.get("data").ok_or("sem data")?;
+    assert_eq!(
+        data.get("dry_run").and_then(serde_json::Value::as_bool),
+        Some(true)
+    );
+    let url = data
+        .get("reference")
+        .and_then(|v| v.as_str())
+        .ok_or("sem url")?;
+    assert!(url.contains("knudge-idle.sh"), "url: {url}");
+    Ok(())
+}
+
+#[test]
+fn watch_service_declined_does_nothing() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    let out = run_stdin(&dir, &["maintenance", "watch-service"], "n\n")?;
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let text = String::from_utf8(out.stdout)?;
+    assert!(text.contains("cancelad"), "saída: {text}");
+    Ok(())
+}
+
+#[test]
+fn watch_service_runs_local_script() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    let args_file = dir.join("watch-args.txt");
+    let script = dir.join("fake-idle.sh");
+    std::fs::write(
+        &script,
+        format!(
+            "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\" > '{}'\n",
+            args_file.display()
+        ),
+    )?;
+    let script_arg = script.display().to_string();
+    let out = run_in(
+        &dir,
+        &[
+            "maintenance",
+            "watch-service",
+            "--yes",
+            "--script",
+            &script_arg,
+        ],
+    )?;
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let recorded = std::fs::read_to_string(&args_file)?;
+    assert!(recorded.contains("install"), "args: {recorded}");
+    assert!(recorded.contains("--project"), "args: {recorded}");
     Ok(())
 }

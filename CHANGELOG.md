@@ -4,6 +4,23 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+## [0.2.0] - 2026-09-23
+
+### Adicionado
+- **`kd maintenance watch-service` (D132).** Instala o worker de auto-drain ocioso: pergunta ao
+  usuário (stderr; `n`/não-TTY cancela) e, se aprovado, baixa `scripts/knudge-idle.sh` na tag da
+  versão e o executa — criando um timer `systemd --user` que garante o servidor e drena a fila.
+  `--script` usa um arquivo local (offline), `--dry-run` só mostra o plano, `--yes` pula a
+  pergunta.
+
+### Alterado
+- **Auto-drain ocioso (E11-T03/D131).** `embeddings.mode` agora aceita só `lazy` (default) e
+  `manual`; `eager` foi removido (rejeitado como `config`=7). Em `lazy`, ao fim de cada comando
+  não-`maintenance`, o `kd` drena **um lote** de embeddings pendentes, *best-effort*, **depois**
+  de emitir a saída — nunca altera exit code nem `warnings[]` e não interage com `strict`.
+  `KNUDGE_NO_IDLE` desliga o caminho. O worker contínuo (timer systemd) passa a ser instalável
+  com `scripts/knudge-idle.sh`.
+
 ## [0.1.1] - 2026-09-23
 
 ### Adicionado

@@ -28,24 +28,21 @@ impl EmbeddingState {
 /// Modo de digestão (config `embeddings.mode`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EmbeddingMode {
-    /// Digere ocioso/em lote (default).
+    /// Digere no fim de cada invocação do CLI (default; E11-T03).
     Lazy,
-    /// Digere logo após o `write`, ainda async.
-    Eager,
     /// Só via `kd maintenance index --drain`.
     Manual,
 }
 
 impl EmbeddingMode {
     /// Todos os modos, em ordem canônica.
-    pub const ALL: [Self; 3] = [Self::Lazy, Self::Eager, Self::Manual];
+    pub const ALL: [Self; 2] = [Self::Lazy, Self::Manual];
 
     /// Rótulo canônico.
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Lazy => "lazy",
-            Self::Eager => "eager",
             Self::Manual => "manual",
         }
     }
@@ -61,16 +58,10 @@ impl EmbeddingMode {
             .ok_or_else(|| Error::config(format!("embeddings.mode inválido: `{text}`")))
     }
 
-    /// `true` se o modo digere em invocação ociosa.
+    /// `true` se o modo digere ociosamente (no fim da invocação do CLI).
     #[must_use]
     pub const fn drains_on_idle(self) -> bool {
-        matches!(self, Self::Lazy | Self::Eager)
-    }
-
-    /// `true` se o modo digere logo após o `write`.
-    #[must_use]
-    pub const fn drains_on_write(self) -> bool {
-        matches!(self, Self::Eager)
+        matches!(self, Self::Lazy)
     }
 }
 

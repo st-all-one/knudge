@@ -1,6 +1,7 @@
 //! `kd maintenance` — doctor, audit, compact, eval, index e learn (E12-T01).
 
 pub mod extra;
+pub mod watch;
 
 use knudge_core::Result;
 use knudge_core::health::{AuditInput, DoctorInput, audit, doctor, doctor_fix};
@@ -49,6 +50,7 @@ pub fn run(session: &Session, command: &MaintenanceCommand) -> Result<Output> {
         ),
         MaintenanceCommand::Learn { scope } => extra::learn_cmd(session, scope.as_deref()),
         MaintenanceCommand::Prune { scope, .. } => extra::prune(session, scope.as_deref()),
+        MaintenanceCommand::WatchService(args) => watch::run(session, args),
     }
 }
 

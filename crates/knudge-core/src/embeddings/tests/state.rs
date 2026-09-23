@@ -13,16 +13,12 @@ fn classify_maps_presence_and_hash() {
 fn mode_parse_and_flags() {
     assert_eq!(EmbeddingMode::parse("lazy").ok(), Some(EmbeddingMode::Lazy));
     assert_eq!(
-        EmbeddingMode::parse("eager").ok(),
-        Some(EmbeddingMode::Eager)
-    );
-    assert_eq!(
         EmbeddingMode::parse("manual").ok(),
         Some(EmbeddingMode::Manual)
     );
+    assert!(EmbeddingMode::parse("eager").is_err());
     assert!(EmbeddingMode::parse("turbo").is_err());
     assert!(EmbeddingMode::Lazy.drains_on_idle());
-    assert!(EmbeddingMode::Eager.drains_on_write());
     assert!(!EmbeddingMode::Manual.drains_on_idle());
 }
 

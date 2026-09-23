@@ -5,6 +5,7 @@ pub mod config_cmd;
 pub mod embedder;
 pub mod forget_sync;
 pub mod hooks;
+pub mod idle;
 pub mod init;
 pub mod knowledge;
 pub mod maintenance;

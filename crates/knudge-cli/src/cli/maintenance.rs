@@ -1,6 +1,6 @@
 //! Subcomandos de `kd maintenance`, `kd config` e `kd self`.
 
-use clap::Subcommand;
+use clap::{Args, Subcommand};
 
 /// Subcomandos de manutenção.
 #[derive(Debug, Subcommand)]
@@ -50,6 +50,35 @@ pub enum MaintenanceCommand {
         #[arg(long)]
         dry_run: bool,
     },
+    /// Instala o worker de auto-drain ocioso (timer systemd) deste projeto.
+    WatchService(WatchServiceArgs),
+}
+
+/// Argumentos de `kd maintenance watch-service`.
+#[allow(clippy::struct_excessive_bools, reason = "flags de CLI")]
+#[derive(Debug, Args)]
+pub struct WatchServiceArgs {
+    /// Não pergunta: assume que sim.
+    #[arg(long, short = 'y')]
+    pub yes: bool,
+    /// Só mostra o plano (não baixa nem executa).
+    #[arg(long)]
+    pub dry_run: bool,
+    /// Período do timer (ex.: `1h`, `15min`).
+    #[arg(long, value_name = "DUR", default_value = "1h")]
+    pub every: String,
+    /// Porta do servidor de embeddings local.
+    #[arg(long, value_name = "N", default_value_t = 8999)]
+    pub port: u16,
+    /// Caminho do modelo GGUF (repassado ao worker).
+    #[arg(long, value_name = "PATH")]
+    pub model: Option<String>,
+    /// Usa um script local em vez de baixar (offline/testes).
+    #[arg(long, value_name = "PATH")]
+    pub script: Option<String>,
+    /// Sobrescreve a URL do script baixado.
+    #[arg(long, value_name = "URL")]
+    pub url: Option<String>,
 }
 
 /// Subcomandos de `kd config`.

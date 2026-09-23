@@ -208,7 +208,7 @@ pub const KEYS: &[KeySpec] = &[
     },
     KeySpec {
         key: "embeddings.mode",
-        kind: Kind::Enum(&["lazy", "eager", "manual"]),
+        kind: Kind::Enum(&["lazy", "manual"]),
         default: Default::Text("lazy"),
     },
     KeySpec {

@@ -35,7 +35,11 @@ pub fn run() -> ExitCode {
     logging::init(&cli);
     let name = command_name(cli.command.as_ref());
     match commands::run(&cli) {
-        Ok(output) => emit_success(&cli, name, &output),
+        Ok(output) => {
+            let code = emit_success(&cli, name, &output);
+            commands::idle::maybe_drain(&cli);
+            code
+        }
         Err(err) => emit_error(&cli, name, &err, &[]),
     }
 }

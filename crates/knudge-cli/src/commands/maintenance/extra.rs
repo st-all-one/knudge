@@ -4,7 +4,6 @@ use std::collections::BTreeMap;
 
 use knudge_core::Error;
 use knudge_core::Result;
-use knudge_core::embeddings::{DrainInput, drain};
 use knudge_core::handoff::manifest::belongs_to;
 use knudge_core::lifecycle::{
     AnchorValidity, DecayPolicy, DemotionInput, ShelfLife, compute_anchor_validity,
@@ -130,20 +129,12 @@ pub fn index(session: &Session, action: IndexAction) -> Result<Output> {
 }
 
 fn drain_queue(session: &Session) -> Result<Output> {
-    let Some(embedder) = embedder::build(session)? else {
+    let Some(outcome) = embedder::drain_once(session)? else {
         return Ok(Output::new(
             "embeddings desligado (provider = none)",
             json!({ "enabled": false, "indexed": 0, "pending": 0 }),
         ));
     };
-    let store = session.store();
-    let input = DrainInput {
-        store: &store,
-        embedder: embedder.as_ref(),
-        config: session.config(),
-        now_ms: session.now_ms(),
-    };
-    let outcome = drain(&input)?;
     let text = format!(
         "indexed={} pending={} stale={} cache_hits={}",
         outcome.indexed, outcome.pending, outcome.stale, outcome.cache_hits

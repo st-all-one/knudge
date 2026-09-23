@@ -20,7 +20,7 @@ curl --proto '=https' \
 > Requisito: `git` no projeto. Rust 1.97+ só para compilar do source; embeddings são opcionais.
 
 Instala `kd` + `knudge-mcp` em `~/.local/bin` (release pré-compilado, checksum SHA-256).
-Versão fixa: `... | VERSION=v0.1.1 bash`. Do source: `make install` (ou `./install.sh --from-source`).
+Versão fixa: `... | VERSION=v0.2.0 bash`. Do source: `make install` (ou `./install.sh --from-source`).
 
 ## Quickstart
 
@@ -98,10 +98,10 @@ derivado que melhora perguntas em linguagem natural. Sem provedor, degrada para 
 `warnings[]`.
 
 Modelo recomendado: `ibm-granite/granite-embedding-97m-multilingual-r2` (384d, Apache-2.0,
-multilíngue com PT), servido por `llama.cpp` com **`--pooling mean`**:
+multilíngue com PT), servido por `llama.cpp` com **`--pooling mean`** e **`-ub 2048`**:
 
 ```bash
-llama serve -m models/granite-97m-r2-Q8_0.gguf --embeddings --pooling mean --port 8084
+llama serve -m models/granite-97m-r2-Q8_0.gguf --embeddings --pooling mean -b 2048 -ub 2048 --port 8084
 
 kd config set embeddings.provider http
 kd config set embeddings.model ibm-granite/granite-embedding-97m-multilingual-r2
@@ -112,9 +112,30 @@ kd maintenance index --drain
 kd ask "como o servidor não vê o conteúdo das notas"
 ```
 
-Assíncrono e lazy: notas novas ficam `pending` até `kd maintenance index --drain`. Para
-desligar: `kd config set recall.semantic false`. Veredito da bancada e A/B em
+> O `-ub` (µbatch físico) do `llama.cpp` é **512** por default e o `/v1/embeddings` rejeita a nota
+> inteira acima disso — o `drain` então falha com `indexed=0`. Suba com `-ub 2048` (≥ o maior corpo).
+
+Assíncrono e lazy: notas novas ficam `pending` e, com `embeddings.mode=lazy` (default), o CLI
+drena **um lote** ao fim de cada comando (auto-drain ocioso) — o `kd maintenance index --drain`
+esvazia o resto. `mode=manual` só drena sob `--drain` explícito. Para desligar o canal:
+`kd config set recall.semantic false`. Veredito da bancada e A/B em
 [`plan/04_embeddings.md`](plan/04_embeddings.md).
+
+Para drenar também quando você **não usa** o `kd` (worker contínuo), instale o timer de usuário
+— ele garante o servidor local e drena a fila periodicamente:
+
+```bash
+scripts/knudge-idle.sh install --project /caminho/do/projeto   # systemd --user; --every 1h
+scripts/knudge-idle.sh status
+scripts/knudge-idle.sh uninstall
+```
+
+Ou pelo próprio binário — ele **pergunta antes** de instalar e baixa o script na tag da versão:
+
+```bash
+kd maintenance watch-service            # pergunta [s/N]; --yes automatiza
+kd maintenance watch-service --dry-run  # só mostra o plano
+```
 
 ## MCP (agentes de IA)
 
