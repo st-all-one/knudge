@@ -1,28 +1,28 @@
-//! Validação da hierarquia (E08-T07).
+//! Validação da hierarquia (E08-T07/D134).
 
 use crate::schema::Scope;
-use crate::task::hierarchy::{expected_parent, validate_blocks, validate_parent};
+use crate::task::hierarchy::{child, validate_blocks, validate_parent};
 
 #[test]
-fn expected_parents_are_immediate() {
-    assert_eq!(expected_parent(Scope::Plan), None);
-    assert_eq!(expected_parent(Scope::Epic), Some(Scope::Plan));
-    assert_eq!(expected_parent(Scope::Issue), Some(Scope::Epic));
-    assert_eq!(expected_parent(Scope::Task), Some(Scope::Issue));
+fn child_is_always_the_task_leaf() {
+    assert_eq!(child(Scope::Epic), Some(Scope::Task));
+    assert_eq!(child(Scope::Issue), Some(Scope::Task));
+    assert_eq!(child(Scope::Task), None);
 }
 
 #[test]
 fn valid_parents_pass() {
-    assert!(validate_parent(Scope::Plan, Scope::Epic).is_ok());
     assert!(validate_parent(Scope::Epic, Scope::Issue).is_ok());
+    assert!(validate_parent(Scope::Epic, Scope::Task).is_ok());
     assert!(validate_parent(Scope::Issue, Scope::Task).is_ok());
 }
 
 #[test]
 fn invalid_parents_fail() {
-    assert!(validate_parent(Scope::Epic, Scope::Task).is_err());
     assert!(validate_parent(Scope::Issue, Scope::Epic).is_err());
-    assert!(validate_parent(Scope::Plan, Scope::Plan).is_err());
+    assert!(validate_parent(Scope::Task, Scope::Epic).is_err());
+    assert!(validate_parent(Scope::Task, Scope::Issue).is_err());
+    assert!(validate_parent(Scope::Epic, Scope::Epic).is_err());
 }
 
 #[test]

@@ -1,4 +1,4 @@
-//! Enums fechados do schema (D04/D13/D93).
+//! Enums fechados do schema (D04/D13/D93/D149).
 //!
 //! Tipos abertos degradam o retrieval (o LLM inventa categorias); por isso `type`, `scope`,
 //! `classification` e `status` são fechados e a evolução exige bump de `schema_version` (D14).
@@ -8,7 +8,8 @@ use std::str::FromStr;
 
 use crate::{Error, Result};
 
-/// Tipo de nota — enum fechado de 11 valores.
+/// Tipo de nota — **10 espécies** armazenadas, mais [`NoteType::Epic`] (grupo **derivado** de
+/// `scope=epic`, nunca gravado — D149).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum NoteType {
     /// Assertiva verificável.
@@ -29,15 +30,15 @@ pub enum NoteType {
     Link,
     /// Conhecimento sobre o próprio sistema.
     Meta,
-    /// Agregação explícita, sem verdade própria.
-    Container,
-    /// Conhecimento preditivo (`confidence` = probabilidade).
+    /// Conhecimento preditivo (probabilidade derivada).
     Risk,
+    /// Grupo: nota com `scope=epic` e `type` **omitido** (D149). Não é gravável como `type`.
+    Epic,
 }
 
 impl NoteType {
-    /// Todos os tipos, na ordem canônica.
-    pub const ALL: [Self; 11] = [
+    /// Todos os tipos **armazenáveis**, na ordem canônica (D149: `Epic` não entra).
+    pub const ALL: [Self; 10] = [
         Self::Fact,
         Self::Decision,
         Self::Question,
@@ -47,7 +48,6 @@ impl NoteType {
         Self::Snippet,
         Self::Link,
         Self::Meta,
-        Self::Container,
         Self::Risk,
     ];
 
@@ -64,8 +64,8 @@ impl NoteType {
             Self::Snippet => "snippet",
             Self::Link => "link",
             Self::Meta => "meta",
-            Self::Container => "container",
             Self::Risk => "risk",
+            Self::Epic => "epic",
         }
     }
 
@@ -75,25 +75,25 @@ impl NoteType {
         self.as_str()
     }
 
-    /// `true` para os tipos que só existem como container de tarefa (D93).
+    /// `true` para o **grupo** (`scope=epic`, `type` omitido) — D149.
     #[must_use]
-    pub const fn is_container(self) -> bool {
-        matches!(self, Self::Container)
+    pub const fn is_group(self) -> bool {
+        matches!(self, Self::Epic)
     }
 
-    /// `true` se o tipo **pode** carregar `scope` (item de trabalho ou container) — D93/D113.
+    /// `true` se o tipo **pode** carregar `scope` (item de trabalho ou grupo) — D93/D113/D149.
     #[must_use]
     pub const fn is_scoped(self) -> bool {
-        self.is_work_kind() || self.is_container()
+        self.is_work_kind() || self.is_group()
     }
 
-    /// `true` se o tipo **exige** `scope` (D93): containers e a tarefa canônica.
+    /// `true` se o tipo **exige** `scope` (D93/D149): grupo e a tarefa canônica.
     #[must_use]
     pub const fn requires_scope(self) -> bool {
-        matches!(self, Self::Task | Self::Container)
+        matches!(self, Self::Task | Self::Epic)
     }
 
-    /// `true` se é **espécie de trabalho** (D113): aceita `scope` e não é container.
+    /// `true` se é **espécie de trabalho** (D113): aceita `scope` e não é grupo.
     #[must_use]
     pub const fn is_work_kind(self) -> bool {
         matches!(
@@ -121,53 +121,38 @@ impl FromStr for NoteType {
     }
 }
 
-/// Escopo de tarefa — enum fechado, só para `type` de trabalho/container (D93/D113).
+/// Escopo de tarefa — enum fechado, só para `type` de trabalho/container (D93/D113/D134).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Scope {
-    /// Agregação raiz.
-    Plan,
-    /// Agregação de segundo nível.
+    /// Container-raiz (não tem pai).
     Epic,
-    /// Unidade de trabalho com `type = task`.
+    /// Agrupamento opcional entre épico e tarefa.
     Issue,
-    /// Unidade de trabalho folha com `type = task`.
+    /// Unidade de trabalho folha.
     Task,
 }
 
 impl Scope {
     /// Todos os escopos, do mais externo ao mais interno.
-    pub const ALL: [Self; 4] = [Self::Plan, Self::Epic, Self::Issue, Self::Task];
+    pub const ALL: [Self; 3] = [Self::Epic, Self::Issue, Self::Task];
 
     /// Rótulo canônico.
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::Plan => "plan",
             Self::Epic => "epic",
             Self::Issue => "issue",
             Self::Task => "task",
         }
     }
 
-    /// Profundidade 1-based na hierarquia `plan ⊃ epic ⊃ issue ⊃ task`.
+    /// Rank nominal (1 = mais externo); a profundidade real vem da árvore (D134).
     #[must_use]
-    pub const fn depth(self) -> u8 {
+    pub const fn rank(self) -> u8 {
         match self {
-            Self::Plan => 1,
-            Self::Epic => 2,
-            Self::Issue => 3,
-            Self::Task => 4,
-        }
-    }
-
-    /// Escopo pai na hierarquia, se houver.
-    #[must_use]
-    pub const fn parent(self) -> Option<Self> {
-        match self {
-            Self::Plan => None,
-            Self::Epic => Some(Self::Plan),
-            Self::Issue => Some(Self::Epic),
-            Self::Task => Some(Self::Issue),
+            Self::Epic => 1,
+            Self::Issue => 2,
+            Self::Task => 3,
         }
     }
 }

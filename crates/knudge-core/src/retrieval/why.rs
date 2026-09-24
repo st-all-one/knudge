@@ -14,7 +14,7 @@ pub enum Why {
     FileMatch,
     /// Âncora casou exatamente com um id (`anchor_match`).
     AnchorMatch,
-    /// A nota pertence ao container pedido (`tracker_match`).
+    /// A nota pertence ao escopo pedido (`tracker_match`).
     TrackerMatch,
     /// Há confirmação registrada em `outcomes` (`stars`).
     Stars,

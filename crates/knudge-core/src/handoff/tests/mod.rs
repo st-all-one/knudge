@@ -53,10 +53,10 @@ pub(super) fn confirmed(statement: &str) -> Result<Note> {
     Ok(note)
 }
 
-/// Container `plan`.
+/// Container `epic`.
 pub(super) fn container(statement: &str) -> Result<Note> {
-    let mut draft = Draft::new(NoteType::Container, statement);
-    draft.scope = Some(Scope::Plan);
+    let mut draft = Draft::new(NoteType::Epic, statement);
+    draft.scope = Some(Scope::Epic);
     draft.to_note(NOW)
 }
 

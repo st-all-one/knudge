@@ -1,7 +1,7 @@
 //! Filtros determinísticos aplicados **antes** da estatística (D41/D53).
 //!
 //! Filtrar é O(1) por nota e reduz `N` antes do BM25: primeiro estrutura, depois similaridade.
-//! O `container` é resolvido no grafo (via `depends_on` transitivo) e não entra aqui.
+//! O `scope` é resolvido no grafo (via `depends_on` transitivo) e não entra aqui.
 
 use crate::Result;
 use crate::retrieval::anchor::glob_match;

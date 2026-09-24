@@ -40,7 +40,7 @@ pub const fn type_weight(note_type: NoteType) -> f64 {
         NoteType::Task | NoteType::Question => 1.00,
         NoteType::Snippet => 0.95,
         NoteType::Link | NoteType::Meta => 0.90,
-        NoteType::Container => 0.70,
+        NoteType::Epic => 0.70,
     }
 }
 

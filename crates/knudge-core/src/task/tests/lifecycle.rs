@@ -11,23 +11,20 @@ use super::MemFs;
 
 fn seeded(fs: &MemFs) -> Result<(WriteContext<'_>, String, String)> {
     let ctx = super::context(fs)?;
-    let plan = submit(&ctx, &TaskSpec::new(Scope::Plan, "plano"))?;
-    let mut epic_spec = TaskSpec::new(Scope::Epic, "épico");
-    epic_spec.parent = Some(plan.id.clone());
-    let epic = submit(&ctx, &epic_spec)?;
+    let epic = submit(&ctx, &TaskSpec::new(Scope::Epic, "épico"))?;
     let mut issue_spec = TaskSpec::new(Scope::Issue, "issue");
-    issue_spec.parent = Some(epic.id);
+    issue_spec.parent = Some(epic.id.clone());
     let issue = submit(&ctx, &issue_spec)?;
     let mut task_spec = TaskSpec::new(Scope::Task, "tarefa");
     task_spec.parent = Some(issue.id);
     let task = submit(&ctx, &task_spec)?;
-    Ok((ctx, plan.id, task.id))
+    Ok((ctx, epic.id, task.id))
 }
 
 #[test]
 fn adopt_release_review_cycle() -> Result<()> {
     let fs = MemFs::new();
-    let (ctx, _plan, task) = seeded(&fs)?;
+    let (ctx, _epic, task) = seeded(&fs)?;
 
     assert_eq!(apply(&ctx, &task, TaskAction::Adopt)?, 2);
     assert_eq!(
@@ -52,7 +49,7 @@ fn adopt_release_review_cycle() -> Result<()> {
 #[test]
 fn closed_task_cannot_reopen() -> Result<()> {
     let fs = MemFs::new();
-    let (ctx, _plan, task) = seeded(&fs)?;
+    let (ctx, _epic, task) = seeded(&fs)?;
     apply(&ctx, &task, TaskAction::Review)?;
     assert!(apply(&ctx, &task, TaskAction::Adopt).is_err());
     Ok(())
@@ -61,7 +58,7 @@ fn closed_task_cannot_reopen() -> Result<()> {
 #[test]
 fn outcome_is_appended() -> Result<()> {
     let fs = MemFs::new();
-    let (ctx, _plan, task) = seeded(&fs)?;
+    let (ctx, _epic, task) = seeded(&fs)?;
     assert_eq!(outcome(&ctx, &task, OutcomeStatus::Success, Some("ok"))?, 2);
     assert_eq!(outcome(&ctx, &task, OutcomeStatus::Partial, None)?, 3);
 
@@ -78,7 +75,7 @@ fn outcome_is_appended() -> Result<()> {
 #[test]
 fn reorder_rewrites_marker() -> Result<()> {
     let fs = MemFs::new();
-    let (ctx, _plan, task) = seeded(&fs)?;
+    let (ctx, _epic, task) = seeded(&fs)?;
     let before = ctx
         .store()
         .read(&task)?
@@ -98,8 +95,7 @@ fn reorder_rewrites_marker() -> Result<()> {
 fn non_task_cannot_use_lifecycle() -> Result<()> {
     let fs = MemFs::new();
     let ctx = super::context(&fs)?;
-    let mut fact = Draft::new(NoteType::Fact, "fato");
-    fact.confidence = 0.7;
+    let fact = Draft::new(NoteType::Fact, "fato");
     let note = fact.to_note(super::NOW)?;
     let id = note.id()?.to_string();
     commit(

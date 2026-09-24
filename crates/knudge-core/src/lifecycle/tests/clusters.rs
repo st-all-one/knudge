@@ -3,7 +3,7 @@
 use crate::Result;
 use crate::graph::Graph;
 use crate::lifecycle::Cluster;
-use crate::lifecycle::clusters::{ClusterAxis, container_of, structural_clusters};
+use crate::lifecycle::clusters::{ClusterAxis, scope_of, structural_clusters};
 use crate::ports::fakes::MemFs;
 use crate::retrieval::Index;
 use crate::schema::{Classification, EdgeKind, NoteType, Scope};
@@ -44,15 +44,9 @@ fn groups_by_type_and_classification() -> Result<()> {
 }
 
 #[test]
-fn container_of_finds_nearest_container() -> Result<()> {
-    let mut plan = Draft::new(NoteType::Container, "plano");
-    plan.scope = Some(Scope::Plan);
-    let plan_note = plan.to_note(NOW)?;
-    let plan_id = plan_note.id()?.to_string();
-
-    let mut epic = Draft::new(NoteType::Container, "épico");
+fn scope_of_finds_nearest_container() -> Result<()> {
+    let mut epic = Draft::new(NoteType::Epic, "épico");
     epic.scope = Some(Scope::Epic);
-    epic.edges = vec![(EdgeKind::DependsOn, plan_id)];
     let epic_note = epic.to_note(NOW)?;
     let epic_id = epic_note.id()?.to_string();
 
@@ -62,13 +56,13 @@ fn container_of_finds_nearest_container() -> Result<()> {
     let task_note = task.to_note(NOW)?;
     let task_id = task_note.id()?.to_string();
 
-    let graph = Graph::from_notes(vec![plan_note, epic_note, task_note])?;
-    assert_eq!(container_of(&graph, &task_id), Some(epic_id));
+    let graph = Graph::from_notes(vec![epic_note, task_note])?;
+    assert_eq!(scope_of(&graph, &task_id), Some(epic_id));
     Ok(())
 }
 
 #[test]
-fn container_of_uses_hierarchy_results_in() -> Result<()> {
+fn scope_of_uses_hierarchy_results_in() -> Result<()> {
     let fs = MemFs::new();
     let ctx = seeded(&fs, &[], NOW)?;
     let epic = submit(&ctx, &TaskSpec::new(Scope::Epic, "épico"))?.id;
@@ -80,14 +74,14 @@ fn container_of_uses_hierarchy_results_in() -> Result<()> {
     let task = submit(&ctx, &task)?.id;
 
     let graph = Graph::build(ctx.store())?;
-    assert_eq!(container_of(&graph, &task), Some(epic.clone()));
-    assert_eq!(container_of(&graph, &issue), Some(epic.clone()));
-    assert_eq!(container_of(&graph, &epic), None);
+    assert_eq!(scope_of(&graph, &task), Some(epic.clone()));
+    assert_eq!(scope_of(&graph, &issue), Some(epic.clone()));
+    assert_eq!(scope_of(&graph, &epic), None);
     Ok(())
 }
 
 #[test]
-fn structural_clusters_group_by_hierarchy_container() -> Result<()> {
+fn structural_clusters_group_by_hierarchy_scope() -> Result<()> {
     let fs = MemFs::new();
     let ctx = seeded(&fs, &[], NOW)?;
     let epic = submit(&ctx, &TaskSpec::new(Scope::Epic, "épico"))?.id;
@@ -101,7 +95,7 @@ fn structural_clusters_group_by_hierarchy_container() -> Result<()> {
     let index = Index::from_store(ctx.store())?;
     let graph = Graph::build(ctx.store())?;
     let clusters = structural_clusters(&index, &graph);
-    let members = members_of(&clusters, &ClusterAxis::Container(epic)).unwrap_or_default();
+    let members = members_of(&clusters, &ClusterAxis::Scope(epic)).unwrap_or_default();
     assert_eq!(members.len(), 2);
     assert!(members.contains(&issue));
     assert!(members.contains(&task));
@@ -119,9 +113,9 @@ fn axis_names_and_keys() {
     let anchor = ClusterAxis::Anchor("src/a.rs".to_string());
     assert_eq!(anchor.axis(), "anchor");
     assert_eq!(anchor.key(), "src/a.rs");
-    let container = ClusterAxis::Container("container_x".to_string());
-    assert_eq!(container.axis(), "container");
-    assert_eq!(container.key(), "container_x");
+    let scope = ClusterAxis::Scope("epic_x".to_string());
+    assert_eq!(scope.axis(), "scope");
+    assert_eq!(scope.key(), "epic_x");
 }
 
 #[test]

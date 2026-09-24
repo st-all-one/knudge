@@ -1,8 +1,7 @@
 # D142 (proposta) — poda de `kd write`
 
-> **Status:** decisão fechada (registrada em `plan/03_decisoes-fechadas.md`); **implementação
-> pendente**. Origem: revisão de `docs/04-write.md`. Revisa **D87**. `--outcome` mantido. Sem
-> execução.
+> **Status:** decisão fechada e **implementada** (v0.3.0). Origem: revisão de `docs/04-write.md`.
+> Revisa **D87**. `--outcome` mantido.
 
 ## 1. Decisões confirmadas
 

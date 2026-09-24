@@ -10,8 +10,8 @@ use crate::graph::Graph;
 use crate::retrieval::Index;
 use crate::schema::{Classification, EdgeKind, NoteType};
 
-/// Profundidade máxima da busca pelo container ancestral.
-pub const MAX_CONTAINER_DEPTH: u32 = 8;
+/// Profundidade máxima da busca pelo escopo ancestral.
+pub const MAX_SCOPE_DEPTH: u32 = 8;
 
 /// Eixo de agrupamento estrutural.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -22,19 +22,19 @@ pub enum ClusterAxis {
     NoteType(NoteType),
     /// Agrupado por classificação de maturidade.
     Classification(Classification),
-    /// Agrupado por container ancestral.
-    Container(String),
+    /// Agrupado pelo **escopo ancestral** (épico) — D149.
+    Scope(String),
 }
 
 impl ClusterAxis {
-    /// Nome canônico do eixo (`anchor`/`type`/`classification`/`container`).
+    /// Nome canônico do eixo (`anchor`/`type`/`classification`/`scope`).
     #[must_use]
     pub const fn axis(&self) -> &'static str {
         match self {
             Self::Anchor(_) => "anchor",
             Self::NoteType(_) => "type",
             Self::Classification(_) => "classification",
-            Self::Container(_) => "container",
+            Self::Scope(_) => "scope",
         }
     }
 
@@ -42,7 +42,7 @@ impl ClusterAxis {
     #[must_use]
     pub fn key(&self) -> &str {
         match self {
-            Self::Anchor(value) | Self::Container(value) => value.as_str(),
+            Self::Anchor(value) | Self::Scope(value) => value.as_str(),
             Self::NoteType(value) => value.as_str(),
             Self::Classification(value) => value.as_str(),
         }
@@ -78,9 +78,9 @@ pub fn structural_clusters(index: &Index, graph: &Graph) -> Vec<Cluster> {
             .entry(ClusterAxis::Classification(doc.meta.classification))
             .or_default()
             .insert(id.clone());
-        if let Some(container) = container_of(graph, id) {
+        if let Some(container) = scope_of(graph, id) {
             by_axis
-                .entry(ClusterAxis::Container(container))
+                .entry(ClusterAxis::Scope(container))
                 .or_default()
                 .insert(id.clone());
         }
@@ -94,22 +94,22 @@ pub fn structural_clusters(index: &Index, graph: &Graph) -> Vec<Cluster> {
         .collect()
 }
 
-/// Container ancestral mais próximo de `id`.
+/// Escopo ancestral mais próximo de `id` (o épico).
 ///
 /// Prioriza a **hierarquia** (pai via `results_in`, D52/D93) — a mesma relação de
 /// `Graph::parent`/`belongs_to` — e, se não houver, cai para o `depends_on` transitivo
-/// (container declarado explicitamente). Determinístico.
+/// (épico declarado explicitamente). Determinístico.
 #[must_use]
-pub fn container_of(graph: &Graph, id: &str) -> Option<String> {
-    hierarchy_container(graph, id).or_else(|| depends_container(graph, id))
+pub fn scope_of(graph: &Graph, id: &str) -> Option<String> {
+    hierarchy_scope(graph, id).or_else(|| depends_scope(graph, id))
 }
 
-/// Sobe pelos pais (`results_in`) até o primeiro container.
-fn hierarchy_container(graph: &Graph, id: &str) -> Option<String> {
+/// Sobe pelos pais (`results_in`) até o primeiro escopo (épico).
+fn hierarchy_scope(graph: &Graph, id: &str) -> Option<String> {
     let mut current = id;
-    for _ in 0..MAX_CONTAINER_DEPTH {
+    for _ in 0..MAX_SCOPE_DEPTH {
         let parent = graph.parent(current)?;
-        if graph.note_type(parent) == Some(NoteType::Container) {
+        if graph.note_type(parent) == Some(NoteType::Epic) {
             return Some(parent.to_string());
         }
         current = parent;
@@ -117,13 +117,13 @@ fn hierarchy_container(graph: &Graph, id: &str) -> Option<String> {
     None
 }
 
-/// Container mais próximo por `depends_on` transitivo (fallback).
-fn depends_container(graph: &Graph, id: &str) -> Option<String> {
+/// Escopo mais próximo por `depends_on` transitivo (fallback).
+fn depends_scope(graph: &Graph, id: &str) -> Option<String> {
     let mut visited: BTreeSet<String> = BTreeSet::new();
     let mut best: Option<(u32, String)> = None;
     let mut stack: Vec<(String, u32)> = vec![(id.to_string(), 0)];
     while let Some((current, depth)) = stack.pop() {
-        if depth >= MAX_CONTAINER_DEPTH {
+        if depth >= MAX_SCOPE_DEPTH {
             continue;
         }
         let mut deps: Vec<String> = graph.targets(&current, EdgeKind::DependsOn).to_vec();
@@ -133,7 +133,7 @@ fn depends_container(graph: &Graph, id: &str) -> Option<String> {
                 continue;
             }
             let next_depth = depth.saturating_add(1);
-            if graph.note_type(&dep) == Some(NoteType::Container) {
+            if graph.note_type(&dep) == Some(NoteType::Epic) {
                 let candidate = (next_depth, dep.clone());
                 let replace = match &best {
                     None => true,

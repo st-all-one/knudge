@@ -20,7 +20,6 @@ fn sample_note(statement: &str) -> Result<Note> {
     frontmatter.set("type", Value::Str(note_type.as_str().to_string()))?;
     frontmatter.set("statement", Value::Str(statement.to_string()))?;
     frontmatter.set("created_at", Value::Int(1_700_000_000_000))?;
-    frontmatter.set("confidence", Value::Float(0.9))?;
     frontmatter.set("schema_version", Value::Int(1))?;
     let mut note = Note::new(frontmatter, "corpo");
     note.refresh_body_hash()?;

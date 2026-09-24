@@ -151,7 +151,7 @@ pub fn manifest_text(index: &Index, graph: &Graph, changed_paths: &[String]) -> 
     let containers = graph
         .ids()
         .iter()
-        .filter(|id| graph.note_type(id) == Some(NoteType::Container))
+        .filter(|id| graph.note_type(id) == Some(NoteType::Epic))
         .count();
     let mut recent: Vec<&Meta> = index.docs.iter().map(|doc| &doc.meta).collect();
     recent.sort_by(|a, b| {
@@ -219,7 +219,7 @@ fn program_roots(index: &Index, graph: &Graph, paths: &[String]) -> Vec<String> 
     let mut roots: Vec<String> = index
         .docs
         .iter()
-        .filter(|doc| doc.meta.note_type == NoteType::Container && !graph.has_parent(&doc.meta.id))
+        .filter(|doc| doc.meta.note_type == NoteType::Epic && !graph.has_parent(&doc.meta.id))
         .filter(|doc| {
             doc.meta.anchors.iter().any(|anchor| {
                 paths

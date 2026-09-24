@@ -1,7 +1,7 @@
-//! Hierarquia fechada `plan ⊃ epic ⊃ issue ⊃ task` (D53/D93).
+//! Hierarquia `epic ⊃ { issue ⊃ task | task }` (D53/D93/D134).
 //!
-//! A profundidade é **intrínseca ao `scope`** (1 a 4); o pai tem sempre o escopo imediatamente
-//! externo. `blocks` é 1-based e exige pai. `plan` é a raiz e não tem pai.
+//! O `epic` é a **raiz**; o `issue` é **opcional**. A validação exige que o pai tenha `rank`
+//! estritamente menor que o filho; `blocks` é 1-based e exige pai.
 
 use crate::graph::Graph;
 use crate::schema::{EdgeKind, Scope};
@@ -18,34 +18,31 @@ pub fn validate_blocks(blocks: Option<u32>) -> Result<()> {
     Ok(())
 }
 
-/// Escopo imediatamente externo esperado para um filho de `scope`.
-#[must_use]
-pub const fn expected_parent(scope: Scope) -> Option<Scope> {
-    scope.parent()
-}
-
-/// Escopo imediatamente interno (o filho esperado).
+/// Escopo imediatamente interno (o filho padrão): sempre a folha `task` (D134).
 #[must_use]
 pub const fn child(scope: Scope) -> Option<Scope> {
     match scope {
-        Scope::Plan => Some(Scope::Epic),
-        Scope::Epic => Some(Scope::Issue),
-        Scope::Issue => Some(Scope::Task),
+        Scope::Epic | Scope::Issue => Some(Scope::Task),
         Scope::Task => None,
     }
 }
 
-/// Valida que `parent_scope` é o pai imediato de `child_scope`.
+/// Valida que `parent_scope` pode ser pai de `child_scope` (D134).
+///
+/// O pai precisa ter `rank` **estritamente menor**; `epic` é a raiz e não tem pai.
 ///
 /// # Errors
-/// Retorna `ErrorKind::Schema` se a hierarquia for inválida ou o filho for `plan`.
+/// Retorna `ErrorKind::Schema` se a hierarquia for inválida ou o filho for `epic`.
 pub fn validate_parent(parent_scope: Scope, child_scope: Scope) -> Result<()> {
-    match expected_parent(child_scope) {
-        Some(expected) if expected == parent_scope => Ok(()),
-        Some(expected) => Err(Error::schema(format!(
-            "hierarquia inválida: `{child_scope}` não pode ser filho de `{parent_scope}` (esperado `{expected}`)"
-        ))),
-        None => Err(Error::schema("`plan` é a raiz e não tem pai (D53)")),
+    if child_scope == Scope::Epic {
+        return Err(Error::schema("`epic` é a raiz e não tem pai (D134)"));
+    }
+    if parent_scope.rank() < child_scope.rank() {
+        Ok(())
+    } else {
+        Err(Error::schema(format!(
+            "hierarquia inválida: `{child_scope}` não pode ser filho de `{parent_scope}` (D134)"
+        )))
     }
 }
 

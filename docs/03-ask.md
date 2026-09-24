@@ -30,7 +30,7 @@ A saída é `id|statement|score|why`, um hit por linha:
 kd ask "cache" --type decision --status active
 kd ask "gateway" --tag retry --class tactical
 kd ask "timeout" --since 2026-01-01 --until 2026-06-01
-kd ask "parser" --container plan_01abc
+kd ask "parser" --scope epic_01abc
 ```
 
 | Flag | Filtra por |
@@ -39,7 +39,7 @@ kd ask "parser" --container plan_01abc
 | `--class C...` | Classificação (`foundational`, `tactical`, `observational`) |
 | `--tag T...` | Tag (repetível) |
 | `--status S` | Status (`active`, `in_progress`, `blocked`, `closed`, `superseded`, `forgotten`) |
-| `--container ID` | Nota sob um container |
+| `--scope ID` | Nota sob um escopo (épico) |
 | `--anchor PATH...` | Arquivo/glob ancorado (repetível; aceita vírgula) |
 | `--since TS` / `--until TS` | Janela de criação (RFC3339/epoch) |
 

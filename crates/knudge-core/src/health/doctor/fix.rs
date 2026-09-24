@@ -20,7 +20,9 @@ use super::{DoctorInput, DoctorReport, body_hash_mismatch, derived_diverges, doc
 /// Propaga erros de I/O; o relatório final reflete o estado após os reparos.
 pub fn doctor_fix(input: &DoctorInput<'_>) -> Result<DoctorReport> {
     let mut fixed = Vec::new();
+    fix_legacy_group(input, &mut fixed)?;
     fix_body_hashes(input, &mut fixed)?;
+    fix_removed_keys(input, &mut fixed)?;
     fix_broken_anchors(input, &mut fixed)?;
     let anchor_store = AnchorStore::new(input.fs, input.root);
     let changed = refresh(input.fs, input.project_root, input.store, &anchor_store)?;
@@ -59,6 +61,81 @@ fn fix_body_hashes(input: &DoctorInput<'_>, fixed: &mut Vec<String>) -> Result<(
                 .with_data("fix", Value::Str("body_hash".to_string())),
         )?;
         fixed.push(format!("body_hash recalculado: {id}"));
+    }
+    Ok(())
+}
+
+/// Migra notas legadas de grupo (D134/D149): `scope: plan` → `scope: epic` e remove
+/// `type: container` (o grupo passa a ser `scope=epic` com `type` omitido). Lossless (mesmo id).
+fn fix_legacy_group(input: &DoctorInput<'_>, fixed: &mut Vec<String>) -> Result<()> {
+    for id in input.store.list_ids()? {
+        let path = input.store.note_path(&id);
+        let bytes = input.fs.read(&path)?;
+        let raw = String::from_utf8_lossy(&bytes);
+        let has_plan = raw.lines().any(|line| line.trim_end() == "scope: plan");
+        let has_container = raw.lines().any(|line| line.trim_end() == "type: container");
+        if !has_plan && !has_container {
+            continue;
+        }
+        let migrated: String = raw
+            .lines()
+            .filter_map(|line| {
+                let trimmed = line.trim_end();
+                if trimmed == "type: container" {
+                    return None;
+                }
+                if trimmed == "scope: plan" {
+                    return Some(line.replace("scope: plan", "scope: epic"));
+                }
+                Some(line.to_string())
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        input
+            .fs
+            .write_atomic(&path, format!("{migrated}\n").as_bytes())?;
+        input.events.append(
+            &Event::new("doctor", input.now_ms)
+                .with_note_id(&id)
+                .with_data("fix", Value::Str("legacy_group".to_string())),
+        )?;
+        fixed.push(format!("grupo legado normalizado: {id}"));
+    }
+    Ok(())
+}
+
+/// Chaves que saíram do schema e o `--fix` retira de notas antigas (D135/D142).
+const REMOVED_KEYS: [&str; 3] = ["confidence", "expires_at", "not_before"];
+
+/// Remove de notas antigas as chaves que saíram do schema, reescrevendo a nota limpa.
+fn fix_removed_keys(input: &DoctorInput<'_>, fixed: &mut Vec<String>) -> Result<()> {
+    let read = read_tolerant(input.store)?;
+    for note in &read.notes {
+        let id = note.id()?;
+        let path = input.store.note_path(id);
+        let bytes = input.fs.read(&path)?;
+        let raw = String::from_utf8_lossy(&bytes);
+        let has_removed = REMOVED_KEYS.iter().any(|key| {
+            raw.lines().any(|line| {
+                line.strip_prefix(key)
+                    .is_some_and(|rest| rest.starts_with(':'))
+            })
+        });
+        if !has_removed {
+            continue;
+        }
+        let mut repaired = note.clone();
+        let revision = repaired.revision().saturating_add(1);
+        repaired.set_revision(revision)?;
+        repaired.refresh_body_hash()?;
+        repaired.frontmatter.validate()?;
+        input.store.write(&repaired)?;
+        input.events.append(
+            &Event::new("doctor", input.now_ms)
+                .with_note_id(id)
+                .with_data("fix", Value::Str("removed_keys".to_string())),
+        )?;
+        fixed.push(format!("chaves removidas do schema: {id}"));
     }
     Ok(())
 }

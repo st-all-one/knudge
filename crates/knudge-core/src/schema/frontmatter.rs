@@ -106,12 +106,6 @@ impl Frontmatter {
             }
         }
         self.note_type()?;
-        let confidence = self.confidence()?;
-        if !(0.0..=1.0).contains(&confidence) {
-            return Err(Error::schema(format!(
-                "confidence fora de 0..=1: {confidence}"
-            )));
-        }
         text::validate_statement(self.statement()?)?;
         self.schema_version()?;
         if !id::is_valid_note_id(self.id()?) {
@@ -143,22 +137,20 @@ impl Frontmatter {
         self.required_str("id")
     }
 
-    /// Campo `type`.
+    /// Campo `type` — obrigatório para espécies; **derivado** como `epic` quando `scope=epic`
+    /// e `type` ausente (D149).
     pub fn note_type(&self) -> Result<NoteType> {
-        NoteType::from_str(self.required_str("type")?)
+        match self.fields.get("type") {
+            Some(Value::Str(text)) => NoteType::from_str(text),
+            Some(_) => Err(Error::schema("type deve ser string")),
+            None if self.scope()? == Some(Scope::Epic) => Ok(NoteType::Epic),
+            None => Err(Error::schema("campo obrigatório ausente: type")),
+        }
     }
 
     /// Campo `statement`.
     pub fn statement(&self) -> Result<&str> {
         self.required_str("statement")
-    }
-
-    /// Campo `confidence`.
-    pub fn confidence(&self) -> Result<f64> {
-        self.fields
-            .get("confidence")
-            .and_then(Value::as_f64)
-            .ok_or_else(|| Error::schema("confidence ausente ou inválido"))
     }
 
     /// Campo `schema_version`.
@@ -188,16 +180,6 @@ impl Frontmatter {
             Some(Value::Str(text)) => Ok(Some(Scope::from_str(text)?)),
             Some(_) => Err(Error::schema("scope deve ser string")),
         }
-    }
-
-    /// Campo opcional `expires_at` (RFC3339 → ms).
-    pub fn expires_at(&self) -> Result<Option<i64>> {
-        self.optional_timestamp("expires_at")
-    }
-
-    /// Campo opcional `not_before` (RFC3339 → ms) — agendamento, separado da expiração (D56).
-    pub fn not_before(&self) -> Result<Option<i64>> {
-        self.optional_timestamp("not_before")
     }
 
     /// Campo `created_at` (RFC3339 → ms); `0` se ausente.

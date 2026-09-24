@@ -70,7 +70,7 @@ fn confirmation_boost_changes_order() -> Result<()> {
 
 #[test]
 fn type_weight_orders_decision_above_container() {
-    assert!(type_weight(NoteType::Decision) > type_weight(NoteType::Container));
+    assert!(type_weight(NoteType::Decision) > type_weight(NoteType::Epic));
     assert!(type_weight(NoteType::Fact) > type_weight(NoteType::Link));
 }
 

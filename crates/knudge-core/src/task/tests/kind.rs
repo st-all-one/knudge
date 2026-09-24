@@ -22,11 +22,10 @@ fn work_kinds_match_is_work_kind() {
 }
 
 #[test]
-fn containers_only_accept_container_kind() -> Result<()> {
-    validate_kind(Scope::Epic, Some(NoteType::Container))?;
+fn epics_do_not_accept_a_kind() {
+    assert!(validate_kind(Scope::Epic, Some(NoteType::Epic)).is_err());
     assert!(validate_kind(Scope::Epic, Some(NoteType::Error)).is_err());
-    assert!(validate_kind(Scope::Issue, Some(NoteType::Container)).is_err());
-    Ok(())
+    assert!(validate_kind(Scope::Issue, Some(NoteType::Epic)).is_err());
 }
 
 #[test]

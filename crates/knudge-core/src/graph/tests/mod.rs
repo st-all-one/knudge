@@ -21,7 +21,6 @@ pub(super) fn frontmatter(note_type: NoteType, statement: &str) -> Result<Frontm
         "created_at",
         Value::Str("2026-01-02T03:04:05.678Z".to_string()),
     )?;
-    fm.set("confidence", Value::Float(0.7))?;
     fm.set("body_hash", Value::Str(body::body_hash(statement, "")))?;
     fm.set("schema_version", Value::Int(1))?;
     Ok(fm)

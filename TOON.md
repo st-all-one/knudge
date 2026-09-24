@@ -79,16 +79,16 @@ Formato do arquivo de nota:
 ## 5. Ordem canônica (D04/D13)
 
 ```
-id, type, statement, created_at, confidence, body_hash, schema_version,
-tags, source, expires_at, not_before, superseded_by,
+id, type, statement, created_at, body_hash, schema_version,
+tags, source, superseded_by,
 references, depends_on, contradicts, supports, extends, replaces, rejects, results_in,
 revision, outcomes, classification, anchors, status, scope, checks, evidence
 ```
 
-`not_before` (agendamento — D56/D100) fica logo após `expires_at`; as 8 chaves de aresta
-ficam entre `superseded_by` e `revision` (D98) — **28 chaves** ao todo.
+As 8 chaves de aresta ficam entre `superseded_by` e `revision` (D98) — **25 chaves** ao todo
+(D135 removeu `expires_at`/`not_before`; D142 removeu `confidence`).
 
-`type` é enum fechado de 11 valores (ver `00_panorama.md` §4); `scope`, `classification` e
+`type` é enum fechado de 10 espécies (o `epic` é derivado de `scope=epic` — D149) (ver `00_panorama.md` §4); `scope`, `classification` e
 `status` também são fechados. Chave fora dessa lista é **rejeitada no write** e **ignorada com
 warning no read** (D16).
 

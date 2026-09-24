@@ -43,6 +43,7 @@
 | D150 | mapa material versionado (`notas/<tipo>/` + `MAP.md` + hubs) | `d150_mapa_material.md` |
 | D151 | `ask` expõe canais no `--json`; recalibração offline | `d151_ask_channels.md` |
 | D152 | busca vazia → `[no_results]`; observabilidade removida | `d152_no_results.md` |
+| D153 | sincronização multi-dev (notas = verdade; cache/eventos union+dedup) | `d153_sync_multi_dev.md` |
 
 ## 3. Abertos e tarefas confirmadas
 
@@ -85,14 +86,20 @@ Script leve opcional (`scripts/check_docs.sh`).
 
 ## 6. Ordem de execução sugerida (quando houver código)
 
-1. **D135** — contrato de bytes (chaves, `TOON.md`, goldens, views).
-2. **D149** — tipos (remove `container`, grupo derivado).
-3. **D134** — hierarquia (`scope` 4→3, adjacência relaxada).
-4. **D150** — layout (`notas/<tipo>/`) + mapa material.
-5. **D136/D139/D138/D141** — superfície de tarefa.
-6. **D140/D147** — posicional/conteúdo + `--params`.
-7. **D143/D144/D146/D151/D152** — escopo, `ask` e saída.
-8. **D142/D145/D148** — poda de `write`, `digest`, cache versionado.
-9. **D137** — `show`/`list --full-content` (consome os campos reorganizados).
+**Princípio:** contrato/schema → layout → convenção de entrada → superfície → escopo/ask →
+write/digest/cache. Cada etapa fecha com `make check` verde.
 
-Cada etapa fecha com `make check` verde.
+| Fase | Dxx (ordem) | Depende de |
+|---|---|---|
+| **1 — Contrato de bytes** | **D135** (chaves 28→26) → **D142** (`confidence`, 26→25) | — |
+| **2 — Modelo** | **D134** (`scope` 4→3) → **D149** (`type` 11→10, grupo=epic) | D134 → D149 |
+| **3 — Layout material** | **D150** (`notas/<tipo>/` + `MAP.md` + hubs) | D149 |
+| **4 — Entrada universal** | **D140** (posicional = conteúdo) → **D141** (batch/params) → **D147** (`--params` universal) | D141 → D147 |
+| **5 — Superfície de tarefa** | **D136** → **D139** → **D138** → **D137** | campos de D134–D142 |
+| **6 — Escopo e `ask`** | **D143** → **D144** → **D146** → **D151** → **D152** | D137/D140 → D146 |
+| **7 — Write/digest/cache** | **D145** (digest) → **D148** (cache versionado) → **D153** (merge multi-dev) | D150 → D148 → D153 |
+
+**Paralelizável:** D135+D142 × D134+D149 (arquivos distintos); D145 × fases 4–6.
+**Transversais** (entram em qualquer fase): `learn` filtro de path, preflight de embeddings,
+higiene de docs (junto de cada Dxx), stress 10k.
+**Acoplamentos a respeitar:** D134→D149→D150; D141→D147; D137→D146; D150→D148; D148→D153.

@@ -65,7 +65,7 @@ conveniência, mas só `cli`/`mcp` o importam.
 | `write` | protocolo de escrita, dedup, update/supersede, ciclo de vida | E07 |
 | `handoff` | `rewind` (manifest/escopo/working set), orçamento e `context_id` | E08 |
 | `maintenance` | `diff`, `learn` e `compact` (propostas) | E08 |
-| `task` | hierarquia `plan ⊃ epic ⊃ issue ⊃ task` como view derivada | E08 |
+| `task` | hierarquia `epic ⊃ { issue ⊃ task | task }` como view derivada | E08 |
 | `health` | validators, evidência, `audit`, `doctor`, leitura tolerante e âncoras por hash | E09 |
 | `lifecycle` | shelf-life, decay de âncoras, purga com retenção, confiança derivada e clusters | E09/E10 |
 | `embeddings` | provedor HTTP plugável, cache por `body_hash`, fila lazy e avaliação A/B | E11 |
@@ -116,7 +116,7 @@ volatilidade, não CAS (D48).
 |---|---|
 | Fonte | Arestas explícitas no **frontmatter** (chave = `EdgeKind`, valor = lista de ids); a nota é a verdade (D49/D98). |
 | Vocabulário | Fechado: `references, depends_on, contradicts, supports, extends, replaces, rejects, results_in` (D51). |
-| Ordem | `not_before` logo após `expires_at`; bloco de 8 arestas logo após `superseded_by`, antes de `revision` (**28 chaves** — D98/D100). |
+| Ordem | Bloco de 8 arestas logo após `superseded_by`, antes de `revision` (**25 chaves** — D98/D135/D142). |
 | `link()` | Adiciona sem duplicar; rejeita id inválido e auto-aresta. |
 | `expand` | BFS determinística só no **explícito**, com corte por `depth` e filtro por tipo. |
 | Supersessão | `replaces` (novo → antigo) e `superseded_by` (antigo → novo); bidirecionalidade cobrada pela integridade (D46). |
@@ -133,7 +133,7 @@ volatilidade, não CAS (D48).
 | Boost | `score * (1 + 0.1 * (success + partial*0.5))` a partir de `outcomes` (D38). |
 | Âncoras | Canal determinístico por `path`/`id` com globs `?`/`*`/`**` (D81/D86). |
 | RRF | `Σ peso_canal/(k+rank+1)`, `k=60`, `semantic_weight=30` (D81/D124); desempate `(score desc, id asc)`; canal ausente só não soma. |
-| Filtros | `type`/`classification`/`status`/`tags`/`anchors` antes do BM25; `container` via `depends_on` transitivo (D41). |
+| Filtros | `type`/`classification`/`status`/`tags`/`anchors` antes do BM25; `scope` via `depends_on` transitivo (D41/D149). |
 | Views | `ready`/`blocked` computadas do `depends_on` transitivo; ciclo de dependência = `blocked` (D53). |
 | Contrato | `recall` em pipe `id\|statement\|score\|why`; `why` fechado (`file_match|anchor_match|tracker_match|stars|recent|universal`); corpo só via `get` (D39). |
 | Degradação | Canal falho → resultado parcial + `warnings`; `strict` (D94) promove a erro; teto de índice avisa (E06-T07). |
@@ -150,7 +150,7 @@ volatilidade, não CAS (D48).
 | Ciclo de vida | `forget`/`restore` são soft (`status`), nunca apagam; transições protegidas (`superseded` só via supersede). |
 | Estrito | Chave/tipo desconhecidos rejeitados; opcionais vazios **omitidos** (D05/D16/D17). |
 | Reconciliação | `propose_merges` só **propõe** quase-duplicados; nada é fundido sem aprovação (D47/D80). |
-| Tarefas | `kd write` rejeita `task`/`container` (D93); `scope` só vale para eles. |
+| Tarefas | `kd write` rejeita `task`/`epic` (D93/D149); `scope` só vale para eles. |
 
 ## 10. Handoff, manutenção e tarefas (E08)
 
@@ -165,7 +165,7 @@ volatilidade, não CAS (D48).
 | `diff` | lê a auditoria de eventos por intervalo/escopo — nunca o git global (D33). |
 | `learn` | propõe `create_note`/`merge`/`supersede`/`link` de eventos + âncoras; nunca escreve (D33/D47). |
 | `compact` | propõe `concat`/`keep_latest`/`merge_outcomes`; só aplica sob aceite (D47). |
-| Tarefas | `plan`/`epic` = `container`, `issue`/`task` = `task`; pai por marcador no corpo + aresta `results_in`; `blocks` 1-based; profundidade máx. 4 (D52/D53/D93). |
+| Tarefas | `epic` = grupo (`scope=epic`, sem `type`), `issue`/`task` = `task`; pai por marcador no corpo + aresta `results_in`; `blocks` 1-based; `epic ⊃ {issue ⊃ task \| task}` (D52/D53/D93/D134/D149). |
 
 ## 11. Validação, saúde e leitura tolerante (E09)
 
@@ -185,12 +185,11 @@ volatilidade, não CAS (D48).
 
 | Conceito | Regra |
 |---|---|
-| Shelf-life | `foundational` nunca expira (`0` dias); `tactical` (365) e `observational` (30) com prazos por config (D44). `expires_at` explícito vence o prazo derivado. |
+| Shelf-life | `foundational` nunca expira (`0` dias); `tactical` (365) e `observational` (30) com prazos por config (D44). A expiração é **sempre derivada** de `created_at` + prazo (D135). |
 | Decay de âncoras | Valida literais (existe) e globs (casa); demove após grace se a fração válida < threshold (D43). Varredura do projeto limitada e off-path. |
 | Demolição | Sempre **soft** (`forget`); membros de ciclo de supersessão/dependência são **protegidos** (D45). |
 | Purga | `retired_at` derivado de eventos (`forget`/`supersede`); conteúdo só sai após a janela de retenção e a remoção purga o derivado (D48/D84). |
-| `not_before` | Agendamento ortogonal à expiração (D56/D100): retém a tarefa em `blocked` até o instante. A view estática ignora (prime byte-idêntico); a dinâmica considera. |
-| Clusters fase 1 | Agrupamento determinístico por `anchor`/`type`/`classification`/container — sem estatística nem embeddings (D47). |
+| Clusters fase 1 | Agrupamento determinístico por `anchor`/`type`/`classification`/scope — sem estatística nem embeddings (D47). |
 | Clusters fase 2 | Semântico **dentro** de um cluster estrutural, acima do volume mínimo e off-path; similaridade injetada (E11). |
 
 ## 13. Embeddings (E11)

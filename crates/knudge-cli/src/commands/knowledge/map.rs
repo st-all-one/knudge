@@ -80,12 +80,12 @@ pub fn run(
 
 /// Valida o nome do eixo.
 fn validate_axis(axis: &str) -> Result<()> {
-    const AXES: [&str; 4] = ["anchor", "type", "classification", "container"];
+    const AXES: [&str; 4] = ["anchor", "type", "classification", "scope"];
     if AXES.contains(&axis) {
         Ok(())
     } else {
         Err(Error::invalid_input(format!(
-            "eixo desconhecido: {axis:?} (use anchor|type|classification|container)"
+            "eixo desconhecido: {axis:?} (use anchor|type|classification|scope)"
         )))
     }
 }
@@ -119,7 +119,7 @@ fn render_cluster(
     members: bool,
 ) -> (String, serde_json::Value) {
     let statement = match &cluster.axis {
-        ClusterAxis::Container(id) => statement_of(store, id),
+        ClusterAxis::Scope(id) => statement_of(store, id),
         _ => String::new(),
     };
     let mut line = if statement.is_empty() {

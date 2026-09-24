@@ -176,18 +176,14 @@ fn draft_of(args: &WriteArgs) -> Result<Draft> {
     };
     let mut draft = Draft::new(note_type, args.statement.join(" "));
     draft.body = read_body(args.body.as_deref())?;
-    draft.confidence = args.confidence.unwrap_or(0.7);
     draft.tags.clone_from(&args.tags);
     draft.anchors.clone_from(&args.anchors);
-    draft.checks.clone_from(&args.checks);
-    draft.source.clone_from(&args.source);
     if let Some(class) = &args.class {
         draft.classification = Some(class.parse()?);
     }
     if let Some(status) = &args.status {
         draft.status = Some(status.parse()?);
     }
-    draft.expires_at = parse::timestamp_opt(args.expires_at.as_ref())?;
     draft.edges = args
         .edge
         .iter()
@@ -207,7 +203,6 @@ fn patch_of(args: &WriteArgs) -> Result<Patch> {
     if args.body.is_some() {
         patch.body = Some(read_body(args.body.as_deref())?);
     }
-    patch.confidence = args.confidence;
     if !args.tags.is_empty() {
         patch.tags = Some(args.tags.clone());
     }
@@ -220,8 +215,6 @@ fn patch_of(args: &WriteArgs) -> Result<Patch> {
     if let Some(status) = &args.status {
         patch.status = Some(status.parse()?);
     }
-    patch.source.clone_from(&args.source);
-    patch.expires_at = parse::timestamp_opt(args.expires_at.as_ref())?;
     Ok(patch)
 }
 

@@ -72,7 +72,7 @@ fn collect_rows(
         }
         let owner = owners.get(&id).and_then(Option::as_deref);
         let reason = if args.explain && args.blocked {
-            graph.and_then(|graph| block_reason(graph, &id, session.now_ms()))
+            graph.and_then(|graph| block_reason(graph, &id))
         } else {
             None
         };

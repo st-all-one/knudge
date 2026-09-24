@@ -2,10 +2,9 @@
 
 use crate::Result;
 use crate::graph::{Graph, link};
-use crate::retrieval::{BlockReason, block_reason, compute_views, compute_views_at};
-use crate::schema::{EdgeKind, NoteType, Scope, Status, Value, id};
+use crate::retrieval::{BlockReason, block_reason, compute_views};
+use crate::schema::{EdgeKind, NoteType, Scope, Status, id};
 use crate::store::Note;
-use crate::time::Timestamp;
 
 use super::{base, with_scope, with_status};
 
@@ -67,31 +66,6 @@ fn dependency_cycle_is_blocked() -> Result<()> {
 }
 
 #[test]
-fn not_before_blocks_until_due() -> Result<()> {
-    let scheduled_id = id::note_id(NoteType::Task, "agendada");
-    let mut frontmatter = base(NoteType::Task, "agendada")?;
-    frontmatter.set(
-        "not_before",
-        Value::Str(Timestamp::from_millis(2_000).to_rfc3339()),
-    )?;
-    let graph = Graph::from_notes(vec![Note::new(frontmatter, "")])?;
-
-    assert!(
-        compute_views_at(&graph, 1_000)
-            .blocked
-            .contains(&scheduled_id)
-    );
-    assert!(
-        compute_views_at(&graph, 3_000)
-            .ready
-            .contains(&scheduled_id)
-    );
-    // A view estática ignora o agendamento para preservar o `prime` byte-idêntico (D57).
-    assert!(compute_views(&graph).ready.contains(&scheduled_id));
-    Ok(())
-}
-
-#[test]
 fn block_reason_reports_smallest_pending_dependency() -> Result<()> {
     let dep_a = id::note_id(NoteType::Task, "dep a");
     let dep_b = id::note_id(NoteType::Task, "dep b");
@@ -106,26 +80,9 @@ fn block_reason_reports_smallest_pending_dependency() -> Result<()> {
     ])?;
     let expected = if dep_a < dep_b { dep_a } else { dep_b };
     assert_eq!(
-        block_reason(&graph, &target, 0),
+        block_reason(&graph, &target),
         Some(BlockReason::Dependency(expected))
     );
-    Ok(())
-}
-
-#[test]
-fn block_reason_reports_schedule_and_ready() -> Result<()> {
-    let scheduled_id = id::note_id(NoteType::Task, "agendada");
-    let mut frontmatter = base(NoteType::Task, "agendada")?;
-    frontmatter.set(
-        "not_before",
-        Value::Str(Timestamp::from_millis(2_000).to_rfc3339()),
-    )?;
-    let graph = Graph::from_notes(vec![Note::new(frontmatter, "")])?;
-    assert_eq!(
-        block_reason(&graph, &scheduled_id, 1_000),
-        Some(BlockReason::Scheduled(2_000))
-    );
-    assert_eq!(block_reason(&graph, &scheduled_id, 3_000), None);
     Ok(())
 }
 
@@ -157,13 +114,13 @@ fn block_reason_reports_cycle_and_ignores_containers() -> Result<()> {
     link(&mut a, EdgeKind::DependsOn, &b_id)?;
     let mut b = base(NoteType::Task, "b")?;
     link(&mut b, EdgeKind::DependsOn, &a_id)?;
-    let epic_id = id::note_id(NoteType::Container, "épico");
+    let epic_id = id::note_id(NoteType::Epic, "épico");
     let graph = Graph::from_notes(vec![
         Note::new(a, ""),
         Note::new(b, ""),
-        Note::new(base(NoteType::Container, "épico")?, ""),
+        Note::new(base(NoteType::Epic, "épico")?, ""),
     ])?;
-    assert_eq!(block_reason(&graph, &a_id, 0), Some(BlockReason::Cycle));
-    assert_eq!(block_reason(&graph, &epic_id, 0), None);
+    assert_eq!(block_reason(&graph, &a_id), Some(BlockReason::Cycle));
+    assert_eq!(block_reason(&graph, &epic_id), None);
     Ok(())
 }

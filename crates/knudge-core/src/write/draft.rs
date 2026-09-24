@@ -24,16 +24,10 @@ pub struct Draft {
     pub statement: String,
     /// Corpo (contexto).
     pub body: String,
-    /// Confiança `0..=1`.
-    pub confidence: f64,
     /// Tags declaradas.
     pub tags: Vec<String>,
     /// Proveniência.
     pub source: Option<String>,
-    /// Expiração (ms desde a época).
-    pub expires_at: Option<i64>,
-    /// Agendamento `not_before` (ms desde a época) — separado da expiração (D56).
-    pub not_before: Option<i64>,
     /// Arestas explícitas `(tipo, destino)`.
     pub edges: Vec<(EdgeKind, String)>,
     /// Âncoras (paths/globs).
@@ -56,11 +50,8 @@ impl Default for Draft {
             note_type: NoteType::Fact,
             statement: String::new(),
             body: String::new(),
-            confidence: 0.7,
             tags: Vec::new(),
             source: None,
-            expires_at: None,
-            not_before: None,
             edges: Vec::new(),
             anchors: Vec::new(),
             classification: None,
@@ -119,9 +110,6 @@ impl Draft {
         if let Some(body) = map.get("body").and_then(Value::as_str) {
             draft.body = body.to_string();
         }
-        if let Some(confidence) = map.get("confidence").and_then(Value::as_f64) {
-            draft.confidence = confidence;
-        }
         if let Some(source) = map.get("source").and_then(Value::as_str) {
             draft.source = Some(source.to_string());
         }
@@ -163,29 +151,18 @@ impl Draft {
             "id",
             Value::Str(id::note_id(self.note_type, &self.statement)),
         )?;
-        frontmatter.set("type", Value::Str(self.note_type.as_str().to_string()))?;
+        if !self.note_type.is_group() {
+            frontmatter.set("type", Value::Str(self.note_type.as_str().to_string()))?;
+        }
         frontmatter.set("statement", Value::Str(self.statement.clone()))?;
         frontmatter.set(
             "created_at",
             Value::Str(Timestamp::from_millis(now_ms).to_rfc3339()),
         )?;
-        frontmatter.set("confidence", Value::Float(self.confidence))?;
         frontmatter.set("schema_version", Value::Int(i64::from(SCHEMA_VERSION)))?;
         set_list(&mut frontmatter, "tags", &self.tags)?;
         if let Some(source) = &self.source {
             frontmatter.set("source", Value::Str(source.clone()))?;
-        }
-        if let Some(expires) = self.expires_at {
-            frontmatter.set(
-                "expires_at",
-                Value::Str(Timestamp::from_millis(expires).to_rfc3339()),
-            )?;
-        }
-        if let Some(not_before) = self.not_before {
-            frontmatter.set(
-                "not_before",
-                Value::Str(Timestamp::from_millis(not_before).to_rfc3339()),
-            )?;
         }
         for (kind, to) in &self.edges {
             graph::link(&mut frontmatter, *kind, to)?;
@@ -231,11 +208,10 @@ impl Draft {
 }
 
 /// Chaves aceitas num rascunho JSONL (K4/D110).
-const DRAFT_KEYS: [&str; 9] = [
+const DRAFT_KEYS: [&str; 8] = [
     "type",
     "statement",
     "body",
-    "confidence",
     "tags",
     "anchors",
     "source",

@@ -3,7 +3,7 @@
 O `kd task` planeja e executa trabalho numa **hierarquia fechada**:
 
 ```
-plan ⊃ epic ⊃ issue ⊃ task        (profundidade máxima 4)
+epic ⊃ { issue ⊃ task | task }   (epic é a raiz; issue opcional)
 ```
 
 Conhecimento (fatos/decisões) vai no [`kd write`](04-write.md); trabalho vai aqui.
@@ -27,14 +27,12 @@ kd task new "Endurecer o parser" --scope task \
 | `--checks NOME...` | Validators |
 | `--tag T...` | Tags |
 | `--anchor PATH...` | Âncora a arquivo/glob |
-| `--source F` | Proveniência (ex.: `plan/016.md`) |
-| `--not-before TS` / `--expires-at TS` | Agendamento / expiração |
 
 ## Listar
 
 ```bash
-kd task list --ready                 # dependências resolvidas e not_before vencido
-kd task list --blocked --explain     # + motivo (blocked_by=/not_before=/cycle)
+kd task list --ready                 # dependências resolvidas
+kd task list --blocked --explain     # + motivo (blocked_by=/cycle)
 kd task list --ready --sort impact   # ordena pelo que desbloqueia mais (+unblocks=N)
 kd task list --tag parser --anchor src/toon/parse.rs --since 2026-01-01
 kd task list --owner agente-a
@@ -68,7 +66,7 @@ declarada (D55).
 
 ```bash
 kd task graph --program plan/016_new_ui_v2.md    # renderiza o programa externo
-kd task graph --root plan_01abc                  # renderiza a árvore de um container
+kd task graph --root plan_01abc                  # renderiza a árvore de um escopo (épico)
 ```
 
 Saída por linha: `role|kind|status|owner|mode|progresso`.

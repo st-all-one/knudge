@@ -62,7 +62,7 @@ fn submit_plan_creates_children_with_kind() -> Result<()> {
     };
     let first = ctx.store().read(&first_id)?;
     assert_eq!(first.frontmatter.note_type()?, NoteType::Error);
-    assert_eq!(first.frontmatter.scope()?, Some(Scope::Issue));
+    assert_eq!(first.frontmatter.scope()?, Some(Scope::Task));
     Ok(())
 }
 

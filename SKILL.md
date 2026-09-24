@@ -40,7 +40,7 @@ estático (byte-idêntico): `kd` sem argumentos = `kd prime`.
   vetorial quando há índice), tudo num só envelope.
 - **Gravação idempotente** — create por conteúdo, merge em quase-duplicata, rejeição em
   duplicata exata; `--update` versiona; `--link` cria aresta.
-- **Tarefas com hierarquia fechada** — `plan ⊃ epic ⊃ issue ⊃ task` (máx. 4); rollup de
+- **Tarefas com hierarquia fechada** — `epic ⊃ { issue ⊃ task | task }` (épico é a raiz); rollup de
   progresso por épico; fechar exige evidência.
 - **Handoff ponto-no-tempo** — `kd rewind` monta o contexto dentro de um orçamento de tokens,
   com `next:`/`fresh:` e `--resume` 1:1.
@@ -164,7 +164,7 @@ kd rewind --resume <context_id>         # retoma 1:1
 ```bash
 kd maintenance doctor --audit           # integridade + arestas sugeridas
 kd maintenance learn                    # o que deveria virar nota?
-kd knowledge map --axis container --semantic
+kd knowledge map --axis scope --semantic
 kd maintenance prune                    # propõe forget por shelf-life
 kd maintenance index --status           # fila de embeddings (pending) por projeto
 kd maintenance watch-service --status   # saúde do worker de auto-drain (systemd/launchd)
@@ -201,7 +201,7 @@ embeddings são opcionais. `kd init` funda `.knudge/` e escreve o bloco no `AGEN
 
 - **Gravar sem buscar** → duplicata. Sempre `kd ask "<rascunho>"` antes.
 - **Inventar id** — ids são derivados; use o que o `write`/`ask` retorna.
-- **`kd write --type task|container`** — rejeitado; use `kd task`.
+- **`kd write --type task`** — rejeitado; use `kd task`.
 - **Criar aresta por flag de tarefa** — arestas têm via única: `kd write --link`.
 - **Esperar que `learn`/`compact`/`prune` mudem o corpus** — eles só propõem.
 - **Misturar log e dado** — nunca escreva log em stdout; em `--json`, stdout é só o envelope.
@@ -214,8 +214,8 @@ embeddings são opcionais. `kd init` funda `.knudge/` e escreve o bloco no `AGEN
 
 - Embeddings exigem um servidor local OpenAI-compatible; sem ele, `ask` degrada para BM25.
 - `forgotten`/`superseded` não aparecem no `ask` por padrão (`--status` inclui).
-- `kd write` rejeita `task`/`container` (D93).
-- Tarefas têm profundidade máxima 4 (`plan ⊃ epic ⊃ issue ⊃ task`).
+- `kd write` rejeita `task`/`epic` (D93/D149).
+- Tarefas têm o épico como raiz (`epic ⊃ { issue ⊃ task | task }`); o issue é opcional.
 - `learn`/`compact`/`prune` são read-only (propostas) — a aplicação é manual.
 - O índice é derivado e reconstruível; trocar o modelo de embedding invalida e re-embeda tudo.
 

@@ -89,7 +89,7 @@ fn files_mode_includes_program_subtree() -> Result<()> {
     child.scope = Some(Scope::Task);
     let child = child.to_note(NOW)?;
     let child_id = child.id()?.to_string();
-    let mut epic = Draft::new(NoteType::Container, "programa");
+    let mut epic = Draft::new(NoteType::Epic, "programa");
     epic.scope = Some(Scope::Epic);
     epic.anchors = vec!["plan/foo.md".to_string()];
     epic.edges = vec![(EdgeKind::ResultsIn, child_id.clone())];

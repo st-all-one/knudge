@@ -44,7 +44,7 @@ kd task new "Sync offline-first" --scope epic
 kd task new "Resolver conflito de merge" --scope task --parent <epic>
 kd task list --ready --sort impact
 
-kd knowledge map --axis container --semantic
+kd knowledge map --axis scope --semantic
 kd maintenance watch-service --status
 ```
 
@@ -57,7 +57,7 @@ kd maintenance watch-service --status
 |---|---|
 | **`kd maintenance watch-service`** | Sobe/checa o servidor de embeddings persistente e o worker de auto-drain (`--install`/`--status`/`--uninstall`). |
 | **`kd write`** | Grava conhecimento (fato/decisão/erro/risco): `--type`, `--tag`, `--anchor`, `--update`, `--link`, `--outcome`. |
-| **`kd task`** | Planeja/executa trabalho (`plan ⊃ epic ⊃ issue ⊃ task`): `new`/`list`/`show`/`close`/`claim`/`graph`. |
+| **`kd task`** | Planeja/executa trabalho (`epic ⊃ { issue ⊃ task | task }`): `new`/`list`/`show`/`close`/`claim`/`graph`. |
 | **`kd ask`** | Busca: filtros (`--type/--tag/--status/--anchor`), `--id`, `--around`, `--rank`, `--brief`. |
 | **`kd knowledge map`** | Mapa de clusters estrutural e `--semantic`. |
 | `kd rewind` | Handoff de contexto com orçamento de tokens. |

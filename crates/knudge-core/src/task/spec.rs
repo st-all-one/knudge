@@ -8,7 +8,7 @@ use crate::{Error, Result};
 use super::{hierarchy, membership};
 
 /// Especificação de uma tarefa ou container (`plan`/`epic`/`issue`/`task`).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TaskSpec {
     /// Escopo fechado (define a profundidade e o `type` default).
     pub scope: Scope,
@@ -26,20 +26,12 @@ pub struct TaskSpec {
     pub anchors: Vec<String>,
     /// Tags declaradas.
     pub tags: Vec<String>,
-    /// Proveniência (`source`).
-    pub source: Option<String>,
     /// Ordem 1-based dentro do pai.
     pub blocks: Option<u32>,
     /// Maturidade.
     pub classification: Option<Classification>,
     /// Estado inicial.
     pub status: Option<Status>,
-    /// Expiração (ms desde a época).
-    pub expires_at: Option<i64>,
-    /// Agendamento `not_before` (ms desde a época) — separado da expiração (D56).
-    pub not_before: Option<i64>,
-    /// Confiança `0..=1`.
-    pub confidence: f64,
 }
 
 impl TaskSpec {
@@ -55,26 +47,22 @@ impl TaskSpec {
             checks: Vec::new(),
             anchors: Vec::new(),
             tags: Vec::new(),
-            source: None,
             blocks: None,
             classification: None,
             status: None,
-            expires_at: None,
-            not_before: None,
-            confidence: 0.7,
         }
     }
 
     /// Tipo derivado: `kind` quando presente (D113); senão o default por escopo.
     ///
-    /// `plan`/`epic` são `container`; `issue`/`task` são `task`. Uma espécie de trabalho
+    /// `epic` é `container`; `issue`/`task` são `task`. Uma espécie de trabalho
     /// (`error`/`question`/`risk`/`decision`) é válida só para `issue`/`task`.
     #[must_use]
     pub const fn note_type(&self) -> NoteType {
         match self.kind {
             Some(kind) => kind,
             None => match self.scope {
-                Scope::Plan | Scope::Epic => NoteType::Container,
+                Scope::Epic => NoteType::Epic,
                 Scope::Issue | Scope::Task => NoteType::Task,
             },
         }
@@ -97,16 +85,12 @@ impl TaskSpec {
             Some(parent) => membership::set(&self.body, parent, self.blocks),
             None => membership::strip(&self.body),
         };
-        draft.confidence = self.confidence;
         draft.scope = Some(self.scope);
         draft.classification = self.classification;
         draft.status = self.status;
         draft.checks.clone_from(&self.checks);
         draft.anchors.clone_from(&self.anchors);
         draft.tags.clone_from(&self.tags);
-        draft.source.clone_from(&self.source);
-        draft.expires_at = self.expires_at;
-        draft.not_before = self.not_before;
         draft.to_note(now_ms)
     }
 }
@@ -131,7 +115,7 @@ pub fn validate_kind(scope: Scope, kind: Option<NoteType>) -> Result<()> {
         return Ok(());
     };
     let valid = match scope {
-        Scope::Plan | Scope::Epic => kind == NoteType::Container,
+        Scope::Epic => false,
         Scope::Issue | Scope::Task => kind.is_work_kind(),
     };
     if valid {

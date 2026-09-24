@@ -6,7 +6,6 @@ use crate::lifecycle::shelf_life::{
     DAY_MS, ShelfLife, age_days, expiry_for, freshness, is_expired,
 };
 use crate::schema::{Classification, NoteType};
-use crate::write::Draft;
 
 use super::{NOW, classified, note_created};
 
@@ -73,21 +72,6 @@ fn config_overrides_defaults() -> Result<()> {
     )?;
     assert!(is_expired(&note, NOW, &policy)?);
     assert_eq!(policy.ttl_days(Classification::Observational), Some(1));
-    Ok(())
-}
-
-#[test]
-fn explicit_expires_at_wins_over_classification() -> Result<()> {
-    let mut draft = Draft::new(NoteType::Fact, "explícita");
-    draft.classification = Some(Classification::Foundational);
-    draft.expires_at = Some(NOW.saturating_sub(DAY_MS));
-    let note = draft.to_note(NOW.saturating_sub(days(10)))?;
-    let policy = ShelfLife::default();
-    assert_eq!(
-        expiry_for(&note, &policy)?,
-        Some(NOW.saturating_sub(DAY_MS))
-    );
-    assert!(is_expired(&note, NOW, &policy)?);
     Ok(())
 }
 

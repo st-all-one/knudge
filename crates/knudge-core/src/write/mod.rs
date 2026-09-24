@@ -132,7 +132,7 @@ pub fn write(
     draft: &Draft,
     thresholds: &DedupThresholds,
 ) -> Result<WriteOutcome> {
-    if matches!(draft.note_type, NoteType::Task | NoteType::Container) {
+    if matches!(draft.note_type, NoteType::Task | NoteType::Epic) {
         return Err(Error::invalid_input(format!(
             "`kd write` não cria `{}`; use `kd task` (D93)",
             draft.note_type
@@ -236,12 +236,6 @@ pub(crate) fn merge_into(ctx: &WriteContext<'_>, target_id: &str, incoming: &Not
             target.body.push_str("\n\n");
         }
         target.body.push_str(&incoming.body);
-    }
-    let incoming_confidence = incoming.frontmatter.confidence()?;
-    if incoming_confidence > target.frontmatter.confidence()? {
-        target
-            .frontmatter
-            .set("confidence", Value::Float(incoming_confidence))?;
     }
     let revision = target.revision().saturating_add(1);
     target.set_revision(revision)?;

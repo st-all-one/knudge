@@ -30,10 +30,10 @@ fn unknown_type_is_rejected() {
 
 #[test]
 fn scope_hierarchy_is_closed() {
-    assert_eq!(Scope::Plan.depth(), 1);
-    assert_eq!(Scope::Task.depth(), 4);
-    assert_eq!(Scope::Task.parent(), Some(Scope::Issue));
-    assert_eq!(Scope::Plan.parent(), None);
+    assert_eq!(Scope::ALL.len(), 3);
+    assert_eq!(Scope::Epic.rank(), 1);
+    assert_eq!(Scope::Task.rank(), 3);
+    assert!(Scope::from_str("plan").is_err());
 }
 
 #[test]
@@ -139,7 +139,6 @@ fn valid_frontmatter() -> Result<Frontmatter> {
         "created_at",
         Value::Str("2026-01-02T03:04:05.678Z".to_string()),
     )?;
-    fm.set("confidence", Value::Float(0.7))?;
     fm.set("body_hash", Value::Str(body_hash("afirmação", "corpo")))?;
     fm.set("schema_version", Value::Int(1))?;
     Ok(fm)
@@ -196,26 +195,22 @@ fn created_at_reads_string_int_and_absent() -> Result<()> {
 }
 
 #[test]
-fn not_before_is_optional_and_round_trips() -> Result<()> {
-    let mut fm = valid_frontmatter()?;
-    assert_eq!(fm.not_before()?, None);
-    assert_eq!(fm.expires_at()?, None);
-    fm.set(
-        "expires_at",
+fn removed_schedule_keys_are_unknown_on_read() -> Result<()> {
+    // `expires_at`/`not_before` saíram do schema (D135): no read viram chave desconhecida.
+    let base = valid_frontmatter()?;
+    let mut map = base.to_value().as_map().cloned().unwrap_or_default();
+    map.insert(
+        "expires_at".to_string(),
         Value::Str("2026-03-04T05:06:07.000Z".to_string()),
-    )?;
-    fm.set(
-        "not_before",
+    );
+    map.insert(
+        "not_before".to_string(),
         Value::Str("2026-02-03T04:05:06.000Z".to_string()),
-    )?;
-    let millis = fm.not_before()?.unwrap_or_default();
-    let (back, warnings) = Frontmatter::parse(&fm.to_string())?;
-    assert!(warnings.is_empty(), "sem warnings: {warnings:?}");
-    assert_eq!(back.not_before()?, Some(millis));
-    let keys: Vec<&str> = back.keys();
-    let expires = keys.iter().position(|key| *key == "expires_at");
-    let not_before = keys.iter().position(|key| *key == "not_before");
-    assert!(matches!((expires, not_before), (Some(e), Some(n)) if e < n));
+    );
+    let (back, warnings) = Frontmatter::from_value(&Value::Map(map))?;
+    assert_eq!(warnings.len(), 2, "duas chaves desconhecidas: {warnings:?}");
+    assert!(back.get("expires_at").is_none());
+    assert!(back.get("not_before").is_none());
     Ok(())
 }
 
@@ -226,10 +221,6 @@ fn frontmatter_validate_checks_required_and_ranges() -> Result<()> {
     let mut missing = valid_frontmatter()?;
     missing.remove("type");
     assert!(missing.validate().is_err());
-
-    let mut bad_confidence = valid_frontmatter()?;
-    bad_confidence.set("confidence", Value::Float(1.5))?;
-    assert!(bad_confidence.validate().is_err());
 
     let mut long = valid_frontmatter()?;
     long.set("statement", Value::Str("x".repeat(121)))?;

@@ -51,11 +51,11 @@ impl Progress {
 
 /// Épico mais próximo de `id` subindo pelos pais — inclusive se `id` já for épico (D127).
 ///
-/// Limitado à profundidade máxima da hierarquia (`plan ⊃ epic ⊃ issue ⊃ task`).
+/// Limitado à profundidade máxima da hierarquia (`epic ⊃ issue ⊃ task`).
 #[must_use]
 pub fn epic_of(graph: &Graph, id: &str) -> Option<String> {
     let mut current = id;
-    for _ in 0..4 {
+    for _ in 0..3 {
         if graph.scope(current) == Some(Scope::Epic) {
             return Some(current.to_string());
         }

@@ -18,7 +18,7 @@ use query::{rank_mode, recall_query};
 /// Uso resumido quando nenhum modo de busca é selecionado (token-optimized).
 const ASK_USAGE: &str = "\
 nenhum modo de busca: informe uma QUERY ou um modo.
-  kd ask <QUERY> [--type T] [--class C] [--tag T] [--status S] [--container ID]
+  kd ask <QUERY> [--type T] [--class C] [--tag T] [--status S] [--scope ID]
                  [--anchor PATH] [--since TS] [--until TS] [--limit N] [--brief] [--with-body]
   kd ask --id <ID>...                              # corpos por id
   kd ask --around <ID> [--via ARESTA] [--depth N]  # expande o grafo

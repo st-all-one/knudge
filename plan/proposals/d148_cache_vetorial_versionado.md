@@ -2,7 +2,8 @@
 
 > **Status:** decisão fechada (registrada em `plan/03_decisoes-fechadas.md`); **implementação
 > pendente**. Origem: revisão de `.idx/`. Revê **D15/D34/D83** ("derivado ≠ barato de
-> reconstruir"). Caminho **B** e local **(ii)** confirmados. Sem execução.
+> reconstruir"). Caminho **B** e local **(ii)** confirmados. A regra de merge/dedup do cache é
+> detalhada em **D153**. Sem execução.
 
 ## 1. Decisão
 
@@ -14,6 +15,8 @@ vetor é **função pura de `(modelo, body_hash)`** — determinístico e seguro
 - **Config:** `embeddings.version_cache = true` (opt-in; default `false` mantém o comportamento
   atual).
 - **Merge:** `merge=union` + dedup (como os eventos, D31) — entradas são keyed por `body_hash`.
+  A **chave lógica é `(body_hash, model)`**; o loader dedupa, filtra pelo modelo ativo e desempata
+  de forma determinística (**D153**).
 - **Sem eviction quando versionado:** LRU/TTL apagariam conteúdo versionado → desligados (ou teto
   muito alto) sob `version_cache=true`.
 - **Validação:** o `model` por entrada já protege troca de modelo (o que não casa vira *miss*).

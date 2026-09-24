@@ -1,8 +1,8 @@
 //! Shelf-life por classificação (D44, E10-T01).
 //!
 //! `foundational` **nunca** expira; `tactical` e `observational` têm prazos configuráveis
-//! (defaults conservadores). O `expires_at` **explícito** da nota sempre vence o prazo derivado
-//! da classificação. A expiração é **derivada** (`created_at` + prazo), nunca gravada.
+//! (defaults conservadores). A expiração é **sempre derivada** (`created_at` + prazo da
+//! classificação), nunca gravada (D44/D135).
 
 use crate::Result;
 use crate::config::Config;
@@ -74,14 +74,11 @@ impl ShelfLife {
     }
 }
 
-/// Expiração efetiva de uma nota: `expires_at` explícito ou prazo derivado da classificação.
+/// Expiração derivada da nota: `created_at` + prazo da `classification` (D44/D135).
 ///
 /// # Errors
 /// Retorna `ErrorKind::Schema` se os campos tipados estiverem malformados.
 pub fn expiry_for(note: &Note, policy: &ShelfLife) -> Result<Option<i64>> {
-    if let Some(explicit) = note.frontmatter.expires_at()? {
-        return Ok(Some(explicit));
-    }
     let created_ms = created_ms(note);
     Ok(policy.derived_expiry(note.frontmatter.classification()?, created_ms))
 }

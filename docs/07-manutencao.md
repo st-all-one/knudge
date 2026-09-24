@@ -7,7 +7,7 @@ Reconstrói o contexto no início de uma sessão, dentro de um **orçamento de t
 ```bash
 kd rewind --budget 2000            # manifest + tarefas prontas (next:)
 kd rewind --files src/gateway.rs   # só o working set de arquivos
-kd rewind --scope plan_01abc       # limita a um container/domínio
+kd rewind --scope plan_01abc       # limita a um escopo/domínio
 kd rewind --since 2026-01-01 --until 2026-06-01
 kd rewind --resume <context_id>    # retoma um contexto 1:1
 ```
@@ -89,7 +89,7 @@ Commita `notas/` + `eventos/`. O derivado (`.idx/`, `cache/`, `contexts/`) fica 
 ```bash
 kd knowledge map --axis anchor            # agrupa por âncora (arquivo)
 kd knowledge map --axis type --members
-kd knowledge map --axis container --semantic
+kd knowledge map --axis scope --semantic
 ```
 
 Clusters estruturais (fase 1) e, com `--semantic`, semântico complete-link (fase 2).

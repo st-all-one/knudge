@@ -29,7 +29,7 @@ pub use index::{
 pub use rank::{RankQuery, Universe, rank};
 pub use rrf::{Channel, Fused, fuse};
 pub use tags::tag_counts;
-pub use views::{BlockReason, Views, block_reason, compute_views, compute_views_at};
+pub use views::{BlockReason, Views, block_reason, compute_views};
 pub use why::Why;
 
 use std::collections::BTreeSet;
@@ -103,8 +103,8 @@ pub struct RecallQuery {
     pub weights: FusionWeights,
     /// Filtros estruturais.
     pub filter: Filter,
-    /// Container pedido (pertencimento via `depends_on` transitivo).
-    pub container: Option<String>,
+    /// Escopo pedido (pertencimento via `depends_on` transitivo).
+    pub scope: Option<String>,
     /// Arquivos do working set (canal de âncoras).
     pub working_paths: Vec<String>,
     /// Ids do working set (canal de âncoras).

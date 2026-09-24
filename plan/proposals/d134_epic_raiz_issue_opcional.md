@@ -1,7 +1,6 @@
 # D134 (proposta) — `epic` é a raiz; `issue` é opcional; `scope=plan` sai
 
-> **Status:** **decisão fechada como D134** (registrada em `plan/03_decisoes-fechadas.md`);
-> M1–M4 confirmados. **Implementação pendente** — este documento é o plano de execução. Conclui a
+> **Status:** **decisão fechada como D134** e **implementada** (v0.3.0). Conclui a
 > depreciação de `scope=plan` já declarada em **D119** e relaxa a hierarquia de D93/D113. Revisa
 > D52/D93/D113/D115/D119/D127.
 

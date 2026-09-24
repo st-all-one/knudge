@@ -27,7 +27,7 @@ GUIA RÁPIDO (o que usar, quando e quando NÃO usar):
                      NÃO use para criar/editar (é read-only) nem como histórico (use rewind).
   kd write <...>     GRAVAR fato/decisão/erro/risco/pergunta. Antes, `kd ask \"<rascunho>\"`.
                      NÃO use para trabalho (`--type task` é rejeitado) — use kd task.
-  kd task new <...>  PLANEJAR/EXECUTAR trabalho (plan ⊃ epic ⊃ issue ⊃ task, máx. 4).
+  kd task new <...>  PLANEJAR/EXECUTAR trabalho (epic ⊃ {issue ⊃ task | task}).
                      NÃO use para conhecimento/observação — use kd write.
   kd rewind          RECONSTRUIR contexto no início de sessão (orçamento de tokens).
                      NÃO use como busca dirigida — use kd ask.
@@ -55,10 +55,10 @@ CONHECIMENTO (kd write — fatos, decisões, erros, riscos, perguntas):
   kd write --link <FROM:ARESTA:TO>        # aresta explícita (via única; inclui depends_on)
   kd write --outcome <success|partial|failure|abandoned> <ID> [--note TXT]   # evidência (D55)
   kd write --batch - [--dry-run]          # lote JSONL de rascunhos (D110)
-  --type task|container é rejeitado: use kd task.
+  --type task é rejeitado: use kd task.
 
 PESQUISA (kd ask — uma tool para tudo):
-  kd ask <QUERY> [--type T...] [--class C...] [--tag T...] [--status S...] [--container ID]
+  kd ask <QUERY> [--type T...] [--class C...] [--tag T...] [--status S...] [--scope ID]
         [--anchor PATH...] [--since TS] [--until TS] [--limit N] [--brief] [--with-body]
   kd ask --id <ID>...                     # corpos por id
   kd ask --around <ID> [--via ARESTA] [--depth N]   # expande o grafo
@@ -67,8 +67,8 @@ PESQUISA (kd ask — uma tool para tudo):
   Pipe (LLM): id|statement|score|why  (1 hit por linha). Corpo só com --id/--with-body.
   forgotten/superseded ficam fora do ask por padrão; use --status para incluí-los.
 
-TAREFAS (kd task — plan ⊃ epic ⊃ issue ⊃ task, máx. 4):
-  kd task new \"<...>\" --scope <plan|epic|issue|task> [--kind error|question|risk|decision]
+TAREFAS (kd task — epic ⊃ { issue ⊃ task | task }; epic é a raiz, ancore-o):
+  kd task new \"<...>\" --scope <epic|issue|task> [--kind error|question|risk|decision]
         [--parent ID] [--checks NOME] [--body TXT] [--tag T] [--anchor PATH]
   kd task list --ready|--blocked [--explain] [--sort impact] [--kind K] [--tag T] [--owner A|--mine]
   kd task show <ID> [<ID>...] [--history]   # + contexto (parent/blocked_by/children) e épico (D125/D127)
@@ -80,7 +80,7 @@ TAREFAS (kd task — plan ⊃ epic ⊃ issue ⊃ task, máx. 4):
 
 ESTADO / HANDOFF: kd rewind [--scope CONTAINER] [--files PATH...] [--budget N] [--resume ID]
   Orçamento ceil(len/4) tokens (default 4000); context_id retomável 1:1; next:/fresh: (D106).
-MAPA: kd knowledge map [--axis anchor|type|classification|container] [--scope C] [--semantic] [--members]
+MAPA: kd knowledge map [--axis anchor|type|classification|scope] [--scope C] [--semantic] [--members]
 MANUTENÇÃO: kd maintenance doctor [--audit]|compact|eval|index|learn|prune|watch-service  (learn/compact/prune só propõem)
 CICLO DE VIDA: kd forget <ID>  (soft; --restore; --purge após retenção)
 CONFIG: kd config get|set|unset|list [--global]  (strict é config, não flag)

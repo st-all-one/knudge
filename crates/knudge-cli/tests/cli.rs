@@ -194,11 +194,11 @@ fn write_anchored(
     Ok(id)
 }
 
-/// Cria uma nota com expiração explícita e devolve o id.
-fn write_expiring(
+/// Cria uma nota `observational` com `created_at` recuado para 2000 — assim o shelf-life
+/// **derivado** (D135) a considera vencida. Devolve o id.
+fn write_aged_observational(
     dir: &Path,
     statement: &str,
-    expires_at: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let out = run_in(
         dir,
@@ -208,8 +208,8 @@ fn write_expiring(
             statement,
             "--type",
             "fact",
-            "--expires-at",
-            expires_at,
+            "--class",
+            "observational",
         ],
     )?;
     assert!(out.status.success(), "write falhou: {:?}", out.stderr);
@@ -219,6 +219,20 @@ fn write_expiring(
         .and_then(|id| id.as_str())
         .ok_or("write sem id")?
         .to_string();
+    let path = dir.join(".knudge").join("notas").join(format!("{id}.md"));
+    let text = std::fs::read_to_string(&path)?;
+    let aged = text
+        .lines()
+        .map(|line| {
+            if line.starts_with("created_at:") {
+                "created_at: 2000-01-01T00:00:00.000Z".to_string()
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    std::fs::write(&path, format!("{aged}\n"))?;
     Ok(id)
 }
 
@@ -407,7 +421,7 @@ fn maintenance_prune_proposes_forget_for_expired() -> TestResult {
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
 
-    let expired = write_expiring(&dir, "nota vencida", "2000-01-01T00:00:00Z")?;
+    let expired = write_aged_observational(&dir, "nota vencida")?;
     let fresh = write_anchored(&dir, "nota viva", "src/x.rs")?;
 
     let out = run_in(&dir, &["--json", "maintenance", "prune"])?;
@@ -860,24 +874,18 @@ fn knowledge_map_reports_container_axis() -> TestResult {
         &["task", "new", "A", "--scope", "task", "--parent", &issue],
     )?;
 
-    let out = run_in(
-        &dir,
-        &["knowledge", "map", "--axis", "container", "--members"],
-    )?;
+    let out = run_in(&dir, &["knowledge", "map", "--axis", "scope", "--members"])?;
     assert!(out.status.success(), "map falhou: {:?}", out.stderr);
     let text = String::from_utf8(out.stdout)?;
     assert!(
-        text.contains(&format!("container|{epic}|Épico|2")),
+        text.contains(&format!("scope|{epic}|Épico|2")),
         "cluster do épico ausente: {text}"
     );
     assert!(text.contains(&format!("{a}|A")), "membro A ausente: {text}");
 
-    let out = run_in(&dir, &["--json", "knowledge", "map", "--axis", "container"])?;
+    let out = run_in(&dir, &["--json", "knowledge", "map", "--axis", "scope"])?;
     let json = String::from_utf8(out.stdout)?;
-    assert!(
-        json.contains("\"axis\":\"container\""),
-        "json sem eixo: {json}"
-    );
+    assert!(json.contains("\"axis\":\"scope\""), "json sem eixo: {json}");
     assert!(
         json.contains(&format!("\"key\":\"{epic}\"")),
         "json sem o épico: {json}"
@@ -1003,8 +1011,6 @@ fn task_graph_program_renders_subtree() -> TestResult {
             "--scope",
             "epic",
             "--anchors",
-            "plan/foo.md",
-            "--source",
             "plan/foo.md",
         ],
     )?;

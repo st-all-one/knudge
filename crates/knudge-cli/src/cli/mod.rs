@@ -194,9 +194,9 @@ pub struct AskArgs {
     /// Filtro por status.
     #[arg(long, value_name = "STATUS")]
     pub status: Option<String>,
-    /// Filtro por container.
-    #[arg(long, value_name = "ID")]
-    pub container: Option<String>,
+    /// Filtro por escopo (épico).
+    #[arg(long = "scope", value_name = "ID")]
+    pub scope: Option<String>,
     /// Filtro por âncora (repetível; aceita lista com vírgula: `--anchor a,b`).
     #[arg(long, value_name = "PATH", value_delimiter = ',')]
     pub anchor: Vec<String>,
@@ -235,24 +235,12 @@ pub struct WriteArgs {
         value_delimiter = ','
     )]
     pub anchors: Vec<String>,
-    /// Checks (validators).
-    #[arg(long, value_name = "NOME")]
-    pub checks: Vec<String>,
-    /// Proveniência.
-    #[arg(long, value_name = "FONTE")]
-    pub source: Option<String>,
     /// Classificação.
     #[arg(long = "class", value_name = "CLASSE")]
     pub class: Option<String>,
     /// Status inicial.
     #[arg(long, value_name = "STATUS")]
     pub status: Option<String>,
-    /// Expiração.
-    #[arg(long, value_name = "TS")]
-    pub expires_at: Option<String>,
-    /// Confiança declarada.
-    #[arg(long, value_name = "F")]
-    pub confidence: Option<f64>,
     /// Aresta explícita `ARESTA:ID` a partir da nota.
     #[arg(long, value_name = "ARESTA:ID")]
     pub edge: Vec<String>,

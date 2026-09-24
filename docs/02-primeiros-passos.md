@@ -37,7 +37,7 @@ O `write` faz **dedup** contra o que já existe:
 | `≥ 0.92` | **Rejeita** (duplicata) |
 
 Tipos de conhecimento: `fact`, `decision`, `error`, `risk`, `question`, `def`, `snippet`,
-`link`, `meta`, `container`, `task`. Para **trabalho**, use `kd task` (o `write` rejeita
+`link`, `meta`, `task`. Para **trabalho**, use `kd task` (o `write` rejeita
 `--type task`).
 
 ## 4. Planejar e executar

@@ -16,15 +16,15 @@ use crate::retrieval::rrf::Fused;
 use crate::retrieval::{RECENT_WINDOW_MS, RecallHit, RecallQuery, Why};
 use crate::schema::EdgeKind;
 
-/// Candidatos após filtros estruturais e `container` (D41/D53).
+/// Candidatos após filtros estruturais e `scope` (D41/D53).
 pub(super) fn candidates(index: &Index, graph: &Graph, query: &RecallQuery) -> BTreeSet<String> {
     let mut allowed = BTreeSet::new();
     for doc in &index.docs {
         if !query.filter.matches(&doc.meta) {
             continue;
         }
-        if let Some(container) = query.container.as_deref()
-            && !belongs_to(graph, &doc.meta.id, container)
+        if let Some(scope) = query.scope.as_deref()
+            && !belongs_to(graph, &doc.meta.id, scope)
         {
             continue;
         }
@@ -130,15 +130,15 @@ pub(super) fn semantic_channel(query: &RecallQuery, allowed: &BTreeSet<String>) 
         .unwrap_or_default()
 }
 
-fn belongs_to(graph: &Graph, id: &str, container: &str) -> bool {
-    if id == container {
+fn belongs_to(graph: &Graph, id: &str, scope: &str) -> bool {
+    if id == scope {
         return true;
     }
     let mut seen: BTreeSet<String> = BTreeSet::new();
     let mut stack = vec![id.to_string()];
     while let Some(current) = stack.pop() {
         for dependency in graph.targets(&current, EdgeKind::DependsOn) {
-            if dependency == container {
+            if dependency == scope {
                 return true;
             }
             if seen.insert(dependency.clone()) {
@@ -157,8 +157,8 @@ fn choose_why(doc: &NoteDoc, query: &RecallQuery, graph: &Graph, semantic: &BTre
     if matched.id {
         return Why::AnchorMatch;
     }
-    if let Some(container) = query.container.as_deref()
-        && belongs_to(graph, &doc.meta.id, container)
+    if let Some(scope) = query.scope.as_deref()
+        && belongs_to(graph, &doc.meta.id, scope)
     {
         return Why::TrackerMatch;
     }

@@ -22,7 +22,7 @@ pub mod template;
 mod tests;
 
 pub use context::{TaskContext, TaskRef, context_of};
-pub use hierarchy::{child, children, expected_parent, validate_blocks, validate_parent};
+pub use hierarchy::{child, children, validate_blocks, validate_parent};
 pub use impact::{impact, is_actionable};
 pub use lifecycle::{OutcomeStatus, TaskAction, apply, outcome, reorder, validate_transition};
 pub use membership::Marker;

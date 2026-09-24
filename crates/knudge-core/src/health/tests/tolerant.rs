@@ -75,7 +75,7 @@ fn unknown_type_is_skipped_per_note() -> Result<()> {
     let fs = MemFs::new();
     let store = Store::new(&fs, ROOT);
     store.ensure_dirs()?;
-    let front = "id: alien_00000000\ntype: alien\nstatement: hmm\ncreated_at: 2023-11-14T22:13:20.000Z\nconfidence: 0.5\nbody_hash: 00000000\nschema_version: 1\n";
+    let front = "id: alien_00000000\ntype: alien\nstatement: hmm\ncreated_at: 2023-11-14T22:13:20.000Z\nbody_hash: 00000000\nschema_version: 1\n";
     insert_raw(&fs, "alien_00000000", front, "");
 
     let read = read_tolerant(&store)?;

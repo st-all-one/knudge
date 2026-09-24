@@ -9,7 +9,6 @@ use knudge_core::task::{TaskSpec, submit};
 use serde_json::json;
 
 use crate::cli::TaskNewArgs;
-use crate::commands::parse;
 use crate::output::Output;
 use crate::session::Session;
 
@@ -29,12 +28,15 @@ pub(super) fn new_task(session: &Session, args: &TaskNewArgs) -> Result<Output> 
     spec.checks.clone_from(&args.checks);
     spec.anchors.clone_from(&args.anchors);
     spec.tags.clone_from(&args.tag);
-    spec.source.clone_from(&args.source);
-    spec.expires_at = parse::timestamp_opt(args.expires_at.as_ref())?;
-    spec.not_before = parse::timestamp_opt(args.not_before.as_ref())?;
     let id = submit(&ctx, &spec)?.id;
     let data = json!({ "id": id, "scope": scope.as_str(), "parent": args.parent });
-    Ok(Output::new(id, data))
+    let mut output = Output::new(id, data);
+    if scope == Scope::Epic && args.anchors.is_empty() {
+        output = output.with_warnings(vec![
+            "épico sem âncora: ancore com `--anchor plan/<arquivo>.md` (D119/D134)".to_string(),
+        ]);
+    }
+    Ok(output)
 }
 
 pub(super) fn read_body(value: Option<&str>) -> Result<String> {

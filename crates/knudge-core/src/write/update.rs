@@ -16,7 +16,7 @@ use super::status::validate_transition;
 use super::{WriteAction, WriteContext, event, set_list};
 
 /// Campos mutáveis por [`update`] (ausente = não mexe).
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Patch {
     /// Novo tipo (mudança dispara supersede).
     pub note_type: Option<NoteType>,
@@ -24,8 +24,6 @@ pub struct Patch {
     pub statement: Option<String>,
     /// Novo corpo.
     pub body: Option<String>,
-    /// Nova confiança.
-    pub confidence: Option<f64>,
     /// Novas tags (vazio limpa).
     pub tags: Option<Vec<String>>,
     /// Nova classificação.
@@ -36,12 +34,6 @@ pub struct Patch {
     pub scope: Option<Scope>,
     /// Novas âncoras (vazio limpa).
     pub anchors: Option<Vec<String>>,
-    /// Nova proveniência.
-    pub source: Option<String>,
-    /// Nova expiração (ms).
-    pub expires_at: Option<i64>,
-    /// Novo agendamento `not_before` (ms) — separado da expiração (D56).
-    pub not_before: Option<i64>,
 }
 
 impl Patch {
@@ -66,10 +58,6 @@ impl Patch {
         if let Some(body) = &self.body {
             note.body.clone_from(body);
         }
-        if let Some(confidence) = self.confidence {
-            note.frontmatter
-                .set("confidence", Value::Float(confidence))?;
-        }
         if let Some(tags) = &self.tags {
             set_list(&mut note.frontmatter, "tags", tags)?;
         }
@@ -89,21 +77,6 @@ impl Patch {
         }
         if let Some(anchors) = &self.anchors {
             set_list(&mut note.frontmatter, "anchors", anchors)?;
-        }
-        if let Some(source) = &self.source {
-            note.frontmatter.set("source", Value::Str(source.clone()))?;
-        }
-        if let Some(expires) = self.expires_at {
-            note.frontmatter.set(
-                "expires_at",
-                Value::Str(Timestamp::from_millis(expires).to_rfc3339()),
-            )?;
-        }
-        if let Some(not_before) = self.not_before {
-            note.frontmatter.set(
-                "not_before",
-                Value::Str(Timestamp::from_millis(not_before).to_rfc3339()),
-            )?;
         }
         Ok(())
     }

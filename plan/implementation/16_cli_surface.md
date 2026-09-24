@@ -16,7 +16,7 @@
 2. **`prime` é estático; `rewind` é dinâmico.** Protocolo nunca muda entre execuções; estado muda.
 3. **stdout = dados, stderr = logs** (R20). `--json` é o contrato de máquina (D71).
 4. **`strict` é config de projeto** (D94), não flag.
-5. **Tudo de tarefa vive em `kd task`** (D93); `kd write` rejeita `--type task|container`.
+5. **Tudo de tarefa vive em `kd task`** (D93); `kd write` rejeita `--type task`.
 
 ## 2. Verbos de topo
 
@@ -28,7 +28,7 @@
 | `kd rewind` | `prime(scope)`, `get_context`, `diff` | estado/handoff ponto-no-tempo |
 | `kd ask` | `recall`, `get`, `expand` | toda pesquisa |
 | `kd write` | `write`, `update`, `link` | toda escrita |
-| `kd task` | `plan`, containers de tarefa | plan/epic/issue/task |
+| `kd task` | `epic`, grupos de tarefa | epic/issue/task |
 | `kd knowledge` | `clusters` | mapa de conhecimento (D128) |
 | `kd maintenance` | `doctor` (`--audit`), `compact`, `eval`, `index`, `learn`, `prune` | manutenção |
 | `kd config` | `config` | `.knudge/config.toml` |
@@ -52,7 +52,7 @@ kd ask [QUERY]
   --class <C>...          # foundational|tactical|observational
   --tag <T>...
   --status <S>...
-  --container <ID>
+  --scope <ID>
   --anchor <PATH>...      # repetível; aceita vírgula (`--anchor a,b`)
   --since <TS> / --until <TS>
   --limit <N>             # default: config recall.default_limit (5 — D121)
@@ -78,15 +78,15 @@ O **feedback tarefa→conhecimento** (X1/D108) é derivado em tempo de consulta:
 ## 4. `kd write` — toda escrita
 
 Create idempotente por conteúdo + protocolo de dedup (0.75/0.92). `--update` versiona;
-`--link` cria aresta explícita. **Rejeita `--type task|container`** (use `kd task`) e
+`--link` cria aresta explícita. **Rejeita `--type task`** (use `kd task`) e
 `statement` vazio é `invalid_input` (2) — nunca cria nota vazia (D130).
 
 ```
 kd write [STATEMENT]
   --type <T>              # default: fact
   --body <TXT|->          # '-' lê stdin
-  --tag <T>... --anchor <PATH>... --check <NAME>...
-  --source <S> --class <C> --status <S> --expires-at <TS> --confidence <F>
+  --tag <T>... --anchor <PATH>...
+  --class <C> --status <S>
   --edge <ARESTA:ID>      # aresta explícita na criação
   --update <ID>           # modo update (patch versionado)
   --link <ARESTA:ID>      # cria aresta (substitui o antigo `link`)
@@ -126,17 +126,16 @@ O manifest (default) ganha `next:` (tarefas `ready` abertas por impacto) e `fres
 
 ## 7. `kd task` — plan/epic/issue/task (D93)
 
-Hierarquia **fechada**: `plan ⊃ epic ⊃ issue ⊃ task`, profundidade máx. **4**. Campo `scope`
-(enum fechado) marca o **nível**; o `type` é a **espécie** (D113): `container` para plan/epic,
+Hierarquia **fechada**: `epic ⊃ { issue ⊃ task | task }` — épico é a raiz, issue opcional. Campo `scope`
+(enum fechado) marca o **nível**; o `type` é a **espécie** (D113): `epic` (grupo derivado de `scope=epic`) para epic,
 `task`/`error`/`question`/`risk`/`decision` para itens de trabalho. Pai único via
 membership/backref (D52); dependências via aresta `depends_on`, criada **só** com
 `kd write --link <FROM:depends_on:TO>` (via única, D126).
 
 ```
-kd task new <STATEMENT> --scope <plan|epic|issue|task>
+kd task new <STATEMENT> --scope <epic|issue|task>
   [--kind <task|error|question|risk|decision>] [--parent <ID>]
-  [--body <TXT|->] [--checks <NAME>...] [--anchor <PATH>...] [--tag <T>...] [--source <F>]
-  [--not-before <TS>] [--expires-at <TS>]
+  [--body <TXT|->] [--checks <NAME>...] [--anchor <PATH>...] [--tag <T>...]
 kd task list [--scope ...] [--status ...] [--kind ...] [--parent <ID>]
   [--ready|--blocked [--explain]] [--sort impact] [--tag <T>...] [--anchor <PATH>...]
   [--since <TS>] [--owner <A>|--mine]

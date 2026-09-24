@@ -6,11 +6,10 @@ use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::graph::Graph;
 use knudge_core::ports::Env;
-use knudge_core::retrieval::{BlockReason, Filter, Meta, compute_views_at};
+use knudge_core::retrieval::{BlockReason, Filter, Meta, compute_views};
 use knudge_core::schema::{NoteType, Scope, Status};
 use knudge_core::store::Note;
 use knudge_core::task::{is_task, parent_of};
-use knudge_core::time::Timestamp;
 use serde_json::json;
 
 use crate::cli::TaskListArgs;
@@ -58,7 +57,7 @@ impl<'a> ListFilters<'a> {
                 .transpose()?,
             parent: args.parent.as_deref(),
             owner,
-            allowed: allowed_ids(session, args, graph),
+            allowed: allowed_ids(args, graph),
             structural: Filter {
                 tags: args.tag.clone(),
                 anchors: args.anchor.clone(),
@@ -70,16 +69,12 @@ impl<'a> ListFilters<'a> {
 }
 
 /// Ids permitidos pela view pedida (`--ready`/`--blocked`); `None` sem view.
-fn allowed_ids(
-    session: &Session,
-    args: &TaskListArgs,
-    graph: Option<&Graph>,
-) -> Option<BTreeSet<String>> {
+fn allowed_ids(args: &TaskListArgs, graph: Option<&Graph>) -> Option<BTreeSet<String>> {
     let graph = graph?;
     if !args.ready && !args.blocked {
         return None;
     }
-    let views = compute_views_at(graph, session.now_ms());
+    let views = compute_views(graph);
     Some(if args.blocked {
         views.blocked
     } else {
@@ -186,9 +181,6 @@ pub(super) fn render_row(
 fn reason_label(reason: &BlockReason) -> String {
     match reason {
         BlockReason::Dependency(id) => format!("blocked_by={id}"),
-        BlockReason::Scheduled(ms) => {
-            format!("not_before={}", Timestamp::from_millis(*ms).to_rfc3339())
-        }
         BlockReason::Cycle => "cycle".to_string(),
     }
 }

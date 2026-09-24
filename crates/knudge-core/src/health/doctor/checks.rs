@@ -232,7 +232,7 @@ pub(super) fn program_anchor_check(input: &DoctorInput<'_>, notes: &[Note]) -> R
         .to_string();
     let mut missing = Vec::new();
     for note in notes {
-        if note.frontmatter.note_type()? != NoteType::Container {
+        if note.frontmatter.note_type()? != NoteType::Epic {
             continue;
         }
         if parent_of(note).is_some() {

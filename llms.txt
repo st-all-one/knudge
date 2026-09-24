@@ -22,9 +22,9 @@ Coisas para lembrar ao usar o knudge:
   **Nunca invente id**; reclassificar `type` **não** reescreve o id (D95).
 - **TOON:** frontmatter na ordem canônica; opcionais **omitidos**, nunca `null`; `normalize` =
   NFC + trim + colapso.
-- **`kd write` rejeita `--type task|container`** (use `kd task`); arestas explícitas só por
+- **`kd write` rejeita `--type task`** (use `kd task`); arestas explícitas só por
   `kd write --link <FROM:ARESTA:TO>` (via única, D126).
-- **Tarefas:** hierarquia **fechada** `plan ⊃ epic ⊃ issue ⊃ task` (profundidade máx. 4);
+- **Tarefas:** hierarquia **fechada** `epic ⊃ { issue ⊃ task | task }` (épico é a raiz; issue opcional);
   `kd task close` só declara conclusão com **evidência** (`--outcome`).
 - **Embeddings são opcionais e derivados:** sem provedor o `ask` degrada para BM25 com
   `warnings`. Default `http` para um servidor local OpenAI-compatible (D101/D123).
@@ -46,7 +46,7 @@ Coisas para lembrar ao usar o knudge:
 - [`AGENTS.md`](AGENTS.md) — contribuir no código do knudge.
 - [`plan/implementation/16_cli_surface.md`](plan/implementation/16_cli_surface.md) — referência completa da CLI (fonte de verdade dos verbos).
 - [`plan/implementation/17_matriz_aceitacao.md`](plan/implementation/17_matriz_aceitacao.md) — matriz por verbo (pipe/`--json`/erro/exit/estado).
-- [`TOON.md`](TOON.md) — contrato de bytes (gramática TOON + 28 chaves canônicas).
+- [`TOON.md`](TOON.md) — contrato de bytes (gramática TOON + 25 chaves canônicas).
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — camadas: núcleo puro + portas + adaptadores.
 - [`plan/03_decisoes-fechadas.md`](plan/03_decisoes-fechadas.md) — decisões `D01–D130`.
 - [`plan/04_embeddings.md`](plan/04_embeddings.md) — embeddings, modelos e A/B.
@@ -56,12 +56,12 @@ Coisas para lembrar ao usar o knudge:
 
 ### Key facts
 
-- **Tipos (11):** `fact`, `decision`, `question`, `task`, `def`, `error`, `snippet`, `link`, `meta`, `container`, `risk`.
+- **Tipos (10):** `fact`, `decision`, `question`, `task`, `def`, `error`, `snippet`, `link`, `meta`, `risk` (`epic` é derivado de `scope=epic`).
 - **Classificação:** `foundational`, `tactical`, `observational`. **Status:** `active`, `in_progress`, `blocked`, `closed`, `superseded`, `forgotten`.
 - **Verbos (13):** `init`, `prime`, `rewind`, `ask`, `write`, `task`, `knowledge`, `maintenance`, `config`, `forget`, `sync`, `self` (+ `kd` = `prime`).
-- **`kd ask`** cobre recall + get (`--id`) + expand (`--around`); filtros `--type/--class/--tag/--status/--container/--anchor/--since/--until`; `--rank` e `--tags`; `--limit` (default 5), `--brief`, `--with-body`.
+- **`kd ask`** cobre recall + get (`--id`) + expand (`--around`); filtros `--type/--class/--tag/--status/--scope/--anchor/--since/--until`; `--rank` e `--tags`; `--limit` (default 5), `--brief`, `--with-body`.
 - **`kd task`:** `new/list/show/update/close/claim/graph/plan`; `--ready`/`--blocked`, `--sort impact`; rollup de progresso por épico (D127).
-- **`kd knowledge map [--axis anchor|type|classification|container] [--semantic] [--members]`** — clusters estruturais + fase 2 semântica complete-link (D128/D129).
+- **`kd knowledge map [--axis anchor|type|classification|scope] [--semantic] [--members]`** — clusters estruturais + fase 2 semântica complete-link (D128/D129).
 - **`kd maintenance`:** `doctor [--fix] [--audit]` · `compact` · `eval --ab` · `index [--drain|--status]` · `learn` · `prune` · `watch-service [--install|--subscribe|--unsubscribe|--status|--uninstall]` (compact/learn/prune só propõem; watch-service = worker de auto-drain + servidor persistente, systemd/launchd, multi-projeto).
 - **`kd rewind`:** handoff ponto-no-tempo; orçamento `ceil(len/4)` tokens (default 4000); `--resume` retomável 1:1 (D88).
 - **`kd self setup <claude|cursor|codex|pi>`**, `kd self completions <bash|zsh|fish>`.
@@ -77,5 +77,5 @@ Coisas para lembrar ao usar o knudge:
 - Tarefa (épico → tarefa): `kd task new "Sync offline-first" --scope epic` e
   `kd task new "Conflito de merge" --scope task --parent <epic>`
 - Handoff: `kd rewind --budget 2000`
-- Mapa: `kd knowledge map --axis container --semantic`
+- Mapa: `kd knowledge map --axis scope --semantic`
 - MCP: `knudge-mcp --stdio`

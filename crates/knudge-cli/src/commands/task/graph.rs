@@ -162,7 +162,7 @@ fn resolve_roots(
     let mut roots = Vec::new();
     for id in store.list_ids()? {
         let note = store.read(&id)?;
-        if note.frontmatter.note_type()? == NoteType::Container && !graph.has_parent(&id) {
+        if note.frontmatter.note_type()? == NoteType::Epic && !graph.has_parent(&id) {
             roots.push(id);
         }
     }
@@ -182,22 +182,21 @@ fn render_subtree(
     for entry in &nodes {
         let note = store.read(&entry.id)?;
         let kind = note.frontmatter.note_type()?;
-        let scope = note
-            .frontmatter
+        note.frontmatter
             .scope()?
             .ok_or_else(|| Error::schema(format!("{} não é item de trabalho", entry.id)))?;
         let status = note.frontmatter.status()?;
         let statement = note.frontmatter.statement().unwrap_or_default().to_string();
         let has_children = !children(graph, &entry.id).is_empty();
-        let role = role::role(scope, kind, has_children);
+        let role = role::role(entry.depth, kind, has_children);
         let owner = signals.owner(&entry.id).unwrap_or("-");
-        let mode = if kind == NoteType::Container {
+        let mode = if kind == NoteType::Epic {
             Some(mode::mode(&signals.container(graph, &entry.id, handoff)))
         } else {
             None
         };
         let mode_label = mode.map_or("-", Mode::as_str);
-        let progress = (kind == NoteType::Container).then(|| progress_of(graph, &entry.id));
+        let progress = (kind == NoteType::Epic).then(|| progress_of(graph, &entry.id));
         let progress_label =
             progress.map_or(String::new(), |value| format!(" ({})", value.label()));
         let indent = "  ".repeat(entry.depth.saturating_add(1));

@@ -74,25 +74,20 @@ fn subtree_is_deterministic_preorder() -> Result<()> {
 }
 
 #[test]
-fn program_of_prefers_anchor_then_source() -> Result<()> {
+fn program_of_resolves_by_anchor() -> Result<()> {
     let fs = MemFs::new();
     let ctx = context(&fs)?;
     let mut with_anchor = TaskSpec::new(Scope::Epic, "com âncora");
     with_anchor.anchors = vec!["plan/foo.md".to_string()];
     let with_anchor = submit(&ctx, &with_anchor)?.id;
-    let mut with_source = TaskSpec::new(Scope::Epic, "com source");
-    with_source.source = Some("plan/bar.md".to_string());
-    let with_source = submit(&ctx, &with_source)?.id;
+    let plain = submit(&ctx, &TaskSpec::new(Scope::Epic, "sem âncora"))?.id;
 
     let anchor_note = ctx.store().read(&with_anchor)?;
-    let source_note = ctx.store().read(&with_source)?;
+    let plain_note = ctx.store().read(&plain)?;
     assert_eq!(
         program_of(&anchor_note, "plan/*.md")?,
         Some("plan/foo.md".to_string())
     );
-    assert_eq!(
-        program_of(&source_note, "plan/*.md")?,
-        Some("plan/bar.md".to_string())
-    );
+    assert_eq!(program_of(&plain_note, "plan/*.md")?, None);
     Ok(())
 }

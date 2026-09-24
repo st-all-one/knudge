@@ -116,7 +116,7 @@ impl PlanSpec {
 /// Retorna `ErrorKind::Schema` se `id` não for container; propaga I/O.
 pub fn prompt(ctx: &WriteContext<'_>, id: &str, template: &PlanTemplate) -> Result<PlanPrompt> {
     let note = ctx.store().read(id)?;
-    if note.frontmatter.note_type()? != NoteType::Container {
+    if note.frontmatter.note_type()? != NoteType::Epic {
         return Err(Error::schema(format!("{id} não é container")));
     }
     Ok(PlanPrompt {

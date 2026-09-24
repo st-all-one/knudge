@@ -207,6 +207,6 @@ fn count_containers(graph: &Graph) -> usize {
     graph
         .ids()
         .iter()
-        .filter(|id| graph.note_type(id) == Some(NoteType::Container))
+        .filter(|id| graph.note_type(id) == Some(NoteType::Epic))
         .count()
 }

@@ -181,13 +181,10 @@ Acesso via tool `config get/set/list`. Precedência (quando houver override): fl
 | `type` | enum | sim | tipo (ver abaixo) |
 | `statement` | string | sim | a **afirmação**, ≤ 120 chars |
 | `created_at` | iso8601 | sim | criação (UTC, segundos) |
-| `confidence` | float 0–1 | sim | confiança (default 0.7) |
 | `body_hash` | hex8 | sim | hash do corpo (dedup O(1)) |
 | `schema_version` | int | sim | versão do schema |
 | `tags` | string[] | não | ≤ 5, lowercase, kebab |
 | `source` | string/url | não | proveniência |
-| `expires_at` | iso8601 | não | expiração |
-| `not_before` | iso8601 | não | agendamento (só libera `ready` a partir de; separado da expiração — D56/D100) |
 | `superseded_by` | id | não | id da nota que a substituiu (ponteiro reverso de `replaces`) |
 | `references` | id[] | não | aresta explícita: menção simples |
 | `depends_on` | id[] | não | aresta explícita: depende de |
@@ -202,13 +199,13 @@ Acesso via tool `config get/set/list`. Precedência (quando houver override): fl
 | `classification` | enum | não | `foundational\|tactical\|observational` (default tactical) |
 | `anchors` | string[] | não | paths/globs de arquivo |
 | `status` | enum | não | `active\|in_progress\|blocked\|closed\|superseded\|forgotten` |
-| `scope` | enum | não | `plan\|epic\|issue\|task` (só `type=task`/`container`; D93) |
+| `scope` | enum | não | `epic\|issue\|task` (só trabalho/grupo; D93/D134/D149) |
 | `checks` | string[] | não | validators (só `type=task`) |
 | `evidence` | map | não | resultados de validators (preenchido no close) |
 
 Chave desconhecida = **rejeita no write**. Sem `author` e sem `updated_at` (o evento cobre).
 
-O bloco de arestas (`references`…`results_in`) fica **entre `superseded_by` e `revision`** na ordem canônica — **28 chaves** ao todo (D98/D100), com `not_before` logo após `expires_at`. Cada aresta é uma lista de ids derivada do `link()` e validada quanto ao formato; o `doctor` cobra a bidirecionalidade `replaces ↔ superseded_by`.
+O bloco de arestas (`references`…`results_in`) fica **entre `superseded_by` e `revision`** na ordem canônica — **25 chaves** ao todo (D98/D135/D142). Cada aresta é uma lista de ids derivada do `link()` e validada quanto ao formato; o `doctor` cobra a bidirecionalidade `replaces ↔ superseded_by`.
 
 ### Tipos (`type`) — enum fechado
 
@@ -222,9 +219,11 @@ error      problema + causa + fix
 snippet    trecho de código reutilizável
 link       referência externa + por quê
 meta       conhecimento sobre o próprio sistema
-container  agregação explícita (sem verdade própria)
-risk       conhecimento preditivo (confidence = probabilidade)
+risk       conhecimento preditivo (probabilidade)
 ```
+
+`epic` **não** é um `type` armazenado: um grupo é uma nota com `scope=epic` e `type` omitido
+(o tipo efetivo `epic` deriva do escopo — D149).
 
 Fechado de propósito: tipo aberto faz o LLM inventar categoria e degrada o retrieval.
 
@@ -243,7 +242,7 @@ Fechado de propósito: tipo aberto faz o LLM inventar categoria e degrada o retr
 | `snippet` | `snippet_` | `snippet_1e09d3a8` |
 | `link` | `link_` | `link_5a12f0b7` |
 | `meta` | `meta_` | `meta_3d44a9c1` |
-| `container` | `container_` | `container_c9a3e2f4` |
+| `epic` (derivado) | `epic_` | `epic_c9a3e2f4` |
 | `risk` | `risk_` | `risk_6b77d1a0` |
 
 O prefixo é **filtro de graça**: o LLM sabe o tipo sem parsear frontmatter. O trade-off é o ID mais longo; em troca, o tipo fica legível diretamente no `id + statement + score` do `recall`, sem consulta ao schema.
@@ -327,7 +326,7 @@ recall(q, type, classification, anchors, container, tags, status)
 - **Embeddings** são um **provedor plugável** via config (`.idx/embeddings.jsonl`), justificados por 3 casos: descoberta de links não-declarados, `learn()` e dedup semântico. Default `granite-embedding-97m-multilingual-r2` (384d, cosseno nativo, multilíngue — D123); `none` desliga e cai para BM25 puro. Consumo **assíncrono e lazy**: notas recém-criadas ficam “dark” no espaço vetorial até serem digeridas — **gap tolerado**; `recall` nunca espera. Ver `04_embeddings.md`.
 - **Fusão RRF + determinismo:** canais (BM25, âncoras, vetor) fundidos por `1/(k+rank+1)` (k=60) e ordenados por `(score desc, id asc)` — duas execuções idênticas nunca divergem. Canal ausente/falho degrada para o lexical **sem quebrar** a busca (D81).
 - **Âncoras são canal de recall**, não só campo: match determinístico por `path`/`id` antes da estatística.
-- **Similaridade clampada `[0,1]`** e **confiança derivada** (`sim × drift × idade + feedback`) calculada no `recall` — **nunca armazenada** (a `confidence` declarada é outra coisa) (D87).
+- **Similaridade clampada `[0,1]`** e **confiança derivada** (`sim × drift × idade + feedback`) calculada no `recall` — **nunca armazenada** (D87/D142).
 - **Clusters** viram **duas fases**: (1) estrutural/determinístico (agregação por `anchor`, `type`, `classification`, container — auditoria barata); (2) semântico/probabilístico só dentro de um cluster estrutural. `compact` consolida redundância acumulada que o `recall` capado nunca mostra.
 - **Rejeitados:** sqlite-vec, Chroma, LanceDB — resolvem problemas (escala, concorrência) que o sistema não tem e quebram a premissa "índice é só arquivos".
 
@@ -402,7 +401,7 @@ O fechamento deixa de ser declaração e passa a ser **evidência**: o sistema r
 |---|---|---|
 | `alternatives` + `rejected_because` | seeds | aresta `rejects` + nota `def` |
 | split container/atômico | seeds | `type=container` (view, sem verdade própria) |
-| `risks` | seeds | `type=risk` com `confidence` e `expires_at` |
+| `risks` | seeds | `type=risk` com `confidence` (expiração derivada) |
 | `outcome` | seeds | campo `outcomes[]` (confirmação derivada) |
 | `revision` | seeds | campo `revision` |
 | templates/moléculas | seeds | `templates.yaml` |
@@ -411,7 +410,7 @@ O fechamento deixa de ser declaração e passa a ser **evidência**: o sistema r
 | `foundational/tactical` | mulch | campo `classification` (+ `observational`) |
 | `dir_anchors` / `prime --files` | mulch | campo `anchors` + `prime(files)` |
 | `learn` (git diff) | mulch | `learn()` |
-| lifecycle (rank/prune/archive) | mulch | `outcomes[]`, `expires_at`, `status` |
+| lifecycle (rank/prune/archive) | mulch | `outcomes[]`, shelf-life derivado, `status` |
 | `audit` | mulch | `audit()` |
 | `diff` | mulch | `diff(since, until, scope)` |
 | `compact` | mulch | `compact(scope)` |
@@ -438,7 +437,7 @@ O fechamento deixa de ser declaração e passa a ser **evidência**: o sistema r
 | Embeddings | Oscila (opcional, derivado) |
 | Cache/estado de embedding (`indexed\|pending\|stale`) | Oscila (derivado, em `.idx/`) |
 | Âncoras com `content_hash` | Oscila (hash derivado em `.idx/`; o `path` fica na nota) |
-| Confiança/salience e decay derivados | Oscila (calculados no `recall`; `confidence` declarada é fixa) |
+| Confiança/salience e decay derivados | Oscila (calculados no `recall`) |
 | Clusters | Oscila (batch, opcional) |
 | Watcher | Oscila (conveniência) |
 | Eventos | Oscila (recomendado) |

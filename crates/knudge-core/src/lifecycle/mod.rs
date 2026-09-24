@@ -15,7 +15,7 @@ pub mod supersession;
 #[cfg(test)]
 mod tests;
 
-pub use clusters::{Cluster, ClusterAxis, container_of, structural_clusters};
+pub use clusters::{Cluster, ClusterAxis, scope_of, structural_clusters};
 pub use confidence::{
     ConfidenceInput, DEFAULT_TASK_CONFIRMATION, age_factor, confidence_score, drift_factor,
     from_tasks, from_tasks_with, is_success_task,

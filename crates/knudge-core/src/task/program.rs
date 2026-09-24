@@ -9,7 +9,7 @@ use std::collections::BTreeSet;
 use crate::Result;
 use crate::graph::Graph;
 use crate::retrieval::anchor::glob_match;
-use crate::schema::{NoteType, Value};
+use crate::schema::NoteType;
 use crate::store::Note;
 
 use super::children;
@@ -31,7 +31,7 @@ pub struct ProgramNode {
 pub fn root_for_path(notes: &[Note], path: &str) -> Result<Option<String>> {
     let mut best: Option<String> = None;
     for note in notes {
-        if note.frontmatter.note_type()? != NoteType::Container {
+        if note.frontmatter.note_type()? != NoteType::Epic {
             continue;
         }
         if super::parent_of(note).is_some() {
@@ -49,23 +49,16 @@ pub fn root_for_path(notes: &[Note], path: &str) -> Result<Option<String>> {
     Ok(best)
 }
 
-/// Path do programa ancorado a `note` (primeiro anchor que casa o glob; senão `source`).
+/// Path do programa ancorado a `note` (primeiro anchor que casa o glob) — D135.
 ///
 /// # Errors
 /// Propaga erros de parse do frontmatter.
 pub fn program_of(note: &Note, glob: &str) -> Result<Option<String>> {
     let anchors = note.frontmatter.string_list("anchors")?;
-    if let Some(anchor) = anchors
+    Ok(anchors
         .iter()
         .find(|anchor| glob_match(glob, anchor) || glob_match(anchor, glob))
-    {
-        return Ok(Some((*anchor).to_string()));
-    }
-    Ok(note
-        .frontmatter
-        .get("source")
-        .and_then(Value::as_str)
-        .map(str::to_string))
+        .map(|anchor| (*anchor).to_string()))
 }
 
 /// Subárvore de `root` em pré-ordem determinística (filhos por `id asc`), incluindo o root.

@@ -1,8 +1,7 @@
 # D149 — fim do `type=container`; o grupo é derivado de `scope=epic`
 
-> **Status:** decisão fechada (registrada em `plan/03_decisoes-fechadas.md`); **implementação
-> pendente**. Origem: "container" significava **três coisas**. Revisa **D93/D113/D134**. Sem
-> execução.
+> **Status:** decisão fechada e **implementada** (v0.3.0). Origem: "container" significava **três
+> coisas**. Revisa **D93/D113/D134**.
 
 ## 1. Decisão
 

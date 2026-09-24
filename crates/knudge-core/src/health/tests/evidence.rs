@@ -93,9 +93,9 @@ fn confirmation_is_derived_not_stored() -> Result<()> {
     let results = vec![check("lint", CheckResult::Pass, Severity::Error)];
     let _closed = close_task(&ctx, &task_id, &results, None)?;
     let stored = ctx.store().read(&task_id)?;
-    assert!(stored.frontmatter.get("confidence").is_some());
-    // Nenhuma chave `confirmation` é gravada.
+    // Nenhuma chave `confirmation`/`confidence` é gravada (derivadas — D87/D142).
     assert!(stored.frontmatter.get("confirmation").is_none());
+    assert!(stored.frontmatter.get("confidence").is_none());
     Ok(())
 }
 

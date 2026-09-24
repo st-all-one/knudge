@@ -100,7 +100,7 @@ pub(super) fn recall_query(session: &Session, args: &AskArgs) -> Result<Output> 
     // `ask --anchor` sem query textual não teria candidato lexical e voltaria vazio.
     // Repetível e com vírgula (`--anchor a,b --anchor c`).
     query.working_paths.clone_from(&args.anchor);
-    query.container.clone_from(&args.container);
+    query.scope.clone_from(&args.scope);
     query.now_ms = Some(session.now_ms());
     query.strict = config.strict();
     if !text.is_empty() {

@@ -190,7 +190,7 @@ fn embeddings_check_reports_sizes() -> Result<()> {
 #[test]
 fn program_anchor_reports_epic_without_program() -> Result<()> {
     let fs = MemFs::new();
-    let mut draft = Draft::new(NoteType::Container, "Épico solto");
+    let mut draft = Draft::new(NoteType::Epic, "Épico solto");
     draft.scope = Some(Scope::Epic);
     let epic = draft.to_note(NOW)?;
     let ctx = seeded(&fs, std::slice::from_ref(&epic))?;

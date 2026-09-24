@@ -23,16 +23,12 @@ Antes de criar, **busque**: `kd ask "<rascunho>"`. O `write` também faz dedup a
 
 | Opção | Para quê |
 |---|---|
-| `--type T` | Tipo (default `fact`); `task`/`container` são **rejeitados** — use `kd task` |
+| `--type T` | Tipo (default `fact`); `task` é **rejeitado** — use `kd task` |
 | `--body -\|TXT` | Corpo (`-` lê stdin) |
 | `--tag T...` | Tags |
 | `--anchor PATH...` | Âncora a arquivo/glob (repetível; aceita vírgula) |
-| `--checks NOME...` | Validators |
-| `--source F` | Proveniência (ex.: arquivo do programa) |
 | `--class C` | Classificação (`foundational`/`tactical`/`observational`) |
 | `--status S` | Status inicial |
-| `--expires-at TS` | Expiração |
-| `--confidence F` | Confiança declarada |
 | `--edge ARESTA:ID` | Aresta a partir da nota |
 
 ## Ancorar (o que liga a memória ao código)

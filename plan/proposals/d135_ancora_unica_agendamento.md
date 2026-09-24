@@ -1,9 +1,7 @@
 # D135 — `--anchor` é o único link externo; fim de `--source`, `--expires-at` e `not_before`
 
-> **Status:** decisão fechada (registrada em `plan/03_decisoes-fechadas.md`); **implementação
-> pendente** — este documento é o plano de execução. Origem: revisão das flags de
-> `kd task new`/`kd write`. Revisa D44/D56/D57/D100/D119. O2 resolvido: **chave `expires_at`
-> também sai**. Sem execução.
+> **Status:** decisão fechada e **implementada** (v0.3.0). Origem: revisão das flags de
+> `kd task new`/`kd write`. Revisa D44/D56/D57/D100/D119.
 
 ## 1. Decisões
 

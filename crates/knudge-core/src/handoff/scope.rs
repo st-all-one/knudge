@@ -27,7 +27,7 @@ pub const fn should_flip(note_count: usize, container_count: usize) -> bool {
 pub fn detect_scope(changed_paths: &[String], graph: &Graph, index: &Index) -> Option<String> {
     let mut best: Option<(usize, String)> = None;
     for container in graph.ids() {
-        if graph.note_type(container) != Some(NoteType::Container) {
+        if graph.note_type(container) != Some(NoteType::Epic) {
             continue;
         }
         let count = matches_for(container, changed_paths, graph, index);

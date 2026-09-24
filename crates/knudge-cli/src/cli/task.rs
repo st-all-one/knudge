@@ -135,13 +135,13 @@ pub struct TaskListArgs {
     /// Filtro por pai.
     #[arg(long, value_name = "ID")]
     pub parent: Option<String>,
-    /// Só tarefas prontas (dependências resolvidas e `not_before` vencido).
+    /// Só tarefas prontas (dependências resolvidas).
     #[arg(long)]
     pub ready: bool,
     /// Só tarefas bloqueadas.
     #[arg(long)]
     pub blocked: bool,
-    /// Com `--blocked`, acrescenta o motivo (`blocked_by=`/`not_before=`/`cycle`);
+    /// Com `--blocked`, acrescenta o motivo (`blocked_by=`/`cycle`);
     /// com `--sort impact`, acrescenta `unblocks=N` (D109).
     #[arg(long)]
     pub explain: bool,
@@ -198,13 +198,4 @@ pub struct TaskNewArgs {
     /// Tags declaradas (repetível).
     #[arg(long, value_name = "TAG")]
     pub tag: Vec<String>,
-    /// Proveniência (`source`) — ex.: o arquivo do programa.
-    #[arg(long, value_name = "FONTE")]
-    pub source: Option<String>,
-    /// Agendamento (`not_before`).
-    #[arg(long, value_name = "TS")]
-    pub not_before: Option<String>,
-    /// Expiração.
-    #[arg(long, value_name = "TS")]
-    pub expires_at: Option<String>,
 }
