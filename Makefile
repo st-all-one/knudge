@@ -89,7 +89,7 @@ typos:
 
 ## Verificação dinâmica de UB nos crates puros (E13-T08).
 miri:
-	@command -v cargo-miri >/dev/null 2>&1 && $(CARGO) miri test -p knudge-core --lib -- --skip adapters:: \
+	@command -v cargo-miri >/dev/null 2>&1 && PROPTEST_DISABLE_FAILURE_PERSISTENCE=1 $(CARGO) miri test -p knudge-core --lib -- --skip adapters:: \
 		|| echo "miri ausente; pule (rustup +nightly component add miri)"
 
 ## Fuzz smoke dos parsers (E13-T08).

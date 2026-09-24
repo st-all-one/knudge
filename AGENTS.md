@@ -117,7 +117,7 @@ módulos. Onde mexer:
 
 - `knudge-core` usa `enum Error` (`thiserror`), `#[non_exhaustive]`, `Send + Sync + 'static`.
   **Nunca** `Box<dyn Error>` na API pública do core.
-- `knudge-cli`/`mcp` usam `anyhow` + `.context(...)` nas bordas; converta para `Error`/exit code
+- `knudge-cli`/`mcp` tratam erros nas bordas com `Error`/`ErrorKind` do core; converta para exit code
   antes de sair.
 - Sempre prefira o construtor nomeado: `Error::schema`, `Error::invalid_input`, `Error::conflict`,
   `Error::not_found`, `Error::timeout`, `Error::config`, `Error::internal`; I/O **sempre** com

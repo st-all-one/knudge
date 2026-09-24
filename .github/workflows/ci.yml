@@ -48,7 +48,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo miri setup
       # `adapters::*` toca SO/rede/processos (isolamento do miri não permite) — fora do escopo.
+      # `PROPTEST_DISABLE_FAILURE_PERSISTENCE` evita o `getcwd` do proptest, bloqueado sob isolamento.
       - run: "cargo miri test -p knudge-core --lib -- --skip adapters::"
+        env:
+          PROPTEST_DISABLE_FAILURE_PERSISTENCE: "1"
 
   fuzz:
     name: fuzz (TOON + JSONL, smoke)

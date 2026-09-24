@@ -4,6 +4,8 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+## [0.3.0] - 2026-09-24
+
 ### Mudado
 - **v0.3.0 — superfície redefinida (D134–D150).** Ciclo de revisão que simplifica o modelo e a CLI:
   - **Modelo (D134/D149).** `epic` é a raiz; `issue` opcional; `scope=plan` e `type=container`
