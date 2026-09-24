@@ -4,7 +4,7 @@ use crate::Result;
 use crate::graph::Graph;
 use crate::schema::Scope;
 use crate::store::Note;
-use crate::task::{TaskSpec, program_of, root_for_path, submit, subtree};
+use crate::task::{TaskSpec, program_of, roots_for_path, submit, subtree};
 
 use super::{MemFs, context};
 
@@ -18,7 +18,7 @@ fn read_all(fs: &MemFs) -> Result<Vec<Note>> {
 }
 
 #[test]
-fn root_for_path_picks_smallest_id() -> Result<()> {
+fn roots_for_path_returns_all_anchored_epics_in_id_order() -> Result<()> {
     let fs = MemFs::new();
     let ctx = context(&fs)?;
     let mut first = TaskSpec::new(Scope::Epic, "programa a");
@@ -29,14 +29,15 @@ fn root_for_path_picks_smallest_id() -> Result<()> {
     let second = submit(&ctx, &second)?.id;
 
     let notes = read_all(&fs)?;
-    let expected = if first < second { first } else { second };
-    assert_eq!(root_for_path(&notes, "plan/foo.md")?, Some(expected));
-    assert_eq!(root_for_path(&notes, "plan/outro.md")?, None);
+    let mut expected = vec![first, second];
+    expected.sort();
+    assert_eq!(roots_for_path(&notes, "plan/foo.md")?, expected);
+    assert!(roots_for_path(&notes, "plan/outro.md")?.is_empty());
     Ok(())
 }
 
 #[test]
-fn root_for_path_ignores_children() -> Result<()> {
+fn roots_for_path_ignores_children() -> Result<()> {
     let fs = MemFs::new();
     let ctx = context(&fs)?;
     let root = submit(&ctx, &TaskSpec::new(Scope::Epic, "raiz"))?.id;
@@ -46,7 +47,7 @@ fn root_for_path_ignores_children() -> Result<()> {
     let _child = submit(&ctx, &child)?;
 
     let notes = read_all(&fs)?;
-    assert_eq!(root_for_path(&notes, "plan/foo.md")?, None);
+    assert!(roots_for_path(&notes, "plan/foo.md")?.is_empty());
     Ok(())
 }
 

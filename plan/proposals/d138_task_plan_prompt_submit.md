@@ -1,7 +1,7 @@
 # D138 — `kd task plan` fica só com `--prompt`/`--submit`
 
-> **Status:** decisão fechada (registrada em `plan/03_decisoes-fechadas.md`); **implementação
-> pendente**. Origem: revisão do ciclo do plano. Revisa **D53/D105**. Sem execução.
+> **Status:** decisão fechada e **implementada** (v0.3.0). Origem: revisão do ciclo do plano.
+> Revisa **D53/D105**.
 
 ## 1. Decisão
 

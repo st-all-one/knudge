@@ -1,8 +1,7 @@
 # D139 — `graph` enxuto e `plan.md` ancorando vários épicos (floresta)
 
-> **Status:** decisão fechada (registrada em `plan/03_decisoes-fechadas.md`); **implementação
-> pendente**. Origem: revisão de `kd task graph`/Programa externo. Revisa **D115/D116/D119**.
-> Sem execução.
+> **Status:** decisão fechada e **implementada** (v0.3.0). Origem: revisão de `kd task graph`/
+> Programa externo. Revisa **D115/D116/D119**.
 
 ## 1. Decisões
 

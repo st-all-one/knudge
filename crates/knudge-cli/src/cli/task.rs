@@ -61,12 +61,15 @@ pub enum TaskCommand {
         #[arg(long, value_name = "ID")]
         root: Option<String>,
     },
-    /// Ciclo de vida do plano (`prompt`/`submit`/`adopt`/`reorder`/`release`/`review`).
+    /// Plano: `--prompt` (read-only) ou `--submit` (`--step`/`--from`) — D105/D138.
     Plan(TaskPlanArgs),
 }
 
 /// Argumentos de `kd task plan`.
-#[allow(clippy::struct_excessive_bools, reason = "flags de CLI")]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "`--prompt` e `--submit` são modos mutuamente exclusivos do plano"
+)]
 #[derive(Debug, Args)]
 pub struct TaskPlanArgs {
     /// Id do plano.
@@ -87,18 +90,6 @@ pub struct TaskPlanArgs {
     /// Plano preenchido (TOON): `-` lê stdin, senão um arquivo.
     #[arg(long, value_name = "FONTE")]
     pub from: Option<String>,
-    /// Adota o plano.
-    #[arg(long)]
-    pub adopt: bool,
-    /// Reordena para a posição 1-based.
-    #[arg(long, value_name = "N")]
-    pub reorder: Option<u32>,
-    /// Libera o plano.
-    #[arg(long)]
-    pub release: bool,
-    /// Marca para revisão.
-    #[arg(long)]
-    pub review: bool,
 }
 
 /// Argumentos de `kd task list`.

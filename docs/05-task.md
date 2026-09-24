@@ -61,18 +61,17 @@ declarada (D55).
 ## WBS (árvore do plano)
 
 ```bash
-kd task graph --program plan/016_new_ui_v2.md    # renderiza o programa externo
+kd task graph --program plan/016_new_ui_v2.md    # renderiza a floresta do programa externo
 kd task graph --root plan_01abc                  # renderiza a árvore de um escopo (épico)
 ```
 
-Saída por linha: `role|kind|status|mode|progresso`.
+Saída por linha: `id|kind|status|statement (done/total)` (o `--json` traz `role`/`mode`).
 
 ## Plano (TOON)
 
 ```bash
 kd task plan <ID> --prompt [--template feature|bug|refactor]   # imprime o prompt
 kd task plan <ID> --submit --from -                            # submete o plano preenchido
-kd task plan <ID> --adopt | --reorder N | --release | --review
 ```
 
 ## Fluxo típico

@@ -74,7 +74,7 @@ TAREFAS (kd task — epic ⊃ { issue ⊃ task | task }; epic é a raiz, ancore-
   kd task show <ID> [<ID>...] [--history]   # + contexto (parent/blocked_by/children) e épico (D125/D127)
   kd task update <ID> ...                   # edita campos no lugar
   kd task close <ID> [--outcome S] [--note TXT]   # só declara com evidência (D55); + épico e progresso (D127)
-  kd task graph [--program plan/<slug>.md|--root ID]   # role|kind|status|mode|progresso (D116/D127)
+  kd task graph [--program plan/<slug>.md|--root ID]   # id|kind|status|statement (done/total) (D139)
   kd task plan <ID> --prompt [--template T] | --submit --from -   # plano TOON (D105)
 
 ESTADO / HANDOFF: kd rewind [--scope CONTAINER] [--files PATH...] [--budget N] [--resume ID]

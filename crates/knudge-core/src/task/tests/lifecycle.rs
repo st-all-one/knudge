@@ -1,9 +1,9 @@
-//! Ciclo de vida de tarefa (E08-T07).
+//! Ciclo de vida de tarefa (E08-T07, D138).
 
 use crate::Result;
 use crate::schema::{NoteType, Scope, Status};
 use crate::store::{Event, commit};
-use crate::task::lifecycle::{OutcomeStatus, TaskAction, apply, outcome, reorder};
+use crate::task::lifecycle::{OutcomeStatus, TaskAction, apply, outcome, validate_transition};
 use crate::task::{TaskSpec, submit};
 use crate::write::{Draft, WriteContext};
 
@@ -22,23 +22,11 @@ fn seeded(fs: &MemFs) -> Result<(WriteContext<'_>, String, String)> {
 }
 
 #[test]
-fn adopt_release_review_cycle() -> Result<()> {
+fn review_closes_task() -> Result<()> {
     let fs = MemFs::new();
     let (ctx, _epic, task) = seeded(&fs)?;
 
-    assert_eq!(apply(&ctx, &task, TaskAction::Adopt)?, 2);
-    assert_eq!(
-        ctx.store().read(&task)?.frontmatter.status()?,
-        Status::InProgress
-    );
-
-    assert_eq!(apply(&ctx, &task, TaskAction::Release)?, 3);
-    assert_eq!(
-        ctx.store().read(&task)?.frontmatter.status()?,
-        Status::Active
-    );
-
-    assert_eq!(apply(&ctx, &task, TaskAction::Review)?, 4);
+    assert_eq!(apply(&ctx, &task, TaskAction::Review)?, 2);
     assert_eq!(
         ctx.store().read(&task)?.frontmatter.status()?,
         Status::Closed
@@ -47,12 +35,9 @@ fn adopt_release_review_cycle() -> Result<()> {
 }
 
 #[test]
-fn closed_task_cannot_reopen() -> Result<()> {
-    let fs = MemFs::new();
-    let (ctx, _epic, task) = seeded(&fs)?;
-    apply(&ctx, &task, TaskAction::Review)?;
-    assert!(apply(&ctx, &task, TaskAction::Adopt).is_err());
-    Ok(())
+fn closed_task_cannot_reopen() {
+    assert!(validate_transition(Status::Closed, Status::InProgress).is_err());
+    assert!(validate_transition(Status::Closed, Status::Active).is_err());
 }
 
 #[test]
@@ -73,25 +58,6 @@ fn outcome_is_appended() -> Result<()> {
 }
 
 #[test]
-fn reorder_rewrites_marker() -> Result<()> {
-    let fs = MemFs::new();
-    let (ctx, _epic, task) = seeded(&fs)?;
-    let before = ctx
-        .store()
-        .read(&task)?
-        .frontmatter
-        .get("body_hash")
-        .cloned();
-
-    assert_eq!(reorder(&ctx, &task, 3)?, 2);
-    let note = ctx.store().read(&task)?;
-    assert!(note.body.contains("blocks 3"));
-    assert_ne!(note.frontmatter.get("body_hash").cloned(), before);
-    assert!(reorder(&ctx, &task, 0).is_err());
-    Ok(())
-}
-
-#[test]
 fn non_task_cannot_use_lifecycle() -> Result<()> {
     let fs = MemFs::new();
     let ctx = super::context(&fs)?;
@@ -104,6 +70,6 @@ fn non_task_cannot_use_lifecycle() -> Result<()> {
         &note,
         &Event::new("write", super::NOW),
     )?;
-    assert!(apply(&ctx, &id, TaskAction::Adopt).is_err());
+    assert!(apply(&ctx, &id, TaskAction::Review).is_err());
     Ok(())
 }

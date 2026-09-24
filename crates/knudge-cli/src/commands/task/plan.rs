@@ -8,7 +8,7 @@ use knudge_core::Result;
 use knudge_core::schema::Scope;
 use knudge_core::task::plan::{PlanSpec, prompt as plan_prompt, submit_plan};
 use knudge_core::task::template::TemplateCatalog;
-use knudge_core::task::{PlanTemplate, TaskAction, TaskSpec, apply, child, reorder, submit};
+use knudge_core::task::{PlanTemplate, TaskSpec, child, submit};
 use knudge_core::toon;
 use knudge_core::write::WriteContext;
 use serde_json::json;
@@ -32,7 +32,7 @@ pub(super) fn run(session: &Session, args: &TaskPlanArgs) -> Result<Output> {
     if !args.steps.is_empty() {
         return submit_steps(&ctx, args);
     }
-    lifecycle(&ctx, args)
+    Err(Error::invalid_input("use `--prompt`, `--step` ou `--from`"))
 }
 
 fn render_prompt(session: &Session, args: &TaskPlanArgs) -> Result<Output> {
@@ -97,47 +97,6 @@ fn child_scope(ctx: &WriteContext<'_>, id: &str) -> Result<Scope> {
 
 fn position(index: usize) -> Result<u32> {
     u32::try_from(index.saturating_add(1)).map_err(|_| Error::invalid_input("passos demais"))
-}
-
-fn lifecycle(ctx: &WriteContext<'_>, args: &TaskPlanArgs) -> Result<Output> {
-    let action = if args.adopt {
-        Some(TaskAction::Adopt)
-    } else if args.release {
-        Some(TaskAction::Release)
-    } else if args.review {
-        Some(TaskAction::Review)
-    } else {
-        None
-    };
-    if let Some(action) = action {
-        let revision = apply(ctx, &args.id, action)?;
-        let data = json!({ "id": args.id, "action": action.as_str(), "revision": revision });
-        return Ok(Output::new(
-            format!("{}|{}|r{revision}", action.as_str(), args.id),
-            data,
-        ));
-    }
-    if let Some(blocks) = args.reorder {
-        let revision = reorder(ctx, &args.id, blocks)?;
-        let data = json!({
-            "id": args.id,
-            "action": "reorder",
-            "blocks": blocks,
-            "revision": revision,
-        });
-        return Ok(Output::new(
-            format!("reorder|{}|{blocks}|r{revision}", args.id),
-            data,
-        ));
-    }
-    if args.submit {
-        return Err(Error::invalid_input(
-            "`--submit` exige `--step` ou `--from`",
-        ));
-    }
-    Err(Error::invalid_input(
-        "use `--prompt`, `--step`, `--from`, `--adopt`, `--release`, `--review` ou `--reorder`",
-    ))
 }
 
 fn lookup<'a>(catalog: &'a TemplateCatalog, name: &str) -> Result<&'a PlanTemplate> {

@@ -8,7 +8,7 @@ use knudge_core::graph::Graph;
 use knudge_core::schema::{EdgeKind, NoteType, Value};
 use knudge_core::store::Store;
 use knudge_core::task::{
-    Child, Container, Mode, children, mode, progress_of, role, root_for_path, subtree,
+    Child, Container, Mode, children, mode, progress_of, role, roots_for_path, subtree,
 };
 use serde_json::json;
 
@@ -114,12 +114,13 @@ fn resolve_roots(
         for id in store.list_ids()? {
             notes.push(store.read(&id)?);
         }
-        let Some(root_id) = root_for_path(&notes, path)? else {
+        let roots = roots_for_path(&notes, path)?;
+        if roots.is_empty() {
             return Err(Error::not_found(format!(
                 "nenhum Épico-raiz ancorado a {path}"
             )));
-        };
-        return Ok(vec![root_id]);
+        }
+        return Ok(roots);
     }
     if let Some(root) = root {
         if !graph.contains(root) {
@@ -160,15 +161,13 @@ fn render_subtree(
         } else {
             None
         };
-        let mode_label = mode.map_or("-", Mode::as_str);
         let progress = (kind == NoteType::Epic).then(|| progress_of(graph, &entry.id));
         let progress_label =
             progress.map_or(String::new(), |value| format!(" ({})", value.label()));
         let indent = "  ".repeat(entry.depth.saturating_add(1));
         tree.lines.push(format!(
-            "{indent}{}|{}|{}|{}|{mode_label}|{statement}{progress_label}",
+            "{indent}{}|{}|{}|{statement}{progress_label}",
             entry.id,
-            role.as_str(),
             kind.as_str(),
             status.as_str()
         ));

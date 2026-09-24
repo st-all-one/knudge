@@ -1074,6 +1074,51 @@ fn task_graph_program_renders_subtree() -> TestResult {
 }
 
 #[test]
+fn task_graph_program_renders_forest_for_multiple_epics() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let first = task_new(
+        &dir,
+        &[
+            "task",
+            "new",
+            "Programa A",
+            "--scope",
+            "epic",
+            "--anchors",
+            "plan/foo.md",
+        ],
+    )?;
+    let second = task_new(
+        &dir,
+        &[
+            "task",
+            "new",
+            "Programa B",
+            "--scope",
+            "epic",
+            "--anchors",
+            "plan/foo.md",
+        ],
+    )?;
+
+    let out = run_in(&dir, &["task", "graph", "--program", "plan/foo.md"])?;
+    assert!(out.status.success(), "graph falhou: {:?}", out.stderr);
+    let text = String::from_utf8(out.stdout)?;
+    let first_pos = text.find(&first).ok_or("sem o épico A")?;
+    let second_pos = text.find(&second).ok_or("sem o épico B")?;
+    let (a, b) = if first < second {
+        (first_pos, second_pos)
+    } else {
+        (second_pos, first_pos)
+    };
+    assert!(a < b, "floresta fora da ordem de id: {text}");
+    Ok(())
+}
+
+#[test]
 fn task_graph_without_containers_warns() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
@@ -1455,8 +1500,8 @@ fn task_plan_prompt_and_submit_from_file() -> TestResult {
     let graph = run_in(&dir, &["task", "graph", "--root", &epic])?;
     assert!(graph.status.success(), "graph falhou: {:?}", graph.stderr);
     let tree = String::from_utf8(graph.stdout)?;
-    assert!(tree.contains("Bug"), "sem papel Bug: {tree}");
-    assert!(tree.contains("Epic"), "sem papel Epic: {tree}");
+    assert!(tree.contains("|error|"), "sem espécie error: {tree}");
+    assert!(tree.contains("|epic|"), "sem espécie epic: {tree}");
     Ok(())
 }
 
@@ -1487,6 +1532,19 @@ fn task_plan_invalid_from_writes_nothing() -> TestResult {
 }
 
 #[test]
+fn task_plan_removed_flags_exit_two() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let epic = task_new(&dir, &["task", "new", "Programa", "--scope", "epic"])?;
+    for flag in ["--adopt", "--release", "--review", "--reorder"] {
+        let out = run_in(&dir, &["task", "plan", &epic, flag])?;
+        assert_eq!(out.status.code(), Some(2), "{flag} deveria ser exit 2");
+    }
+    Ok(())
+}
+
+#[test]
 fn task_graph_reports_reduced_mode_without_owner() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
@@ -1505,20 +1563,33 @@ fn task_graph_reports_reduced_mode_without_owner() -> TestResult {
     let graph = run_in(&dir, &["task", "graph", "--root", &epic])?;
     assert!(graph.status.success());
     let tree = String::from_utf8(graph.stdout)?;
-    assert!(
-        tree.contains("|concurrent|")
-            || tree.contains("|magentic|")
-            || tree.contains("|sequential|"),
-        "modo fora do conjunto reduzido: {tree}"
-    );
+    // Texto enxuto: `id|kind|status|statement`, sem role/mode/owner.
+    assert!(!tree.contains("owner"), "coluna de dono: {tree}");
     assert!(
         !tree.contains("supervisor") && !tree.contains("handoff"),
         "modo removido ainda aparece: {tree}"
     );
+    let json_out = run_in(&dir, &["--json", "task", "graph", "--root", &epic])?;
+    let value = json(&json_out)?;
+    let nodes = value
+        .get("data")
+        .and_then(|data| data.get("nodes"))
+        .and_then(|nodes| nodes.as_array())
+        .ok_or("sem nodes")?;
+    let root = nodes.first().ok_or("sem raiz")?;
+    let mode = root
+        .get("mode")
+        .and_then(|mode| mode.as_str())
+        .unwrap_or("");
     assert!(
-        !tree.contains("owner"),
-        "coluna de dono não existe mais: {tree}"
+        matches!(mode, "concurrent" | "magentic" | "sequential"),
+        "modo fora do conjunto reduzido: {mode}"
     );
+    assert!(
+        root.get("role").and_then(|role| role.as_str()).is_some(),
+        "role deveria seguir no json"
+    );
+    assert!(root.get("owner").is_none(), "owner não deveria existir");
     Ok(())
 }
 

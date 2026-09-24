@@ -10,7 +10,7 @@ use crate::retrieval::Index;
 use crate::retrieval::anchor::glob_match;
 use crate::schema::NoteType;
 use crate::store::Note;
-use crate::task::{parent_of, program_of, root_for_path};
+use crate::task::{parent_of, program_of, roots_for_path};
 use crate::write::dedup::propose_merges;
 
 use super::super::anchors::{AnchorStore, invalidated_notes, verify};
@@ -282,7 +282,7 @@ fn orphan_programs(input: &DoctorInput<'_>, notes: &[Note], glob: &str) -> Resul
         } else {
             format!("{dir}/{name}")
         };
-        if root_for_path(notes, &path)?.is_none() {
+        if roots_for_path(notes, &path)?.is_empty() {
             orphans.push(path);
         }
     }

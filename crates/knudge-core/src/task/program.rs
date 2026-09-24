@@ -23,13 +23,13 @@ pub struct ProgramNode {
     pub depth: usize,
 }
 
-/// Resolve o Épico-raiz de um programa: o **menor id** entre containers sem pai cujo `anchors`
-/// casa `path` (nas duas direções).
+/// Resolve os Épicos-raiz de um programa: **todos** os containers sem pai cujo `anchors` casa
+/// `path` (nas duas direções), em ordem de `id` (D139).
 ///
 /// # Errors
 /// Propaga erros de parse do frontmatter.
-pub fn root_for_path(notes: &[Note], path: &str) -> Result<Option<String>> {
-    let mut best: Option<String> = None;
+pub fn roots_for_path(notes: &[Note], path: &str) -> Result<Vec<String>> {
+    let mut roots = Vec::new();
     for note in notes {
         if note.frontmatter.note_type()? != NoteType::Epic {
             continue;
@@ -41,12 +41,11 @@ pub fn root_for_path(notes: &[Note], path: &str) -> Result<Option<String>> {
         if !anchors.iter().any(|anchor| anchor_matches(anchor, path)) {
             continue;
         }
-        let id = note.id()?.to_string();
-        if best.as_ref().is_none_or(|current| id < *current) {
-            best = Some(id);
-        }
+        roots.push(note.id()?.to_string());
     }
-    Ok(best)
+    roots.sort();
+    roots.dedup();
+    Ok(roots)
 }
 
 /// Path do programa ancorado a `note` (primeiro anchor que casa o glob) — D135.

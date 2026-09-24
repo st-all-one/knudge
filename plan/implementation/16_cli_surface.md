@@ -143,7 +143,7 @@ kd task graph [--program <PATH>|--root <ID>]   # escopos com progresso (D127)
 kd task update <ID> [--statement <S>] [--status <S>] [--parent <ID>] [--checks ...]
 kd task close <ID> [--outcome success|partial|failure|abandoned] [--note <TXT>]
 kd task plan <ID> [--prompt [--template <NOME>] | --submit --from <TXT|->]
-  [--step <TXT>...] [--adopt|--reorder <N>|--release|--review]
+  [--step <TXT>...]
 ```
 
 - `close` roda os validators e grava `outcomes[]`/`evidence` (D48/D55) — nunca declara sem
@@ -157,8 +157,9 @@ kd task plan <ID> [--prompt [--template <NOME>] | --submit --from <TXT|->]
   `show` e nos containers do `task graph` (`(done/total)`).
 - **Arestas (inclui `depends_on`) têm uma via única:** `kd write --link <FROM:ARESTA:TO>` (D126).
   `kd task new` não cria arestas — reduz a superfície e reaproveita o caminho de grafo.
-- `plan` implementa o ciclo de vida de D53 (`blocks` 1-based, sem self-reference, detecção de ciclo).
-- `plan`/`epic` são **views derivadas** (sem verdade própria); `issue`/`task` são atômicas.
+- `plan` só tem `--prompt`/`--submit` (D138); a ordem entre irmãos vem do `PlanStep.blocks` do
+  plano submetido, e fechar é só `kd task close` (com evidência, D55).
+- `epic` é uma **view derivada** (sem verdade própria); `issue`/`task` são atômicas.
 - `--kind` grava a **espécie** mantendo o `scope` (D113).
 - `list --ready|--blocked` filtra pelas views derivadas; `--explain` acrescenta o motivo (D104).
 - `list --sort impact` ordena o **caminho crítico** por impacto de desbloqueio
@@ -168,10 +169,11 @@ kd task plan <ID> [--prompt [--template <NOME>] | --submit --from <TXT|->]
 - `plan --prompt` deriva o prompt TOON do template (`feature`/`bug`/`refactor`,
   `.knudge/templates.toml`); `--submit --from -` lê o plano TOON e valida tudo **antes** de
   escrever (D105).
-- `graph` projeta **papel** (`role`, D115) e **modo** (`mode`, D116/D136) derivados da
-  árvore/eventos: `role|kind|status|mode|statement` (modo em `sequential|concurrent|magentic`).
-- **Programa externo** (D119): `plan/<slug>.md` ancorado a um Épico-raiz (`--anchors`);
-  `task graph --program` imprime a subárvore; `programs.glob` define o que é um programa.
+- `graph` projeta no `--json` o **papel** (`role`, D115) e o **modo** (`mode`, D116/D136); o
+  **texto** é enxuto — `id|kind|status|statement (done/total)` (D139).
+- **Programa externo** (D119): `plan/<slug>.md` pode ancorar **vários** Épicos-raiz (`--anchors`);
+  `task graph --program` imprime a **floresta** (ordem de `id`); `--root <ID>` rende uma árvore só;
+  `programs.glob` define o que é um programa (D139).
 
 ## 8. `kd knowledge` — mapa de conhecimento (D128)
 
