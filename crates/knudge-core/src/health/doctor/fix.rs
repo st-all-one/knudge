@@ -103,32 +103,46 @@ fn fix_note_layout(input: &DoctorInput<'_>, fixed: &mut Vec<String>) -> Result<(
     Ok(())
 }
 
-/// Migra notas legadas de grupo (D134/D149): `scope: plan` → `scope: epic` e remove
-/// `type: container` (o grupo passa a ser `scope=epic` com `type` omitido). Lossless (mesmo id).
+/// Migra notas legadas de grupo (D134/D149): `scope: plan` → `scope: epic`, `type`
+/// `container`/`epic` removido (o grupo passa a ser `scope=epic` com `type` omitido).
+/// Lossless (mesmo id).
 fn fix_legacy_group(input: &DoctorInput<'_>, fixed: &mut Vec<String>) -> Result<()> {
     for id in input.store.list_ids()? {
         let path = input.store.note_path(&id);
         let bytes = input.fs.read(&path)?;
         let raw = String::from_utf8_lossy(&bytes);
+        let has_group_type = raw.lines().any(|line| {
+            let trimmed = line.trim_end();
+            trimmed == "type: container" || trimmed == "type: epic"
+        });
         let has_plan = raw.lines().any(|line| line.trim_end() == "scope: plan");
-        let has_container = raw.lines().any(|line| line.trim_end() == "type: container");
-        if !has_plan && !has_container {
+        if !has_group_type && !has_plan {
             continue;
         }
-        let migrated: String = raw
+        let has_scope = raw
             .lines()
-            .filter_map(|line| {
-                let trimmed = line.trim_end();
-                if trimmed == "type: container" {
-                    return None;
-                }
-                if trimmed == "scope: plan" {
-                    return Some(line.replace("scope: plan", "scope: epic"));
-                }
-                Some(line.to_string())
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
+            .any(|line| line.trim_start().starts_with("scope:"));
+        let mut out: Vec<String> = Vec::new();
+        for line in raw.lines() {
+            let trimmed = line.trim_end();
+            if trimmed == "type: container" || trimmed == "type: epic" {
+                continue;
+            }
+            if trimmed == "scope: plan" {
+                out.push(line.replace("scope: plan", "scope: epic"));
+            } else {
+                out.push(line.to_string());
+            }
+        }
+        // `type` de grupo saiu sem `scope`: o grupo vira `scope=epic` (D149).
+        if has_group_type
+            && !has_scope
+            && out.first().is_some_and(|line| line.trim_end() == "---")
+            && let Some(close) = out.iter().skip(1).position(|line| line.trim_end() == "---")
+        {
+            out.insert(close.saturating_add(1), "scope: epic".to_string());
+        }
+        let migrated = out.join("\n");
         input
             .fs
             .write_atomic(&path, format!("{migrated}\n").as_bytes())?;
@@ -189,7 +203,14 @@ fn fix_broken_anchors(input: &DoctorInput<'_>, fixed: &mut Vec<String>) -> Resul
             .collect();
         let kept: Vec<String> = anchors
             .iter()
-            .filter(|anchor| is_glob(anchor) || input.fs.exists(&input.project_root.join(anchor)))
+            .filter(|anchor| {
+                if is_glob(anchor) {
+                    return true;
+                }
+                let path = input.project_root.join(anchor.as_str());
+                // Diretório não tem conteúdo para hashear: trata como âncora inválida.
+                input.fs.exists(&path) && !input.fs.is_dir(&path)
+            })
             .cloned()
             .collect();
         if kept.len() == anchors.len() {

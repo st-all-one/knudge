@@ -8,6 +8,7 @@ use crate::lifecycle::decay::{
     AnchorValidity, DecayPolicy, compute_anchor_validity, compute_anchor_validity_with,
     should_demote, walk_paths,
 };
+use crate::ports::Fs;
 use crate::ports::fakes::MemFs;
 use proptest::prelude::*;
 
@@ -57,6 +58,17 @@ fn compute_anchor_validity_handles_literal_and_glob() {
     assert_eq!(validity.total, 3);
     assert_eq!(validity.valid, 2);
     assert_eq!(validity.broken, 1);
+}
+
+#[test]
+fn directory_anchor_counts_as_broken() -> Result<()> {
+    let fs = MemFs::new();
+    fs.create_dir_all(Path::new("/p/src/dir"))?;
+    let anchors = vec!["src/dir".to_string()];
+    let validity = compute_anchor_validity(&fs, Path::new(PROJECT), &anchors);
+    assert_eq!(validity.total, 1);
+    assert_eq!(validity.broken, 1, "diretório não é âncora de conteúdo");
+    Ok(())
 }
 
 #[test]

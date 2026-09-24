@@ -66,3 +66,31 @@ fn batch_creates_with_parent_by_key() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn batch_update_applies_anchors() -> Result<()> {
+    let fs = MemFs::new();
+    let ctx = context(&fs)?;
+    let created = batch_jsonl(
+        &ctx,
+        r#"{"key":"t","statement":"Tarefa","scope":"task"}"#,
+        TaskBatchMode::Apply,
+        10,
+    )?;
+    let id = created
+        .keys
+        .get("t")
+        .cloned()
+        .ok_or_else(|| Error::not_found("sem t"))?;
+
+    // Antes as âncoras do update eram parseadas e ignoradas em silêncio.
+    let line = format!(r#"{{"id":"{id}","anchors":["src/a.rs","src/b.rs"]}}"#);
+    let updated = batch_jsonl(&ctx, &format!("{line}\n"), TaskBatchMode::Apply, 10)?;
+    assert!(updated.items.iter().any(|item| item.action == "updated"));
+    let note = ctx.store().read(&id)?;
+    assert_eq!(
+        note.frontmatter.string_list("anchors")?,
+        vec!["src/a.rs", "src/b.rs"]
+    );
+    Ok(())
+}

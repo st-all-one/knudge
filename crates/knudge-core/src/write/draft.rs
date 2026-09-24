@@ -13,7 +13,7 @@ use crate::store::Note;
 use crate::time::Timestamp;
 use crate::{Error, Result};
 
-use super::set_list;
+use super::{set_list, validate_anchors};
 
 /// Especificação de uma nota nova.
 #[derive(Debug, Clone, PartialEq)]
@@ -167,6 +167,7 @@ impl Draft {
         for (kind, to) in &self.edges {
             graph::link(&mut frontmatter, *kind, to)?;
         }
+        validate_anchors(&self.anchors)?;
         set_list(&mut frontmatter, "anchors", &self.anchors)?;
         if let Some(class) = self.classification {
             frontmatter.set("classification", Value::Str(class.as_str().to_string()))?;

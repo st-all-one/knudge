@@ -147,9 +147,15 @@ fn doc_from_value(value: &Value) -> Result<NoteDoc> {
     let map = value
         .as_map()
         .ok_or_else(|| Error::invalid_input("linha de índice não é objeto"))?;
+    // O grupo derivado é persistido como `type: epic` (D149), que `NoteType::ALL` não aceita
+    // por ser omitido na nota canônica. Aceitar aqui mantém o índice legível (D15).
+    let note_type = match str_field(map, "type")? {
+        "epic" => NoteType::Epic,
+        text => text.parse::<NoteType>()?,
+    };
     let meta = Meta {
         id: str_field(map, "id")?.to_string(),
-        note_type: str_field(map, "type")?.parse::<NoteType>()?,
+        note_type,
         scope: opt_scope(map)?,
         classification: str_field(map, "classification")?.parse::<Classification>()?,
         status: str_field(map, "status")?.parse::<Status>()?,

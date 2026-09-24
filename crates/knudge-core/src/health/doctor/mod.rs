@@ -112,6 +112,17 @@ pub struct DoctorCheck {
     pub fixable: bool,
 }
 
+impl DoctorCheck {
+    /// `true` quando a falha é **advisória** (warn) e não bloqueia a saúde do corpus (D119).
+    ///
+    /// O Épico-raiz sem programa externo é o caso típico de corpus legado/importado: é útil
+    /// sinalizar, mas não é erro de integridade do knudge.
+    #[must_use]
+    pub const fn is_warning(&self) -> bool {
+        !self.ok && matches!(self.id, CheckId::ProgramAnchor)
+    }
+}
+
 /// Relatório do `doctor`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DoctorReport {
@@ -124,10 +135,12 @@ pub struct DoctorReport {
 }
 
 impl DoctorReport {
-    /// `true` se todos os checks passaram.
+    /// `true` se todos os checks passaram ou são apenas advisórios (D119).
     #[must_use]
     pub fn is_healthy(&self) -> bool {
-        self.checks.iter().all(|check| check.ok)
+        self.checks
+            .iter()
+            .all(|check| check.ok || check.is_warning())
     }
 
     /// Check pelo identificador.
@@ -203,6 +216,12 @@ pub(crate) fn derived_diverges(
 ) -> bool {
     match Index::load(input.fs, input.root, warnings) {
         Ok(Some(persisted)) => persisted.docs != expected.docs,
-        Ok(None) | Err(_) => true,
+        Ok(None) => true,
+        Err(error) => {
+            warnings.push(format!(
+                "índice derivado ilegível; `--fix` reconstrói: {error}"
+            ));
+            true
+        }
     }
 }

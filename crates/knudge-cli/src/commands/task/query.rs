@@ -4,6 +4,7 @@ use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::graph::Graph;
 use knudge_core::retrieval::block_reason;
+use knudge_core::schema::Scope;
 use knudge_core::task::{impact, is_actionable};
 use serde_json::json;
 
@@ -21,8 +22,14 @@ use super::show::show_one;
 /// Propaga erros de leitura do store e valida a combinação de flags.
 pub(super) fn list(session: &Session, args: &TaskListArgs) -> Result<Output> {
     validate_list_args(args)?;
-    let needs_graph =
-        args.ready || args.blocked || args.sort == Some(TaskSort::Impact) || args.full_content;
+    let needs_graph = args.ready
+        || args.blocked
+        || args.sort == Some(TaskSort::Impact)
+        || args.full_content
+        || args
+            .scope
+            .as_deref()
+            .is_some_and(|text| text.parse::<Scope>().is_err());
     let graph = needs_graph.then(|| session.graph()).transpose()?;
     let filters = ListFilters::resolve(args, graph.as_ref())?;
     let mut rows = collect_rows(session, args, graph.as_ref(), &filters)?;
@@ -58,7 +65,7 @@ fn collect_rows(
         let Some(note) = session.store().read_optional(&id)? else {
             continue;
         };
-        if !passes_filters(&note, filters)? {
+        if !passes_filters(&note, filters, graph)? {
             continue;
         }
         if sort_impact && !is_actionable(graph.and_then(|graph| graph.status(&id))) {

@@ -17,7 +17,7 @@ kd forget --id fact_01abc --purge      # remove fisicamente (após retenção)
 ## Uso
 
 ```
-kd forget --id <ID> [--restore | --purge]
+kd forget --id <ID> [--restore | --purge [--force]]
 ```
 
 | Flag | Efeito |
@@ -25,6 +25,7 @@ kd forget --id <ID> [--restore | --purge]
 | `--id <ID>` | Id da nota (obrigatório) |
 | `--restore` | Restaura em vez de esquecer |
 | `--purge` | Remove fisicamente após a retenção |
+| `--force` | Com `--purge`: ignora a retenção e purga um tombstone já `forgotten`/`superseded` |
 
 ## Exemplos
 
@@ -53,12 +54,14 @@ kd forget --id fact_01abc --purge
 ```
 
 O `--purge` só age quando a nota está aposentada **e** a retenção venceu
-(`retention.retired_days`, default 30). Para purgar imediatamente:
+(`retention.retired_days`, default 30). Para purgar imediatamente um tombstone
+(`superseded`/`forgotten`) sem mexer na política:
 
 ```bash
-kd config set --key retention.retired_days --value 0
-kd forget --id fact_01abc --purge
+kd forget --id fact_01abc --purge --force
 ```
+
+`--force` **não** purga nota viva: exige status `forgotten` ou `superseded`.
 
 O `--purge` também remove as **arestas de entrada** das demais notas (sem pontas soltas no grafo).
 
@@ -66,7 +69,7 @@ O `--purge` também remove as **arestas de entrada** das demais notas (sem ponta
 
 - Texto: `forget|<id>|rN`, `restore|<id>|rN` ou `purge|<id>`.
 - `--json`: `{action, id, revision}`.
-- `--purge` sem retenção vencida → exit 2 (`invalid_input`).
+- `--purge` sem retenção vencida → exit 2 (`invalid_input`); use `--force` para tombstones.
 - Nota ausente → exit 3.
 
 ## Quando (não) usar

@@ -218,6 +218,9 @@ pub struct WriteArgs {
         value_delimiter = ','
     )]
     pub anchors: Vec<String>,
+    /// Limpa todas as âncoras (com `--update`).
+    #[arg(long, conflicts_with = "anchors")]
+    pub clear_anchors: bool,
     /// Classificação.
     #[arg(long = "class", value_name = "CLASSE")]
     pub class: Option<String>,
@@ -266,6 +269,9 @@ pub struct ForgetArgs {
     /// Remove fisicamente após a retenção.
     #[arg(long)]
     pub purge: bool,
+    /// Com `--purge`, ignora a retenção e purga uma nota já aposentada (`forgotten`/`superseded`).
+    #[arg(long)]
+    pub force: bool,
 }
 
 /// Argumentos de `kd sync`.

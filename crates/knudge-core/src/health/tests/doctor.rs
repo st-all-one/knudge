@@ -5,7 +5,7 @@ use std::path::Path;
 use crate::Result;
 use crate::config::Config;
 use crate::graph::Graph;
-use crate::health::{CheckId, DoctorInput, doctor, doctor_fix};
+use crate::health::{CheckId, DoctorCheck, DoctorInput, doctor, doctor_fix};
 use crate::ports::Fs;
 use crate::ports::fakes::MemFs;
 use crate::retrieval::Index;
@@ -243,6 +243,14 @@ fn program_anchor_reports_epic_without_program() -> Result<()> {
     assert_eq!(
         report.check(CheckId::ProgramAnchor).map(|c| c.ok),
         Some(false)
+    );
+    // Falha advisória: sinaliza sem bloquear a saúde do corpus (D119). A cobertura de
+    // `healthy` com o warn fica no teste de integração `program_anchor_warn_keeps_corpus_healthy`.
+    assert_eq!(
+        report
+            .check(CheckId::ProgramAnchor)
+            .map(DoctorCheck::is_warning),
+        Some(true)
     );
     Ok(())
 }

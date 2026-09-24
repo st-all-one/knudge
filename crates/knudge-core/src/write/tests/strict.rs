@@ -67,6 +67,21 @@ fn overlong_statement_is_rejected() {
 }
 
 #[test]
+fn empty_anchor_is_rejected() {
+    let draft = Draft {
+        anchors: vec![String::new()],
+        ..Draft::new(NoteType::Fact, "alpha")
+    };
+    assert!(draft.to_note(NOW).is_err());
+
+    let blank = Draft {
+        anchors: vec!["   ".to_string()],
+        ..Draft::new(NoteType::Fact, "alpha")
+    };
+    assert!(blank.to_note(NOW).is_err());
+}
+
+#[test]
 fn scope_rules_are_enforced() {
     let scoped_fact = Draft {
         scope: Some(Scope::Task),

@@ -4,7 +4,9 @@ use crate::Result;
 use crate::graph::Graph;
 use crate::maintenance::learn::{LearnInput, LearnKind, LearnProposal, learn};
 use crate::retrieval::Index;
-use crate::schema::NoteType;
+use crate::schema::{NoteType, Scope};
+use crate::store::Note;
+use crate::write::Draft;
 use crate::write::dedup::DedupThresholds;
 
 use super::{anchored, note, success_task};
@@ -46,6 +48,32 @@ fn covered_path_yields_no_gap() -> Result<()> {
     let found = proposals(&index, &graph, &changed, &DedupThresholds::default());
     assert!(!found.iter().any(|p| p.kind == LearnKind::CreateNote));
     Ok(())
+}
+
+#[test]
+fn scoped_duplicates_compare_statement_only() -> Result<()> {
+    // Corpo idêntico (template de import) não deve gerar merge/supersede para itens de trabalho.
+    let body = "zero um dois tres quatro cinco seis sete oito nove dez onze doze treze catorze quinze dezasseis dezassete dezoito dezanove";
+    let notes = [
+        scoped("alpha bravo charlie", body)?,
+        scoped("delta echo foxtrot", body)?,
+    ];
+    let index = Index::build(&notes)?;
+    let graph = Graph::from_notes(notes.to_vec())?;
+    let found = proposals(&index, &graph, &[], &DedupThresholds::default());
+    assert!(
+        !found
+            .iter()
+            .any(|p| matches!(p.kind, LearnKind::Merge | LearnKind::Supersede)),
+        "corpo template gerou proposta falsa: {found:?}"
+    );
+    Ok(())
+}
+
+fn scoped(statement: &str, body: &str) -> Result<Note> {
+    let mut draft = Draft::new(NoteType::Task, statement).with_body(body);
+    draft.scope = Some(Scope::Task);
+    draft.to_note(super::NOW)
 }
 
 #[test]

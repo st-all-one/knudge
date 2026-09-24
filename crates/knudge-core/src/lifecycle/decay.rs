@@ -94,7 +94,9 @@ pub fn compute_anchor_validity(
         if has_glob(anchor) {
             paths.iter().any(|path| glob_match(anchor, path))
         } else {
-            fs.exists(&project_root.join(anchor))
+            let path = project_root.join(anchor);
+            // Diretório não é âncora de conteúdo (mesma regra do verify-on-hit/D86).
+            fs.exists(&path) && !fs.is_dir(&path)
         }
     })
 }

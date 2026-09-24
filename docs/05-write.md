@@ -28,7 +28,7 @@ EOF
 ```
 kd write [BODY]... [--summary <TXT>] [--type <TIPO>] [--tag <T>]... [--anchor <PATH>]...
          [--class <CLASSE>] [--status <STATUS>] [--edge <ARESTA:ID>]
-kd write --update <ID> [--summary <TXT>] [...]
+kd write --update <ID> [--summary <TXT>] [...] [--params <JSON>] [--clear-anchors]
 kd write --link <FROM:ARESTA:TO>
 kd write --outcome <OUTCOME> --id <ID> [--note <TXT>]
 kd write --batch <FONTE|-> [--dry-run]
@@ -67,6 +67,21 @@ kd write --update fact_01qejflt --summary "O gateway faz retry exponencial com j
 
 Mudar `type` ou `statement` **cria novo id e supersede** o antigo (não reescreve o id). O
 `revision` incrementa a cada update.
+
+**Id legado/não derivável** (prefixo histórico, ex.: `container_*`) **revisa no lugar** quando só
+corpo/tags/âncoras mudam; o id só é reescrito (supersede) se a chave de conteúdo (`type` +
+`statement`) mudar.
+
+Editar campos sem `--summary` é mais fácil com `--params` — o mesmo objeto do lote, aplicado como
+patch:
+
+```bash
+kd write --update fact_01qejflt --params '{"body":"novo corpo","tags":["cache"]}'
+kd write --update fact_01qejflt --params '{"anchors":[]}'   # limpa as âncoras
+kd write --update fact_01qejflt --clear-anchors              # atalho para limpar
+```
+
+Âncora vazia (`--anchor ""`) é **rejeitada** (exit 2); para limpar use `--clear-anchors`.
 
 ### Nível 4 — relacionar
 
@@ -115,6 +130,7 @@ O schema do lote é o **canônico** (`statement`, `body`, `type`, `tags`, `ancho
 | `--type <TIPO>` | Espécie (default `fact`; `task` é rejeitado) |
 | `--tag <T>` | Tag (repetível) |
 | `--anchor <PATH>` | Âncora (repetível; aceita vírgula; alias `--anchors`) |
+| `--clear-anchors` | Com `--update`, limpa todas as âncoras (conflita com `--anchor`) |
 | `--class <CLASSE>` | `foundational`/`tactical`/`observational` |
 | `--status <STATUS>` | Status inicial |
 | `--edge <ARESTA:ID>` | Aresta a partir da nota criada |

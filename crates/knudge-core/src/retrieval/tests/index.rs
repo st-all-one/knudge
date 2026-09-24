@@ -41,6 +41,20 @@ fn scope_survives_round_trip() -> Result<()> {
 }
 
 #[test]
+fn epic_survives_round_trip() -> Result<()> {
+    // O grupo deriva `type=epic` (D149); o índice persistido precisa voltar a carregar.
+    let epic = Note::new(base(NoteType::Epic, "épico")?, "");
+    let index = Index::build(&[epic])?;
+    assert_eq!(
+        index.docs.first().map(|doc| doc.meta.note_type),
+        Some(NoteType::Epic)
+    );
+    let loaded = Index::parse(&index.serialize()?)?;
+    assert_eq!(loaded, index);
+    Ok(())
+}
+
+#[test]
 fn open_rebuilds_when_absent() -> Result<()> {
     let fs = MemFs::new();
     let store = Store::new(&fs, "/p/.knudge");

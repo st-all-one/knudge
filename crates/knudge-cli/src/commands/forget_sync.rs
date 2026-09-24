@@ -4,6 +4,7 @@ use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::git::{Persistence, SyncReport, sync as git_sync};
 use knudge_core::lifecycle::{Retention, due_for_purge, retirements};
+use knudge_core::schema::Status;
 use knudge_core::write::{forget as forget_note, restore};
 use serde_json::json;
 
@@ -28,7 +29,12 @@ pub fn forget(session: &Session, args: &ForgetArgs) -> Result<Output> {
         ));
     }
     if args.purge {
-        return purge(session, &args.id);
+        let mode = if args.force {
+            PurgeMode::Force
+        } else {
+            PurgeMode::Retention
+        };
+        return purge(session, &args.id, mode);
     }
     let ctx = session.write_context()?;
     let revision = forget_note(&ctx, &args.id, None)?;
@@ -36,21 +42,44 @@ pub fn forget(session: &Session, args: &ForgetArgs) -> Result<Output> {
     Ok(Output::new(format!("forget|{}|r{revision}", args.id), data))
 }
 
-fn purge(session: &Session, id: &str) -> Result<Output> {
+/// Modo do `--purge`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PurgeMode {
+    /// Exige a janela de retenção vencida (D84).
+    Retention,
+    /// Ignora a retenção, mas só purga estado aposentado.
+    Force,
+}
+
+fn purge(session: &Session, id: &str, mode: PurgeMode) -> Result<Output> {
     let hook = hooks::run(session, HookEvent::PrePrune, &json!({ "id": id }))?;
     if hook.blocked {
         return Err(Error::invalid_input("hook `pre-prune` bloqueou"));
     }
-    let (events, _warnings) = session.events().read_all()?;
-    let retention = Retention::from_config(session.config());
-    let due = due_for_purge(&retirements(&events), session.now_ms(), retention);
-    if !due.iter().any(|candidate| candidate == id) {
-        return Err(Error::invalid_input(format!(
-            "nota {id} não está aposentada ou a retenção não venceu (D84)"
-        )));
+    match mode {
+        // `--force` só purga estado aposentado (`forgotten`/`superseded`), nunca nota viva.
+        PurgeMode::Force => {
+            let status = session.store().read(id)?.frontmatter.status()?;
+            if !matches!(status, Status::Forgotten | Status::Superseded) {
+                return Err(Error::invalid_input(format!(
+                    "nota {id} está `{status}`; use `kd forget --id {id}` antes de `--purge --force`"
+                )));
+            }
+        }
+        PurgeMode::Retention => {
+            let (events, _warnings) = session.events().read_all()?;
+            let retention = Retention::from_config(session.config());
+            let due = due_for_purge(&retirements(&events), session.now_ms(), retention);
+            if !due.iter().any(|candidate| candidate == id) {
+                return Err(Error::invalid_input(format!(
+                    "nota {id} não está aposentada ou a retenção não venceu (D84); use `--force` para purgar um tombstone"
+                )));
+            }
+        }
     }
     session.store().remove(id)?;
-    let data = json!({ "id": id, "action": "purge" });
+    let forced = mode == PurgeMode::Force;
+    let data = json!({ "id": id, "action": "purge", "forced": forced });
     Ok(Output::new(format!("purge|{id}"), data))
 }
 

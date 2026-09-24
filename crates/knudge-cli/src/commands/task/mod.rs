@@ -38,14 +38,26 @@ pub fn run(session: &Session, command: &TaskCommand) -> Result<Output> {
             status,
             parent,
             checks,
-        } => mutate::update(
-            session,
-            id,
-            statement.as_deref(),
-            status.as_deref(),
-            parent.as_deref(),
-            checks,
-        ),
+            anchor,
+            clear_anchors,
+        } => {
+            let anchors = if *clear_anchors {
+                mutate::AnchorUpdate::Clear
+            } else if anchor.is_empty() {
+                mutate::AnchorUpdate::Keep
+            } else {
+                mutate::AnchorUpdate::Replace(anchor)
+            };
+            mutate::update(
+                session,
+                id,
+                statement.as_deref(),
+                status.as_deref(),
+                parent.as_deref(),
+                checks,
+                &anchors,
+            )
+        }
         TaskCommand::Close { id, outcome, note } => {
             mutate::close(session, id, outcome.as_deref(), note.as_deref())
         }

@@ -7,80 +7,16 @@
 use std::collections::BTreeSet;
 
 use crate::graph;
-use crate::schema::{Classification, EdgeKind, NoteType, Scope, Status, Value, id};
+use crate::schema::{EdgeKind, NoteType, Scope, Status, Value, id};
 use crate::store::{Note, Store};
 use crate::time::Timestamp;
 use crate::{Error, Result};
 
-use super::status::validate_transition;
-use super::{WriteAction, WriteContext, event, set_list};
+use super::{WriteAction, WriteContext, event};
 
-/// Campos mutáveis por [`update`] (ausente = não mexe).
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Patch {
-    /// Novo tipo (mudança dispara supersede).
-    pub note_type: Option<NoteType>,
-    /// Nova afirmação (mudança dispara supersede).
-    pub statement: Option<String>,
-    /// Novo corpo.
-    pub body: Option<String>,
-    /// Novas tags (vazio limpa).
-    pub tags: Option<Vec<String>>,
-    /// Nova classificação.
-    pub classification: Option<Classification>,
-    /// Novo status (validado por [`validate_transition`]).
-    pub status: Option<Status>,
-    /// Novo escopo (só `task`/`container`).
-    pub scope: Option<Scope>,
-    /// Novas âncoras (vazio limpa).
-    pub anchors: Option<Vec<String>>,
-}
+mod patch;
 
-impl Patch {
-    /// Aplica o patch a uma nota (sem gravar).
-    ///
-    /// # Errors
-    /// Retorna `ErrorKind::Schema`/`InvalidInput` para valor ou transição inválidos.
-    pub fn apply(&self, note: &mut Note) -> Result<()> {
-        if let Some(note_type) = self.note_type {
-            note.frontmatter
-                .set("type", Value::Str(note_type.as_str().to_string()))?;
-        }
-        if let Some(statement) = &self.statement {
-            if statement.trim().is_empty() {
-                return Err(Error::invalid_input(
-                    "statement vazio: informe a afirmação da nota",
-                ));
-            }
-            note.frontmatter
-                .set("statement", Value::Str(statement.clone()))?;
-        }
-        if let Some(body) = &self.body {
-            note.body.clone_from(body);
-        }
-        if let Some(tags) = &self.tags {
-            set_list(&mut note.frontmatter, "tags", tags)?;
-        }
-        if let Some(class) = self.classification {
-            note.frontmatter
-                .set("classification", Value::Str(class.as_str().to_string()))?;
-        }
-        if let Some(status) = self.status {
-            validate_transition(note.frontmatter.status()?, status)?;
-            note.frontmatter
-                .set("status", Value::Str(status.as_str().to_string()))?;
-        }
-        if let Some(scope) = self.scope {
-            validate_scope(note.frontmatter.note_type()?, Some(scope))?;
-            note.frontmatter
-                .set("scope", Value::Str(scope.as_str().to_string()))?;
-        }
-        if let Some(anchors) = &self.anchors {
-            set_list(&mut note.frontmatter, "anchors", anchors)?;
-        }
-        Ok(())
-    }
-}
+pub use patch::Patch;
 
 /// Resultado de [`update`].
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -128,11 +64,20 @@ impl UpdateOutcome {
 /// Propaga erros de leitura, validação e escrita; retorna `ErrorKind::Schema` para patch inválido.
 pub fn update(ctx: &WriteContext<'_>, id: &str, patch: &Patch) -> Result<UpdateOutcome> {
     let mut note = ctx.store().read(id)?;
+    let original_type = note.frontmatter.note_type()?;
+    let original_statement = note.frontmatter.statement()?.to_string();
+    // Id que a nota **teria** se fosse derivada hoje; diferente de `id` = id histórico/legado
+    // (`container_*`, D02/D95) ou afirmação fora do normalizador.
+    let canonical_id = id::note_id(original_type, &original_statement);
     patch.apply(&mut note)?;
     let note_type = note.frontmatter.note_type()?;
     let statement = note.frontmatter.statement()?.to_string();
     let new_id = id::note_id(note_type, &statement);
-    if new_id == id {
+    let content_key_changed = note_type != original_type || statement != original_statement;
+    // Id não-derivável não renomeia em silêncio numa edição de corpo/tags/âncoras: revisa no
+    // lugar. Só supersede quando a **chave de conteúdo** (`type` + `statement`) muda (D01).
+    let revises_in_place = new_id == id || (canonical_id != id && !content_key_changed);
+    if revises_in_place {
         let revision = note.revision().saturating_add(1);
         note.set_revision(revision)?;
         note.refresh_body_hash()?;
@@ -238,7 +183,7 @@ pub fn history(store: &Store<'_>, id: &str) -> Result<Vec<Note>> {
     Ok(chain)
 }
 
-fn validate_scope(note_type: NoteType, scope: Option<Scope>) -> Result<()> {
+pub(super) fn validate_scope(note_type: NoteType, scope: Option<Scope>) -> Result<()> {
     if scope.is_some() && !note_type.is_scoped() {
         return Err(Error::schema(
             "scope só vale para item de trabalho/container (D93/D113)",

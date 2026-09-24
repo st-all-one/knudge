@@ -38,8 +38,21 @@ pub fn anchor_role(note: &Note, anchor: &str) -> AnchorRole {
 pub fn hash_file(fs: &dyn Fs, path: &Path) -> Result<Option<String>> {
     match fs.read(path) {
         Ok(bytes) => Ok(Some(hash::hex8(&bytes))),
-        Err(Error::NotFound(_)) => Ok(None),
+        // Ausência ou caminho de diretório não têm conteúdo para hashear (D86).
+        Err(error) if is_absent(&error) => Ok(None),
         Err(error) => Err(error),
+    }
+}
+
+/// `true` se o erro significa "sem arquivo legível" (ausente ou diretório).
+fn is_absent(error: &Error) -> bool {
+    match error {
+        Error::NotFound(_) => true,
+        Error::Io { source, .. } => matches!(
+            source.kind(),
+            std::io::ErrorKind::NotFound | std::io::ErrorKind::IsADirectory
+        ),
+        _ => false,
     }
 }
 

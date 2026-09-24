@@ -4,6 +4,7 @@ use std::collections::BTreeSet;
 
 use knudge_core::Result;
 use knudge_core::graph::Graph;
+use knudge_core::handoff::manifest::belongs_to;
 use knudge_core::retrieval::{BlockReason, Filter, Meta, compute_views};
 use knudge_core::schema::{NoteType, Scope, Status};
 use knudge_core::store::Note;
@@ -15,6 +16,7 @@ use crate::cli::TaskListArgs;
 /// Filtros resolvidos de `kd task list` (evita excesso de parâmetros).
 pub(super) struct ListFilters<'a> {
     scope: Option<Scope>,
+    scope_container: Option<&'a str>,
     status: Option<Status>,
     kind: Option<NoteType>,
     parent: Option<&'a str>,
@@ -24,8 +26,18 @@ pub(super) struct ListFilters<'a> {
 
 impl<'a> ListFilters<'a> {
     pub(super) fn resolve(args: &'a TaskListArgs, graph: Option<&Graph>) -> Result<Self> {
+        // `--scope` aceita **nível** (`epic|issue|task`) ou o **id** do container-raiz; assim a
+        // flag significa a mesma coisa que em `ask`/`rewind` quando recebe um id.
+        let (scope, scope_container) = match args.scope.as_deref() {
+            Some(text) => match text.parse::<Scope>() {
+                Ok(level) => (Some(level), None),
+                Err(_) => (None, Some(text)),
+            },
+            None => (None, None),
+        };
         Ok(Self {
-            scope: args.scope.as_deref().map(str::parse::<Scope>).transpose()?,
+            scope,
+            scope_container,
             status: args
                 .status
                 .as_deref()
@@ -71,7 +83,11 @@ pub(super) struct Row {
 }
 
 /// `true` se a nota passa por todos os filtros de `kd task list`.
-pub(super) fn passes_filters(note: &Note, filters: &ListFilters<'_>) -> Result<bool> {
+pub(super) fn passes_filters(
+    note: &Note,
+    filters: &ListFilters<'_>,
+    graph: Option<&Graph>,
+) -> Result<bool> {
     if !is_task(note) {
         return Ok(false);
     }
@@ -80,6 +96,14 @@ pub(super) fn passes_filters(note: &Note, filters: &ListFilters<'_>) -> Result<b
         && note.frontmatter.scope()? != Some(scope)
     {
         return Ok(false);
+    }
+    if let Some(container) = filters.scope_container {
+        let Some(graph) = graph else {
+            return Ok(false);
+        };
+        if !belongs_to(graph, id, container) {
+            return Ok(false);
+        }
     }
     if let Some(status) = filters.status
         && note.frontmatter.status()? != status

@@ -41,7 +41,9 @@ fail derived índice derivado ausente/divergente; `--fix` reconstrói
 ```
 
 Checks: `schema`, `integrity`, `cycles`, `anchors`, `program-anchor`, `duplicates`, `locks`,
-`config`, `body_hash`, `events`, `derived`, `embeddings`.
+`config`, `body_hash`, `events`, `derived`, `embeddings`. `program-anchor` (épico-raiz sem
+`plan/*.md`) é **warn**: aparece no relatório mas **não** deixa o corpus "não saudável" — corpus
+importado costuma não ter o programa externo.
 
 ### Nível 2 — reparar
 
@@ -50,9 +52,10 @@ kd maintenance doctor --fix
 ```
 
 Repara o **reversível**: migra layout plano legado (`notas/<id>.md` → `notas/<tipo>/<id>.md`),
-normaliza `scope: plan`→`scope: epic` e remove `type: container`, remove chaves fora do schema
-(`confidence`/`expires_at`/`not_before`), recalcula `body_hash`, remove âncoras quebradas e locks
-stale, e reconstrói o índice divergente. É **idempotente** e nunca apaga notas.
+normaliza `scope: plan`→`scope: epic` e remove `type: container`/`type: epic`, remove chaves fora
+do schema (`confidence`/`expires_at`/`not_before`), recalcula `body_hash`, remove âncoras
+quebradas (inclusive diretórios) e locks stale, e reconstrói o índice divergente. É
+**idempotente** e nunca apaga notas.
 
 ### Nível 3 — auditoria
 
@@ -61,7 +64,9 @@ kd maintenance doctor --audit
 ```
 
 Foca integridade de grafo/arestas: âncoras quebradas, ciclos de dependência, duplicatas,
-supersessão e arestas sugeridas.
+supersessão e arestas sugeridas. O `--json` traz os **detalhes** (ids/pares): `duplicate_pairs`,
+`broken_anchor_details`, `missing_edge_details`, `stale_lock_details`, `integrity_issues` e os
+ciclos — para agir sem rodar `compact`/`audit` à parte.
 
 ## `maintenance compact`
 
@@ -81,7 +86,8 @@ kd maintenance learn --anchor src/gateway.rs
 ```
 
 Sugere `create_note` (trabalho fechado que virou conhecimento), `link` (notas que compartilham
-âncoras) e `merge`. Saída `kind|ids|score`.
+âncoras) e `merge`. Saída `kind|ids|score`. Itens com `scope` (trabalho) são comparados só pelo
+`statement` — corpo template de import não gera `merge`/`supersede` falso.
 
 ## `maintenance prune`
 
@@ -91,7 +97,7 @@ kd maintenance prune --class observational
 ```
 
 Propõe `forget` por **shelf-life/decay**. É sempre read-only; a aplicação é
-[`kd forget`](11-forget.md).
+[`kd forget`](11-forget.md). Âncora literal que aponta para diretório conta como **quebrada**.
 
 ## `maintenance watch-service`
 
@@ -123,7 +129,7 @@ kd maintenance watch-service --uninstall      # remove agendador + servidor
 
 ## Resultados
 
-- `doctor` — `{checks[], healthy, fixed[]}`; texto `ok|fail <check> <msg>`.
+- `doctor` — `{checks[], healthy, fixed[]}`; cada check tem `ok`/`warn`; texto `ok|warn|fail <check> <msg>`.
 - `compact`/`learn`/`prune` — `{proposals[]}`; texto pipe por linha.
 - `watch-service` — `{action, done, script}` ou `{dry_run, action, source, reference, command}`.
 - `compact`/`learn`/`prune` sem escopo → exit 2.

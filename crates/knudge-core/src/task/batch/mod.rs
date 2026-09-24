@@ -15,7 +15,7 @@ use crate::jsonl;
 use crate::schema::{EdgeKind, NoteType, Scope, Status, Value};
 use crate::store::Note;
 use crate::task::{membership, submit, validate_parent, validate_transition};
-use crate::write::{WriteContext, link};
+use crate::write::{WriteContext, link, validate_anchors};
 use crate::{Error, Result};
 
 /// Modo do lote (D141).
@@ -216,6 +216,17 @@ fn apply_update(
             .map(|check| Value::Str(check.clone()))
             .collect();
         note.frontmatter.set("checks", Value::List(items))?;
+    }
+    // Antes eram parseadas e **silenciosamente ignoradas** no update (só valiam na criação).
+    if !op.spec.anchors.is_empty() {
+        validate_anchors(&op.spec.anchors)?;
+        let items = op
+            .spec
+            .anchors
+            .iter()
+            .map(|anchor| Value::Str(anchor.clone()))
+            .collect();
+        note.frontmatter.set("anchors", Value::List(items))?;
     }
     if !op.spec.body.is_empty() {
         note.body.clone_from(&op.spec.body);

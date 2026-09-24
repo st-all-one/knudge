@@ -9,13 +9,23 @@ use knudge_core::task::{
     OutcomeStatus, TaskAction, apply, epic_of, membership, outcome, progress_of, validate_parent,
     validate_transition,
 };
-use knudge_core::write::WriteContext;
+use knudge_core::write::{Patch, WriteContext};
 use serde_json::json;
 
 use crate::output::Output;
 use crate::session::Session;
 
 use super::super::validators;
+
+/// Como `kd task update` mexe nas âncoras.
+pub(super) enum AnchorUpdate<'a> {
+    /// Não mexe.
+    Keep,
+    /// Substitui pelas âncoras fornecidas.
+    Replace(&'a [String]),
+    /// Limpa todas.
+    Clear,
+}
 
 /// `kd task update`.
 ///
@@ -32,6 +42,7 @@ pub(super) fn update(
     status: Option<&str>,
     parent: Option<&str>,
     checks: &[String],
+    anchors: &AnchorUpdate<'_>,
 ) -> Result<Output> {
     let ctx = session.write_context()?;
     let mut note = ctx.store().read(id)?;
@@ -52,6 +63,7 @@ pub(super) fn update(
     if let Some(parent) = parent {
         reparent(&ctx, &mut note, parent)?;
     }
+    apply_anchors(&mut note, anchors)?;
     let revision = note.revision().saturating_add(1);
     note.set_revision(revision)?;
     note.refresh_body_hash()?;
@@ -63,6 +75,22 @@ pub(super) fn update(
     ctx.events().append(&event)?;
     let data = json!({ "id": id, "revision": revision });
     Ok(Output::new(format!("updated|{id}|r{revision}"), data))
+}
+
+/// Aplica o patch de âncoras (`--anchor`/`--clear-anchors`) reusando `Patch` do core.
+fn apply_anchors(note: &mut Note, anchors: &AnchorUpdate<'_>) -> Result<()> {
+    let patch = match anchors {
+        AnchorUpdate::Keep => return Ok(()),
+        AnchorUpdate::Replace(items) => Patch {
+            anchors: Some(items.to_vec()),
+            ..Patch::default()
+        },
+        AnchorUpdate::Clear => Patch {
+            anchors: Some(Vec::new()),
+            ..Patch::default()
+        },
+    };
+    patch.apply(note)
 }
 
 fn reparent(ctx: &WriteContext<'_>, note: &mut Note, parent: &str) -> Result<()> {

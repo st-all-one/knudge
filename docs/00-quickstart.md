@@ -22,7 +22,7 @@ Opções úteis:
 
 ```bash
 # Fixar uma versão
-curl ... | VERSION=v0.2.3 bash
+curl ... | VERSION=v0.3.1 bash
 
 # Outro diretório de instalação
 curl ... | INSTALL_DIR=/usr/local/bin bash

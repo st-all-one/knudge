@@ -45,6 +45,18 @@ pub enum TaskCommand {
         /// Novos checks.
         #[arg(long, value_name = "NOME")]
         checks: Vec<String>,
+        /// Novas âncoras (repetível; aceita lista com vírgula). Substitui as existentes.
+        #[arg(
+            long = "anchor",
+            visible_alias = "anchors",
+            value_name = "PATH",
+            value_delimiter = ',',
+            conflicts_with = "clear_anchors"
+        )]
+        anchor: Vec<String>,
+        /// Limpa todas as âncoras.
+        #[arg(long)]
+        clear_anchors: bool,
     },
     /// Fecha uma tarefa (roda validators e grava evidência).
     Close {

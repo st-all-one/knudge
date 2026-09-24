@@ -38,10 +38,10 @@ kd self version
 ```
 
 ```
-kd 0.2.3
+kd 0.3.1
 ```
 
-Em `--json`: `{name: "knudge", version: "0.2.3"}`.
+Em `--json`: `{name: "knudge", version: "0.3.1"}`.
 
 ### Nível 2 — completions
 
@@ -62,7 +62,7 @@ Grava `.knudge/setup/claude.json` com a recipe:
 ```json
 {
   "knudge": {
-    "version": "0.2.3",
+    "version": "0.3.1",
     "client": "claude",
     "binary": "kd",
     "verbs": ["prime", "rewind", "ask", "write", "task", "maintenance"],

@@ -59,18 +59,19 @@ estático (byte-idêntico): `kd` sem argumentos = `kd prime`.
 | Mais confiáveis (sem query) | `kd knowledge rank --universe` |
 | Vocabulário de tags | `kd knowledge tags` |
 | Gravar fato/decisão/erro/risco/pergunta | `kd write --summary "<...>" [<corpo>|-] [--type T] [--tag T] [--anchor PATH]` |
-| Versionar | `kd write --update <ID> --summary "<...>"` |
+| Versionar | `kd write --update <ID> --summary "<...>"` (ou `--params '<json>'`; `--clear-anchors` limpa) |
 | Aresta explícita | `kd write --link <FROM:ARESTA:TO>` |
 | Evidência numa nota | `kd write --outcome <success\|partial\|failure\|abandoned> --id <ID> [--note TXT]` |
 | Nova tarefa | `kd task new --summary "<...>" [<corpo>\|-] --scope <epic\|issue\|task> [--parent ID]` |
 | Listar prontas/bloqueadas | `kd task list --ready` / `--blocked [--explain]` |
 | Contexto do item | `kd task show --id <ID>` |
+| Editar tarefa | `kd task update --id <ID> [--status S] [--anchor P...] [--clear-anchors]` |
 | Fechar com evidência | `kd task close --id <ID> --outcome success --note "..."` |
 | WBS | `kd task graph [--program plan/<slug>.md\|--root ID]` |
 | Handoff | `kd rewind [--scope C] [--files PATH...] [--budget N]` |
 | Mapa de conhecimento | `kd knowledge map --universe [--axis A] [--semantic] [--members] [--write]` |
 | Manutenção | `kd maintenance doctor [--audit]` |
-| Esquecer (soft) | `kd forget --id <ID>` (`--restore`, `--purge`) |
+| Esquecer (soft) | `kd forget --id <ID>` (`--restore`, `--purge [--force]`) |
 | Commit | `kd sync` |
 
 ### Âncoras (`--anchor PATH`) — o que liga memória a código

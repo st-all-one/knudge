@@ -265,3 +265,13 @@ fn set_list(frontmatter: &mut Frontmatter, key: &str, items: &[String]) -> Resul
     let value = Value::List(items.iter().map(|item| Value::Str(item.clone())).collect());
     frontmatter.set(key, value)
 }
+
+/// Rejeita âncora vazia/só espaços — limpar usa `--clear-anchors`, nunca `--anchor ""`.
+pub(crate) fn validate_anchors(anchors: &[String]) -> Result<()> {
+    if anchors.iter().any(|anchor| anchor.trim().is_empty()) {
+        return Err(Error::invalid_input(
+            "âncora vazia: use `--clear-anchors` para limpar as âncoras",
+        ));
+    }
+    Ok(())
+}

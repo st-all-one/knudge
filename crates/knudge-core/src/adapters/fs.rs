@@ -42,7 +42,14 @@ impl StdFs {
 impl Fs for StdFs {
     fn read(&self, path: &Path) -> Result<Vec<u8>> {
         Self::reject_symlink(path)?;
-        std::fs::read(path).map_err(|e| Error::io(path, e))
+        std::fs::read(path).map_err(|e| match e.kind() {
+            // Ausência e diretório equivalem a "sem conteúdo legível" (D86): o verify-on-hit
+            // das âncoras degrada para `Missing` em vez de derrubar o comando.
+            std::io::ErrorKind::NotFound | std::io::ErrorKind::IsADirectory => {
+                Error::not_found(path.display().to_string())
+            }
+            _ => Error::io(path, e),
+        })
     }
 
     fn write_atomic(&self, path: &Path, data: &[u8]) -> Result<()> {
@@ -172,6 +179,20 @@ mod tests {
 
         let _ignored = std::fs::remove_file(&link);
         let _ignored = std::fs::remove_file(&target);
+        Ok(())
+    }
+
+    #[test]
+    fn missing_file_reads_as_not_found() -> Result<()> {
+        let dir = std::env::temp_dir().join("knudge-fs-missing-test");
+        std::fs::create_dir_all(&dir).map_err(|e| Error::io(&dir, e))?;
+        let path = dir.join("nao-existe.md");
+        let _ignored = std::fs::remove_file(&path);
+
+        let fs = StdFs::new();
+        assert!(matches!(fs.read(&path), Err(Error::NotFound(_))));
+        // Diretório também não tem conteúdo legível: mesma degradação para `NotFound`.
+        assert!(matches!(fs.read(&dir), Err(Error::NotFound(_))));
         Ok(())
     }
 

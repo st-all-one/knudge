@@ -74,19 +74,25 @@ EOF
 
 O lote usa chaves canônicas (`statement`, `body`, `scope`, `kind`, `parent`, `checks`, `anchors`,
 `tags`, `classification`, `status`, `blocks`) + `key` local para resolver `parent`/`depends_on`
-dentro do próprio lote. Processa em ordem (pai antes do filho), é **best-effort** com `warnings[]`,
-e tem teto `task.batch_max` (default 100).
+dentro do próprio lote. Com `id`, a linha vira **update** (aí `anchors` substitui o conjunto).
+Processa em ordem (pai antes do filho), é **best-effort** com `warnings[]`, e tem teto
+`task.batch_max` (default 100).
 
 ## `task list` — listar
 
 `task list` **exige um filtro** ou `--universe` (D144). `--sort`/`--explain` **não** contam como
 escopo.
 
+`--scope` aceita o **nível** (`epic`/`issue`/`task`) ou o **id do container-raiz** (aí traz a
+subárvore inteira via `results_in`):
+
 ```bash
 kd task list --ready                      # dependências resolvidas
 kd task list --blocked --explain          # + motivo (blocked_by=<id>/cycle)
 kd task list --ready --sort impact        # + unblocks=N
 kd task list --tag parser --anchor src/toon/parse.rs
+kd task list --scope epic                 # só o nível épico
+kd task list --scope epic_01abc           # subárvore do épico (épico+issues+tarefas)
 kd task list --ready --full-content       # bloco completo (multilinha)
 kd task list --universe                   # panorama geral explícito
 ```
@@ -114,9 +120,13 @@ Mostra o bloco completo: `id|statement`, `scope`, `tipo`, `status`, `corpo:`, `c
 kd task update --id task_01abc --status in_progress
 kd task update --id task_01abc --statement "Novo texto" --parent issue_01def
 kd task update --id task_01abc --checks test --checks lint
+kd task update --id task_01abc --anchor src/cache.rs      # substitui as âncoras
+kd task update --id task_01abc --clear-anchors             # limpa todas
 ```
 
-Edita campos **no lugar** (incrementa `revision`). Transições de status ficam aqui.
+Edita campos **no lugar** (incrementa `revision`). Transições de status ficam aqui. `--anchor`
+substitui o conjunto (não acumula); `--clear-anchors` remove todas e **não** combina com
+`--anchor`. Âncora vazia é rejeitada (exit 2).
 
 ## `task close` — fechar com evidência
 

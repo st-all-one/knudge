@@ -2,6 +2,7 @@
 
 use knudge_core::Error;
 use knudge_core::Result;
+use knudge_core::jsonl;
 use knudge_core::schema::NoteType;
 use knudge_core::write::{
     BatchMode, DedupDecision, Draft, OutcomeStatus, Patch, UpdateOutcome, WriteAction,
@@ -22,6 +23,9 @@ use super::input;
 /// # Errors
 /// Propaga erros de validação, dedup e I/O do domínio.
 pub fn run(session: &Session, args: &WriteArgs) -> Result<Output> {
+    if let Some(id) = &args.update {
+        return update_note(session, id, args);
+    }
     if let Some(params) = &args.params {
         let mode = if args.dry_run {
             BatchMode::DryRun
@@ -43,9 +47,6 @@ pub fn run(session: &Session, args: &WriteArgs) -> Result<Output> {
     }
     if let Some(spec) = &args.link {
         return link_edge(session, spec);
-    }
-    if let Some(id) = &args.update {
-        return update_note(session, id, args);
     }
     create_note(session, args)
 }
@@ -144,7 +145,18 @@ fn create_note(session: &Session, args: &WriteArgs) -> Result<Output> {
 }
 
 fn update_note(session: &Session, id: &str, args: &WriteArgs) -> Result<Output> {
-    let patch = patch_of(args)?;
+    let patch = match &args.params {
+        Some(params) => {
+            let text = if params == "-" {
+                input::read_stdin()?
+            } else {
+                params.clone()
+            };
+            let value = jsonl::decode(&text)?;
+            Patch::from_value(&value)?
+        }
+        None => patch_of(args)?,
+    };
     let ctx = session.write_context()?;
     let outcome = update(&ctx, id, &patch)?;
     let action = match outcome {
@@ -172,6 +184,11 @@ fn outcome_output(action: WriteAction, id: &str, revision: Option<u32>) -> Outpu
 }
 
 fn draft_of(args: &WriteArgs) -> Result<Draft> {
+    if args.clear_anchors {
+        return Err(Error::invalid_input(
+            "`--clear-anchors` só vale com `--update`",
+        ));
+    }
     let note_type: NoteType = match &args.note_type {
         Some(value) => value.parse()?,
         None => NoteType::Fact,
@@ -212,7 +229,9 @@ fn patch_of(args: &WriteArgs) -> Result<Patch> {
     if !args.tags.is_empty() {
         patch.tags = Some(args.tags.clone());
     }
-    if !args.anchors.is_empty() {
+    if args.clear_anchors {
+        patch.anchors = Some(Vec::new());
+    } else if !args.anchors.is_empty() {
         patch.anchors = Some(args.anchors.clone());
     }
     if let Some(class) = &args.class {

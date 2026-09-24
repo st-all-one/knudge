@@ -5,6 +5,7 @@ pub mod watch;
 
 use knudge_core::Result;
 use knudge_core::health::{AuditInput, DoctorInput, audit, doctor, doctor_fix};
+use knudge_core::schema::EdgeKind;
 use serde_json::json;
 
 use crate::cli::MaintenanceCommand;
@@ -91,6 +92,27 @@ fn audit_report(session: &Session) -> Result<Output> {
         "duplicates": report.duplicates.len(),
         "missing_edges": report.missing_edges.len(),
         "stale_locks": report.stale_locks.len(),
+        // Detalhes (ids/pares) para o agente agir sem rodar `compact --universe` à parte.
+        "integrity_issues": report.integrity.iter().map(|issue| json!({
+            "kind": issue.kind.as_str(),
+            "from": issue.from,
+            "to": issue.to,
+            "edge": issue.edge.map(EdgeKind::as_str),
+        })).collect::<Vec<_>>(),
+        "supersession_cycle_details": report.supersession_cycles,
+        "dependency_cycle_details": report.dependency_cycles,
+        "broken_anchor_details": report.broken_anchors.iter().map(|anchor| json!({
+            "id": anchor.id, "anchor": anchor.anchor,
+        })).collect::<Vec<_>>(),
+        "duplicate_pairs": report.duplicates.iter().map(|dup| json!({
+            "keep": dup.keep, "drop": dup.drop, "score": dup.score,
+        })).collect::<Vec<_>>(),
+        "missing_edge_details": report.missing_edges.iter().map(|edge| json!({
+            "id": edge.id, "kind": edge.kind, "targets": edge.targets, "reason": edge.reason,
+        })).collect::<Vec<_>>(),
+        "stale_lock_details": report.stale_locks.iter().map(|lock| json!({
+            "path": lock.path, "age_ms": lock.age_ms,
+        })).collect::<Vec<_>>(),
     });
     Ok(Output::new(text, data))
 }
@@ -122,12 +144,14 @@ fn doctor_report(session: &Session, mode: DoctorMode) -> Result<Output> {
         .checks
         .iter()
         .map(|check| {
-            format!(
-                "{} {} {}",
-                if check.ok { "ok" } else { "fail" },
-                check.id.as_str(),
-                check.detail
-            )
+            let status = if check.ok {
+                "ok"
+            } else if check.is_warning() {
+                "warn"
+            } else {
+                "fail"
+            };
+            format!("{status} {} {}", check.id.as_str(), check.detail)
         })
         .collect::<Vec<_>>()
         .join("\n");
@@ -136,6 +160,7 @@ fn doctor_report(session: &Session, mode: DoctorMode) -> Result<Output> {
         "checks": report.checks.iter().map(|check| json!({
             "id": check.id.as_str(),
             "ok": check.ok,
+            "warn": check.is_warning(),
             "detail": check.detail,
             "fixable": check.fixable,
         })).collect::<Vec<_>>(),

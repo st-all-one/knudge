@@ -15,7 +15,7 @@ use crate::retrieval::filter::anchor_matches;
 use crate::retrieval::index::NoteDoc;
 use crate::schema::EdgeKind;
 use crate::store::Event;
-use crate::write::dedup::{DedupThresholds, dice};
+use crate::write::dedup::{DedupThresholds, dice, dice_statement};
 
 /// Teto de notas consideradas nos sinais pairwise (determinístico por id).
 pub const MAX_DOCS: usize = 64;
@@ -172,7 +172,14 @@ fn duplicates(input: &LearnInput<'_>, docs: &[&NoteDoc]) -> Vec<LearnProposal> {
     let mut proposals = Vec::new();
     for (index, left) in docs.iter().enumerate() {
         for right in docs.iter().skip(index.saturating_add(1)) {
-            let score = dice(left, right);
+            // Item com `scope` compara só o `statement`: corpo-template de import não gera
+            // falso positivo em massa (E08/D80), como em `propose_merges`.
+            let scoped = left.meta.scope.is_some() || right.meta.scope.is_some();
+            let (score, basis) = if scoped {
+                (dice_statement(left, right), "statement")
+            } else {
+                (dice(left, right), "similaridade")
+            };
             let kind = if score >= input.thresholds.merge_below {
                 LearnKind::Supersede
             } else if score >= input.thresholds.create_below {
@@ -184,7 +191,7 @@ fn duplicates(input: &LearnInput<'_>, docs: &[&NoteDoc]) -> Vec<LearnProposal> {
             proposals.push(LearnProposal {
                 kind,
                 ids: vec![keep, drop],
-                why: format!("similaridade {score:.2}"),
+                why: format!("{basis} {score:.2}"),
                 score,
             });
         }

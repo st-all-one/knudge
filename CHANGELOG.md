@@ -4,6 +4,45 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+## [0.3.1] - 2026-09-24
+
+### Corrigido
+- **v0.3.1 — bordas de leitura tolerante e CLI achadas no corpus do Lotep.**
+  - **Âncoras ausentes/diretório não derrubam mais `doctor`/`--fix`.** `StdFs::read` mapeia
+    `ENOENT`/`EISDIR` para `ErrorKind::NotFound` (antes virava `io` e o branch `NotFound` de
+    `hash_file` era morto); o verify-on-hit classifica como `missing` e o `--fix` remove âncoras
+    quebradas e de diretório (D86/E09).
+  - **Índice derivado volta a carregar com `type: epic`.** `doc_from_value` aceita `"epic"`
+    (grupo derivado de `scope=epic`, D149) e `derived_diverges` **reporta** o erro de parse em
+    `warnings[]` em vez de engolir como "divergente"; `doctor --fix` normaliza `type: epic` da
+    nota canônica (além de `container`/`scope: plan`).
+  - **`write --update` não renomeia id legado em silêncio.** Id não-derivável (prefixo histórico)
+    revisa no lugar enquanto `type`+`statement` não mudarem; só supersede quando a chave de
+    conteúdo muda (D01/D02).
+  - **Dedup de item de trabalho compara só o `statement`.** Corpos-template de import deixavam
+    de gerar quase-duplicatas falsas em `compact`/`doctor`/`audit` **e em `maintenance learn`**
+    (E08/D80).
+  - **`doctor --audit --json` expõe ids/pares** (`duplicate_pairs`, `broken_anchor_details`,
+    `missing_edge_details`, `stale_lock_details`, `integrity_issues`, ciclos) — sem contagem sem
+    contexto.
+  - **`program-anchor` vira warn.** Épico-raiz sem `plan/*.md` (típico de corpus importado)
+    aparece como `warn` e **não** deixa `healthy=false` (D119).
+  - **Diretório não é âncora válida em `prune`/decay.** `compute_anchor_validity` passa a tratar
+    diretório como quebrado, alinhado ao `doctor` (D86).
+  - **`task list --scope` aceita nível ou id.** `--scope epic|issue|task` filtra o nível;
+    `--scope <id-de-épico>` traz a subárvore (`results_in`), alinhando com `ask`/`rewind`.
+
+### Adicionado
+- **`kd write --clear-anchors`** limpa todas as âncoras; `--anchor ""` agora é **rejeitado**
+  (`invalid_input`, exit 2) em vez de gravar `anchors: [""]`.
+- **`kd task update --anchor`/`--clear-anchors`** substitui/limpa âncoras de tarefa (mesmo
+  `validate_anchors`; conflitam entre si). No `task --batch`/`--params`, `anchors` no update
+  agora é **aplicado** (antes era parseado e ignorado em silêncio).
+- **`kd write --update <id> --params '<json>'`** aplica um patch JSON (mesmas chaves do lote:
+  `type`/`statement`/`body`/`tags`/`anchors`/`classification`/`status`/`scope`).
+- **`kd forget --purge --force`** ignora a retenção para purgar tombstone `forgotten`/`superseded`
+  recém-criado (nunca nota viva).
+
 ## [0.3.0] - 2026-09-24
 
 ### Mudado

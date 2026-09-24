@@ -96,7 +96,8 @@ kd write --summary <TXT> [<BODY>|-]
   --tag <T>... --anchor <PATH>...
   --class <C> --status <S>
   --edge <ARESTA:ID>      # aresta explícita na criação
-  --update <ID>           # modo update (patch versionado)
+  --update <ID>           # modo update (patch versionado); aceita [--params '<JSON>']
+  --clear-anchors         # com --update, limpa as âncoras (não combina com --anchor)
   --link <ARESTA:ID>      # cria aresta (substitui o antigo `link`)
   --outcome <S> --id <ID> # anexa evidência a qualquer nota (D103); com [--note <TXT>]
   --params '<JSON>'       # item único (D147)
@@ -153,13 +154,14 @@ kd task new --summary <TXT> [<BODY>|-] --scope <epic|issue|task>
   [--checks <NAME>...] [--anchor <PATH>...] [--tag <T>...]
   [--params '<JSON>'|--batch <FONTE|->] [--dry-run]
 kd task list <filtro> [--sort impact] [--full-content]
-  # filtro: --scope/--status/--kind/--parent/--ready/--blocked/--tag/--anchor, ou --universe (D144)
+  # filtro: --scope (nível epic|issue|task OU id do container)/--status/--kind/--parent/--ready/--blocked/--tag/--anchor, ou --universe (D144)
   # `--sort`/`--explain` não contam como escopo
   [--ready|--blocked [--explain]] [--sort impact] [--tag <T>...] [--anchor <PATH>...]
   [--full-content]
 kd task show --id <ID> [<ID>...] [--history]   # + corpo/checks/âncoras/tags/outcomes (D137)
 kd task graph [--program <PATH>|--root <ID>]   # escopos com progresso (D127)
 kd task update --id <ID> [--statement <S>] [--status <S>] [--parent <ID>] [--checks ...]
+  [--anchor <PATH>...] [--clear-anchors]       # substitui/limpa âncoras
 kd task close --id <ID> [--outcome success|partial|failure|abandoned] [--note <TXT>]
 kd task plan <ID> [--prompt [--template <NOME>] | --submit --from <TXT|->]
   [--step <TXT>...]
@@ -299,7 +301,7 @@ kd config list [--global]
 
 kd forget --id <ID>             # status=forgotten (soft; nunca apaga arquivo)
 kd forget --id <ID> --restore   # volta a active
-kd forget --id <ID> --purge     # hard-delete só após a janela de retenção
+kd forget --id <ID> --purge [--force]  # hard-delete só após a janela de retenção; --force libera tombstone
 
 kd sync [--message <MSG>]  # commit de notas/ + eventos/ no worktree certo
 
