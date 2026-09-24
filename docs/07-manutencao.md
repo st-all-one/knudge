@@ -90,6 +90,7 @@ Commita `notas/` + `eventos/`. O derivado (`.idx/`, `cache/`, `contexts/`) fica 
 kd knowledge map --axis anchor            # agrupa por âncora (arquivo)
 kd knowledge map --axis type --members
 kd knowledge map --axis scope --semantic
+kd knowledge map --write                    # materializa notas/MAP.md + hubs (versionado)
 ```
 
 Clusters estruturais (fase 1) e, com `--semantic`, semântico complete-link (fase 2).

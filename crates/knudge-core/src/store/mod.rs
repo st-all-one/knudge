@@ -31,6 +31,7 @@ use std::path::{Path, PathBuf};
 use crate::Error;
 use crate::Result;
 use crate::ports::Fs;
+use crate::schema::{NoteType, id};
 
 /// Store de notas sobre uma porta [`Fs`].
 pub struct Store<'a> {
@@ -66,18 +67,25 @@ impl<'a> Store<'a> {
         self.root.join("notas")
     }
 
-    /// Caminho canônico de uma nota.
+    /// Caminho canônico de uma nota: `notas/<tipo>/<id>.md` (derivado do id — D150).
     #[must_use]
     pub fn note_path(&self, id: &str) -> PathBuf {
-        self.notes_dir().join(format!("{id}.md"))
+        self.notes_dir()
+            .join(id::type_dir(id))
+            .join(format!("{id}.md"))
     }
 
-    /// Garante a existência do diretório de notas.
+    /// Garante a existência do diretório de notas e das pastas por tipo (D150).
     ///
     /// # Errors
     /// Retorna `ErrorKind::Io` se a criação falhar.
     pub fn ensure_dirs(&self) -> Result<()> {
-        self.fs.create_dir_all(&self.notes_dir())
+        let dir = self.notes_dir();
+        self.fs.create_dir_all(&dir)?;
+        for note_type in NoteType::ALL {
+            self.fs.create_dir_all(&dir.join(note_type.as_str()))?;
+        }
+        self.fs.create_dir_all(&dir.join(NoteType::Epic.as_str()))
     }
 
     /// `true` se a nota existe.
@@ -115,15 +123,15 @@ impl<'a> Store<'a> {
     /// # Errors
     /// Retorna `ErrorKind::Io` com o caminho se o `fsync` falhar.
     pub fn sync(&self, id: &str) -> Result<()> {
-        self.fs.sync(&self.note_path(id))?;
-        let dir = self.notes_dir();
-        if self.fs.is_dir(&dir) {
-            self.fs.sync(&dir)?;
+        let path = self.note_path(id);
+        self.fs.sync(&path)?;
+        if let Some(parent) = path.parent() {
+            self.fs.sync(parent)?;
         }
         Ok(())
     }
 
-    /// Lista os ids das notas presentes (ordenados).
+    /// Lista os ids das notas presentes (ordenados), tolerando o layout plano antigo (D150).
     ///
     /// # Errors
     /// Retorna `ErrorKind::Io` se a listagem falhar.
@@ -134,9 +142,16 @@ impl<'a> Store<'a> {
         }
         let mut ids = Vec::new();
         for path in self.fs.list_dir(&dir)? {
-            let is_markdown = path.extension().and_then(|e| e.to_str()) == Some("md");
-            if is_markdown && let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                ids.push(stem.to_string());
+            if self.fs.is_dir(&path) {
+                for sub in self.fs.list_dir(&path)? {
+                    if let Some(id) = note_stem(&sub) {
+                        ids.push(id);
+                    }
+                }
+            } else if let Some(id) = note_stem(&path)
+                && id::is_valid_note_id(&id)
+            {
+                ids.push(id);
             }
         }
         ids.sort();
@@ -172,4 +187,15 @@ impl<'a> Store<'a> {
         self.fs.remove_file(&self.note_path(id))?;
         purge_derived(self.fs, &self.root, id)
     }
+}
+
+/// Extrai o stem de um path `.md` (nome do arquivo sem extensão).
+fn note_stem(path: &Path) -> Option<String> {
+    let is_markdown = path.extension().and_then(|e| e.to_str()) == Some("md");
+    if !is_markdown {
+        return None;
+    }
+    path.file_stem()
+        .and_then(|stem| stem.to_str())
+        .map(str::to_string)
 }

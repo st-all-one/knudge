@@ -1,8 +1,7 @@
 # D150 — o mapa de conhecimento material (versionado)
 
-> **Status:** decisão fechada (registrada em `plan/03_decisoes-fechadas.md`); **implementação
-> pendente**. Origem: `TMP/` (526 notas planas em ~30 min) + `knowledge map` transitório.
-> Abordagens **A+B+D**, **versionado**. Sem execução.
+> **Status:** decisão fechada e **implementada** (v0.3.0). Origem: `TMP/` (526 notas planas em
+> ~30 min) + `knowledge map` transitório. Abordagens **A+B+D**, **versionado**.
 
 ## 1. O problema (evidência do `TMP`)
 

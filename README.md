@@ -57,9 +57,9 @@ kd maintenance watch-service --status
 |---|---|
 | **`kd maintenance watch-service`** | Sobe/checa o servidor de embeddings persistente e o worker de auto-drain (`--install`/`--status`/`--uninstall`). |
 | **`kd write`** | Grava conhecimento (fato/decisão/erro/risco): `--type`, `--tag`, `--anchor`, `--update`, `--link`, `--outcome`. |
-| **`kd task`** | Planeja/executa trabalho (`epic ⊃ { issue ⊃ task | task }`): `new`/`list`/`show`/`close`/`claim`/`graph`. |
+| **`kd task`** | Planeja/executa trabalho (`epic ⊃ { issue ⊃ task | task }`): `new`/`list`/`show`/`close`/`graph`. |
 | **`kd ask`** | Busca: filtros (`--type/--tag/--status/--anchor`), `--id`, `--around`, `--rank`, `--brief`. |
-| **`kd knowledge map`** | Mapa de clusters estrutural e `--semantic`. |
+| **`kd knowledge map`** | Mapa de clusters estrutural e `--semantic`; `--write` materializa `notas/MAP.md` + hubs versionados. |
 | `kd rewind` | Handoff de contexto com orçamento de tokens. |
 | `kd forget` · `kd sync` | Soft-delete e commit de `notas/` + `eventos/`. |
 | `kd maintenance doctor --audit` | Saúde, integridade e âncoras quebradas. |

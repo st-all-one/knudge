@@ -10,7 +10,8 @@ use knudge_core::embeddings::{EmbeddingIndex, similarity};
 use knudge_core::graph::Graph;
 use knudge_core::handoff::manifest::belongs_to;
 use knudge_core::lifecycle::{
-    Cluster, ClusterAxis, MIN_SEMANTIC_VOLUME, semantic_clusters, structural_clusters,
+    Cluster, ClusterAxis, MIN_SEMANTIC_VOLUME, SemanticCluster, semantic_clusters,
+    structural_clusters,
 };
 use knudge_core::store::Store;
 use serde_json::json;
@@ -19,6 +20,7 @@ use crate::output::Output;
 use crate::session::Session;
 
 use super::super::embedder;
+use super::hub;
 
 /// Linhas de texto + nós JSON de uma seção.
 type Section = (Vec<String>, Vec<serde_json::Value>);
@@ -29,7 +31,11 @@ type Section = (Vec<String>, Vec<serde_json::Value>);
 /// Propaga erros de leitura do índice/store/config; `invalid_input` para eixo desconhecido.
 #[allow(
     clippy::fn_params_excessive_bools,
-    reason = "`semantic`/`members` são as flags de CLI `--semantic`/`--members`"
+    reason = "`semantic`/`members`/`write` são as flags de CLI `--semantic`/`--members`/`--write`"
+)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "o `run` espelha as flags de CLI de `knowledge map` (D150)"
 )]
 pub fn run(
     session: &Session,
@@ -37,6 +43,7 @@ pub fn run(
     scope: Option<&str>,
     semantic: bool,
     members: bool,
+    write: bool,
 ) -> Result<Output> {
     if let Some(axis) = axis {
         validate_axis(axis)?;
@@ -63,13 +70,23 @@ pub fn run(
         data.push(value);
     }
     let mut warnings = Vec::new();
+    let mut semantic_entries = Vec::new();
     let semantic_data = if semantic {
-        let (semantic_lines, semantic_json) = semantic_section(session, &clusters, &mut warnings)?;
+        let ((semantic_lines, semantic_json), entries) =
+            semantic_section(session, &clusters, &mut warnings)?;
+        semantic_entries = entries;
         lines.extend(semantic_lines);
         semantic_json
     } else {
         Vec::new()
     };
+    if write {
+        let hubs = hub::materialize(session, &clusters, &semantic_entries)?;
+        warnings.push(format!(
+            "mapa materializado: {n} hub(s) + notas/MAP.md",
+            n = hubs.len()
+        ));
+    }
     let value = json!({
         "docs": index.docs.len(),
         "clusters": data,
@@ -163,16 +180,16 @@ fn semantic_section(
     session: &Session,
     structural: &[Cluster],
     warnings: &mut Vec<String>,
-) -> Result<Section> {
+) -> Result<(Section, Vec<SemanticCluster>)> {
     let meta = embedder::meta(session)?;
     let Some(index) =
         EmbeddingIndex::load(session.fs_dyn(), &session.knowledge_dir(), &meta, warnings)?
     else {
         warnings.push(
-            "fase 2 ignorada: sem índice de embeddings (rode `kd maintenance index --drain`)"
+            "fase 2 ignorada: sem índice de embeddings (rode `kd knowledge digest --status`)"
                 .to_string(),
         );
-        return Ok((Vec::new(), Vec::new()));
+        return Ok(((Vec::new(), Vec::new()), Vec::new()));
     };
     let metric = meta.similarity;
     let entries = semantic_clusters(
@@ -202,7 +219,7 @@ fn semantic_section(
             "groups": entry.groups,
         }));
     }
-    Ok((lines, data))
+    Ok(((lines, data), entries))
 }
 
 /// `clusters.min_volume` (default [`MIN_SEMANTIC_VOLUME`]).

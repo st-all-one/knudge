@@ -1,4 +1,4 @@
-//! `kd task` — plan/epic/issue/task (E12-T01, D93).
+//! `kd task` — epic/issue/task (E12-T01, D93).
 
 mod create;
 mod graph;
@@ -47,9 +47,6 @@ pub fn run(session: &Session, command: &TaskCommand) -> Result<Output> {
         TaskCommand::Close { id, outcome, note } => {
             mutate::close(session, id, outcome.as_deref(), note.as_deref())
         }
-        TaskCommand::Claim { id, by, release } => {
-            mutate::claim_cmd(session, id, by.as_deref(), *release)
-        }
         TaskCommand::Graph { program, root } => {
             graph::graph_tree(session, program.as_deref(), root.as_deref())
         }
@@ -65,6 +62,3 @@ pub(super) enum ShowMode {
     /// Tarefa + histórico de supersessão.
     History,
 }
-
-/// Variável de ambiente com o nome do agente atual (D114).
-pub(super) const AGENT_ENV: &str = "KNUDGE_AGENT";

@@ -6,7 +6,6 @@ mod impact;
 mod kind;
 mod lifecycle;
 mod mode;
-mod ownership;
 mod plan;
 mod program;
 mod progress;

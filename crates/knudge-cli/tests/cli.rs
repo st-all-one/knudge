@@ -219,7 +219,7 @@ fn write_aged_observational(
         .and_then(|id| id.as_str())
         .ok_or("write sem id")?
         .to_string();
-    let path = dir.join(".knudge").join("notas").join(format!("{id}.md"));
+    let path = note_path(dir, &id);
     let text = std::fs::read_to_string(&path)?;
     let aged = text
         .lines()
@@ -234,6 +234,20 @@ fn write_aged_observational(
         .join("\n");
     std::fs::write(&path, format!("{aged}\n"))?;
     Ok(id)
+}
+
+/// Caminho de uma nota no layout por tipo (`notas/<tipo>/<id>.md` — D150).
+fn note_path(dir: &Path, id: &str) -> PathBuf {
+    let prefix = id.split_once('_').map_or(id, |(prefix, _)| prefix);
+    let folder = if prefix == "container" {
+        "epic"
+    } else {
+        prefix
+    };
+    dir.join(".knudge")
+        .join("notas")
+        .join(folder)
+        .join(format!("{id}.md"))
 }
 
 /// Cria uma tarefa via CLI e devolve o id.
@@ -746,7 +760,7 @@ fn task_close_note_records_outcome_reason() -> TestResult {
     )?;
     assert!(out.status.success(), "close falhou: {:?}", out.stderr);
 
-    let path = dir.join(".knudge").join("notas").join(format!("{task}.md"));
+    let path = note_path(&dir, &task);
     let text = std::fs::read_to_string(path)?;
     assert!(
         text.contains("aplicado no job de retry"),
@@ -896,6 +910,53 @@ fn knowledge_map_reports_container_axis() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn knowledge_map_write_materializes_map_and_hubs() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let epic = task_new(&dir, &["task", "new", "Épico", "--scope", "epic"])?;
+    let issue = task_new(
+        &dir,
+        &[
+            "task", "new", "Issue", "--scope", "issue", "--parent", &epic,
+        ],
+    )?;
+    let _a = task_new(
+        &dir,
+        &["task", "new", "A", "--scope", "task", "--parent", &issue],
+    )?;
+
+    let out = run_in(&dir, &["knowledge", "map", "--axis", "scope", "--write"])?;
+    assert!(out.status.success(), "map --write falhou: {:?}", out.stderr);
+
+    let map = dir.join(".knudge").join("notas").join("MAP.md");
+    let text = std::fs::read_to_string(&map)?;
+    assert!(
+        text.contains("# Mapa de conhecimento"),
+        "MAP.md sem título: {text}"
+    );
+    assert!(text.contains(&epic), "MAP.md sem o épico: {text}");
+
+    // Hub é uma nota `meta` real que `references` o épico.
+    let meta_dir = dir.join(".knudge").join("notas").join("meta");
+    let mut found = false;
+    for entry in std::fs::read_dir(&meta_dir)? {
+        let content = std::fs::read_to_string(entry?.path())?;
+        if content.contains("references") && content.contains(&epic) {
+            found = true;
+        }
+    }
+    assert!(found, "nenhum hub referenciando o épico");
+
+    // O hub entra no `ask` (é nota de verdade).
+    let out = run_in(&dir, &["--json", "ask", "Mapa de conhecimento"])?;
+    let json = String::from_utf8(out.stdout)?;
+    assert!(json.contains("meta_"), "ask não achou o hub: {json}");
+    Ok(())
+}
+
 /// Linha de `task list` que começa com `id`.
 fn line_of(text: &str, id: &str) -> Result<String, Box<dyn std::error::Error>> {
     text.lines()
@@ -948,51 +1009,27 @@ fn task_kind_sets_type_and_filters() -> TestResult {
 }
 
 #[test]
-fn task_claim_sets_and_clears_owner() -> TestResult {
+fn task_claim_and_owner_flags_are_gone() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
-    let task = task_new(&dir, &["task", "new", "fazer", "--scope", "task"])?;
+    let _task = task_new(&dir, &["task", "new", "fazer", "--scope", "task"])?;
 
-    let claim = run_in(&dir, &["task", "claim", &task, "--by", "agente-a"])?;
-    assert!(claim.status.success(), "claim falhou: {:?}", claim.stderr);
-    let owned = run_in(&dir, &["--json", "task", "list", "--owner", "agente-a"])?;
-    assert!(owned.status.success(), "list falhou: {:?}", owned.stderr);
-    let value = json(&owned)?;
-    let tasks = value
-        .get("data")
-        .and_then(|data| data.get("tasks"))
-        .and_then(|tasks| tasks.as_array())
-        .ok_or("sem tasks")?;
-    assert_eq!(tasks.len(), 1);
-    assert_eq!(
-        tasks
-            .first()
-            .and_then(|row| row.get("owner"))
-            .and_then(|owner| owner.as_str()),
-        Some("agente-a")
-    );
-
+    for args in [
+        vec!["task", "claim", "task_00000000", "--by", "agente-a"],
+        vec!["task", "list", "--owner", "agente-a"],
+        vec!["task", "list", "--since", "2020-01-01T00:00:00Z"],
+    ] {
+        let out = run_in(&dir, &args)?;
+        assert_eq!(out.status.code(), Some(2), "deveria ser exit 2: {args:?}");
+    }
+    // `--mine` é desconhecido mesmo com `KNUDGE_AGENT` definido (não é mais lido).
     let mine = run_env(
         &dir,
-        &["--json", "task", "list", "--mine"],
+        &["task", "list", "--mine"],
         &[("KNUDGE_AGENT", "agente-a")],
     )?;
-    assert!(mine.status.success(), "mine falhou: {:?}", mine.stderr);
-    let missing = run_in(&dir, &["task", "list", "--mine"])?;
-    assert_eq!(missing.status.code(), Some(2));
-
-    let release = run_in(&dir, &["task", "claim", &task, "--release"])?;
-    assert!(
-        release.status.success(),
-        "release falhou: {:?}",
-        release.stderr
-    );
-    let after = run_in(&dir, &["task", "list", "--owner", "agente-a"])?;
-    assert!(
-        !String::from_utf8(after.stdout)?.contains(&task),
-        "release não limpou o dono de {task}"
-    );
+    assert_eq!(mine.status.code(), Some(2), "`--mine` deveria ser exit 2");
     Ok(())
 }
 
@@ -1450,36 +1487,38 @@ fn task_plan_invalid_from_writes_nothing() -> TestResult {
 }
 
 #[test]
-fn task_graph_reports_supervisor_mode() -> TestResult {
+fn task_graph_reports_reduced_mode_without_owner() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success());
 
     let epic = task_new(&dir, &["task", "new", "Épico", "--scope", "epic"])?;
-    let claimed = run_in(&dir, &["task", "claim", &epic, "--by", "supervisor"])?;
-    assert!(
-        claimed.status.success(),
-        "claim falhou: {:?}",
-        claimed.stderr
-    );
-    let first = task_new(
+    let _first = task_new(
         &dir,
         &["task", "new", "A", "--scope", "issue", "--parent", &epic],
     )?;
-    let second = task_new(
+    let _second = task_new(
         &dir,
         &["task", "new", "B", "--scope", "issue", "--parent", &epic],
     )?;
-    for (id, agent) in [(&first, "agente-a"), (&second, "agente-b")] {
-        let out = run_in(&dir, &["task", "claim", id, "--by", agent])?;
-        assert!(out.status.success(), "claim falhou: {:?}", out.stderr);
-    }
 
     let graph = run_in(&dir, &["task", "graph", "--root", &epic])?;
     assert!(graph.status.success());
     let tree = String::from_utf8(graph.stdout)?;
-    assert!(tree.contains("supervisor"), "sem modo supervisor: {tree}");
-    assert!(tree.contains("agente-a"), "sem dono: {tree}");
+    assert!(
+        tree.contains("|concurrent|")
+            || tree.contains("|magentic|")
+            || tree.contains("|sequential|"),
+        "modo fora do conjunto reduzido: {tree}"
+    );
+    assert!(
+        !tree.contains("supervisor") && !tree.contains("handoff"),
+        "modo removido ainda aparece: {tree}"
+    );
+    assert!(
+        !tree.contains("owner"),
+        "coluna de dono não existe mais: {tree}"
+    );
     Ok(())
 }
 

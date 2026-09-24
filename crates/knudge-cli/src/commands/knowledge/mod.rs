@@ -1,5 +1,6 @@
 //! `kd knowledge` — mapa de conhecimento (clusters estruturais e semânticos) — D128.
 
+pub mod hub;
 pub mod map;
 
 use knudge_core::Result;
@@ -19,12 +20,14 @@ pub fn run(session: &Session, command: &KnowledgeCommand) -> Result<Output> {
             scope,
             semantic,
             members,
+            write,
         } => map::run(
             session,
             axis.as_deref(),
             scope.as_deref(),
             *semantic,
             *members,
+            *write,
         ),
     }
 }

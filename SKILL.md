@@ -68,7 +68,7 @@ estático (byte-idêntico): `kd` sem argumentos = `kd prime`.
 | Fechar com evidência | `kd task close <ID> --outcome success --note "..."` |
 | WBS | `kd task graph [--program plan/<slug>.md\|--root ID]` |
 | Handoff | `kd rewind [--scope C] [--files PATH...] [--budget N]` |
-| Mapa de conhecimento | `kd knowledge map [--axis A] [--semantic] [--members]` |
+| Mapa de conhecimento | `kd knowledge map [--axis A] [--semantic] [--members] [--write]` |
 | Manutenção | `kd maintenance doctor [--audit]` |
 | Esquecer (soft) | `kd forget <ID>` (`--restore`, `--purge`) |
 | Commit | `kd sync` |
@@ -147,7 +147,6 @@ kd write --link "decision_01m81b6h:refines:fact_01abc123"  # 3. relaciona
 kd task new "Sync offline-first" --scope epic
 kd task new "Resolver conflito de merge" --scope task --parent <epic>
 kd task list --ready --sort impact
-kd task claim <task> --by agente-a
 kd task close <task> --outcome success --note "testes verdes"
 ```
 

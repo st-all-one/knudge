@@ -1,8 +1,7 @@
 # D136 — um agente principal; fim da posse e das flags temporais de tarefa
 
-> **Status:** decisão fechada (registrada em `plan/03_decisoes-fechadas.md`); **implementação
-> pendente**. Origem: revisão de `kd task list`. Revisa **D114** e **D116**. O1 (`mode`) e O2
-> (`actor`) resolvidos. Sem execução.
+> **Status:** decisão fechada e **implementada** (v0.3.0). Origem: revisão de `kd task list`.
+> Revisa **D114** e **D116**. O1 (`mode`) e O2 (`actor`) resolvidos.
 
 ## 1. Decisões
 

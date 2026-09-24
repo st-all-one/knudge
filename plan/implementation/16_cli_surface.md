@@ -124,7 +124,7 @@ kd rewind
 O manifest (default) ganha `next:` (tarefas `ready` abertas por impacto) e `fresh:`
 (`stale`/`expiring`/`pending`) — D106. `K` deriva do orçamento; o excedente vira `dropped`.
 
-## 7. `kd task` — plan/epic/issue/task (D93)
+## 7. `kd task` — epic/issue/task (D93)
 
 Hierarquia **fechada**: `epic ⊃ { issue ⊃ task | task }` — épico é a raiz, issue opcional. Campo `scope`
 (enum fechado) marca o **nível**; o `type` é a **espécie** (D113): `epic` (grupo derivado de `scope=epic`) para epic,
@@ -138,12 +138,10 @@ kd task new <STATEMENT> --scope <epic|issue|task>
   [--body <TXT|->] [--checks <NAME>...] [--anchor <PATH>...] [--tag <T>...]
 kd task list [--scope ...] [--status ...] [--kind ...] [--parent <ID>]
   [--ready|--blocked [--explain]] [--sort impact] [--tag <T>...] [--anchor <PATH>...]
-  [--since <TS>] [--owner <A>|--mine]
 kd task show <ID> [<ID>...] [--history]   # + pai/bloqueadores/filhos/épico (D125/D127)
-kd task graph [--program <PATH>|--root <ID>]   # containers com progresso (D127)
+kd task graph [--program <PATH>|--root <ID>]   # escopos com progresso (D127)
 kd task update <ID> [--statement <S>] [--status <S>] [--parent <ID>] [--checks ...]
 kd task close <ID> [--outcome success|partial|failure|abandoned] [--note <TXT>]
-kd task claim <ID> --by <A>|--release
 kd task plan <ID> [--prompt [--template <NOME>] | --submit --from <TXT|->]
   [--step <TXT>...] [--adopt|--reorder <N>|--release|--review]
 ```
@@ -161,8 +159,7 @@ kd task plan <ID> [--prompt [--template <NOME>] | --submit --from <TXT|->]
   `kd task new` não cria arestas — reduz a superfície e reaproveita o caminho de grafo.
 - `plan` implementa o ciclo de vida de D53 (`blocks` 1-based, sem self-reference, detecção de ciclo).
 - `plan`/`epic` são **views derivadas** (sem verdade própria); `issue`/`task` são atômicas.
-- `--kind` grava a **espécie** mantendo o `scope` (D113); `--owner`/`--mine` filtram pelo dono
-  **derivado** de `claim`/`release` (D114, `KNUDGE_AGENT`).
+- `--kind` grava a **espécie** mantendo o `scope` (D113).
 - `list --ready|--blocked` filtra pelas views derivadas; `--explain` acrescenta o motivo (D104).
 - `list --sort impact` ordena o **caminho crítico** por impacto de desbloqueio
   (`impacto desc, created asc, id asc`); `--explain` acrescenta `unblocks=N` e o `--json` traz
@@ -171,24 +168,25 @@ kd task plan <ID> [--prompt [--template <NOME>] | --submit --from <TXT|->]
 - `plan --prompt` deriva o prompt TOON do template (`feature`/`bug`/`refactor`,
   `.knudge/templates.toml`); `--submit --from -` lê o plano TOON e valida tudo **antes** de
   escrever (D105).
-- `graph` projeta **papel** (`role`, D115) e **modo** (`mode`, D116) derivados da árvore/eventos:
-  `role|kind|status|owner|mode|statement`.
+- `graph` projeta **papel** (`role`, D115) e **modo** (`mode`, D116/D136) derivados da
+  árvore/eventos: `role|kind|status|mode|statement` (modo em `sequential|concurrent|magentic`).
 - **Programa externo** (D119): `plan/<slug>.md` ancorado a um Épico-raiz (`--anchors`);
   `task graph --program` imprime a subárvore; `programs.glob` define o que é um programa.
 
 ## 8. `kd knowledge` — mapa de conhecimento (D128)
 
 ```
-kd knowledge map [--axis <anchor|type|classification|container>] [--scope <CONTAINER>]
-                [--semantic] [--members]
+kd knowledge map [--axis <anchor|type|classification|scope>] [--scope <ESCOPO>]
+                [--semantic] [--members] [--write]
 ```
 
 - **Fase 1** é determinística e sem embeddings: agrega por `anchor`, `type`, `classification` e
-  `container` (o container ancestral sobe pela **hierarquia** `results_in`, com fallback para
-  `depends_on`).
+  `scope` (o escopo ancestral sobe pela **hierarquia** `results_in`, com fallback para `depends_on`).
 - **`--semantic`** roda a fase 2 (`complete-link`) dentro de cada cluster acima de
   `clusters.min_volume`, com `clusters.similarity_threshold` — off-path, read-only (D47).
-- `--scope` restringe aos membros de um container; `--members` lista os membros.
+- `--scope` restringe aos membros de um escopo; `--members` lista os membros.
+- **`--write`** materializa `notas/MAP.md` + uma nota-hub (`meta` + `references`) por cluster
+  (D150) — versionado, buscável pelo `ask`.
 - Pipe: `<axis>|<key>|<count>` (container acrescenta `|<título>`); com `--members`, membros
   indentados `id|statement`. Fase 2: `semantic|<axis>|<key>|groups=N` + grupos.
 

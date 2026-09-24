@@ -10,7 +10,7 @@ use super::EVENT_PREFIX;
 
 /// Evento auditável (`write`, `update`, `supersede`, `remove`, `learn`, …).
 ///
-/// O `id` é derivado do conteúdo (`op`, `note_id`, `at`, `actor`, `data`), o que garante dedup
+/// O `id` é derivado do conteúdo (`op`, `note_id`, `at`, `data`), o que garante dedup
 /// determinístico sob merge (D26/D28).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Event {
@@ -20,21 +20,18 @@ pub struct Event {
     pub note_id: Option<String>,
     /// Instante em milissegundos desde a época.
     pub at: i64,
-    /// Quem executou (`cli`, `mcp`, …).
-    pub actor: Option<String>,
     /// Payload livre (ex.: `revision`, `reason`).
     pub data: IndexMap<String, Value>,
 }
 
 impl Event {
-    /// Cria um evento sem nota/ator/dados.
+    /// Cria um evento sem nota/dados.
     #[must_use]
     pub fn new(op: impl Into<String>, at: i64) -> Self {
         Self {
             op: op.into(),
             note_id: None,
             at,
-            actor: None,
             data: IndexMap::new(),
         }
     }
@@ -43,13 +40,6 @@ impl Event {
     #[must_use]
     pub fn with_note_id(mut self, note_id: impl Into<String>) -> Self {
         self.note_id = Some(note_id.into());
-        self
-    }
-
-    /// Define o ator.
-    #[must_use]
-    pub fn with_actor(mut self, actor: impl Into<String>) -> Self {
-        self.actor = Some(actor.into());
         self
     }
 
@@ -102,7 +92,6 @@ impl Event {
             .get("note_id")
             .and_then(Value::as_str)
             .map(str::to_string);
-        let actor = map.get("actor").and_then(Value::as_str).map(str::to_string);
         let data = match map.get("data") {
             None => IndexMap::new(),
             Some(Value::Map(data)) => data.clone(),
@@ -112,7 +101,6 @@ impl Event {
             op,
             note_id,
             at,
-            actor,
             data,
         })
     }
@@ -130,9 +118,6 @@ impl Event {
             map.insert("note_id".to_string(), Value::Str(note_id.clone()));
         }
         map.insert("at".to_string(), Value::Int(self.at));
-        if let Some(actor) = &self.actor {
-            map.insert("actor".to_string(), Value::Str(actor.clone()));
-        }
         if !self.data.is_empty() {
             map.insert("data".to_string(), Value::Map(self.data.clone()));
         }

@@ -1,4 +1,4 @@
-//! `kd task graph` — WBS derivado (D116/D119): papel, dono e modo por nó.
+//! `kd task graph` — WBS derivado (D116/D119): papel e modo por nó.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -7,9 +7,8 @@ use knudge_core::Result;
 use knudge_core::graph::Graph;
 use knudge_core::schema::{EdgeKind, NoteType, Value};
 use knudge_core::store::Store;
-use knudge_core::task::ownership::CLAIM;
 use knudge_core::task::{
-    Child, Container, Mode, children, mode, ownership, progress_of, role, root_for_path, subtree,
+    Child, Container, Mode, children, mode, progress_of, role, root_for_path, subtree,
 };
 use serde_json::json;
 
@@ -56,49 +55,25 @@ struct Tree {
     json_rows: Vec<serde_json::Value>,
 }
 
-/// Sinais derivados do log (dono, claims, criação) por id.
+/// Sinais derivados do log (criação) por id.
 struct Signals {
-    owners: BTreeMap<String, Option<String>>,
-    claims: BTreeMap<String, usize>,
     created: BTreeMap<String, i64>,
 }
 
 impl Signals {
     fn collect(session: &Session) -> Result<Self> {
         let (events, _warnings) = session.events().read_all()?;
-        let mut owners = BTreeMap::new();
-        for id in session.store().list_ids()? {
-            let _ignored = owners.insert(id.clone(), ownership(&events, &id));
-        }
-        let mut claims: BTreeMap<String, usize> = BTreeMap::new();
         let mut created = BTreeMap::new();
         for record in &events {
             let Some(id) = record.note_id.as_deref() else {
                 continue;
             };
-            if record.op == CLAIM {
-                let count = claims.entry(id.to_string()).or_insert(0_usize);
-                *count = count.saturating_add(1);
-            }
             let submit = record.data.get("action").and_then(Value::as_str) == Some("submit");
             if record.op == "task" && submit {
                 let _ignored = created.insert(id.to_string(), record.at);
             }
         }
-        Ok(Self {
-            owners,
-            claims,
-            created,
-        })
-    }
-
-    fn owner(&self, id: &str) -> Option<&str> {
-        self.owners.get(id).and_then(Option::as_deref)
-    }
-
-    fn handoff(&self, ids: &[String]) -> bool {
-        ids.iter()
-            .any(|id| self.claims.get(id).copied().unwrap_or(0) >= 2)
+        Ok(Self { created })
     }
 
     fn incremental(&self, children: &[String]) -> bool {
@@ -109,27 +84,20 @@ impl Signals {
         stamps.len() >= 2
     }
 
-    #[allow(
-        clippy::fn_params_excessive_bools,
-        reason = "`handoff` é um sinal derivado do log"
-    )]
-    fn container(&self, graph: &Graph, id: &str, handoff: bool) -> Container {
+    fn container(&self, graph: &Graph, id: &str) -> Container {
         let mut nodes = Vec::new();
         let mut ids = Vec::new();
         for child in children(graph, id) {
             ids.push(child.clone());
             nodes.push(Child {
                 id: child.clone(),
-                owner: self.owners.get(&child).and_then(Option::clone),
                 depends_on: graph.targets(&child, EdgeKind::DependsOn).to_vec(),
             });
         }
         nodes.sort_by(|a, b| a.id.cmp(&b.id));
         ids.sort();
         Container {
-            owner: self.owners.get(id).and_then(Option::clone),
             children: nodes,
-            handoff,
             incremental: self.incremental(&ids),
         }
     }
@@ -177,8 +145,6 @@ fn render_subtree(
     tree: &mut Tree,
 ) -> Result<()> {
     let nodes = subtree(graph, root);
-    let ids: Vec<String> = nodes.iter().map(|entry| entry.id.clone()).collect();
-    let handoff = signals.handoff(&ids);
     for entry in &nodes {
         let note = store.read(&entry.id)?;
         let kind = note.frontmatter.note_type()?;
@@ -189,9 +155,8 @@ fn render_subtree(
         let statement = note.frontmatter.statement().unwrap_or_default().to_string();
         let has_children = !children(graph, &entry.id).is_empty();
         let role = role::role(entry.depth, kind, has_children);
-        let owner = signals.owner(&entry.id).unwrap_or("-");
         let mode = if kind == NoteType::Epic {
-            Some(mode::mode(&signals.container(graph, &entry.id, handoff)))
+            Some(mode::mode(&signals.container(graph, &entry.id)))
         } else {
             None
         };
@@ -201,7 +166,7 @@ fn render_subtree(
             progress.map_or(String::new(), |value| format!(" ({})", value.label()));
         let indent = "  ".repeat(entry.depth.saturating_add(1));
         tree.lines.push(format!(
-            "{indent}{}|{}|{}|{}|{owner}|{mode_label}|{statement}{progress_label}",
+            "{indent}{}|{}|{}|{}|{mode_label}|{statement}{progress_label}",
             entry.id,
             role.as_str(),
             kind.as_str(),
@@ -213,7 +178,6 @@ fn render_subtree(
             "role": role.as_str(),
             "kind": kind.as_str(),
             "status": status.as_str(),
-            "owner": if owner == "-" { None } else { Some(owner) },
             "mode": mode.map(Mode::as_str),
             "statement": statement,
             "progress": progress.map(|value| json!({"done": value.done, "total": value.total})),

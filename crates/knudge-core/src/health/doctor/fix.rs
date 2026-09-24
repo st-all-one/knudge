@@ -6,7 +6,7 @@
 
 use crate::Result;
 use crate::retrieval::Index;
-use crate::schema::Value;
+use crate::schema::{Value, id};
 use crate::store::{Event, Note};
 
 use super::super::anchors::{AnchorStore, is_glob, refresh};
@@ -20,6 +20,7 @@ use super::{DoctorInput, DoctorReport, body_hash_mismatch, derived_diverges, doc
 /// Propaga erros de I/O; o relatório final reflete o estado após os reparos.
 pub fn doctor_fix(input: &DoctorInput<'_>) -> Result<DoctorReport> {
     let mut fixed = Vec::new();
+    fix_note_layout(input, &mut fixed)?;
     fix_legacy_group(input, &mut fixed)?;
     fix_body_hashes(input, &mut fixed)?;
     fix_removed_keys(input, &mut fixed)?;
@@ -61,6 +62,43 @@ fn fix_body_hashes(input: &DoctorInput<'_>, fixed: &mut Vec<String>) -> Result<(
                 .with_data("fix", Value::Str("body_hash".to_string())),
         )?;
         fixed.push(format!("body_hash recalculado: {id}"));
+    }
+    Ok(())
+}
+
+/// Move notas do layout plano antigo (`notas/<id>.md`) para `notas/<tipo>/<id>.md` (D150).
+///
+/// Roda **primeiro**: os reparos seguintes leem/escrevem pelo `note_path` derivado.
+fn fix_note_layout(input: &DoctorInput<'_>, fixed: &mut Vec<String>) -> Result<()> {
+    let dir = input.store.notes_dir();
+    if !input.fs.exists(&dir) {
+        return Ok(());
+    }
+    for path in input.fs.list_dir(&dir)? {
+        if input.fs.is_dir(&path) {
+            continue;
+        }
+        let is_markdown = path.extension().and_then(|e| e.to_str()) == Some("md");
+        if !is_markdown {
+            continue;
+        }
+        let Some(id) = path.file_stem().and_then(|stem| stem.to_str()) else {
+            continue;
+        };
+        if !id::is_valid_note_id(id) {
+            continue;
+        }
+        let target = input.store.note_path(id);
+        if target == path {
+            continue;
+        }
+        let bytes = input.fs.read(&path)?;
+        if let Some(parent) = target.parent() {
+            input.fs.create_dir_all(parent)?;
+        }
+        input.fs.write_atomic(&target, &bytes)?;
+        input.fs.remove_file(&path)?;
+        fixed.push(format!("layout migrado: {id}"));
     }
     Ok(())
 }

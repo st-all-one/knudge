@@ -54,17 +54,16 @@ PESQUISA (kd ask — uma tool para tudo):
 TAREFAS (kd task — epic ⊃ { issue ⊃ task | task }; epic é a raiz, ancore-o):
   kd task new "<...>" --scope <epic|issue|task> [--kind error|question|risk|decision]
         [--parent ID] [--checks NOME] [--body TXT] [--tag T] [--anchor PATH]
-  kd task list --ready|--blocked [--explain] [--sort impact] [--kind K] [--tag T] [--owner A|--mine]
+  kd task list --ready|--blocked [--explain] [--sort impact] [--kind K] [--tag T]
   kd task show <ID> [<ID>...] [--history]   # + contexto (parent/blocked_by/children) e épico (D125/D127)
   kd task update <ID> ...                   # edita campos no lugar
   kd task close <ID> [--outcome S] [--note TXT]   # só declara com evidência (D55); + épico e progresso (D127)
-  kd task claim <ID> --by <agente>|--release       # dono derivado (D114)
-  kd task graph [--program plan/<slug>.md|--root ID]   # role|kind|status|owner|mode|progresso (D116/D127)
+  kd task graph [--program plan/<slug>.md|--root ID]   # role|kind|status|mode|progresso (D116/D127)
   kd task plan <ID> --prompt [--template T] | --submit --from -   # plano TOON (D105)
 
 ESTADO / HANDOFF: kd rewind [--scope CONTAINER] [--files PATH...] [--budget N] [--resume ID]
   Orçamento ceil(len/4) tokens (default 4000); context_id retomável 1:1; next:/fresh: (D106).
-MAPA: kd knowledge map [--axis anchor|type|classification|scope] [--scope C] [--semantic] [--members]
+MAPA: kd knowledge map [--axis anchor|type|classification|scope] [--scope C] [--semantic] [--members] [--write]
 MANUTENÇÃO: kd maintenance doctor [--audit]|compact|eval|index|learn|prune|watch-service  (learn/compact/prune só propõem)
 CICLO DE VIDA: kd forget <ID>  (soft; --restore; --purge após retenção)
 CONFIG: kd config get|set|unset|list [--global]  (strict é config, não flag)

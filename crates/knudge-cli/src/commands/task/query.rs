@@ -1,14 +1,12 @@
 //! Listagem e exibição de tarefas (`kd task list`/`show`) (E12-T01).
 
-use std::collections::BTreeMap;
-
 use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::graph::Graph;
 use knudge_core::retrieval::block_reason;
 use knudge_core::schema::{Scope, Status};
 use knudge_core::store::Store;
-use knudge_core::task::{TaskContext, TaskRef, context_of, impact, is_actionable, ownership};
+use knudge_core::task::{TaskContext, TaskRef, context_of, impact, is_actionable};
 use knudge_core::write::history;
 use serde_json::json;
 
@@ -27,13 +25,8 @@ pub(super) fn list(session: &Session, args: &TaskListArgs) -> Result<Output> {
     validate_list_args(args)?;
     let needs_graph = args.ready || args.blocked || args.sort == Some(TaskSort::Impact);
     let graph = needs_graph.then(|| session.graph()).transpose()?;
-    let filters = ListFilters::resolve(session, args, graph.as_ref())?;
-    let owners = if filters.owner.is_some() {
-        owners_of(session)?
-    } else {
-        BTreeMap::new()
-    };
-    let mut rows = collect_rows(session, args, graph.as_ref(), &filters, &owners)?;
+    let filters = ListFilters::resolve(args, graph.as_ref())?;
+    let mut rows = collect_rows(session, args, graph.as_ref(), &filters)?;
     if args.sort == Some(TaskSort::Impact) {
         rows.sort_by(|left, right| {
             right
@@ -58,19 +51,17 @@ fn collect_rows(
     args: &TaskListArgs,
     graph: Option<&Graph>,
     filters: &ListFilters<'_>,
-    owners: &BTreeMap<String, Option<String>>,
 ) -> Result<Vec<Row>> {
     let sort_impact = args.sort == Some(TaskSort::Impact);
     let mut rows = Vec::new();
     for id in session.store().list_ids()? {
         let note = session.store().read(&id)?;
-        if !passes_filters(&note, filters, owners)? {
+        if !passes_filters(&note, filters)? {
             continue;
         }
         if sort_impact && !is_actionable(graph.and_then(|graph| graph.status(&id))) {
             continue;
         }
-        let owner = owners.get(&id).and_then(Option::as_deref);
         let reason = if args.explain && args.blocked {
             graph.and_then(|graph| block_reason(graph, &id))
         } else {
@@ -81,7 +72,7 @@ fn collect_rows(
         } else {
             None
         };
-        let (mut line, data) = render_row(&note, &id, reason.as_ref(), owner, unblocks)?;
+        let (mut line, data) = render_row(&note, &id, reason.as_ref(), unblocks)?;
         if args.explain
             && let Some(unblocks) = unblocks
         {
@@ -97,16 +88,6 @@ fn collect_rows(
         });
     }
     Ok(rows)
-}
-
-/// Dono derivado (`claim`/`release`) por id (D114).
-fn owners_of(session: &Session) -> Result<BTreeMap<String, Option<String>>> {
-    let (events, _warnings) = session.events().read_all()?;
-    let mut owners = BTreeMap::new();
-    for id in session.store().list_ids()? {
-        let _ignored = owners.insert(id.clone(), ownership(&events, &id));
-    }
-    Ok(owners)
 }
 
 fn validate_list_args(args: &TaskListArgs) -> Result<()> {

@@ -1,11 +1,9 @@
 //! Filtros e renderização de `kd task list` (E12-T01, D104/D109).
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
-use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::graph::Graph;
-use knudge_core::ports::Env;
 use knudge_core::retrieval::{BlockReason, Filter, Meta, compute_views};
 use knudge_core::schema::{NoteType, Scope, Status};
 use knudge_core::store::Note;
@@ -13,10 +11,6 @@ use knudge_core::task::{is_task, parent_of};
 use serde_json::json;
 
 use crate::cli::TaskListArgs;
-use crate::commands::parse;
-use crate::session::Session;
-
-use super::AGENT_ENV;
 
 /// Filtros resolvidos de `kd task list` (evita excesso de parâmetros).
 pub(super) struct ListFilters<'a> {
@@ -24,25 +18,12 @@ pub(super) struct ListFilters<'a> {
     status: Option<Status>,
     kind: Option<NoteType>,
     parent: Option<&'a str>,
-    pub(super) owner: Option<String>,
     allowed: Option<BTreeSet<String>>,
     structural: Filter,
-    since_ms: Option<i64>,
 }
 
 impl<'a> ListFilters<'a> {
-    pub(super) fn resolve(
-        session: &Session,
-        args: &'a TaskListArgs,
-        graph: Option<&Graph>,
-    ) -> Result<Self> {
-        let owner = if args.mine {
-            Some(session.env().var(AGENT_ENV).ok_or_else(|| {
-                Error::invalid_input(format!("`--mine` exige a variável {AGENT_ENV}"))
-            })?)
-        } else {
-            args.owner.clone()
-        };
+    pub(super) fn resolve(args: &'a TaskListArgs, graph: Option<&Graph>) -> Result<Self> {
         Ok(Self {
             scope: args.scope.as_deref().map(str::parse::<Scope>).transpose()?,
             status: args
@@ -56,14 +37,12 @@ impl<'a> ListFilters<'a> {
                 .map(str::parse::<NoteType>)
                 .transpose()?,
             parent: args.parent.as_deref(),
-            owner,
             allowed: allowed_ids(args, graph),
             structural: Filter {
                 tags: args.tag.clone(),
                 anchors: args.anchor.clone(),
                 ..Filter::new()
             },
-            since_ms: parse::timestamp_opt(args.since.as_ref())?,
         })
     }
 }
@@ -92,11 +71,7 @@ pub(super) struct Row {
 }
 
 /// `true` se a nota passa por todos os filtros de `kd task list`.
-pub(super) fn passes_filters(
-    note: &Note,
-    filters: &ListFilters<'_>,
-    owners: &BTreeMap<String, Option<String>>,
-) -> Result<bool> {
+pub(super) fn passes_filters(note: &Note, filters: &ListFilters<'_>) -> Result<bool> {
     if !is_task(note) {
         return Ok(false);
     }
@@ -121,11 +96,6 @@ pub(super) fn passes_filters(
     {
         return Ok(false);
     }
-    if let Some(owner) = &filters.owner
-        && owners.get(id).and_then(Option::as_deref) != Some(owner.as_str())
-    {
-        return Ok(false);
-    }
     if let Some(allowed) = &filters.allowed
         && !allowed.contains(id)
     {
@@ -133,11 +103,6 @@ pub(super) fn passes_filters(
     }
     let meta = Meta::from_frontmatter(&note.frontmatter)?;
     if !filters.structural.matches(&meta) {
-        return Ok(false);
-    }
-    if let Some(since) = filters.since_ms
-        && meta.created_ms < since
-    {
         return Ok(false);
     }
     Ok(true)
@@ -148,7 +113,6 @@ pub(super) fn render_row(
     note: &Note,
     id: &str,
     reason: Option<&BlockReason>,
-    owner: Option<&str>,
     impact: Option<usize>,
 ) -> Result<(String, serde_json::Value)> {
     let statement = note.frontmatter.statement().unwrap_or_default().to_string();
@@ -171,7 +135,6 @@ pub(super) fn render_row(
         "status": status.as_str(),
         "statement": statement,
         "parent": parent_of(note),
-        "owner": owner,
         "blocked_reason": reason.map(reason_label),
         "impact": impact,
     });

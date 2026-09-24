@@ -1,4 +1,4 @@
-//! Subcomandos de `kd task` (hierarquia fechada `plan ⊃ epic ⊃ issue ⊃ task`, D93).
+//! Subcomandos de `kd task` (hierarquia fechada `epic ⊃ { issue ⊃ task | task }`, D93/D134).
 
 use clap::{Args, Subcommand, ValueEnum};
 
@@ -52,24 +52,12 @@ pub enum TaskCommand {
         #[arg(long, value_name = "TXT")]
         note: Option<String>,
     },
-    /// Reivindica (`--by`) ou libera (`--release`) um item de trabalho (D114).
-    Claim {
-        /// Id.
-        #[arg(value_name = "ID")]
-        id: String,
-        /// Agente que assume a tarefa.
-        #[arg(long, value_name = "AGENTE")]
-        by: Option<String>,
-        /// Libera a tarefa (sem dono).
-        #[arg(long)]
-        release: bool,
-    },
-    /// Renderiza a árvore de um programa externo (`plan/*.md`) ou de um container — D119/D116.
+    /// Renderiza a árvore de um programa externo (`plan/*.md`) ou de um escopo — D119/D116.
     Graph {
         /// Arquivo do programa.
         #[arg(long, value_name = "PATH")]
         program: Option<String>,
-        /// Id do container-raiz.
+        /// Id do escopo-raiz (épico).
         #[arg(long, value_name = "ID")]
         root: Option<String>,
     },
@@ -126,12 +114,6 @@ pub struct TaskListArgs {
     /// Filtro por espécie (`type`) — D113.
     #[arg(long, value_name = "ESPECIE")]
     pub kind: Option<String>,
-    /// Filtro por dono derivado de `claim` (D114).
-    #[arg(long, value_name = "AGENTE")]
-    pub owner: Option<String>,
-    /// Só o que o ator atual reivindicou (D114).
-    #[arg(long)]
-    pub mine: bool,
     /// Filtro por pai.
     #[arg(long, value_name = "ID")]
     pub parent: Option<String>,
@@ -154,9 +136,6 @@ pub struct TaskListArgs {
     /// Filtro por âncora (repetível; aceita lista com vírgula: `--anchor a,b`).
     #[arg(long, value_name = "PATH", value_delimiter = ',')]
     pub anchor: Vec<String>,
-    /// Só o que foi criado a partir do instante (`TS` RFC3339/epoch).
-    #[arg(long, value_name = "TS")]
-    pub since: Option<String>,
 }
 
 /// Campo de ordenação de `kd task list` (D109).

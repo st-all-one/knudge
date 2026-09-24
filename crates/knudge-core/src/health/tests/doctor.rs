@@ -88,6 +88,39 @@ fn doctor_fix_is_idempotent() -> Result<()> {
 }
 
 #[test]
+fn doctor_fix_migrates_flat_layout_to_type_dirs() -> Result<()> {
+    let fs = MemFs::new();
+    let fact = note(NoteType::Fact, "layout legado", "")?;
+    let id = fact.id()?.to_string();
+    let ctx = seeded(&fs, std::slice::from_ref(&fact))?;
+    let events = EventLog::new(&fs, ROOT, EventLog::DEFAULT_MAX_BYTES);
+    let config = Config::defaults();
+    let (_index, graph) = built(std::slice::from_ref(&fact))?;
+    let thresholds = DedupThresholds::default();
+    let world = World {
+        fs: &fs,
+        ctx: &ctx,
+        events: &events,
+        config: &config,
+        graph: &graph,
+        thresholds: &thresholds,
+    };
+
+    // Simula o layout plano antigo: `notas/<tipo>/<id>.md` → `notas/<id>.md`.
+    let typed = ctx.store().note_path(&id);
+    let bytes = fs.read(&typed)?;
+    let flat = Path::new(ROOT).join("notas").join(format!("{id}.md"));
+    fs.write_atomic(&flat, &bytes)?;
+    fs.remove_file(&typed)?;
+    assert!(fs.exists(&flat));
+
+    let _fixed = doctor_fix(&world.input())?;
+    assert!(fs.exists(&typed), "nota não migrou para o layout por tipo");
+    assert!(!fs.exists(&flat), "arquivo plano permaneceu");
+    Ok(())
+}
+
+#[test]
 fn missing_index_is_rebuilt() -> Result<()> {
     let fs = MemFs::new();
     let fact = note(NoteType::Fact, "índice", "")?;

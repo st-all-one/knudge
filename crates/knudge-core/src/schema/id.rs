@@ -43,3 +43,17 @@ pub fn is_valid_note_id(id: &str) -> bool {
             || prefix == NoteType::Epic.prefix()
             || HISTORICAL_PREFIXES.contains(&prefix))
 }
+
+/// Diretório canônico (`notas/<dir>/`) de um `id` — derivado do prefixo (D150).
+///
+/// `container_*` (prefixo histórico, D149) vive em `epic/`. Ids sem prefixo conhecido caem no
+/// próprio prefixo (tolerante).
+#[must_use]
+pub fn type_dir(id: &str) -> &str {
+    let prefix = id.split_once('_').map_or(id, |(prefix, _)| prefix);
+    if prefix == "container" {
+        NoteType::Epic.as_str()
+    } else {
+        prefix
+    }
+}

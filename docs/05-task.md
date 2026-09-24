@@ -34,9 +34,7 @@ kd task new "Endurecer o parser" --scope task \
 kd task list --ready                 # dependências resolvidas
 kd task list --blocked --explain     # + motivo (blocked_by=/cycle)
 kd task list --ready --sort impact   # ordena pelo que desbloqueia mais (+unblocks=N)
-kd task list --tag parser --anchor src/toon/parse.rs --since 2026-01-01
-kd task list --owner agente-a
-kd task list --mine                  # só o que o ator atual (KNUDGE_AGENT) reivindicou
+kd task list --tag parser --anchor src/toon/parse.rs
 ```
 
 `--ready` e `--blocked` são mutuamente exclusivos; `--explain` acompanha `--blocked` ou
@@ -50,13 +48,11 @@ kd task show <ID> [<ID>...] [--history]
 
 Mostra a tarefa com **parent/blocked_by/children**, o épico a que pertence e o progresso.
 
-## Atualizar / fechar / reivindicar
+## Atualizar / fechar
 
 ```bash
 kd task update <ID> --statement "..." --status in_progress --checks testes --parent <novo>
 kd task close <ID> --outcome success --note "testes verdes"   # exige evidência
-kd task claim <ID> --by agente-a
-kd task claim <ID> --release
 ```
 
 `close` aceita `--outcome success|partial|failure|abandoned`; sem evidência, a conclusão não é
@@ -69,7 +65,7 @@ kd task graph --program plan/016_new_ui_v2.md    # renderiza o programa externo
 kd task graph --root plan_01abc                  # renderiza a árvore de um escopo (épico)
 ```
 
-Saída por linha: `role|kind|status|owner|mode|progresso`.
+Saída por linha: `role|kind|status|mode|progresso`.
 
 ## Plano (TOON)
 
@@ -85,7 +81,6 @@ kd task plan <ID> --adopt | --reorder N | --release | --review
 kd task new "Sync offline-first" --scope epic
 kd task new "Conflito de merge" --scope task --parent <epic> --anchor src/sync.rs
 kd task list --ready --sort impact
-kd task claim <task> --by agente-a
 kd task close <task> --outcome success --note "testes verdes"
 kd sync
 ```

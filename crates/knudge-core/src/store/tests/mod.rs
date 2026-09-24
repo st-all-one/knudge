@@ -2,6 +2,7 @@
 
 mod commit;
 mod events;
+mod layout;
 mod lock;
 mod note;
 mod purge;

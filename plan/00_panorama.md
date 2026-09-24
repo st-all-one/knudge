@@ -27,7 +27,7 @@ Três consequências que explicam todas as decisões:
 ```
 .knudge/                     # por projeto, independente
   config.toml                # efetivo — clonado do global na instanciação; tem precedência
-  notas/*.md                 # verdade — frontmatter TOON + corpo
+  notas/<tipo>/*.md          # verdade — frontmatter TOON + corpo (D150)
   eventos/events.jsonl       # log append-only (auditoria)
   templates.yaml             # seções obrigatórias por tipo
   validators.toml            # catálogo de checks executáveis (D99)

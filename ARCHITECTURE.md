@@ -58,7 +58,7 @@ conveniência, mas só `cli`/`mcp` o importam.
 | `schema` | schema canônico, tipos, IDs | E02 |
 | `toon` | parser/emissor TOON | E02 |
 | `jsonl` | leitura/escrita JSONL + codec JSON canônico | E03 |
-| `store` | notas (`notas/`), eventos, lock, rebuild, purge, sweep | E03 |
+| `store` | notas (`notas/<tipo>/`), eventos, lock, rebuild, purge, sweep | E03 |
 | `git` | worktree principal, `info/exclude`, `AGENTS.md`, `sync` | E04 |
 | `graph` | arestas explícitas, integridade, ciclos, sugestões | E05 |
 | `retrieval` | BM25, âncoras, filtros, views `ready`/`blocked` e RRF | E06 |
@@ -73,6 +73,10 @@ conveniência, mas só `cli`/`mcp` o importam.
 ## 5. Persistência (E03)
 
 `notas/` é a verdade; `eventos/` é auditoria; `.idx/` é derivado e reconstruível.
+
+O layout é **material por tipo** (D150): `notas/<tipo>/<id>.md` (derivado do prefixo do id —
+`container_*` histórico vive em `epic/`), mais `notas/MAP.md` e as notas-hub (`meta` +
+`references`), materializados por `kd knowledge map --write` e **versionados**.
 
 | Peça | Regra |
 |---|---|

@@ -60,8 +60,8 @@ Coisas para lembrar ao usar o knudge:
 - **Classificação:** `foundational`, `tactical`, `observational`. **Status:** `active`, `in_progress`, `blocked`, `closed`, `superseded`, `forgotten`.
 - **Verbos (13):** `init`, `prime`, `rewind`, `ask`, `write`, `task`, `knowledge`, `maintenance`, `config`, `forget`, `sync`, `self` (+ `kd` = `prime`).
 - **`kd ask`** cobre recall + get (`--id`) + expand (`--around`); filtros `--type/--class/--tag/--status/--scope/--anchor/--since/--until`; `--rank` e `--tags`; `--limit` (default 5), `--brief`, `--with-body`.
-- **`kd task`:** `new/list/show/update/close/claim/graph/plan`; `--ready`/`--blocked`, `--sort impact`; rollup de progresso por épico (D127).
-- **`kd knowledge map [--axis anchor|type|classification|scope] [--semantic] [--members]`** — clusters estruturais + fase 2 semântica complete-link (D128/D129).
+- **`kd task`:** `new/list/show/update/close/graph/plan`; `--ready`/`--blocked`, `--sort impact`; rollup de progresso por épico (D127).
+- **`kd knowledge map [--axis anchor|type|classification|scope] [--semantic] [--members] [--write]`** — clusters estruturais + fase 2 semântica complete-link (D128/D129). Com `--write`, materializa `notas/MAP.md` + hubs (`meta`+`references`) versionados (D150).
 - **`kd maintenance`:** `doctor [--fix] [--audit]` · `compact` · `eval --ab` · `index [--drain|--status]` · `learn` · `prune` · `watch-service [--install|--subscribe|--unsubscribe|--status|--uninstall]` (compact/learn/prune só propõem; watch-service = worker de auto-drain + servidor persistente, systemd/launchd, multi-projeto).
 - **`kd rewind`:** handoff ponto-no-tempo; orçamento `ceil(len/4)` tokens (default 4000); `--resume` retomável 1:1 (D88).
 - **`kd self setup <claude|cursor|codex|pi>`**, `kd self completions <bash|zsh|fish>`.
@@ -77,5 +77,6 @@ Coisas para lembrar ao usar o knudge:
 - Tarefa (épico → tarefa): `kd task new "Sync offline-first" --scope epic` e
   `kd task new "Conflito de merge" --scope task --parent <epic>`
 - Handoff: `kd rewind --budget 2000`
-- Mapa: `kd knowledge map --axis scope --semantic`
+- Mapa: `kd knowledge map --axis scope --semantic`; materializar: `kd knowledge map --write`
+- **Layout (D150):** `notas/<tipo>/<id>.md` + `notas/MAP.md` + hubs; tudo versionado.
 - MCP: `knudge-mcp --stdio`

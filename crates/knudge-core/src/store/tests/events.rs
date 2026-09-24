@@ -20,6 +20,25 @@ fn dedup_on_read_ignores_repeated_lines() -> Result<()> {
 }
 
 #[test]
+fn legacy_actor_field_is_read_without_error() -> Result<()> {
+    let fs = MemFs::new();
+    let log = EventLog::new(&fs, "/p/.knudge", EventLog::DEFAULT_MAX_BYTES);
+    let line =
+        br#"{"id":"ev_00000001","op":"write","note_id":"fact_00000001","at":5,"actor":"cli"}"#;
+    fs.append(&log.active_path(), line)?;
+    fs.append(&log.active_path(), b"\n")?;
+
+    let (events, warnings) = log.read_all()?;
+    assert_eq!(events.len(), 1);
+    assert!(
+        warnings.is_empty(),
+        "actor legado não deve gerar aviso: {warnings:?}"
+    );
+    assert_eq!(events.first().map(|event| event.op.as_str()), Some("write"));
+    Ok(())
+}
+
+#[test]
 fn malformed_line_is_skipped_with_warning() -> Result<()> {
     let fs = MemFs::new();
     let log = EventLog::new(&fs, "/p/.knudge", EventLog::DEFAULT_MAX_BYTES);

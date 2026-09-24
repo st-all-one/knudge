@@ -10,7 +10,8 @@ kd init
 
 O `kd init` cria `.knudge/` (notas, eventos, índice derivado) e escreve um bloco no `AGENTS.md`
 do projeto, ensinando o agente a usar o `kd`. A **verdade** são os arquivos Markdown em
-`.knudge/notas/`; todo o resto é **derivado** e reconstruível.
+`.knudge/notas/<tipo>/` (uma pasta por tipo; `MAP.md` e as notas-hub dão o ponto de entrada);
+todo o resto é **derivado** e reconstruível.
 
 ## 2. Buscar antes de gravar
 
@@ -46,11 +47,10 @@ Tipos de conhecimento: `fact`, `decision`, `error`, `risk`, `question`, `def`, `
 kd task new "Sync offline-first" --scope epic
 kd task new "Resolver conflito de merge" --scope task --parent <epic>
 kd task list --ready --sort impact
-kd task claim <task> --by agente-a
 kd task close <task> --outcome success --note "testes verdes"
 ```
 
-A hierarquia é fechada: **`plan ⊃ epic ⊃ issue ⊃ task`** (profundidade máxima 4). Fechar exige
+A hierarquia é fechada: **`epic ⊃ { issue ⊃ task | task }`** (`epic` é a raiz). Fechar exige
 **evidência** (`--outcome`).
 
 ## 5. Retomar contexto entre sessões

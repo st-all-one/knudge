@@ -22,7 +22,8 @@ fn store_with<'a>(fs: &'a MemFs, notes: &[Note]) -> Result<Store<'a>> {
 
 fn insert_raw(fs: &MemFs, id: &str, frontmatter: &str, body: &str) {
     let text = format!("---\n{frontmatter}---\n{body}");
-    fs.insert(format!("{ROOT}/notas/{id}.md"), text.into_bytes());
+    let prefix = id.split_once('_').map_or(id, |(prefix, _)| prefix);
+    fs.insert(format!("{ROOT}/notas/{prefix}/{id}.md"), text.into_bytes());
 }
 
 #[test]
@@ -55,7 +56,7 @@ fn malformed_note_is_skipped_with_guidance() -> Result<()> {
     let store = Store::new(&fs, ROOT);
     store.ensure_dirs()?;
     fs.insert(
-        format!("{ROOT}/notas/bad_00000000.md"),
+        format!("{ROOT}/notas/bad/bad_00000000.md"),
         b"nao e uma nota".to_vec(),
     );
 
@@ -100,7 +101,7 @@ fn recall_survives_bad_note() -> Result<()> {
         ],
     )?;
     fs.insert(
-        format!("{ROOT}/notas/broken_00000000.md"),
+        format!("{ROOT}/notas/broken/broken_00000000.md"),
         b"quebrada".to_vec(),
     );
 

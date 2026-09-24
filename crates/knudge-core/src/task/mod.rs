@@ -1,8 +1,8 @@
-//! Escopo `task`: hierarquia `plan ⊃ epic ⊃ issue ⊃ task` como view derivada (E08-T07).
+//! Escopo `task`: hierarquia `epic ⊃ { issue ⊃ task | task }` como view derivada (E08-T07).
 //!
-//! `plan`/`epic` são `type=container` (sem verdade própria, D52); `issue`/`task` são
-//! `type=task`. O pai vive no **marcador do corpo** (D93) e é projetado como aresta
-//! `results_in` no grafo. `kd write` rejeita `task`/`container` — tudo de tarefa passa aqui.
+//! `epic` é um grupo (`scope=epic`, sem `type`, D149); `issue`/`task` são `type=task`. O pai vive
+//! no **marcador do corpo** (D93) e é projetado como aresta `results_in` no grafo. `kd write`
+//! rejeita `task`/`epic` — tudo de tarefa passa aqui.
 
 pub mod context;
 pub mod hierarchy;
@@ -10,7 +10,6 @@ pub mod impact;
 pub mod lifecycle;
 pub mod membership;
 pub mod mode;
-pub mod ownership;
 pub mod plan;
 pub mod program;
 pub mod progress;
@@ -27,7 +26,6 @@ pub use impact::{impact, is_actionable};
 pub use lifecycle::{OutcomeStatus, TaskAction, apply, outcome, reorder, validate_transition};
 pub use membership::Marker;
 pub use mode::{Child, Container, Mode};
-pub use ownership::{claim, ownership};
 pub use plan::{PlanPrompt, PlanSpec, PlanStep};
 pub use program::{ProgramNode, program_of, root_for_path, subtree};
 pub use progress::{EpicProgress, Progress, epic_of, progress_of};

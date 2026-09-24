@@ -60,9 +60,7 @@ fn commits_with_generated_message_in_main_worktree() -> Result<()> {
 
     let project = Project::resolve(&git, &env_at("/repo"))?;
     let log = EventLog::new(&fs, project.knowledge_dir(), EventLog::DEFAULT_MAX_BYTES);
-    let event = Event::new("write", 1)
-        .with_note_id("fact_abc")
-        .with_actor("cli");
+    let event = Event::new("write", 1).with_note_id("fact_abc");
     log.append(&event)?;
 
     let report = sync(&fs, &git, &project, Persistence::Versioned, None)?;

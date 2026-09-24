@@ -15,9 +15,7 @@ fn crash_between_note_and_event_leaves_note_without_event() -> Result<()> {
     let store = Store::new(&fs, root);
     let events = EventLog::new(&fs, root, EventLog::DEFAULT_MAX_BYTES);
     let note = sample_note("nota antes do evento")?;
-    let event = Event::new("write", 1)
-        .with_note_id(note.id()?)
-        .with_actor("cli");
+    let event = Event::new("write", 1).with_note_id(note.id()?);
 
     // Injeta falha na escrita do evento (mas não da nota).
     fs.fail_writes_containing("/eventos/");

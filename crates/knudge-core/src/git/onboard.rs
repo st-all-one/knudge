@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use crate::Result;
 use crate::config::{Config, global_config_path};
 use crate::ports::{Env, Fs, Git};
+use crate::schema::NoteType;
 
 use super::agent_md;
 use super::attributes;
@@ -64,6 +65,11 @@ pub fn onboard(
     for dir in LAYOUT_DIRS {
         fs.create_dir_all(&knowledge_dir.join(dir))?;
     }
+    let notes_dir = knowledge_dir.join("notas");
+    for note_type in NoteType::ALL {
+        fs.create_dir_all(&notes_dir.join(note_type.as_str()))?;
+    }
+    fs.create_dir_all(&notes_dir.join(NoteType::Epic.as_str()))?;
 
     let config_path = project.config_path();
     let config_written = if fs.exists(&config_path) && !options.force {
