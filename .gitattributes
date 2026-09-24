@@ -1,0 +1,21 @@
+# knudge:start
+# Notas canônicas: LF mantém `body_hash`/id estáveis (D06/D95).
+/.knudge/notas/** text eol=lf
+
+# Configuração do projeto: texto normalizado.
+/.knudge/config.toml text eol=lf
+/.knudge/templates.toml text eol=lf
+/.knudge/validators.toml text eol=lf
+
+# Log de eventos: append-only; o `id` do conteúdo torna o union seguro (D26/D28/D31).
+/.knudge/eventos/events*.jsonl text eol=lf merge=union
+
+# Cache vetorial versionado: chave `(body_hash, model)`; union + dedup no loader (D148/D153).
+/.knudge/emb_cache.jsonl text eol=lf merge=union
+
+# Derivado e runtime (reconstruíveis, nunca versionados): sem diff/merge automático.
+/.knudge/.idx/** binary linguist-generated
+/.knudge/cache/** binary linguist-generated
+/.knudge/.locks/** binary linguist-generated
+/.knudge/**/*.tmp binary linguist-generated
+# knudge:end

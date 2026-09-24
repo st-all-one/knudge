@@ -27,6 +27,11 @@ pub const KEYS: &[KeySpec] = &[
         default: Default::Int(100),
     },
     KeySpec {
+        key: "task.batch_max",
+        kind: Kind::Int,
+        default: Default::Int(100),
+    },
+    KeySpec {
         key: "recall.default_limit",
         kind: Kind::Int,
         default: Default::Int(5),
@@ -230,6 +235,11 @@ pub const KEYS: &[KeySpec] = &[
         key: "embeddings.cache",
         kind: Kind::Bool,
         default: Default::Bool(true),
+    },
+    KeySpec {
+        key: "embeddings.version_cache",
+        kind: Kind::Bool,
+        default: Default::Bool(false),
     },
     KeySpec {
         key: "embeddings.cache_max_bytes",

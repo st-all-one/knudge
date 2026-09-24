@@ -58,6 +58,49 @@ fn flat_legacy_note_is_still_listed() -> Result<()> {
 }
 
 #[test]
+fn flat_legacy_note_is_readable() -> Result<()> {
+    let fs = MemFs::new();
+    let store = Store::new(&fs, ROOT);
+    store.ensure_dirs()?;
+    let note = sample_note("nota plana legível")?;
+    let note_id = note.id()?.to_string();
+    let legacy = format!("{ROOT}/notas/{note_id}.md");
+    fs.insert(legacy.clone(), note.render().into_bytes());
+
+    // `read`/`exists`/`resolve_path` caem no layout plano quando o canônico não existe (D150).
+    assert!(store.exists(&note_id));
+    assert_eq!(store.read(&note_id)?.id()?, note_id);
+    assert_eq!(store.resolve_path(&note_id), Path::new(&legacy));
+
+    // `remove` apaga o arquivo plano.
+    store.remove(&note_id)?;
+    assert!(!fs.exists(Path::new(&legacy)));
+    Ok(())
+}
+
+#[test]
+fn read_optional_skips_invalid_note() -> Result<()> {
+    let fs = MemFs::new();
+    let store = Store::new(&fs, ROOT);
+    store.ensure_dirs()?;
+    let valid = sample_note("válida")?;
+    let valid_id = valid.id()?.to_string();
+    store.write(&valid)?;
+    fs.insert(
+        format!("{ROOT}/notas/alien/alien_00000000.md"),
+        b"---\nid: alien_00000000\ntype: alien\nstatement: hmm\ncreated_at: 2023-11-14T22:13:20.000Z\nbody_hash: 00000000\nschema_version: 1\n---\n"
+            .to_vec(),
+    );
+
+    // Estrito: falha; tolerante: `None` (D17/D18).
+    assert!(store.read("alien_00000000").is_err());
+    assert!(store.read_optional(&valid_id)?.is_some());
+    assert!(store.read_optional("alien_00000000")?.is_none());
+    assert_eq!(store.list_ids()?.len(), 2);
+    Ok(())
+}
+
+#[test]
 fn map_md_at_root_is_not_a_note() -> Result<()> {
     let fs = MemFs::new();
     let store = Store::new(&fs, ROOT);

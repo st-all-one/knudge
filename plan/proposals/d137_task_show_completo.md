@@ -1,8 +1,7 @@
 # D137 — `show` completo e `list --full-content`
 
-> **Status:** decisão fechada (registrada em `plan/03_decisoes-fechadas.md`); **implementação
-> pendente**. Origem: revisão de `kd task show`/`list`. Nome confirmado: `--full-content`. Sem
-> execução.
+> **Status:** decisão fechada e **implementada** (v0.3.0). Origem: revisão de `kd task show`/
+> `list`. Nome confirmado: `--full-content`.
 
 ## 1. Diagnóstico (evidência)
 

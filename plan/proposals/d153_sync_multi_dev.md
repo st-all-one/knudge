@@ -1,10 +1,9 @@
 # D153 — sincronização multi-dev (notas = verdade; derivado = reconstruir/union)
 
-> **Status:** decisão fechada (registrada em `plan/03_decisoes-fechadas.md`); **implementação
-> pendente**. Origem: revisão do uso concorrente (2–3 devs no mesmo projeto). Complementa
+> **Status:** decisão fechada e **implementada** (v0.3.0). Origem: revisão do uso concorrente (2–3 devs no mesmo projeto). Complementa
 > **D26/D28/D31** (eventos `merge=union`), **D148** (cache vetorial versionado) e **D150**
 > (layout). **Premissa operacional:** os devs usam o **mesmo modelo e as mesmas configurações**
-> de embeddings; o filtro por `model` é rede de segurança, não o caminho principal. Sem execução.
+> de embeddings; o filtro por `model` é rede de segurança, não o caminho principal.
 
 ## 1. Decisão
 
@@ -51,8 +50,8 @@ derivado — re-derive.**
 
 ## 4. Aceite
 
-- [ ] `emb_cache.jsonl` recebe `merge=union`; `.idx/` segue excluído.
-- [ ] Loader dedupa por `(body_hash, model)` e ignora entradas de modelo inativo.
-- [ ] Mesma chave com vetores diferentes resolve por `created_ms` (determinístico, testado).
-- [ ] Nota com marcadores de conflito é pulada e reportada pelo `doctor`.
-- [ ] `make check` verde; docs/`DIVERGENCES.md` atualizados.
+- [x] `emb_cache.jsonl` recebe `merge=union`; `.idx/` segue excluído.
+- [x] Loader dedupa por `(body_hash, model)` e ignora entradas de modelo inativo.
+- [x] Mesma chave com vetores diferentes resolve por `created_ms` (determinístico, testado).
+- [x] Nota com marcadores de conflito é pulada e reportada pelo `doctor`.
+- [x] `make check` verde; docs/`DIVERGENCES.md` atualizados.

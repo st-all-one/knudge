@@ -1,5 +1,6 @@
 //! Manifest e ranking por tier (E08-T01).
 
+use crate::handoff::CorpusScope;
 use crate::handoff::RewindMode;
 use crate::handoff::manifest::{TrustTier, manifest_text, rank, tier_of, trust_score};
 use crate::schema::{Classification, EdgeKind, NoteType, Scope};
@@ -57,7 +58,12 @@ fn ranking_orders_by_tier() -> Result<()> {
 fn manifest_counts_and_dirty() -> Result<()> {
     let notes = [note(NoteType::Fact, "a")?, note(NoteType::Decision, "b")?];
     let (index, graph) = built(&notes)?;
-    let text = manifest_text(&index, &graph, &["src/x.rs".to_string()]);
+    let text = manifest_text(
+        &index,
+        &graph,
+        &["src/x.rs".to_string()],
+        &CorpusScope::default(),
+    );
     assert!(text.starts_with("notes=2"));
     assert!(text.contains("dirty"));
     assert!(text.contains("recent:"));

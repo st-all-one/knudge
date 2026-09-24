@@ -112,7 +112,9 @@ fn resolve_roots(
     if let Some(path) = program {
         let mut notes = Vec::new();
         for id in store.list_ids()? {
-            notes.push(store.read(&id)?);
+            if let Some(note) = store.read_optional(&id)? {
+                notes.push(note);
+            }
         }
         let roots = roots_for_path(&notes, path)?;
         if roots.is_empty() {
@@ -130,7 +132,9 @@ fn resolve_roots(
     }
     let mut roots = Vec::new();
     for id in store.list_ids()? {
-        let note = store.read(&id)?;
+        let Some(note) = store.read_optional(&id)? else {
+            continue;
+        };
         if note.frontmatter.note_type()? == NoteType::Epic && !graph.has_parent(&id) {
             roots.push(id);
         }

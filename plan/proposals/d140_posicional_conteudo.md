@@ -1,8 +1,6 @@
 # D140 — convenção universal do posicional: ele é conteúdo, nunca metadado
 
-> **Status:** decisão fechada (registrada em `plan/03_decisoes-fechadas.md`); **implementação
-> pendente**. Origem: revisão da superfície. **Universal** — vale para todos os verbos do `kd`.
-> Sem execução.
+> **Status:** decisão fechada e **implementada** (v0.3.0). Origem: revisão da superfície. **Universal** — vale para todos os verbos do `kd`.
 
 ## 1. Regra
 

@@ -5,6 +5,7 @@
 //! (D57), com desempate determinístico por `created_ms desc, id asc`.
 
 use std::cmp::Ordering;
+use std::collections::BTreeSet;
 
 use crate::graph::Graph;
 use crate::lifecycle::confidence::{DEFAULT_TASK_CONFIRMATION, from_tasks_with, is_success_task};
@@ -13,7 +14,7 @@ use crate::retrieval::views::compute_views;
 use crate::retrieval::{Index, Meta};
 use crate::schema::{Classification, EdgeKind, NoteType};
 
-use super::RewindMode;
+use super::{CorpusScope, RewindMode};
 
 /// Nível de confiança do ranking.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,16 +90,24 @@ pub struct ManifestItem {
 /// Ranqueia as notas do modo (escopo ou working set).
 #[must_use]
 pub fn rank(index: &Index, graph: &Graph, mode: &RewindMode) -> Vec<ManifestItem> {
-    rank_with(index, graph, mode, DEFAULT_TASK_CONFIRMATION)
+    rank_with(
+        index,
+        graph,
+        mode,
+        DEFAULT_TASK_CONFIRMATION,
+        &CorpusScope::default(),
+    )
 }
 
-/// Como [`rank`], promovendo a `Star` notas confirmadas por tarefas (X1/D108).
+/// Como [`rank`], promovendo a `Star` notas confirmadas por tarefas (X1/D108) e restringindo
+/// ao escopo do corpus (D143).
 #[must_use]
 pub fn rank_with(
     index: &Index,
     graph: &Graph,
     mode: &RewindMode,
     task_confirmation_weight: f64,
+    scope: &CorpusScope,
 ) -> Vec<ManifestItem> {
     let roots = match mode {
         RewindMode::Files(paths) => program_roots(index, graph, paths),
@@ -113,6 +122,7 @@ pub fn rank_with(
     let mut items: Vec<ManifestItem> = index
         .docs
         .iter()
+        .filter(|doc| scope.matches(&doc.meta))
         .filter(|doc| in_mode(&doc.meta, graph, mode, &roots))
         .map(|doc| {
             let confirmed = from_tasks_with(&doc.meta, &confirmers, task_confirmation_weight) > 0.0;
@@ -146,14 +156,24 @@ pub fn render_item(item: &ManifestItem) -> String {
 
 /// Manifest ultra-curta: contadores, recentes e dirty (D57).
 #[must_use]
-pub fn manifest_text(index: &Index, graph: &Graph, changed_paths: &[String]) -> String {
+pub fn manifest_text(
+    index: &Index,
+    graph: &Graph,
+    changed_paths: &[String],
+    scope: &CorpusScope,
+) -> String {
     let views = compute_views(graph);
     let containers = graph
         .ids()
         .iter()
         .filter(|id| graph.note_type(id) == Some(NoteType::Epic))
         .count();
-    let mut recent: Vec<&Meta> = index.docs.iter().map(|doc| &doc.meta).collect();
+    let mut recent: Vec<&Meta> = index
+        .docs
+        .iter()
+        .map(|doc| &doc.meta)
+        .filter(|meta| scope.matches(meta))
+        .collect();
     recent.sort_by(|a, b| {
         b.created_ms
             .cmp(&a.created_ms)
@@ -165,7 +185,7 @@ pub fn manifest_text(index: &Index, graph: &Graph, changed_paths: &[String]) -> 
     } else {
         "dirty"
     };
-    let notes = index.docs.len();
+    let notes = recent.len();
     let ready = views.ready.len();
     let blocked = views.blocked.len();
     let recent = recent_ids.join(" ");
@@ -185,7 +205,7 @@ pub fn belongs_to(graph: &Graph, id: &str, container: &str) -> bool {
 }
 
 fn reachable(graph: &Graph, from: &str, target: &str, kind: EdgeKind) -> bool {
-    let mut seen: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let mut seen: BTreeSet<String> = BTreeSet::new();
     let mut stack = vec![from.to_string()];
     while let Some(current) = stack.pop() {
         for next in graph.targets(&current, kind) {

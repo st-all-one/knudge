@@ -40,7 +40,8 @@ use crate::store::{Note, Store};
 use crate::{Error, Result};
 
 use pipeline::{
-    FusedChannels, build_hits, candidates, lexical_channel, semantic_channel, task_confirmers,
+    ChannelLabel, FusedChannels, build_hits, candidates, lexical_channel, semantic_channel,
+    task_confirmers,
 };
 
 /// `k` padrão da fusão RRF (config `recall.rrf_k`).
@@ -103,6 +104,8 @@ pub struct RecallQuery {
     pub weights: FusionWeights,
     /// Filtros estruturais.
     pub filter: Filter,
+    /// Universo considerado (D146): conhecimento por padrão, trabalho com `--with-task`.
+    pub universe: Universe,
     /// Escopo pedido (pertencimento via `depends_on` transitivo).
     pub scope: Option<String>,
     /// Arquivos do working set (canal de âncoras).
@@ -130,6 +133,7 @@ impl RecallQuery {
             text: text.into(),
             limit: DEFAULT_LIMIT,
             rrf_k: DEFAULT_RRF_K,
+            universe: Universe::All,
             task_confirmation_weight: DEFAULT_TASK_CONFIRMATION,
             ..Self::default()
         }
@@ -149,6 +153,27 @@ pub struct RecallHit {
     pub confidence: f64,
     /// Por que apareceu.
     pub why: Why,
+    /// Contribuição de cada sinal na ordenação (D151).
+    pub channels: HitChannels,
+}
+
+/// Contribuição de cada sinal para um hit do `recall` (D151).
+///
+/// `lexical`/`anchor`/`semantic` são as **parcelas RRF** (unidades do score fundido);
+/// `recent`/`stars` são **boosts informativos** em `[0,1]` — não alteram a ordem por si
+/// (a confirmação de tarefas X1/D108 já entra no canal lexical).
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct HitChannels {
+    /// Parcela do canal lexical (BM25) na fusão RRF.
+    pub lexical: f64,
+    /// Parcela do canal de âncoras (working set) na fusão RRF.
+    pub anchor: f64,
+    /// Parcela do canal vetorial na fusão RRF (0 sem embeddings).
+    pub semantic: f64,
+    /// Fator de recência `(0,1]` (1 = recém-criada) — boost informativo.
+    pub recent: f64,
+    /// Confirmação derivada (`outcomes` + tarefas, X1/D108) em `[0,1]` — boost informativo.
+    pub stars: f64,
 }
 
 /// Resultado (possivelmente parcial) de `recall`.
@@ -177,9 +202,11 @@ pub fn recall(index: &Index, graph: &Graph, query: &RecallQuery) -> Result<Recal
         Channel::new(&lexical, query.weights.lexical),
         Channel::new(&anchored, query.weights.anchor),
     ];
+    let mut labels = vec![ChannelLabel::Lexical, ChannelLabel::Anchor];
     let semantic = semantic_channel(query, &allowed);
     if !semantic.is_empty() {
         channels.push(Channel::new(&semantic, query.weights.semantic));
+        labels.push(ChannelLabel::Semantic);
     }
     let fused = fuse(&channels, query.rrf_k);
 
@@ -197,6 +224,7 @@ pub fn recall(index: &Index, graph: &Graph, query: &RecallQuery) -> Result<Recal
             &FusedChannels {
                 fused: &fused,
                 semantic: &semantic_ids,
+                labels: &labels,
             },
             limit,
         )

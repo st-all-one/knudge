@@ -7,13 +7,13 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::graph::Graph;
 use crate::lifecycle::confidence::{
-    ConfidenceInput, confidence_score, from_tasks_with, is_success_task,
+    ConfidenceInput, age_factor, confidence_score, from_tasks_with, is_success_task,
 };
 use crate::retrieval::anchor;
 use crate::retrieval::filter::Meta;
 use crate::retrieval::index::{Index, NoteDoc};
 use crate::retrieval::rrf::Fused;
-use crate::retrieval::{RECENT_WINDOW_MS, RecallHit, RecallQuery, Why};
+use crate::retrieval::{HitChannels, RECENT_WINDOW_MS, RecallHit, RecallQuery, Universe, Why};
 use crate::schema::EdgeKind;
 
 /// Candidatos após filtros estruturais e `scope` (D41/D53).
@@ -21,6 +21,9 @@ pub(super) fn candidates(index: &Index, graph: &Graph, query: &RecallQuery) -> B
     let mut allowed = BTreeSet::new();
     for doc in &index.docs {
         if !query.filter.matches(&doc.meta) {
+            continue;
+        }
+        if query.universe == Universe::Knowledge && doc.meta.scope.is_some() {
             continue;
         }
         if let Some(scope) = query.scope.as_deref()
@@ -60,15 +63,28 @@ pub(super) fn lexical_channel(
         .collect()
 }
 
-/// Entradas da montagem dos hits: a fusão e os ids do canal vetorial (D121).
+/// Entradas da montagem dos hits: a fusão, os ids do canal vetorial e os rótulos dos canais.
 pub(super) struct FusedChannels<'a> {
     /// Fusão RRF já ordenada.
     pub fused: &'a [Fused],
     /// Ids que vieram pelo canal vetorial (para o `why`).
     pub semantic: &'a BTreeSet<&'a str>,
+    /// Rótulo de cada canal, na **mesma ordem** dos canais fundidos (D151).
+    pub labels: &'a [ChannelLabel],
 }
 
-/// Monta os hits finais (com confiança derivada e `why`) a partir da fusão RRF.
+/// Rótulo de um canal da fusão (D151).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ChannelLabel {
+    /// Canal lexical (BM25).
+    Lexical,
+    /// Canal de âncoras (working set).
+    Anchor,
+    /// Canal vetorial.
+    Semantic,
+}
+
+/// Monta os hits finais (com confiança derivada, canais e `why`) a partir da fusão RRF.
 pub(super) fn build_hits(
     index: &Index,
     query: &RecallQuery,
@@ -95,11 +111,12 @@ pub(super) fn build_hits(
         } else {
             0.0
         };
+        let task_confirmation = from_tasks_with(&doc.meta, &confirmers, weight);
         let confidence = confidence_score(&ConfidenceInput {
             similarity,
             confirmation: doc.meta.confirmation,
             age_days: age_days(doc, query.now_ms),
-            task_confirmation: from_tasks_with(&doc.meta, &confirmers, weight),
+            task_confirmation,
             ..ConfidenceInput::default()
         });
         hits.push(RecallHit {
@@ -107,10 +124,34 @@ pub(super) fn build_hits(
             statement: doc.statement.clone(),
             score: fused_hit.score,
             confidence,
-            why: choose_why(doc, query, graph, semantic_ids),
+            why: choose_why(doc, query, graph, semantic_ids, task_confirmation),
+            channels: hit_channels(fused_hit, channels.labels, doc, query, task_confirmation),
         });
     }
     hits
+}
+
+/// Decompõe as parcelas RRF e os boosts (`recent`/`stars`) de um hit (D151).
+fn hit_channels(
+    fused: &Fused,
+    labels: &[ChannelLabel],
+    doc: &NoteDoc,
+    query: &RecallQuery,
+    task_confirmation: f64,
+) -> HitChannels {
+    let mut channels = HitChannels {
+        recent: age_factor(age_days(doc, query.now_ms)),
+        stars: (doc.meta.confirmation + task_confirmation).clamp(0.0, 1.0),
+        ..HitChannels::default()
+    };
+    for (label, value) in labels.iter().zip(fused.contribs.iter()) {
+        match label {
+            ChannelLabel::Lexical => channels.lexical += value,
+            ChannelLabel::Anchor => channels.anchor += value,
+            ChannelLabel::Semantic => channels.semantic += value,
+        }
+    }
+    channels
 }
 
 /// Canal vetorial **filtrado** por `allowed` (D102).
@@ -149,7 +190,13 @@ fn belongs_to(graph: &Graph, id: &str, scope: &str) -> bool {
     false
 }
 
-fn choose_why(doc: &NoteDoc, query: &RecallQuery, graph: &Graph, semantic: &BTreeSet<&str>) -> Why {
+fn choose_why(
+    doc: &NoteDoc,
+    query: &RecallQuery,
+    graph: &Graph,
+    semantic: &BTreeSet<&str>,
+    task_confirmation: f64,
+) -> Why {
     let matched = anchor::match_note(&doc.meta, &query.working_paths, &query.working_ids);
     if matched.file {
         return Why::FileMatch;
@@ -162,7 +209,8 @@ fn choose_why(doc: &NoteDoc, query: &RecallQuery, graph: &Graph, semantic: &BTre
     {
         return Why::TrackerMatch;
     }
-    if doc.meta.confirmation > 0.0 {
+    // Confirmação de `outcomes` ou derivada de tarefas com sucesso (X1/D108) — D151.
+    if doc.meta.confirmation > 0.0 || task_confirmation > 0.0 {
         return Why::Stars;
     }
     // O canal vetorial é um sinal mais forte que a recência genérica (D121): um hit que veio

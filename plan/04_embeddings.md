@@ -22,7 +22,7 @@ O embedding **nunca bloqueia** `write`, `recall` ou o rebuild estrutural. Ele é
 
 - No `write`, a nota é commitada imediatamente (nota + evento); o id entra numa **fila pendente** (derivada, em `.idx/`).
 - Um **worker** processa a fila em lote — numa invocação ociosa do CLI, por timer ou via
-  `kd maintenance index --drain`.
+  `kd knowledge digest --drain`.
 - `recall` **nunca espera**: usa BM25 + estrutura sempre; usa embeddings só para as notas já digeridas.
 
 **Notas “apagadas” (dark).** Notas recém-criadas ficam invisíveis à camada vetorial até serem digeridas. Numa rajada de 10–20 notas, elas ficam dark por uma janela curta — **gap tolerado e aceito pelo projeto**. Continuam acháveis por BM25/estrutura/`get`; só não participam de dedup semântico e cluster até serem embeddadas.
@@ -34,7 +34,7 @@ O embedding **nunca bloqueia** `write`, `recall` ou o rebuild estrutural. Ele é
 - **Visibilidade:** `prime()` reporta `embeddings_pending: N`; `audit()`/`doctor` sinalizam backlog grande.
 - **Backpressure:** `max_pending` limita a fila; acima disso, força catch-up em lote — **nunca descarta nota**.
 
-**Modos:** `lazy` (default; o CLI drena **um lote** no fim de cada invocação, ocioso e *best-effort* — E11-T03/D131) e `manual` (só via `kd maintenance index --drain`). Os dois **coexistem**: mesmo em `lazy`, o `--drain` explícito funciona. O worker contínuo (quando você não usa o `kd`) é gerenciado por `kd maintenance watch-service` (`--install`/`--subscribe`/`--unsubscribe`/`--status`/`--uninstall`, multi-projeto — D132).
+**Modos:** `lazy` (default; o CLI drena **um lote** no fim de cada invocação, ocioso e *best-effort* — E11-T03/D131) e `manual` (só via `kd knowledge digest --drain`). Os dois **coexistem**: mesmo em `lazy`, o `--drain` explícito funciona. O worker contínuo (quando você não usa o `kd`) é gerenciado por `kd maintenance watch-service` (`--install`/`--subscribe`/`--unsubscribe`/`--status`/`--uninstall`, multi-projeto — D132).
 
 ```toml
 [embeddings]
@@ -210,7 +210,7 @@ D101.
 
 ## 6. Em uma frase
 
-**`ibm-granite/granite-embedding-97m-multilingual-r2` como default** (D123: 384d, Apache-2.0, 200+ idiomas com PT explícito, mesmo índice do `cos-v5`) e **fusão RRF com peso por canal** (D124: `semantic_weight=30` faz o canal vetorial dominar, corrigindo a diluição por votos lexicais) — o usuário sobe um **servidor local** (`llama-server` com o GGUF) e o knudge consome via **`provider = http`** (OpenAI-compatible), **assíncrono e lazy** (nunca bloqueia; fila de digestão com gap tolerado), **cache por `body_hash`** e **flush coalescido**, sempre derivado e re-embebido quando o modelo muda; `lightweight` cobre testes/CI e `none` cai para BM25; a escolha do modelo se decide por **`kd maintenance eval --ab`** sobre o corpus real.
+**`ibm-granite/granite-embedding-97m-multilingual-r2` como default** (D123: 384d, Apache-2.0, 200+ idiomas com PT explícito, mesmo índice do `cos-v5`) e **fusão RRF com peso por canal** (D124: `semantic_weight=30` faz o canal vetorial dominar, corrigindo a diluição por votos lexicais) — o usuário sobe um **servidor local** (`llama-server` com o GGUF) e o knudge consome via **`provider = http`** (OpenAI-compatible), **assíncrono e lazy** (nunca bloqueia; fila de digestão com gap tolerado), **cache por `body_hash`** e **flush coalescido**, sempre derivado e re-embebido quando o modelo muda; `lightweight` cobre testes/CI e `none` cai para BM25; a escolha do modelo se decide por **A/B na bancada `bench/`** sobre o corpus real (D145: o `maintenance eval` saiu).
 
 ---
 
@@ -243,4 +243,4 @@ No **embedding puro** (com prompt quando exigido): jina 0.946 > gemma 0.935 > gr
 
 Peso modesto (1–20) **piora** (o `rrf_k=60` comprime os ranks e o lexical segue competitivo); a partir de 30 a fusão Pareto-domina o neutro, e ≥80 converge para o vetorial puro **sem regressão** nas consultas lexicais. Ajuste por config.
 
-> **Caveat:** corpus pequeno (51 notas) e 30 consultas **sintéticas** → sem significância estatística; serve para ordenar candidatos, não para cravar números. Um A/B no corpus real (com `kd maintenance eval --ab`, hoje stub) é o próximo passo.
+> **Caveat:** corpus pequeno (51 notas) e 30 consultas **sintéticas** → sem significância estatística; serve para ordenar candidatos, não para cravar números. Um A/B no corpus real (na bancada `bench/`, D145) é o próximo passo.

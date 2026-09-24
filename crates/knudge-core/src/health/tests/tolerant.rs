@@ -91,6 +91,29 @@ fn unknown_type_is_skipped_per_note() -> Result<()> {
 }
 
 #[test]
+fn git_conflict_markers_are_skipped() -> Result<()> {
+    let fs = MemFs::new();
+    let store = Store::new(&fs, ROOT);
+    store.ensure_dirs()?;
+    // Mesma `statement` em dois clones: o git deixa marcadores de conflito (D153).
+    fs.insert(
+        format!("{ROOT}/notas/fact/fact_00000001.md"),
+        b"<<<<<<< HEAD\n---\nid: fact_00000001\n---\ncorpo A\n=======\ncorpo B\n>>>>>>> other\n"
+            .to_vec(),
+    );
+
+    let read = read_tolerant(&store)?;
+    assert!(read.notes.is_empty());
+    assert_eq!(read.skipped.len(), 1, "nota em conflito devia ser pulada");
+    assert!(
+        read.warnings
+            .iter()
+            .any(|warning| warning.contains("nota pulada"))
+    );
+    Ok(())
+}
+
+#[test]
 fn recall_survives_bad_note() -> Result<()> {
     let fs = MemFs::new();
     let store = store_with(

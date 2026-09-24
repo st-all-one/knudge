@@ -7,8 +7,8 @@ use knudge_core::embeddings::{EmbeddingIndex, rank_query};
 use knudge_core::lifecycle::DEFAULT_TASK_CONFIRMATION;
 use knudge_core::retrieval::{
     DEFAULT_ANCHOR_WEIGHT, DEFAULT_LEXICAL_WEIGHT, DEFAULT_LIMIT, DEFAULT_RRF_K,
-    DEFAULT_SEMANTIC_WEIGHT, Filter, FusionWeights, RankQuery, RecallHit, RecallQuery, Universe,
-    format_brief, format_hit, get, rank, recall,
+    DEFAULT_SEMANTIC_WEIGHT, Filter, FusionWeights, RecallHit, RecallQuery, Universe, format_brief,
+    format_hit, get, recall,
 };
 use knudge_core::schema::Status;
 use serde_json::json;
@@ -19,47 +19,8 @@ use crate::commands::parse;
 use crate::output::Output;
 use crate::session::Session;
 
-/// `kd ask --rank` — notas mais confiáveis, sem pergunta textual (K2/D107).
-///
-/// # Errors
-/// Propaga erros de índice e validação de filtros.
-pub(super) fn rank_mode(session: &Session, args: &AskArgs) -> Result<Output> {
-    let index = session.index()?;
-    let config = session.config();
-    let filter = Filter {
-        types: parse::types(&args.types)?,
-        classifications: parse::classifications(&args.classes)?,
-        statuses: resolve_statuses(args)?,
-        tags: args.tags.clone(),
-        anchors: args.anchor.clone(),
-    };
-    let limit = args
-        .limit
-        .unwrap_or_else(|| usize_from(config.get_int("recall.default_limit"), DEFAULT_LIMIT));
-    let weight = config
-        .get_float("recall.confirmation_from_tasks")
-        .unwrap_or(DEFAULT_TASK_CONFIRMATION);
-    let hits = rank(
-        &index,
-        &filter,
-        &RankQuery {
-            universe: Universe::Knowledge,
-            now_ms: Some(session.now_ms()),
-            limit,
-            task_weight: weight,
-        },
-    );
-    let text = hits.iter().map(format_hit).collect::<Vec<_>>().join("\n");
-    let data = json!({
-        "ranked": hits.iter().map(|hit| json!({
-            "id": hit.id,
-            "statement": hit.statement,
-            "confidence": hit.confidence,
-            "why": hit.why.as_str(),
-        })).collect::<Vec<_>>(),
-    });
-    Ok(Output::new(text, data))
-}
+/// Sentinela de busca vazia (D152): distingue "sem resultado" de erro sem parsing ambíguo.
+const NO_RESULTS: &str = "[no_results]";
 
 /// Executa o `recall` textual com filtros, canal vetorial e `strict` (D94/D102).
 ///
@@ -68,9 +29,42 @@ pub(super) fn rank_mode(session: &Session, args: &AskArgs) -> Result<Output> {
 pub(super) fn recall_query(session: &Session, args: &AskArgs) -> Result<Output> {
     let index = session.index()?;
     let graph = session.graph()?;
-    let config = session.config();
     let text = args.query.join(" ");
-    let mut query = RecallQuery::new(text.clone());
+    let mut query = build_recall_query(session, args, &text)?;
+    if !text.is_empty() {
+        attach_semantic(session, &text, &mut query);
+    }
+    let out = recall(&index, &graph, &query)?;
+    let format = if args.brief {
+        HitFormat::Brief
+    } else {
+        HitFormat::Full
+    };
+    let bodies = if args.full_content && format == HitFormat::Full {
+        load_bodies(session, &out.hits)?
+    } else {
+        BTreeMap::new()
+    };
+    let body = if out.hits.is_empty() {
+        NO_RESULTS.to_string()
+    } else {
+        out.hits
+            .iter()
+            .map(|hit| render_hit(hit, format, &bodies))
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    let data = json!({
+        "query": text,
+        "hits": out.hits.iter().map(|hit| hit_json(hit, format, &bodies)).collect::<Vec<_>>(),
+    });
+    Ok(Output::new(body, data).with_warnings(out.warnings))
+}
+
+/// Monta a `RecallQuery` a partir da config, dos filtros e do universo (D94/D102/D146).
+fn build_recall_query(session: &Session, args: &AskArgs, text: &str) -> Result<RecallQuery> {
+    let config = session.config();
+    let mut query = RecallQuery::new(text.to_string());
     query.limit = args
         .limit
         .unwrap_or_else(|| usize_from(config.get_int("recall.default_limit"), DEFAULT_LIMIT));
@@ -96,6 +90,11 @@ pub(super) fn recall_query(session: &Session, args: &AskArgs) -> Result<Output> 
         tags: args.tags.clone(),
         anchors: args.anchor.clone(),
     };
+    query.universe = if args.with_task {
+        Universe::All
+    } else {
+        Universe::Knowledge
+    };
     // `--anchor` alimenta o canal de âncoras (D81), não só o filtro: sem isso, um
     // `ask --anchor` sem query textual não teria candidato lexical e voltaria vazio.
     // Repetível e com vírgula (`--anchor a,b --anchor c`).
@@ -103,31 +102,7 @@ pub(super) fn recall_query(session: &Session, args: &AskArgs) -> Result<Output> 
     query.scope.clone_from(&args.scope);
     query.now_ms = Some(session.now_ms());
     query.strict = config.strict();
-    if !text.is_empty() {
-        attach_semantic(session, &text, &mut query);
-    }
-    let out = recall(&index, &graph, &query)?;
-    let format = if args.brief {
-        HitFormat::Brief
-    } else {
-        HitFormat::Full
-    };
-    let bodies = if args.with_body && format == HitFormat::Full {
-        load_bodies(session, &out.hits)?
-    } else {
-        BTreeMap::new()
-    };
-    let body = out
-        .hits
-        .iter()
-        .map(|hit| render_hit(hit, format, &bodies))
-        .collect::<Vec<_>>()
-        .join("\n");
-    let data = json!({
-        "query": text,
-        "hits": out.hits.iter().map(|hit| hit_json(hit, format, &bodies)).collect::<Vec<_>>(),
-    });
-    Ok(Output::new(body, data).with_warnings(out.warnings))
+    Ok(query)
 }
 
 /// Statuses efetivos: os pedidos ou o default que esconde soft-delete/supersede (D43).
@@ -240,6 +215,13 @@ fn hit_json(
             "score": hit.score,
             "confidence": hit.confidence,
             "why": hit.why.as_str(),
+            "channels": {
+                "lexical": hit.channels.lexical,
+                "anchor": hit.channels.anchor,
+                "semantic": hit.channels.semantic,
+                "recent": hit.channels.recent,
+                "stars": hit.channels.stars,
+            },
         })
     };
     if let Some(text) = bodies.get(hit.id.as_str())

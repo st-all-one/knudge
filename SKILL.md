@@ -56,21 +56,21 @@ estático (byte-idêntico): `kd` sem argumentos = `kd prime`.
 | Buscar conhecimento | `kd ask "<query>" --brief` |
 | Corpo de ids | `kd ask --id <ID>...` |
 | Expandir o grafo | `kd ask --around <ID> [--via ARESTA] [--depth N]` |
-| Mais confiáveis (sem query) | `kd ask --rank` |
-| Vocabulário de tags | `kd ask --tags` |
-| Gravar fato/decisão/erro/risco/pergunta | `kd write --type <T> "<...>" [--tag T] [--anchor PATH]` |
-| Versionar | `kd write --update <ID> "<...>"` |
+| Mais confiáveis (sem query) | `kd knowledge rank --universe` |
+| Vocabulário de tags | `kd knowledge tags` |
+| Gravar fato/decisão/erro/risco/pergunta | `kd write --summary "<...>" [<corpo>|-] [--type T] [--tag T] [--anchor PATH]` |
+| Versionar | `kd write --update <ID> --summary "<...>"` |
 | Aresta explícita | `kd write --link <FROM:ARESTA:TO>` |
-| Evidência numa nota | `kd write --outcome <success\|partial\|failure\|abandoned> <ID> [--note TXT]` |
-| Nova tarefa | `kd task new "<...>" --scope <plan\|epic\|issue\|task> [--parent ID]` |
+| Evidência numa nota | `kd write --outcome <success\|partial\|failure\|abandoned> --id <ID> [--note TXT]` |
+| Nova tarefa | `kd task new --summary "<...>" [<corpo>\|-] --scope <epic\|issue\|task> [--parent ID]` |
 | Listar prontas/bloqueadas | `kd task list --ready` / `--blocked [--explain]` |
-| Contexto do item | `kd task show <ID>` |
-| Fechar com evidência | `kd task close <ID> --outcome success --note "..."` |
+| Contexto do item | `kd task show --id <ID>` |
+| Fechar com evidência | `kd task close --id <ID> --outcome success --note "..."` |
 | WBS | `kd task graph [--program plan/<slug>.md\|--root ID]` |
 | Handoff | `kd rewind [--scope C] [--files PATH...] [--budget N]` |
-| Mapa de conhecimento | `kd knowledge map [--axis A] [--semantic] [--members] [--write]` |
+| Mapa de conhecimento | `kd knowledge map --universe [--axis A] [--semantic] [--members] [--write]` |
 | Manutenção | `kd maintenance doctor [--audit]` |
-| Esquecer (soft) | `kd forget <ID>` (`--restore`, `--purge`) |
+| Esquecer (soft) | `kd forget --id <ID>` (`--restore`, `--purge`) |
 | Commit | `kd sync` |
 
 ### Âncoras (`--anchor PATH`) — o que liga memória a código
@@ -79,8 +79,8 @@ Ancorar é amarrar a nota/tarefa a um arquivo ou glob. É o canal que faz o `ask
 que já sei sobre `src/gateway.rs`” mesmo sem query textual.
 
 - **Use em toda nota/tarefa que fala de código:**
-  `kd write --type decision "..." --anchor src/gateway.rs` e
-  `kd task new "..." --scope task --anchor plan/016.md`.
+  `kd write --summary "..." --type decision --anchor src/gateway.rs` e
+  `kd task new --summary "..." --scope task --anchor plan/016.md`.
 - **Repetível e com vírgula:** `--anchor src/a.rs --anchor src/b.rs` ou `--anchor src/a.rs,src/b.rs`.
 - **Glob casa subárvores:** `--anchor src/gateway/**`.
 - **Busca por âncora (sem query):** `kd ask --anchor src/gateway.rs`.
@@ -117,9 +117,14 @@ Regras de bolso:
 
 | Sinal | Significado / ação |
 |---|---|
-| `why = lexical` | Casou por BM25 (termos). |
+| `why = file_match` | Casou por um arquivo do working set. |
+| `why = anchor_match` | Casou pelo id do working set. |
+| `why = tracker_match` | Pertence ao `--scope` pedido. |
+| `why = stars` | Tem confirmação derivada (`outcomes` ou tarefas com sucesso). |
 | `why = semantic` | Casou pelo vetor (paráfrase). |
-| `why = anchor` / `file_match` | Casou pela âncora de arquivo. |
+| `why = recent` / `universal` | Recente / fallback sem sinal específico. |
+| `[no_results]` | Busca vazia (exit 0); no `--json`, `hits: []`. |
+| `channels` no `--json` | Parcelas RRF (`lexical`/`anchor`/`semantic`) + boosts (`recent`/`stars`). |
 | `score < 0.75` no `write` | Cria nota nova. |
 | `0.75–0.92` | Merge na existente (revise antes). |
 | `≥ 0.92` | Rejeita (duplicata). |
@@ -136,18 +141,18 @@ Regras de bolso:
 
 ```bash
 kd ask "rate limit do gateway" --brief                     # 1. já existe?
-kd write --type decision "Rate limit é 100 rps por chave" \
+kd write --summary "Rate limit é 100 rps por chave" --type decision \
   --tag gateway --anchor src/gateway.rs                    # 2. grava
-kd write --link "decision_01m81b6h:refines:fact_01abc123"  # 3. relaciona
+kd write --link "decision_01m81b6h:extends:fact_01abc123"  # 3. relaciona
 ```
 
 ### Planejar e executar tarefas
 
 ```bash
-kd task new "Sync offline-first" --scope epic
-kd task new "Resolver conflito de merge" --scope task --parent <epic>
+kd task new --summary "Sync offline-first" --scope epic
+kd task new --summary "Resolver conflito de merge" --scope task --parent <epic>
 kd task list --ready --sort impact
-kd task close <task> --outcome success --note "testes verdes"
+kd task close --id <task> --outcome success --note "testes verdes"
 ```
 
 ### Retomar contexto (handoff)
@@ -162,10 +167,10 @@ kd rewind --resume <context_id>         # retoma 1:1
 
 ```bash
 kd maintenance doctor --audit           # integridade + arestas sugeridas
-kd maintenance learn                    # o que deveria virar nota?
-kd knowledge map --axis scope --semantic
-kd maintenance prune                    # propõe forget por shelf-life
-kd maintenance index --status           # fila de embeddings (pending) por projeto
+kd maintenance learn --universe         # o que deveria virar nota? (exige escopo)
+kd knowledge map --axis scope --semantic --universe
+kd maintenance prune --universe         # propõe forget por shelf-life (exige escopo)
+kd knowledge digest --status           # fila de embeddings (pending) por projeto
 kd maintenance watch-service --status   # saúde do worker de auto-drain (systemd/launchd)
 ```
 

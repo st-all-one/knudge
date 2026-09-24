@@ -3,7 +3,7 @@
 use crate::Result;
 use crate::graph::Graph;
 use crate::handoff::context::{ContextStore, derive_id, is_valid_context_id};
-use crate::handoff::{RewindInput, RewindMode, RewindRequest, rewind};
+use crate::handoff::{CorpusScope, RewindInput, RewindMode, RewindRequest, rewind};
 use crate::lifecycle::{DEFAULT_TASK_CONFIRMATION, Freshness};
 use crate::ports::fakes::MemFs;
 use crate::retrieval::Index;
@@ -18,6 +18,7 @@ fn input<'a>(index: &'a Index, graph: &'a Graph, changed_paths: &'a [String]) ->
         events: &[],
         changed_paths,
         freshness: Freshness::default(),
+        scope: CorpusScope::default(),
         task_confirmation_weight: DEFAULT_TASK_CONFIRMATION,
         now_ms: NOW,
     }

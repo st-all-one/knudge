@@ -71,12 +71,13 @@ E06, E07.
 - **Decisões:** D85.
 - **Aceite:** rajada gera um único write O(N); matar o processo após flush preserva o índice.
 
-### E11-T07 ☑ `kd maintenance eval --ab`
-- **Objetivo:** comparar dois modelos com **Recall@k, nDCG@k, MRR** sobre um golden pequeno;
-  decide L6 vs L12 vs multilíngue no corpus real.
-- **Entregáveis:** métricas puras; comando `eval --ab`.
-- **Decisões:** D90.
-- **Aceite:** métricas testadas sem modelo (golden fixo); relatório A/B reproduzível.
+### E11-T07 ☒ `eval --ab` removido (D145)
+- **Objetivo original:** comparar dois modelos com **Recall@k, nDCG@k, MRR** sobre um golden pequeno.
+- **Decisão (v0.3.0):** o `maintenance eval` era **stub** e o módulo puro `embeddings/eval.rs` só
+  era usado em testes; ambos foram **removidos** (D145). A avaliação de modelo segue na bancada
+  **externa `bench/`** (foi como o `granite` foi escolhido — D123). A fila de embeddings virou
+  `kd knowledge digest` (ex-`maintenance index`).
+- **Aceite:** `kd maintenance eval` → exit 2; nenhum re-export de `eval` quebrado.
 
 ### E11-T08 ☑ `lightweight` para testes/offline
 - **Objetivo:** embedder determinístico por hash (SHA-256 → vetor normalizado), sem pesos.
@@ -105,7 +106,7 @@ E06, E07.
 
 - [x] Nenhum caminho do sistema bloqueia por embedding.
 - [x] Cache, fila, reconcile, purge e flush travados por teste.
-- [x] `kd maintenance eval --ab` disponível para decidir o modelo.
+- [x] `kd knowledge digest` disponível para digerir a fila; avaliação de modelo é offline (`bench/`, D145).
 - [x] Runtime mínimo e backpressure demonstrados.
 
 ## Não-objetivos

@@ -1,7 +1,5 @@
 //! `kd write` — toda escrita: create, update (`--update`) e link (`--link`) (E12-T01).
 
-use std::io::Read;
-
 use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::schema::NoteType;
@@ -17,12 +15,21 @@ use crate::output::Output;
 use crate::session::Session;
 
 use super::hooks::{self, HookEvent};
+use super::input;
 
 /// Executa `kd write` no modo adequado (link > update > create).
 ///
 /// # Errors
 /// Propaga erros de validação, dedup e I/O do domínio.
 pub fn run(session: &Session, args: &WriteArgs) -> Result<Output> {
+    if let Some(params) = &args.params {
+        let mode = if args.dry_run {
+            BatchMode::DryRun
+        } else {
+            BatchMode::Apply
+        };
+        return super::write_batch::params_note(session, params, mode);
+    }
     if let Some(source) = &args.batch {
         let mode = if args.dry_run {
             BatchMode::DryRun
@@ -49,14 +56,9 @@ fn outcome_note(session: &Session, args: &WriteArgs) -> Result<Output> {
             "`--outcome` não combina com `--update`, `--link` ou `--dry-run`",
         ));
     }
-    let Some(id) = args.statement.first() else {
-        return Err(Error::invalid_input("`--outcome` exige um id (STATEMENT)"));
+    let Some(id) = args.id.as_deref() else {
+        return Err(Error::invalid_input("`--outcome` exige `--id`"));
     };
-    if args.statement.len() != 1 {
-        return Err(Error::invalid_input(
-            "`--outcome` exige exatamente um id (STATEMENT)",
-        ));
-    }
     let status = args
         .outcome
         .as_deref()
@@ -174,8 +176,12 @@ fn draft_of(args: &WriteArgs) -> Result<Draft> {
         Some(value) => value.parse()?,
         None => NoteType::Fact,
     };
-    let mut draft = Draft::new(note_type, args.statement.join(" "));
-    draft.body = read_body(args.body.as_deref())?;
+    let summary = args
+        .summary
+        .clone()
+        .ok_or_else(|| Error::invalid_input("`kd write` exige `--summary`"))?;
+    let mut draft = Draft::new(note_type, summary);
+    draft.body = input::content(&args.body)?;
     draft.tags.clone_from(&args.tags);
     draft.anchors.clone_from(&args.anchors);
     if let Some(class) = &args.class {
@@ -197,11 +203,11 @@ fn patch_of(args: &WriteArgs) -> Result<Patch> {
     if let Some(value) = &args.note_type {
         patch.note_type = Some(value.parse()?);
     }
-    if !args.statement.is_empty() {
-        patch.statement = Some(args.statement.join(" "));
+    if let Some(summary) = &args.summary {
+        patch.statement = Some(summary.clone());
     }
-    if args.body.is_some() {
-        patch.body = Some(read_body(args.body.as_deref())?);
+    if !args.body.is_empty() {
+        patch.body = Some(input::content(&args.body)?);
     }
     if !args.tags.is_empty() {
         patch.tags = Some(args.tags.clone());
@@ -216,20 +222,6 @@ fn patch_of(args: &WriteArgs) -> Result<Patch> {
         patch.status = Some(status.parse()?);
     }
     Ok(patch)
-}
-
-fn read_body(value: Option<&str>) -> Result<String> {
-    match value {
-        Some("-") => {
-            let mut buffer = String::new();
-            std::io::stdin()
-                .read_to_string(&mut buffer)
-                .map_err(|error| Error::io("stdin", error))?;
-            Ok(buffer)
-        }
-        Some(text) => Ok(text.to_string()),
-        None => Ok(String::new()),
-    }
 }
 
 fn decision_label(proposal: &WriteProposal) -> &'static str {

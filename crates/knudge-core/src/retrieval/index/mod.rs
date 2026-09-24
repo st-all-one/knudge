@@ -163,7 +163,9 @@ impl Index {
     pub fn from_store(store: &Store<'_>) -> Result<Self> {
         let mut notes = Vec::new();
         for id in store.list_ids()? {
-            notes.push(store.read(&id)?);
+            if let Some(note) = store.read_optional(&id)? {
+                notes.push(note);
+            }
         }
         Self::build(&notes)
     }

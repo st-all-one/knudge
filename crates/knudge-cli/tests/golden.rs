@@ -134,6 +134,15 @@ fn init_message_matches_golden() -> TestResult {
 }
 
 #[test]
+fn no_results_matches_golden() -> TestResult {
+    let dir = temp_project();
+    let out = run_in(&dir, &["ask", "termo-inexistente-zzz"])?;
+    assert!(out.status.success(), "busca vazia devia ter exit 0");
+    assert_golden(&out.stdout, include_str!("golden/no_results.txt"), &dir);
+    Ok(())
+}
+
+#[test]
 fn epipe_is_exit_zero() -> TestResult {
     let mut child = Command::new(env!("CARGO_BIN_EXE_kd"))
         .args(["prime"])

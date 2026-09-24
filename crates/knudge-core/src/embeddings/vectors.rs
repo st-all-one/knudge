@@ -66,9 +66,10 @@ impl<'a> Resolver<'a> {
 
     fn resolve(&mut self, queue: &[PendingNote]) {
         let mut misses: Vec<Miss> = Vec::new();
+        let model = self.embedder.meta().model.as_str();
         for note in queue {
             if let Some(cache) = self.cache.as_deref_mut()
-                && let Some(vector) = cache.get(&note.body_hash)
+                && let Some(vector) = cache.get(&note.body_hash, model)
             {
                 self.cache_hits = self.cache_hits.saturating_add(1);
                 self.vectors

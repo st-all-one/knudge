@@ -30,7 +30,7 @@ impl EmbeddingState {
 pub enum EmbeddingMode {
     /// Digere no fim de cada invocação do CLI (default; E11-T03).
     Lazy,
-    /// Só via `kd maintenance index --drain`.
+    /// Só via `kd knowledge digest --drain`.
     Manual,
 }
 

@@ -19,27 +19,18 @@ pub enum MaintenanceCommand {
         /// Container/domínio de escopo.
         #[arg(long, value_name = "CONTAINER")]
         scope: Option<String>,
-    },
-    /// Métricas de retrieval (Recall@k, nDCG@k, MRR).
-    Eval {
-        /// Compara dois modelos: `--ab <A> <B>`.
-        #[arg(long = "ab", num_args = 2, value_names = ["A", "B"])]
-        ab: Vec<String>,
-    },
-    /// Fila de embeddings.
-    Index {
-        /// Drena um lote da fila agora (repita para drenar mais).
-        #[arg(long)]
-        drain: bool,
-        /// Mostra o estado da fila.
-        #[arg(long)]
-        status: bool,
+        /// Filtros de corpus (D144).
+        #[command(flatten)]
+        corpus: CorpusArgs,
     },
     /// Sugere notas/links/merges a partir de eventos e âncoras.
     Learn {
         /// Container/domínio de escopo.
         #[arg(long, value_name = "CONTAINER")]
         scope: Option<String>,
+        /// Filtros de corpus (D144).
+        #[command(flatten)]
+        corpus: CorpusArgs,
     },
     /// Propõe aposentadoria (`forget`) por shelf-life/decay — nunca age (D112).
     Prune {
@@ -49,6 +40,9 @@ pub enum MaintenanceCommand {
         /// Proposta é sempre read-only (D47); a flag existe por paridade.
         #[arg(long)]
         dry_run: bool,
+        /// Filtros de corpus (D144).
+        #[command(flatten)]
+        corpus: CorpusArgs,
     },
     /// Gerencia o worker de auto-drain ocioso: `--install`/`--subscribe`/`--unsubscribe`/`--status`/`--uninstall`.
     WatchService(WatchServiceArgs),
@@ -100,12 +94,39 @@ pub struct WatchServiceArgs {
     pub url: Option<String>,
 }
 
+/// Filtros de corpus compartilhados por `learn`/`compact`/`prune` (D143/D144).
+#[derive(Debug, Args)]
+pub struct CorpusArgs {
+    /// Filtro por tipo (repetível).
+    #[arg(long = "type", value_name = "TIPO")]
+    pub types: Vec<String>,
+    /// Filtro por classificação (repetível).
+    #[arg(long = "class", value_name = "CLASSE")]
+    pub classes: Vec<String>,
+    /// Filtro por tag (repetível; basta uma).
+    #[arg(long = "tag", value_name = "TAG")]
+    pub tags: Vec<String>,
+    /// Filtro por âncora (repetível; aceita lista com vírgula).
+    #[arg(long, value_name = "PATH", value_delimiter = ',')]
+    pub anchor: Vec<String>,
+    /// Ponto de partida: vizinhança de uma nota pelo grafo.
+    #[arg(long, value_name = "ID")]
+    pub around: Option<String>,
+    /// Profundidade da vizinhança de `--around`.
+    #[arg(long, value_name = "N", default_value_t = 1)]
+    pub depth: u8,
+    /// Varredura explícita do projeto inteiro (sem filtro).
+    #[arg(long)]
+    pub universe: bool,
+}
+
 /// Subcomandos de `kd config`.
 #[derive(Debug, Subcommand)]
 pub enum ConfigCommand {
     /// Lê uma chave.
     Get {
         /// Chave.
+        #[arg(long = "key", value_name = "CHAVE")]
         key: String,
         /// Usa o config global.
         #[arg(long)]
@@ -114,8 +135,10 @@ pub enum ConfigCommand {
     /// Define uma chave (valida contra o schema).
     Set {
         /// Chave.
+        #[arg(long = "key", value_name = "CHAVE")]
         key: String,
         /// Valor.
+        #[arg(long = "value", value_name = "VALOR")]
         value: String,
         /// Grava no config global.
         #[arg(long)]
@@ -124,6 +147,7 @@ pub enum ConfigCommand {
     /// Remove uma chave.
     Unset {
         /// Chave.
+        #[arg(long = "key", value_name = "CHAVE")]
         key: String,
         /// Usa o config global.
         #[arg(long)]

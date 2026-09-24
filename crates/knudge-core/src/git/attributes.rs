@@ -21,6 +21,8 @@ pub const MARKER_BEGIN: &str = "# knudge:start";
 pub const MARKER_END: &str = "# knudge:end";
 /// Regra de merge para os segmentos do log (append-only; D26/D28/D31).
 pub const UNION_LINE: &str = "/.knudge/eventos/events*.jsonl text eol=lf merge=union";
+/// Regra de merge do cache vetorial versionado (chave `(body_hash, model)`; D148/D153).
+pub const CACHE_UNION_LINE: &str = "/.knudge/emb_cache.jsonl text eol=lf merge=union";
 /// Nome do arquivo.
 pub const FILE: &str = ".gitattributes";
 
@@ -36,6 +38,9 @@ pub const RULES: &[&str] = &[
     "",
     "# Log de eventos: append-only; o `id` do conteúdo torna o union seguro (D26/D28/D31).",
     UNION_LINE,
+    "",
+    "# Cache vetorial versionado: chave `(body_hash, model)`; union + dedup no loader (D148/D153).",
+    CACHE_UNION_LINE,
     "",
     "# Derivado e runtime (reconstruíveis, nunca versionados): sem diff/merge automático.",
     "/.knudge/.idx/** binary linguist-generated",

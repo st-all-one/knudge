@@ -1,9 +1,8 @@
 # D148 — o cache vetorial é versionado (caminho B)
 
-> **Status:** decisão fechada (registrada em `plan/03_decisoes-fechadas.md`); **implementação
-> pendente**. Origem: revisão de `.idx/`. Revê **D15/D34/D83** ("derivado ≠ barato de
+> **Status:** decisão fechada e **implementada** (v0.3.0). Origem: revisão de `.idx/`. Revê **D15/D34/D83** ("derivado ≠ barato de
 > reconstruir"). Caminho **B** e local **(ii)** confirmados. A regra de merge/dedup do cache é
-> detalhada em **D153**. Sem execução.
+> detalhada em **D153**.
 
 ## 1. Decisão
 
@@ -49,10 +48,10 @@ segue **100% derivado** (excluído); o cache versionado fica em `.knudge/` e rec
 
 ## 5. Aceite
 
-- [ ] Com `version_cache=true`, o cache mora em `.knudge/emb_cache.jsonl`, **não** é excluído e
+- [x] Com `version_cache=true`, o cache mora em `.knudge/emb_cache.jsonl`, **não** é excluído e
       recebe `merge=union` no `.gitattributes`; o `.idx/` continua excluído.
-- [ ] Clone (mesmo modelo) reconstrói o índice **sem** inferência (teste com embedder fake que
+- [x] Clone (mesmo modelo) reconstrói o índice **sem** inferência (teste com embedder fake que
       conta chamadas).
-- [ ] Eviction/TTL não apagam o cache versionado.
-- [ ] Troca de modelo invalida só o que não casa.
-- [ ] `make check` verde; docs/`prime`/goldens atualizados.
+- [x] Eviction/TTL não apagam o cache versionado.
+- [x] Troca de modelo invalida só o que não casa.
+- [x] `make check` verde; docs/`prime`/goldens atualizados.

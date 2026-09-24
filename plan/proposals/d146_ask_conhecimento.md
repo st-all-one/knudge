@@ -1,8 +1,7 @@
 # D146 — `kd ask` só conhecimento e superfície enxuta
 
-> **Status:** decisão fechada (registrada em `plan/03_decisoes-fechadas.md`); **implementação
-> pendente**. Origem: revisão de `docs/03-ask.md` + `kd ask --help`. Revisa **D39/D107/D121**.
-> A/B/C e a redução (D) confirmados. Sem execução.
+> **Status:** decisão fechada e **implementada** (v0.3.0). Origem: revisão de `docs/03-ask.md` + `kd ask --help`. Revisa **D39/D107/D121**.
+> A/B/C e a redução (D) confirmados.
 
 ## 1. Decisões confirmadas
 
@@ -57,8 +56,8 @@ superfície focada em achar/ler.
 
 ## 5. Aceite
 
-- [ ] `ask "<q>"` devolve só conhecimento; `--with-task` inclui trabalho.
-- [ ] `ask --rank` sem escopo e sem `--universe` → exit 2.
-- [ ] `ask --full-content` substitui `--with-body`; `--container` virou `--scope`.
-- [ ] `kd knowledge rank`/`tags` substituem os modos do `ask`.
-- [ ] `why` e `--via` corretos na doc; `make check` verde.
+- [x] `ask "<q>"` devolve só conhecimento; `--with-task` inclui trabalho.
+- [x] `ask --rank` sem escopo e sem `--universe` → exit 2.
+- [x] `ask --full-content` substitui `--with-body`; `--container` virou `--scope`.
+- [x] `kd knowledge rank`/`tags` substituem os modos do `ask`.
+- [x] `why` e `--via` corretos na doc; `make check` verde.

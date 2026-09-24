@@ -4,6 +4,7 @@
 //! no **marcador do corpo** (D93) e é projetado como aresta `results_in` no grafo. `kd write`
 //! rejeita `task`/`epic` — tudo de tarefa passa aqui.
 
+pub mod batch;
 pub mod context;
 pub mod hierarchy;
 pub mod impact;
@@ -20,6 +21,7 @@ pub mod template;
 #[cfg(test)]
 mod tests;
 
+pub use batch::{TaskBatchItem, TaskBatchMode, TaskBatchOutput, TaskOp, batch_jsonl};
 pub use context::{TaskContext, TaskRef, context_of};
 pub use hierarchy::{child, children, validate_blocks, validate_parent};
 pub use impact::{impact, is_actionable};

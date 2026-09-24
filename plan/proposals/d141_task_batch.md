@@ -1,8 +1,7 @@
 # D141 — criação de tarefas em lote (JSONL) e por objeto
 
-> **Status:** decisão fechada (registrada em `plan/03_decisoes-fechadas.md`); **implementação
-> pendente**. Origem: revisão de `kd task new`. Espelha `kd write --batch` (D110). O1–O4
-> confirmados; inclui **atualizar hierarquia** e **criar vínculos** no lote. Sem execução.
+> **Status:** decisão fechada e **implementada** (v0.3.0). Origem: revisão de `kd task new`. Espelha `kd write --batch` (D110). O1–O4
+> confirmados; inclui **atualizar hierarquia** e **criar vínculos** no lote.
 
 ## 1. Motivação
 

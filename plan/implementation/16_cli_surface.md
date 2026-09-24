@@ -29,8 +29,8 @@
 | `kd ask` | `recall`, `get`, `expand` | toda pesquisa |
 | `kd write` | `write`, `update`, `link` | toda escrita |
 | `kd task` | `epic`, grupos de tarefa | epic/issue/task |
-| `kd knowledge` | `clusters` | mapa de conhecimento (D128) |
-| `kd maintenance` | `doctor` (`--audit`), `compact`, `eval`, `index`, `learn`, `prune` | manutenção |
+| `kd knowledge` | `clusters`, `digest` | mapa/digestão de conhecimento (D128/D145) |
+| `kd maintenance` | `doctor` (`--audit`), `compact`, `learn`, `prune`, `watch-service` | manutenção |
 | `kd config` | `config` | `.knudge/config.toml` |
 | `kd forget` | `forget`, `restore` | soft-delete |
 | `kd sync` | `sync` | commit git |
@@ -41,13 +41,15 @@
 Default: **recall completo** (filtros → BM25 → âncoras → RRF). Pipe `id|statement|score|why`.
 
 ```
-kd ask [QUERY]
+kd ask [QUERY|-]
+  --params '<JSON>'       # query + filtros (D147); `-` lê o objeto do stdin
   --id <ID>...            # get: corpo só dos ids pedidos
   --around <ID>           # expand no grafo explícito
   --via <ARESTA>          # tipo de aresta (default: todas)
   --depth <N>             # profundidade do expand (default 1)
   --brief                 # saída mínima: id|statement
-  --with-body             # inclui corpo dos hits
+  --full-content          # inclui o corpo completo dos hits (ex-`--with-body`, D146)
+  --with-task             # inclui itens de trabalho (notas com `scope`); default = só conhecimento (D146)
   --type <T>...           # filtros determinísticos
   --class <C>...          # foundational|tactical|observational
   --tag <T>...
@@ -56,19 +58,26 @@ kd ask [QUERY]
   --anchor <PATH>...      # repetível; aceita vírgula (`--anchor a,b`)
   --since <TS> / --until <TS>
   --limit <N>             # default: config recall.default_limit (5 — D121)
-  --tags                  # vocabulário de tags: tag|count (count desc, D107)
-  --rank                  # ranking por confiança derivada, sem query (D107)
   --json
 ```
+
+Ranking (`--rank`) e vocabulário de tags (`--tags`) saíram do `ask` e viraram
+`kd knowledge rank`/`tags` (D146).
 
 O canal **vetorial** entra automaticamente quando `recall.semantic = true` (default) e há índice
 (`recall.semantic_top_k`); provedor fora do ar degrada para BM25 com `warnings` (D102). Um hit
 que veio pelo vetor aparece com `why = semantic` (D121); o canal lexical descarta stopwords e
 fragmentos de 1 char (`content_terms`, D122).
 
-Sem nenhum modo (query e âncora vazias, sem `--id`/`--around`/`--rank`/`--tags`), o `ask` devolve
-o **uso** do comando com exit 2 em vez de sair vazio (D130). `--id` de nota ausente degrada para
-`warnings`; `--around` de nota ausente é `not_found` (3).
+O `--json` traz, por hit, `channels: {lexical, anchor, semantic, recent, stars}` (D151): as três
+primeiras são as **parcelas RRF** (somam o `score`); `recent`/`stars` são boosts informativos em
+`[0,1]`. O pipe `id|statement|score|why` **não** muda. Busca sem hit → stdout `[no_results]`
+(literal fixo, exit 0; `--json` com `hits: []`) — D152.
+
+Sem nenhum modo (query e âncora vazias, sem `--id`/`--around`), o `ask` devolve
+o **uso** do comando com exit 2 em vez de sair vazio (D130). `ask -` (ou pipe sem posicional) lê a
+query do stdin (D147). `--id` de nota ausente degrada para `warnings`; `--around` de nota ausente
+é `not_found` (3).
 
 O **feedback tarefa→conhecimento** (X1/D108) é derivado em tempo de consulta: tarefas com
 `outcomes` de sucesso que compartilham `anchors` confirmam a nota — o peso
@@ -82,19 +91,22 @@ Create idempotente por conteúdo + protocolo de dedup (0.75/0.92). `--update` ve
 `statement` vazio é `invalid_input` (2) — nunca cria nota vazia (D130).
 
 ```
-kd write [STATEMENT]
+kd write --summary <TXT> [<BODY>|-]
   --type <T>              # default: fact
-  --body <TXT|->          # '-' lê stdin
   --tag <T>... --anchor <PATH>...
   --class <C> --status <S>
   --edge <ARESTA:ID>      # aresta explícita na criação
   --update <ID>           # modo update (patch versionado)
   --link <ARESTA:ID>      # cria aresta (substitui o antigo `link`)
-  --outcome <S> <ID>      # anexa evidência a qualquer nota (D103); com [--note <TXT>]
+  --outcome <S> --id <ID> # anexa evidência a qualquer nota (D103); com [--note <TXT>]
+  --params '<JSON>'       # item único (D147)
   --batch <FONTE|->       # lote JSONL de rascunhos (D110); com [--dry-run]
   --dry-run
   --json                  # {action: created|merged|rejected|updated, id}
 ```
+
+O **posicional é o corpo** (a verdade do knudge); a afirmação vai em `--summary` (D140). O corpo
+aceita `-` (stdin) e pipe/heredoc sem posicional (`cat body.md | kd write --summary S`).
 
 ## 5. `kd prime` — protocolo estático
 
@@ -118,11 +130,14 @@ kd rewind
   --budget <N>            # default 4000 (ceil(len/4), D40/D82)
   --since <TS> / --until <TS>
   --resume <CONTEXT_ID>   # handoff 1:1 (D88)
+  --tag <T>... / --anchor <PATH>... / --type <T>... / --class <C>...  # escopo de conhecimento (D143)
+  --around <ID> [--depth <N>]                                          # vizinhança de uma nota
   --json
 ```
 
 O manifest (default) ganha `next:` (tarefas `ready` abertas por impacto) e `fresh:`
 (`stale`/`expiring`/`pending`) — D106. `K` deriva do orçamento; o excedente vira `dropped`.
+Os filtros de corpus restringem o que entra no handoff (D143).
 
 ## 7. `kd task` — epic/issue/task (D93)
 
@@ -133,24 +148,37 @@ membership/backref (D52); dependências via aresta `depends_on`, criada **só** 
 `kd write --link <FROM:depends_on:TO>` (via única, D126).
 
 ```
-kd task new <STATEMENT> --scope <epic|issue|task>
+kd task new --summary <TXT> [<BODY>|-] --scope <epic|issue|task>
   [--kind <task|error|question|risk|decision>] [--parent <ID>]
-  [--body <TXT|->] [--checks <NAME>...] [--anchor <PATH>...] [--tag <T>...]
-kd task list [--scope ...] [--status ...] [--kind ...] [--parent <ID>]
+  [--checks <NAME>...] [--anchor <PATH>...] [--tag <T>...]
+  [--params '<JSON>'|--batch <FONTE|->] [--dry-run]
+kd task list <filtro> [--sort impact] [--full-content]
+  # filtro: --scope/--status/--kind/--parent/--ready/--blocked/--tag/--anchor, ou --universe (D144)
+  # `--sort`/`--explain` não contam como escopo
   [--ready|--blocked [--explain]] [--sort impact] [--tag <T>...] [--anchor <PATH>...]
-kd task show <ID> [<ID>...] [--history]   # + pai/bloqueadores/filhos/épico (D125/D127)
+  [--full-content]
+kd task show --id <ID> [<ID>...] [--history]   # + corpo/checks/âncoras/tags/outcomes (D137)
 kd task graph [--program <PATH>|--root <ID>]   # escopos com progresso (D127)
-kd task update <ID> [--statement <S>] [--status <S>] [--parent <ID>] [--checks ...]
-kd task close <ID> [--outcome success|partial|failure|abandoned] [--note <TXT>]
+kd task update --id <ID> [--statement <S>] [--status <S>] [--parent <ID>] [--checks ...]
+kd task close --id <ID> [--outcome success|partial|failure|abandoned] [--note <TXT>]
 kd task plan <ID> [--prompt [--template <NOME>] | --submit --from <TXT|->]
   [--step <TXT>...]
 ```
+
+- `new` tem o **posicional como corpo** e a afirmação em `--summary` (D140); `--params` cria um
+  item por objeto JSON e `--batch` aplica um lote JSONL com `key`/`id`/`parent`/arestas,
+  best-effort com `--dry-run` (D141).
 
 - `close` roda os validators e grava `outcomes[]`/`evidence` (D48/D55) — nunca declara sem
   evidência; acrescenta o **épico mais próximo** e o **progresso** dele (D127).
 - `show` resolve o **contexto** de cada id — `parent`, `blocked_by`, `blocks`, `children` e o
   **épico com progresso** — com **título** e estado, para responder "onde isto se encaixa e o
-  que o bloqueia" num só comando (D125/D127); no `--json`, os campos vêm estruturados.
+  que o bloqueia" num só comando (D125/D127); no `--json`, os campos vêm estruturados. O texto
+  também traz `scope`/`tipo`/`status`, o **corpo**, `checks`/`ancoras`/`tags`/`outcomes` —
+  paridade com o `--json` (D137).
+- `list --full-content` renderiza cada item como esse **bloco completo**, separado por `\n---\n`,
+  compondo com todos os filtros; o `--json` traz os mesmos objetos do `show`. Não é pipe-safe
+  (multilinha); o pipe enxuto `id|scope|status|statement` segue como default (D137).
 - **Rollup de progresso por épico (D127):** `epic_of`/`progress_of` contam os **itens de trabalho
   folha** (`is_work_item` sem filhos de trabalho) no subárvore e quantos estão `closed` —
   derivado, sem verdade nova. Aparece no `close` (`epico: <id>|<título> (<done>/<total>)`), no
@@ -175,13 +203,22 @@ kd task plan <ID> [--prompt [--template <NOME>] | --submit --from <TXT|->]
   `task graph --program` imprime a **floresta** (ordem de `id`); `--root <ID>` rende uma árvore só;
   `programs.glob` define o que é um programa (D139).
 
-## 8. `kd knowledge` — mapa de conhecimento (D128)
+## 8. `kd knowledge` — mapa/digestão de conhecimento (D128/D145)
 
 ```
 kd knowledge map [--axis <anchor|type|classification|scope>] [--scope <ESCOPO>]
                 [--semantic] [--members] [--write]
+                [--tag <T>...] [--anchor <PATH>...] [--type <T>...] [--class <C>...]
+                [--around <ID>] [--depth <N>] [--universe]
+kd knowledge digest [--status|--drain]   # fila de embeddings (ex-`maintenance index`, D145)
+kd knowledge rank [--tag ...] [--anchor ...] [--type ...] [--class ...]
+                  [--around <ID>] [--depth <N>] [--universe] [--limit <N>]
+kd knowledge tags [--limit <N>]
 ```
 
+- **Escopo obrigatório (D143):** `map`/`rank` sem filtro e sem `--universe` são `invalid_input`
+  (2). `--universe` é a varredura explícita do projeto inteiro; `--around <ID> --depth N` limita à
+  vizinhança de uma nota.
 - **Fase 1** é determinística e sem embeddings: agrega por `anchor`, `type`, `classification` e
   `scope` (o escopo ancestral sobe pela **hierarquia** `results_in`, com fallback para `depends_on`).
 - **`--semantic`** roda a fase 2 (`complete-link`) dentro de cada cluster acima de
@@ -196,11 +233,12 @@ kd knowledge map [--axis <anchor|type|classification|scope>] [--scope <ESCOPO>]
 
 ```
 kd maintenance doctor [--fix] [--audit]   # relatório por padrão; --fix corrige o reversível
-kd maintenance compact [--scope <C>]      # propõe merge/supersede (nunca em silêncio)
-kd maintenance eval --ab <A> <B>          # Recall@k / nDCG@k / MRR
-kd maintenance index [--drain|--status]   # fila de embeddings
-kd maintenance learn [--scope <C>]        # sugestões de notas/links/merges
-kd maintenance prune [--scope <C>]        # propõe forget por shelf-life/decay (nunca age, D112)
+kd maintenance compact [--scope <C>] [--tag ...|--anchor ...|--type ...|--class ...|--around ...|--universe]
+                                          # propõe merge/supersede (nunca em silêncio; escopo obrigatório — D144)
+kd maintenance learn [--scope <C>] [--tag ...|--anchor ...|--type ...|--class ...|--around ...|--universe]
+                                          # sugestões de notas/links/merges (escopo obrigatório — D144)
+kd maintenance prune [--scope <C>] [--tag ...|--anchor ...|--type ...|--class ...|--around ...|--universe]
+                                          # propõe forget por shelf-life/decay (nunca age, D112)
 kd maintenance watch-service [--install|--subscribe|--unsubscribe|--status|--uninstall]
                              [--yes] [--dry-run] [--every 1h] [--port 8999]
                                           # gerencia o worker e o servidor de embeddings (systemd/launchd)
@@ -208,7 +246,7 @@ kd maintenance watch-service [--install|--subscribe|--unsubscribe|--status|--uni
 
 - `audit` virou modo do `doctor` (relatório de integridade + arestas sugeridas).
 - `link` **não** mora aqui: virou `kd write --link`.
-- `index` é, por padrão, interno (worker); `--status`/`--drain` são diagnóstico. Com
+- `index` é, por padrão, interno (worker); `kd knowledge digest --status`/`--drain` é diagnóstico. Com
   `embeddings.mode=lazy` (default) o CLI ainda drena **um lote** ao fim de qualquer verbo
   não-`maintenance` (auto-drain ocioso, D131); `manual` desliga esse caminho.
 - `prune` **só propõe** (`forget|id|motivo`); a aplicação é `kd forget` (D47/D112).
@@ -259,9 +297,9 @@ kd config set <KEY> <VALUE> [--global]     # projeto por padrão; grava .knudge/
 kd config unset <KEY> [--global]
 kd config list [--global]
 
-kd forget <ID>             # status=forgotten (soft; nunca apaga arquivo)
-kd forget <ID> --restore   # volta a active
-kd forget <ID> --purge     # hard-delete só após a janela de retenção
+kd forget --id <ID>             # status=forgotten (soft; nunca apaga arquivo)
+kd forget --id <ID> --restore   # volta a active
+kd forget --id <ID> --purge     # hard-delete só após a janela de retenção
 
 kd sync [--message <MSG>]  # commit de notas/ + eventos/ no worktree certo
 
@@ -294,7 +332,8 @@ strict = false   # true promove warnings (leitura, retrieval, embeddings) a erro
 | `prime(scope)` / `get_context` / `diff` | `kd rewind` / `kd rewind --resume` / `kd rewind --since` |
 | `learn` | `kd maintenance learn` |
 | `plan` | `kd task` |
-| `compact` / `doctor --audit` / `eval` / `index` / `learn` / `prune` | `kd maintenance …` |
+| `compact` / `doctor --audit` / `learn` / `prune` | `kd maintenance …` |
+| `eval` / `index` | **removidos** — avaliação offline (`bench/`); fila é `kd knowledge digest` (D145) |
 | `onboard` | `kd init` |
 | `setup` / `completions` / `upgrade` / `version` | `kd self …` |
 

@@ -16,17 +16,17 @@ use crate::write::{Draft, WriteContext};
 
 use super::{NOW, PROJECT, ROOT, anchored, built, note, seeded};
 
-struct World<'a> {
-    fs: &'a MemFs,
-    ctx: &'a WriteContext<'a>,
-    events: &'a EventLog<'a>,
-    config: &'a Config,
-    graph: &'a Graph,
-    thresholds: &'a DedupThresholds,
+pub(super) struct World<'a> {
+    pub(super) fs: &'a MemFs,
+    pub(super) ctx: &'a WriteContext<'a>,
+    pub(super) events: &'a EventLog<'a>,
+    pub(super) config: &'a Config,
+    pub(super) graph: &'a Graph,
+    pub(super) thresholds: &'a DedupThresholds,
 }
 
 impl World<'_> {
-    fn input(&self) -> DoctorInput<'_> {
+    pub(super) fn input(&self) -> DoctorInput<'_> {
         DoctorInput {
             fs: self.fs,
             root: Path::new(ROOT),

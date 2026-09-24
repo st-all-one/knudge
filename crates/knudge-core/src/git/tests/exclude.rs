@@ -20,6 +20,10 @@ fn persists_derived_lines_and_is_idempotent() -> Result<()> {
     assert!(text.contains("/.knudge/.idx/"));
     assert!(text.contains("/.knudge/cache/"));
     assert!(
+        !text.contains("emb_cache.jsonl"),
+        "o cache versionado não é excluído (D148)"
+    );
+    assert!(
         !text.contains("\n/.knudge/\n"),
         "não exclui o diretório inteiro"
     );

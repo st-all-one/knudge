@@ -1,11 +1,13 @@
 //! `kd task` — epic/issue/task (E12-T01, D93).
 
+mod batch;
 mod create;
 mod graph;
 mod mutate;
 mod plan;
 mod query;
 mod render;
+mod show;
 
 use knudge_core::Result;
 
@@ -21,7 +23,7 @@ pub fn run(session: &Session, command: &TaskCommand) -> Result<Output> {
     match command {
         TaskCommand::New(args) => create::new_task(session, args),
         TaskCommand::List(args) => query::list(session, args),
-        TaskCommand::Show { ids, history } => query::show(
+        TaskCommand::Show { ids, history } => show::show(
             session,
             ids,
             if *history {

@@ -59,6 +59,8 @@ pub fn meta(session: &Session) -> Result<EmbeddingMeta> {
 /// Propaga erros de leitura do índice/store.
 pub fn pending(session: &Session) -> Result<usize> {
     let meta = meta(session)?;
+    let store = session.store();
+    let ids = store.list_ids()?;
     let mut warnings = Vec::new();
     let Some(index) = EmbeddingIndex::load(
         session.fs_dyn(),
@@ -67,18 +69,25 @@ pub fn pending(session: &Session) -> Result<usize> {
         &mut warnings,
     )?
     else {
-        return Ok(session.store().list_ids()?.len());
+        let mut readable = 0_usize;
+        for id in &ids {
+            if store.read_optional(id)?.is_some() {
+                readable = readable.saturating_add(1);
+            }
+        }
+        return Ok(readable);
     };
-    let store = session.store();
     let mut pending = 0_usize;
-    for id in store.list_ids()? {
-        let note = store.read(&id)?;
+    for id in &ids {
+        let Some(note) = store.read_optional(id)? else {
+            continue;
+        };
         let body_hash = note
             .frontmatter
             .get("body_hash")
             .and_then(Value::as_str)
             .unwrap_or("");
-        if index.state_of(&id, body_hash) != EmbeddingState::Indexed {
+        if index.state_of(id, body_hash) != EmbeddingState::Indexed {
             pending = pending.saturating_add(1);
         }
     }
@@ -87,7 +96,7 @@ pub fn pending(session: &Session) -> Result<usize> {
 
 /// Drena **um lote** da fila; `None` quando embeddings estão desligados (`provider = none`).
 ///
-/// É o caminho único do `kd maintenance index --drain` e do auto-drain ocioso (E11-T03).
+/// É o caminho único do `kd knowledge digest --drain` e do auto-drain ocioso (E11-T03).
 ///
 /// # Errors
 /// Propaga erros de leitura do índice e de execução do provedor.

@@ -1,8 +1,7 @@
 # D152 — busca sem resultado devolve `[no_results]`
 
-> **Status:** decisão fechada (registrada em `plan/03_decisoes-fechadas.md`); **implementação
-> pendente**. Origem: item 6 do `rascunho_melhorias.md` — **a demanda de observabilidade é
-> removida**. Sem execução.
+> **Status:** decisão fechada e **implementada** (v0.3.0). Origem: item 6 do `rascunho_melhorias.md` — **a demanda de observabilidade é
+> removida**.
 
 ## 1. Decisão
 
@@ -25,6 +24,6 @@
 
 ## 4. Aceite
 
-- [ ] `kd ask "termo inexistente"` → stdout exatamente `[no_results]`; exit 0.
-- [ ] `--json` com `hits: []`; nenhum log no stdout.
-- [ ] Golden novo; `make check` verde.
+- [x] `kd ask "termo inexistente"` → stdout exatamente `[no_results]`; exit 0.
+- [x] `--json` com `hits: []`; nenhum log no stdout.
+- [x] Golden novo; `make check` verde.

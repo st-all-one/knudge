@@ -1,44 +1,52 @@
 //! `kd ask` — toda pesquisa: rank, recall, get (`--id`) e expand (`--around`) (E12-T01).
 
+use std::io::IsTerminal;
+
 use knudge_core::graph::Graph;
-use knudge_core::retrieval::{get, tag_counts};
-use knudge_core::schema::{NoteType, Status};
+use knudge_core::jsonl;
+use knudge_core::retrieval::get;
+use knudge_core::schema::{NoteType, Status, Value};
 use knudge_core::store::Note;
 use knudge_core::{Error, Result};
 use serde_json::json;
 
 use crate::cli::AskArgs;
+use crate::commands::input;
 use crate::output::Output;
 use crate::session::Session;
 
 mod query;
 
-use query::{rank_mode, recall_query};
+use query::recall_query;
 
 /// Uso resumido quando nenhum modo de busca é selecionado (token-optimized).
 const ASK_USAGE: &str = "\
 nenhum modo de busca: informe uma QUERY ou um modo.
   kd ask <QUERY> [--type T] [--class C] [--tag T] [--status S] [--scope ID]
-                 [--anchor PATH] [--since TS] [--until TS] [--limit N] [--brief] [--with-body]
+                 [--anchor PATH] [--since TS] [--until TS] [--limit N]
+                 [--brief] [--full-content] [--with-task]
   kd ask --id <ID>...                              # corpos por id
   kd ask --around <ID> [--via ARESTA] [--depth N]  # expande o grafo
-  kd ask --rank                                    # mais confiáveis (D107)
-  kd ask --tags                                    # vocabulário de tags
   kd ask --anchor <PATH>                           # por âncora, sem query
 veja: kd ask --help";
 
-/// Executa `kd ask` no modo adequado (rank > tags > get > expand > recall).
+/// Executa `kd ask` no modo adequado (get > expand > recall).
 ///
 /// # Errors
 /// Propaga erros de índice/grafo e `strict` (D94). Sem modo selecionado (query e âncora
 /// vazias), devolve o uso do comando em vez de sair silenciosamente.
 pub fn run(session: &Session, args: &AskArgs) -> Result<Output> {
-    if args.rank {
-        return rank_mode(session, args);
+    if let Some(params) = &args.params {
+        let text = if params == "-" {
+            input::read_stdin()?
+        } else {
+            params.clone()
+        };
+        let parsed = parse_ask_params(&jsonl::decode(&text)?)?;
+        return run(session, &parsed);
     }
-    if args.tag_vocab {
-        return tag_vocab(session, args);
-    }
+    let resolved = resolve_query(args)?;
+    let args = resolved.as_ref().unwrap_or(args);
     if !args.ids.is_empty() {
         return get_ids(session, args);
     }
@@ -51,22 +59,93 @@ pub fn run(session: &Session, args: &AskArgs) -> Result<Output> {
     recall_query(session, args)
 }
 
-/// `kd ask --tags` — vocabulário de tags (`tag|count`, `count` desc, `tag` asc — D107).
-fn tag_vocab(session: &Session, args: &AskArgs) -> Result<Output> {
-    let index = session.index()?;
-    let mut counts = tag_counts(&index);
-    if let Some(limit) = args.limit {
-        counts.truncate(limit);
+/// Lê a consulta de stdin quando o posicional é `-` ou vazio com pipe (D147).
+fn resolve_query(args: &AskArgs) -> Result<Option<AskArgs>> {
+    let explicit = args.query.len() == 1 && args.query.first().is_some_and(|q| q.as_str() == "-");
+    let piped = args.query.is_empty()
+        && args.ids.is_empty()
+        && args.around.is_none()
+        && !std::io::stdin().is_terminal();
+    if !explicit && !piped {
+        return Ok(None);
     }
-    let text = counts
-        .iter()
-        .map(|(tag, count)| format!("{tag}|{count}"))
-        .collect::<Vec<_>>()
-        .join("\n");
-    let data = json!({
-        "tags": counts.iter().map(|(tag, count)| json!({"tag": tag, "count": count})).collect::<Vec<_>>(),
-    });
-    Ok(Output::new(text, data))
+    let text = input::read_stdin()?;
+    let query = text.trim().to_string();
+    if !explicit && query.is_empty() {
+        return Ok(None);
+    }
+    let mut owned = args.clone();
+    owned.query = vec![query];
+    Ok(Some(owned))
+}
+
+/// Converte o objeto de `--params` em [`AskArgs`] (D147).
+fn parse_ask_params(value: &Value) -> Result<AskArgs> {
+    let map = value
+        .as_map()
+        .ok_or_else(|| Error::schema("`--params` deve ser um objeto JSON"))?;
+    let mut args = AskArgs {
+        query: match map.get("query") {
+            None => Vec::new(),
+            Some(Value::List(_)) => string_list(map.get("query"))?,
+            Some(Value::Str(query)) => vec![query.clone()],
+            Some(_) => return Err(Error::schema("`query` deve ser string ou lista")),
+        },
+        ..AskArgs::default()
+    };
+    args.ids = string_list(map.get("id"))?;
+    args.around = map
+        .get("around")
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    args.via = map.get("via").and_then(Value::as_str).map(str::to_string);
+    if let Some(depth) = map.get("depth").and_then(Value::as_int) {
+        args.depth =
+            u8::try_from(depth).map_err(|_| Error::invalid_input("`depth` fora do range"))?;
+    }
+    args.brief = map.get("brief").and_then(Value::as_bool).unwrap_or(false);
+    args.with_task = map
+        .get("with_task")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    args.full_content = map
+        .get("full_content")
+        .and_then(Value::as_bool)
+        .or_else(|| map.get("with_body").and_then(Value::as_bool))
+        .unwrap_or(false);
+    args.types = string_list(map.get("type"))?;
+    args.classes = string_list(map.get("class"))?;
+    args.tags = string_list(map.get("tag"))?;
+    args.status = map
+        .get("status")
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    args.scope = map.get("scope").and_then(Value::as_str).map(str::to_string);
+    args.anchor = string_list(map.get("anchor"))?;
+    args.since = map.get("since").and_then(Value::as_str).map(str::to_string);
+    args.until = map.get("until").and_then(Value::as_str).map(str::to_string);
+    if let Some(limit) = map.get("limit").and_then(Value::as_int) {
+        args.limit = Some(
+            usize::try_from(limit).map_err(|_| Error::invalid_input("`limit` fora do range"))?,
+        );
+    }
+    Ok(args)
+}
+
+/// Lista de strings de um campo opcional.
+fn string_list(value: Option<&Value>) -> Result<Vec<String>> {
+    match value {
+        None => Ok(Vec::new()),
+        Some(Value::List(items)) => items
+            .iter()
+            .map(|item| {
+                item.as_str()
+                    .map(str::to_string)
+                    .ok_or_else(|| Error::schema("lista deve conter só strings"))
+            })
+            .collect(),
+        Some(_) => Err(Error::schema("valor deve ser lista de strings")),
+    }
 }
 
 fn get_ids(session: &Session, args: &AskArgs) -> Result<Output> {

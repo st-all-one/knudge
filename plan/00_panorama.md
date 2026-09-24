@@ -33,6 +33,7 @@ Três consequências que explicam todas as decisões:
   validators.toml            # catálogo de checks executáveis (D99)
   .idx/                      # índice derivado, reconstruível
   cache/                     # descartável
+  emb_cache.jsonl            # cache vetorial versionado (opt-in `version_cache`; D148)
 
 # Config global (template/default) — ver §3:
 # ~/.config/local/knudge/config.toml
@@ -45,6 +46,7 @@ Três consequências que explicam todas as decisões:
 | `.idx/` | Índice derivado (retrieval, checkpoint de eventos, sugestões, contextos de rewind, hashes de âncora, embeddings, clusters). | Oscila |
 | `config.toml` | Config efetiva do projeto (clone do global). Precedência sobre o global. | Formato fixo |
 | `cache/` | Respostas caras / warm start. | Descartável |
+| `emb_cache.jsonl` | Cache vetorial **versionado** (opt-in `version_cache`; chave `(body_hash, model)`, `merge=union` — D148/D153). | Versionado |
 
 **Regra de ouro:** `notas/` + `eventos/` sempre reconstroem `.idx/` do zero. O índice nunca é fonte da verdade.
 
@@ -147,8 +149,9 @@ mode       = "lazy"            # lazy | manual (D131)
 async      = true              # nunca bloqueia write/read
 batch      = 32
 max_pending = 1000             # backpressure; acima, força catch-up
-cache      = true              # cache por body_hash em .idx/
-cache_max_bytes = 33554432     # teto com eviction LRU (32 MiB)
+cache      = true              # cache por (body_hash, model) em .idx/ (ou .knudge/ se versionado)
+version_cache = false          # versiona o cache em .knudge/emb_cache.jsonl (merge=union; D148)
+cache_max_bytes = 33554432     # teto com eviction LRU (32 MiB); soft quando versionado
 cache_ttl_days  = 30
 flush_ms   = 2000              # flush coalescido do índice (debounce)
 endpoint   = "http://127.0.0.1:8080/v1/embeddings"   # OpenAI-compatible (llama-server/TEI/Ollama)

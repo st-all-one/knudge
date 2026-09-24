@@ -1,8 +1,6 @@
 # D147 — `--params '{...}'` universal e stdin/heredoc universal
 
-> **Status:** decisão fechada (registrada em `plan/03_decisoes-fechadas.md`); **implementação
-> pendente**. Generaliza **D140** (conteúdo por stdin/heredoc) e **D141** (`--params`). Sem
-> execução.
+> **Status:** decisão fechada e **implementada** (v0.3.0). Generaliza **D140** (conteúdo por stdin/heredoc) e **D141** (`--params`).
 
 ## 1. Decisões
 

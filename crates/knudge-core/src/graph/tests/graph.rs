@@ -139,3 +139,26 @@ fn edge_kind_round_trips_and_rejects_unknown() {
     assert!(EdgeKind::from_str("dep").is_err());
     assert!(EdgeKind::from_str("unknown").is_err());
 }
+
+#[test]
+fn build_skips_invalid_notes() -> Result<()> {
+    use crate::ports::fakes::MemFs;
+    use crate::store::Store;
+
+    let fs = MemFs::new();
+    let store = Store::new(&fs, "/p/.knudge");
+    store.ensure_dirs()?;
+    let good = note(NoteType::Fact, "boa", &[])?;
+    let good_id = good.id()?.to_string();
+    store.write(&good)?;
+    // Nota legada com `type` desconhecido (D149): não derruba o grafo (D17/D18).
+    fs.insert(
+        "/p/.knudge/notas/alien/alien_00000000.md",
+        b"---\nid: alien_00000000\ntype: alien\nstatement: hmm\ncreated_at: 2023-11-14T22:13:20.000Z\nbody_hash: 00000000\nschema_version: 1\n---\n"
+            .to_vec(),
+    );
+    let graph = Graph::build(&store)?;
+    assert!(graph.contains(&good_id));
+    assert!(!graph.contains("alien_00000000"));
+    Ok(())
+}

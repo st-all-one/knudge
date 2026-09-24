@@ -2,12 +2,14 @@
 
 use knudge_core::Result;
 use knudge_core::handoff::{
-    ContextStore, DEFAULT_BUDGET, RewindInput, RewindMode, RewindRequest, rewind,
+    ContextStore, CorpusScope as HandoffScope, DEFAULT_BUDGET, RewindInput, RewindMode,
+    RewindRequest, rewind,
 };
 use knudge_core::lifecycle::{DEFAULT_TASK_CONFIRMATION, ShelfLife, freshness};
 use serde_json::json;
 
 use crate::cli::RewindArgs;
+use crate::commands::corpus::CorpusScope;
 use crate::commands::parse;
 use crate::output::Output;
 use crate::session::Session;
@@ -21,6 +23,8 @@ use super::embedder;
 pub fn run(session: &Session, args: &RewindArgs) -> Result<Output> {
     let index = session.index()?;
     let graph = session.graph()?;
+    let corpus = corpus_of(args);
+    let selection = corpus.select(&index, &graph)?;
     let (events, mut warnings) = session.events().read_all()?;
     let changed = session.changed_paths()?;
     let request = RewindRequest {
@@ -34,7 +38,9 @@ pub fn run(session: &Session, args: &RewindArgs) -> Result<Output> {
     let store = session.store();
     let mut notes = Vec::new();
     for id in store.list_ids()? {
-        notes.push(store.read(&id)?);
+        if let Some(note) = store.read_optional(&id)? {
+            notes.push(note);
+        }
     }
     let policy = ShelfLife::from_config(session.config());
     let pending = embedder::pending(session)?;
@@ -45,6 +51,10 @@ pub fn run(session: &Session, args: &RewindArgs) -> Result<Output> {
         events: &events,
         changed_paths: &changed,
         freshness: fresh,
+        scope: HandoffScope {
+            filter: selection.filter().clone(),
+            allowed: selection.allowed().cloned(),
+        },
         task_confirmation_weight: session
             .config()
             .get_float("recall.confirmation_from_tasks")
@@ -76,5 +86,18 @@ fn mode_of(args: &RewindArgs) -> RewindMode {
         RewindMode::Files(args.files.clone())
     } else {
         RewindMode::Manifest
+    }
+}
+
+/// Escopo de corpus do `rewind` (filtros + vizinhança) — D143.
+fn corpus_of(args: &RewindArgs) -> CorpusScope {
+    CorpusScope {
+        types: args.types.clone(),
+        classes: args.classes.clone(),
+        tags: args.tags.clone(),
+        anchors: args.anchor.clone(),
+        around: args.around.clone(),
+        depth: args.depth,
+        universe: false,
     }
 }

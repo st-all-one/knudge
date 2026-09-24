@@ -7,7 +7,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::graph::Graph;
-use crate::retrieval::Index;
+use crate::retrieval::{Filter, Index};
 use crate::schema::{Classification, EdgeKind, NoteType};
 
 /// Profundidade máxima da busca pelo escopo ancestral.
@@ -61,8 +61,20 @@ pub struct Cluster {
 /// Computa os clusters estruturais de um índice/grafo (determinístico).
 #[must_use]
 pub fn structural_clusters(index: &Index, graph: &Graph) -> Vec<Cluster> {
+    structural_clusters_filtered(index, graph, &Filter::new())
+}
+
+/// Como [`structural_clusters`], restringindo o corpus ao filtro dado (D143).
+///
+/// O filtro roda **antes** de agrupar: uma nota fora do escopo não cria nem incrementa
+/// cluster.
+#[must_use]
+pub fn structural_clusters_filtered(index: &Index, graph: &Graph, filter: &Filter) -> Vec<Cluster> {
     let mut by_axis: BTreeMap<ClusterAxis, BTreeSet<String>> = BTreeMap::new();
     for doc in &index.docs {
+        if !filter.matches(&doc.meta) {
+            continue;
+        }
         let id = &doc.meta.id;
         for anchor in &doc.meta.anchors {
             by_axis

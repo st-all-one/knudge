@@ -153,7 +153,14 @@ fn init_write_ask_roundtrip() -> TestResult {
 
     let write = run_in(
         &dir,
-        &["--json", "write", "o cache usa body_hash", "--type", "fact"],
+        &[
+            "--json",
+            "write",
+            "--summary",
+            "o cache usa body_hash",
+            "--type",
+            "fact",
+        ],
     )?;
     assert!(write.status.success(), "write falhou: {:?}", write.stderr);
     let envelope = json(&write)?;
@@ -181,7 +188,14 @@ fn write_anchored(
     let out = run_in(
         dir,
         &[
-            "--json", "write", statement, "--type", "fact", "--anchor", anchor,
+            "--json",
+            "write",
+            "--summary",
+            statement,
+            "--type",
+            "fact",
+            "--anchor",
+            anchor,
         ],
     )?;
     assert!(out.status.success(), "write falhou: {:?}", out.stderr);
@@ -205,6 +219,7 @@ fn write_aged_observational(
         &[
             "--json",
             "write",
+            "--summary",
             statement,
             "--type",
             "fact",
@@ -263,6 +278,18 @@ fn task_new(dir: &Path, args: &[&str]) -> Result<String, Box<dyn std::error::Err
         .ok_or("task sem id")?
         .to_string();
     Ok(id)
+}
+
+/// Cria uma tarefa com `--summary` + argumentos extras (D140).
+fn task(dir: &Path, summary: &str, extra: &[&str]) -> Result<String, Box<dyn std::error::Error>> {
+    let mut args = vec!["task", "new", "--summary", summary];
+    args.extend_from_slice(extra);
+    task_new(dir, &args)
+}
+
+/// Define uma config do projeto via CLI.
+fn config_set(dir: &Path, key: &str, value: &str) -> std::io::Result<Output> {
+    run_in(dir, &["config", "set", "--key", key, "--value", value])
 }
 
 #[test]
@@ -385,7 +412,10 @@ fn write_batch_jsonl_creates_and_dry_run() -> TestResult {
         "dry-run gravou a nota efêmera"
     );
 
-    let cap = run_in(&dir, &["config", "set", "write.batch_max", "1"])?;
+    let cap = run_in(
+        &dir,
+        &["config", "set", "--key", "write.batch_max", "--value", "1"],
+    )?;
     assert!(cap.status.success(), "config set falhou: {:?}", cap.stderr);
     let over = run_stdin(&dir, &["write", "--batch", "-"], drafts)?;
     assert_eq!(over.status.code(), Some(2), "teto devia dar invalid_input");
@@ -400,10 +430,10 @@ fn ask_rank_orders_by_confidence() -> TestResult {
 
     let _plain = write_anchored(&dir, "o cache usa body_hash", "src/cache.rs")?;
     let confirmed = write_anchored(&dir, "a fila usa backoff", "src/queue.rs")?;
-    let out = run_in(&dir, &["write", "--outcome", "success", &confirmed])?;
+    let out = run_in(&dir, &["write", "--outcome", "success", "--id", &confirmed])?;
     assert!(out.status.success(), "outcome falhou: {:?}", out.stderr);
 
-    let ranked = run_in(&dir, &["ask", "--rank"])?;
+    let ranked = run_in(&dir, &["knowledge", "rank", "--universe"])?;
     assert!(ranked.status.success(), "rank falhou: {:?}", ranked.stderr);
     let text = String::from_utf8(ranked.stdout)?;
     let first = text.lines().next().ok_or("sem linhas")?;
@@ -413,7 +443,10 @@ fn ask_rank_orders_by_confidence() -> TestResult {
     );
     assert!(first.contains("stars"), "why esperado stars: {first}");
 
-    let envelope = json(&run_in(&dir, &["--json", "ask", "--rank"])?)?;
+    let envelope = json(&run_in(
+        &dir,
+        &["--json", "knowledge", "rank", "--universe"],
+    )?)?;
     let ranked_json = envelope
         .get("data")
         .and_then(|data| data.get("ranked"))
@@ -438,7 +471,7 @@ fn maintenance_prune_proposes_forget_for_expired() -> TestResult {
     let expired = write_aged_observational(&dir, "nota vencida")?;
     let fresh = write_anchored(&dir, "nota viva", "src/x.rs")?;
 
-    let out = run_in(&dir, &["--json", "maintenance", "prune"])?;
+    let out = run_in(&dir, &["--json", "maintenance", "prune", "--universe"])?;
     assert!(out.status.success(), "prune falhou: {:?}", out.stderr);
     let envelope = json(&out)?;
     let proposals = envelope
@@ -476,6 +509,7 @@ fn write_outcome_on_note_returns_outcome_action() -> TestResult {
             "write",
             "--outcome",
             "success",
+            "--id",
             id.as_str(),
             "--note",
             "confirmado",
@@ -502,31 +536,10 @@ fn task_list_ready_blocked_and_explain() -> TestResult {
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
 
-    let epic = task_new(&dir, &["task", "new", "Programa", "--scope", "epic"])?;
-    let issue = task_new(
-        &dir,
-        &[
-            "task", "new", "Story", "--scope", "issue", "--parent", &epic,
-        ],
-    )?;
-    let ready = task_new(
-        &dir,
-        &[
-            "task", "new", "Pronta", "--scope", "task", "--parent", &issue,
-        ],
-    )?;
-    let blocked = task_new(
-        &dir,
-        &[
-            "task",
-            "new",
-            "Bloqueada",
-            "--scope",
-            "task",
-            "--parent",
-            &issue,
-        ],
-    )?;
+    let epic = task(&dir, "Programa", &["--scope", "epic"])?;
+    let issue = task(&dir, "Story", &["--scope", "issue", "--parent", &epic])?;
+    let ready = task(&dir, "Pronta", &["--scope", "task", "--parent", &issue])?;
+    let blocked = task(&dir, "Bloqueada", &["--scope", "task", "--parent", &issue])?;
     let link = run_in(
         &dir,
         &["write", "--link", &format!("{blocked}:depends_on:{ready}")],
@@ -568,8 +581,14 @@ fn task_list_sort_impact_orders_critical_path() -> TestResult {
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
 
-    let base = task_new(&dir, &["task", "new", "Base", "--scope", "task"])?;
-    let parallel = task_new(&dir, &["task", "new", "Paralela", "--scope", "task"])?;
+    let base = task_new(
+        &dir,
+        &["task", "new", "--summary", "Base", "--scope", "task"],
+    )?;
+    let parallel = task_new(
+        &dir,
+        &["task", "new", "--summary", "Paralela", "--scope", "task"],
+    )?;
     let middle = task_dep(&dir, "Depende da base", &base)?;
     let _leaf = task_dep(&dir, "Depende do meio", &middle)?;
 
@@ -619,9 +638,15 @@ fn task_list_sort_impact_skips_closed() -> TestResult {
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
 
-    let done = task_new(&dir, &["task", "new", "Feita", "--scope", "task"])?;
+    let done = task_new(
+        &dir,
+        &["task", "new", "--summary", "Feita", "--scope", "task"],
+    )?;
     let _waiting = task_dep(&dir, "Espera a feita", &done)?;
-    let out = run_in(&dir, &["task", "update", &done, "--status", "closed"])?;
+    let out = run_in(
+        &dir,
+        &["task", "update", "--id", &done, "--status", "closed"],
+    )?;
     assert!(out.status.success(), "close falhou: {:?}", out.stderr);
 
     let sorted = run_in(&dir, &["task", "list", "--ready", "--sort", "impact"])?;
@@ -645,6 +670,7 @@ fn task_list_filters_by_tag_anchor_and_since() -> TestResult {
         &[
             "task",
             "new",
+            "--summary",
             "Ajustar backoff",
             "--scope",
             "task",
@@ -659,6 +685,7 @@ fn task_list_filters_by_tag_anchor_and_since() -> TestResult {
         &[
             "task",
             "new",
+            "--summary",
             "Trocar storage",
             "--scope",
             "task",
@@ -700,10 +727,16 @@ fn task_show_multiple_ids_separator_and_partial() -> TestResult {
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
 
-    let first = task_new(&dir, &["task", "new", "Primeira", "--scope", "task"])?;
-    let second = task_new(&dir, &["task", "new", "Segunda", "--scope", "task"])?;
+    let first = task_new(
+        &dir,
+        &["task", "new", "--summary", "Primeira", "--scope", "task"],
+    )?;
+    let second = task_new(
+        &dir,
+        &["task", "new", "--summary", "Segunda", "--scope", "task"],
+    )?;
 
-    let out = run_in(&dir, &["task", "show", &first, &second])?;
+    let out = run_in(&dir, &["task", "show", "--id", &first, &second])?;
     assert!(out.status.success(), "show falhou: {:?}", out.stderr);
     let text = String::from_utf8(out.stdout)?;
     assert!(
@@ -712,7 +745,10 @@ fn task_show_multiple_ids_separator_and_partial() -> TestResult {
     );
     assert!(text.contains("\n---\n"), "separador ausente: {text}");
 
-    let partial = run_in(&dir, &["--json", "task", "show", &first, "task_zzzzzzzz"])?;
+    let partial = run_in(
+        &dir,
+        &["--json", "task", "show", "--id", &first, "task_zzzzzzzz"],
+    )?;
     assert!(
         partial.status.success(),
         "show parcial falhou: {:?}",
@@ -731,7 +767,7 @@ fn task_show_multiple_ids_separator_and_partial() -> TestResult {
         .ok_or("sem warnings")?;
     assert_eq!(warnings.len(), 1);
 
-    let missing = run_in(&dir, &["task", "show", "task_zzzzzzzz"])?;
+    let missing = run_in(&dir, &["task", "show", "--id", "task_zzzzzzzz"])?;
     assert!(!missing.status.success(), "id único ausente devia falhar");
     Ok(())
 }
@@ -744,13 +780,21 @@ fn task_close_note_records_outcome_reason() -> TestResult {
 
     let task = task_new(
         &dir,
-        &["task", "new", "Fechar com motivo", "--scope", "task"],
+        &[
+            "task",
+            "new",
+            "--summary",
+            "Fechar com motivo",
+            "--scope",
+            "task",
+        ],
     )?;
     let out = run_in(
         &dir,
         &[
             "task",
             "close",
+            "--id",
             &task,
             "--outcome",
             "success",
@@ -768,7 +812,10 @@ fn task_close_note_records_outcome_reason() -> TestResult {
     );
     assert!(text.contains("outcomes"), "outcomes ausente: {text}");
 
-    let bad = run_in(&dir, &["task", "close", &task, "--note", "sem outcome"])?;
+    let bad = run_in(
+        &dir,
+        &["task", "close", "--id", &task, "--note", "sem outcome"],
+    )?;
     assert_eq!(
         bad.status.code(),
         Some(2),
@@ -779,7 +826,10 @@ fn task_close_note_records_outcome_reason() -> TestResult {
 
 /// Cria uma tarefa `--scope task` dependente de `dep` (dependência via `write --link`).
 fn task_dep(dir: &Path, statement: &str, dep: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let id = task_new(dir, &["task", "new", statement, "--scope", "task"])?;
+    let id = task_new(
+        dir,
+        &["task", "new", "--summary", statement, "--scope", "task"],
+    )?;
     let link = run_in(dir, &["write", "--link", &format!("{id}:depends_on:{dep}")])?;
     if !link.status.success() {
         return Err(format!("link falhou: {:?}", link.stderr).into());
@@ -793,19 +843,40 @@ fn task_show_includes_context() -> TestResult {
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
 
-    let issue = task_new(&dir, &["task", "new", "Issue", "--scope", "issue"])?;
+    let issue = task_new(
+        &dir,
+        &["task", "new", "--summary", "Issue", "--scope", "issue"],
+    )?;
     let a = task_new(
         &dir,
-        &["task", "new", "A", "--scope", "task", "--parent", &issue],
+        &[
+            "task",
+            "new",
+            "--summary",
+            "A",
+            "--scope",
+            "task",
+            "--parent",
+            &issue,
+        ],
     )?;
     let b = task_new(
         &dir,
-        &["task", "new", "B", "--scope", "task", "--parent", &issue],
+        &[
+            "task",
+            "new",
+            "--summary",
+            "B",
+            "--scope",
+            "task",
+            "--parent",
+            &issue,
+        ],
     )?;
     let link = run_in(&dir, &["write", "--link", &format!("{b}:depends_on:{a}")])?;
     assert!(link.status.success(), "link falhou: {:?}", link.stderr);
 
-    let out = run_in(&dir, &["task", "show", &b])?;
+    let out = run_in(&dir, &["task", "show", "--id", &b])?;
     assert!(out.status.success(), "show falhou: {:?}", out.stderr);
     let text = String::from_utf8(out.stdout)?;
     assert!(
@@ -817,7 +888,7 @@ fn task_show_includes_context() -> TestResult {
         "bloqueador ausente: {text}"
     );
 
-    let out = run_in(&dir, &["task", "show", &a, "--json"])?;
+    let out = run_in(&dir, &["task", "show", "--id", &a, "--json"])?;
     let json = String::from_utf8(out.stdout)?;
     assert!(json.contains("\"blocks\""), "blocks ausente: {json}");
     assert!(
@@ -828,28 +899,186 @@ fn task_show_includes_context() -> TestResult {
 }
 
 #[test]
+fn task_show_includes_full_fields() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let id = task_new(
+        &dir,
+        &[
+            "task",
+            "new",
+            "--summary",
+            "Endurecer",
+            "--scope",
+            "task",
+            "--kind",
+            "risk",
+            "--tag",
+            "parser",
+            "--anchor",
+            "src/toon/parse.rs",
+            "--checks",
+            "testes",
+            "rejeitar NBSP",
+        ],
+    )?;
+
+    let out = run_in(&dir, &["task", "show", "--id", &id])?;
+    assert!(out.status.success(), "show falhou: {:?}", out.stderr);
+    let text = String::from_utf8(out.stdout)?;
+    for needle in [
+        "tipo: risk",
+        "corpo:",
+        "rejeitar NBSP",
+        "checks: testes",
+        "ancoras: src/toon/parse.rs",
+        "tags: parser",
+    ] {
+        assert!(text.contains(needle), "falta `{needle}`: {text}");
+    }
+
+    let out = run_in(&dir, &["--json", "task", "show", "--id", &id])?;
+    let value = json(&out)?;
+    let task = value
+        .get("data")
+        .and_then(|data| data.get("tasks"))
+        .and_then(|tasks| tasks.as_array())
+        .and_then(|tasks| tasks.first())
+        .ok_or("sem task")?;
+    assert_eq!(task.get("kind").and_then(|k| k.as_str()), Some("risk"));
+    assert_eq!(
+        task.get("checks").and_then(|c| c.as_array()).map(Vec::len),
+        Some(1)
+    );
+    assert_eq!(
+        task.get("anchors").and_then(|a| a.as_array()).map(Vec::len),
+        Some(1)
+    );
+    assert_eq!(
+        task.get("tags").and_then(|t| t.as_array()).map(Vec::len),
+        Some(1)
+    );
+    assert!(task.get("outcomes").and_then(|o| o.as_array()).is_some());
+    Ok(())
+}
+
+#[test]
+fn task_show_lists_outcomes() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let id = task_new(
+        &dir,
+        &[
+            "task",
+            "new",
+            "--summary",
+            "Com evidência",
+            "--scope",
+            "task",
+        ],
+    )?;
+    let close = run_in(
+        &dir,
+        &[
+            "task",
+            "close",
+            "--id",
+            &id,
+            "--outcome",
+            "success",
+            "--note",
+            "verde",
+        ],
+    )?;
+    assert!(close.status.success(), "close falhou: {:?}", close.stderr);
+
+    let out = run_in(&dir, &["task", "show", "--id", &id])?;
+    let text = String::from_utf8(out.stdout)?;
+    assert!(
+        text.contains("outcomes: success(verde)"),
+        "outcomes ausente: {text}"
+    );
+    Ok(())
+}
+
+#[test]
+fn task_list_full_content_renders_blocks() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let a = task_new(
+        &dir,
+        &[
+            "task",
+            "new",
+            "--summary",
+            "Alfa",
+            "--scope",
+            "task",
+            "corpo alfa",
+        ],
+    )?;
+    let b = task_new(
+        &dir,
+        &[
+            "task",
+            "new",
+            "--summary",
+            "Beta",
+            "--scope",
+            "task",
+            "corpo beta",
+        ],
+    )?;
+
+    let out = run_in(&dir, &["task", "list", "--full-content", "--universe"])?;
+    assert!(out.status.success(), "list falhou: {:?}", out.stderr);
+    let text = String::from_utf8(out.stdout)?;
+    assert!(text.contains("\n---\n"), "separador ausente: {text}");
+    assert!(
+        text.contains(&a) && text.contains(&b),
+        "ids ausentes: {text}"
+    );
+    assert!(
+        text.contains("corpo alfa") && text.contains("corpo beta"),
+        "corpos ausentes: {text}"
+    );
+    assert!(text.contains("scope: task"), "sem escopo: {text}");
+
+    let out = run_in(
+        &dir,
+        &["--json", "task", "list", "--full-content", "--universe"],
+    )?;
+    let value = json(&out)?;
+    let tasks = value
+        .get("data")
+        .and_then(|data| data.get("tasks"))
+        .and_then(|tasks| tasks.as_array())
+        .ok_or("sem tasks")?;
+    assert_eq!(tasks.len(), 2);
+    let first = tasks.first().ok_or("sem task")?;
+    assert!(first.get("body").and_then(|body| body.as_str()).is_some());
+    assert!(first.get("checks").and_then(|c| c.as_array()).is_some());
+    Ok(())
+}
+
+#[test]
 fn task_close_reports_epic_progress() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
 
-    let epic = task_new(&dir, &["task", "new", "Épico", "--scope", "epic"])?;
-    let issue = task_new(
-        &dir,
-        &[
-            "task", "new", "Issue", "--scope", "issue", "--parent", &epic,
-        ],
-    )?;
-    let a = task_new(
-        &dir,
-        &["task", "new", "A", "--scope", "task", "--parent", &issue],
-    )?;
-    let _b = task_new(
-        &dir,
-        &["task", "new", "B", "--scope", "task", "--parent", &issue],
-    )?;
+    let epic = task(&dir, "Épico", &["--scope", "epic"])?;
+    let issue = task(&dir, "Issue", &["--scope", "issue", "--parent", &epic])?;
+    let a = task(&dir, "A", &["--scope", "task", "--parent", &issue])?;
+    let _b = task(&dir, "B", &["--scope", "task", "--parent", &issue])?;
 
-    let out = run_in(&dir, &["task", "close", &a, "--outcome", "success"])?;
+    let out = run_in(&dir, &["task", "close", "--id", &a, "--outcome", "success"])?;
     assert!(out.status.success(), "close falhou: {:?}", out.stderr);
     let text = String::from_utf8(out.stdout)?;
     assert!(
@@ -857,7 +1086,7 @@ fn task_close_reports_epic_progress() -> TestResult {
         "rollup ausente: {text}"
     );
 
-    let out = run_in(&dir, &["task", "show", &a])?;
+    let out = run_in(&dir, &["task", "show", "--id", &a])?;
     let text = String::from_utf8(out.stdout)?;
     assert!(
         text.contains(&format!("epico: {epic}|Épico (1/2)")),
@@ -871,24 +1100,57 @@ fn task_close_reports_epic_progress() -> TestResult {
 }
 
 #[test]
+#[allow(
+    clippy::too_many_lines,
+    reason = "teste de integração encadeia setup e asserts"
+)]
 fn knowledge_map_reports_container_axis() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
 
-    let epic = task_new(&dir, &["task", "new", "Épico", "--scope", "epic"])?;
+    let epic = task_new(
+        &dir,
+        &["task", "new", "--summary", "Épico", "--scope", "epic"],
+    )?;
     let issue = task_new(
         &dir,
         &[
-            "task", "new", "Issue", "--scope", "issue", "--parent", &epic,
+            "task",
+            "new",
+            "--summary",
+            "Issue",
+            "--scope",
+            "issue",
+            "--parent",
+            &epic,
         ],
     )?;
     let a = task_new(
         &dir,
-        &["task", "new", "A", "--scope", "task", "--parent", &issue],
+        &[
+            "task",
+            "new",
+            "--summary",
+            "A",
+            "--scope",
+            "task",
+            "--parent",
+            &issue,
+        ],
     )?;
 
-    let out = run_in(&dir, &["knowledge", "map", "--axis", "scope", "--members"])?;
+    let out = run_in(
+        &dir,
+        &[
+            "knowledge",
+            "map",
+            "--axis",
+            "scope",
+            "--members",
+            "--universe",
+        ],
+    )?;
     assert!(out.status.success(), "map falhou: {:?}", out.stderr);
     let text = String::from_utf8(out.stdout)?;
     assert!(
@@ -897,7 +1159,17 @@ fn knowledge_map_reports_container_axis() -> TestResult {
     );
     assert!(text.contains(&format!("{a}|A")), "membro A ausente: {text}");
 
-    let out = run_in(&dir, &["--json", "knowledge", "map", "--axis", "scope"])?;
+    let out = run_in(
+        &dir,
+        &[
+            "--json",
+            "knowledge",
+            "map",
+            "--axis",
+            "scope",
+            "--universe",
+        ],
+    )?;
     let json = String::from_utf8(out.stdout)?;
     assert!(json.contains("\"axis\":\"scope\""), "json sem eixo: {json}");
     assert!(
@@ -911,24 +1183,57 @@ fn knowledge_map_reports_container_axis() -> TestResult {
 }
 
 #[test]
+#[allow(
+    clippy::too_many_lines,
+    reason = "teste de integração encadeia setup e asserts"
+)]
 fn knowledge_map_write_materializes_map_and_hubs() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
 
-    let epic = task_new(&dir, &["task", "new", "Épico", "--scope", "epic"])?;
+    let epic = task_new(
+        &dir,
+        &["task", "new", "--summary", "Épico", "--scope", "epic"],
+    )?;
     let issue = task_new(
         &dir,
         &[
-            "task", "new", "Issue", "--scope", "issue", "--parent", &epic,
+            "task",
+            "new",
+            "--summary",
+            "Issue",
+            "--scope",
+            "issue",
+            "--parent",
+            &epic,
         ],
     )?;
     let _a = task_new(
         &dir,
-        &["task", "new", "A", "--scope", "task", "--parent", &issue],
+        &[
+            "task",
+            "new",
+            "--summary",
+            "A",
+            "--scope",
+            "task",
+            "--parent",
+            &issue,
+        ],
     )?;
 
-    let out = run_in(&dir, &["knowledge", "map", "--axis", "scope", "--write"])?;
+    let out = run_in(
+        &dir,
+        &[
+            "knowledge",
+            "map",
+            "--axis",
+            "scope",
+            "--write",
+            "--universe",
+        ],
+    )?;
     assert!(out.status.success(), "map --write falhou: {:?}", out.stderr);
 
     let map = dir.join(".knudge").join("notas").join("MAP.md");
@@ -976,6 +1281,7 @@ fn task_kind_sets_type_and_filters() -> TestResult {
         &[
             "task",
             "new",
+            "--summary",
             "off-by-one",
             "--scope",
             "issue",
@@ -989,6 +1295,7 @@ fn task_kind_sets_type_and_filters() -> TestResult {
         &[
             "task",
             "new",
+            "--summary",
             "medir latencia",
             "--scope",
             "issue",
@@ -1013,7 +1320,10 @@ fn task_claim_and_owner_flags_are_gone() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
-    let _task = task_new(&dir, &["task", "new", "fazer", "--scope", "task"])?;
+    let _task = task_new(
+        &dir,
+        &["task", "new", "--summary", "fazer", "--scope", "task"],
+    )?;
 
     for args in [
         vec!["task", "claim", "task_00000000", "--by", "agente-a"],
@@ -1044,6 +1354,7 @@ fn task_graph_program_renders_subtree() -> TestResult {
         &[
             "task",
             "new",
+            "--summary",
             "Programa",
             "--scope",
             "epic",
@@ -1054,7 +1365,14 @@ fn task_graph_program_renders_subtree() -> TestResult {
     let story = task_new(
         &dir,
         &[
-            "task", "new", "Story", "--scope", "issue", "--parent", &root,
+            "task",
+            "new",
+            "--summary",
+            "Story",
+            "--scope",
+            "issue",
+            "--parent",
+            &root,
         ],
     )?;
 
@@ -1084,6 +1402,7 @@ fn task_graph_program_renders_forest_for_multiple_epics() -> TestResult {
         &[
             "task",
             "new",
+            "--summary",
             "Programa A",
             "--scope",
             "epic",
@@ -1096,6 +1415,7 @@ fn task_graph_program_renders_forest_for_multiple_epics() -> TestResult {
         &[
             "task",
             "new",
+            "--summary",
             "Programa B",
             "--scope",
             "epic",
@@ -1123,7 +1443,17 @@ fn task_graph_without_containers_warns() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success());
-    let new = run_in(&dir, &["task", "new", "tarefa solta", "--scope", "task"])?;
+    let new = run_in(
+        &dir,
+        &[
+            "task",
+            "new",
+            "--summary",
+            "tarefa solta",
+            "--scope",
+            "task",
+        ],
+    )?;
     assert!(new.status.success(), "task falhou: {:?}", new.stderr);
     let out = run_in(&dir, &["task", "graph"])?;
     assert!(out.status.success(), "graph falhou: {:?}", out.stderr);
@@ -1162,6 +1492,7 @@ fn forgotten_note_is_hidden_from_default_ask() -> TestResult {
         &[
             "--json",
             "write",
+            "--summary",
             "segredo temporário do cache",
             "--type",
             "fact",
@@ -1176,7 +1507,7 @@ fn forgotten_note_is_hidden_from_default_ask() -> TestResult {
         .ok_or("write sem id")?
         .to_string();
 
-    let forget = run_in(&dir, &["forget", id.as_str()])?;
+    let forget = run_in(&dir, &["forget", "--id", id.as_str()])?;
     assert!(
         forget.status.success(),
         "forget falhou: {:?}",
@@ -1202,7 +1533,7 @@ fn forgotten_note_is_hidden_from_default_ask() -> TestResult {
 }
 
 #[test]
-fn ask_with_body_and_brief_contract() -> TestResult {
+fn ask_full_content_and_brief_contract() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success());
@@ -1212,10 +1543,10 @@ fn ask_with_body_and_brief_contract() -> TestResult {
         &[
             "--json",
             "write",
+            "--summary",
             "formato TOON é linha a linha",
             "--type",
             "def",
-            "--body",
             "detalhe do corpo",
         ],
     )?;
@@ -1241,10 +1572,10 @@ fn ask_with_body_and_brief_contract() -> TestResult {
         "--brief vazou o corpo: {text}"
     );
 
-    let with_body = run_in(&dir, &["ask", "TOON", "--with-body"])?;
+    let with_body = run_in(&dir, &["ask", "TOON", "--full-content"])?;
     assert!(
         with_body.status.success(),
-        "ask --with-body falhou: {:?}",
+        "ask --full-content falhou: {:?}",
         with_body.stderr
     );
     let text = String::from_utf8(with_body.stdout)?;
@@ -1260,7 +1591,10 @@ fn write_rejects_task_type() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success());
-    let out = run_in(&dir, &["--json", "write", "algo", "--type", "task"])?;
+    let out = run_in(
+        &dir,
+        &["--json", "write", "--summary", "algo", "--type", "task"],
+    )?;
     assert_eq!(out.status.code(), Some(2));
     let value = json(&out)?;
     assert_eq!(value.get("success"), Some(&serde_json::Value::Bool(false)));
@@ -1277,7 +1611,18 @@ fn task_new_requires_scope() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success());
-    let out = run_in(&dir, &["--json", "task", "new", "passo", "--scope", "task"])?;
+    let out = run_in(
+        &dir,
+        &[
+            "--json",
+            "task",
+            "new",
+            "--summary",
+            "passo",
+            "--scope",
+            "task",
+        ],
+    )?;
     assert!(out.status.success(), "task falhou: {:?}", out.stderr);
     let value = json(&out)?;
     let id = value
@@ -1318,8 +1663,281 @@ fn task_new_without_statement_is_invalid() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success());
-    let out = run_in(&dir, &["task", "new", "", "--scope", "task"])?;
+    let out = run_in(&dir, &["task", "new", "--summary", "", "--scope", "task"])?;
     assert_eq!(out.status.code(), Some(2), "tarefa vazia devia ser 2");
+    Ok(())
+}
+
+#[test]
+fn d140_write_positional_is_body() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+
+    // Corpo inline pelo posicional.
+    let out = run_in(
+        &dir,
+        &[
+            "--json",
+            "write",
+            "--summary",
+            "Resumo inline",
+            "corpo inline",
+        ],
+    )?;
+    assert!(out.status.success(), "write falhou: {:?}", out.stderr);
+    let id = json(&out)?
+        .get("data")
+        .and_then(|data| data.get("id"))
+        .and_then(|id| id.as_str())
+        .ok_or("write sem id")?
+        .to_string();
+    let text = std::fs::read_to_string(note_path(&dir, &id))?;
+    assert!(text.contains("Resumo inline"), "sem summary: {text}");
+    assert!(text.contains("corpo inline"), "sem corpo: {text}");
+
+    // `-` lê stdin.
+    let piped = run_stdin(
+        &dir,
+        &["write", "--summary", "Via pipe explícito", "-"],
+        "corpo do pipe\n",
+    )?;
+    assert!(piped.status.success(), "pipe falhou: {:?}", piped.stderr);
+
+    // Sem posicional + stdin não-TTY lê o corpo.
+    let piped = run_stdin(
+        &dir,
+        &["write", "--summary", "Via pipe implícito"],
+        "corpo implícito\n",
+    )?;
+    assert!(
+        piped.status.success(),
+        "pipe implícito falhou: {:?}",
+        piped.stderr
+    );
+
+    // `--body` não existe mais.
+    let bad = run_in(&dir, &["write", "--summary", "S", "--body", "x"])?;
+    assert_eq!(bad.status.code(), Some(2), "`--body` deveria ser exit 2");
+    Ok(())
+}
+
+#[test]
+fn d140_task_new_positional_and_named_ids() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+
+    // `task new`: posicional = corpo; `--summary` = afirmação.
+    let task = task(&dir, "Tarefa", &["corpo da tarefa", "--scope", "task"])?;
+    let show = run_in(&dir, &["task", "show", "--id", &task])?;
+    let text = String::from_utf8(show.stdout)?;
+    assert!(text.contains("corpo da tarefa"), "sem corpo: {text}");
+
+    // `--body` não existe em `task new`.
+    let bad = run_in(
+        &dir,
+        &[
+            "task",
+            "new",
+            "--summary",
+            "T",
+            "--body",
+            "x",
+            "--scope",
+            "task",
+        ],
+    )?;
+    assert_eq!(bad.status.code(), Some(2), "task `--body` devia ser exit 2");
+
+    // Posicional em verbos sem conteúdo → exit 2.
+    for args in [
+        vec!["task", "show", task.as_str()],
+        vec!["forget", task.as_str()],
+        vec!["sync", "foo"],
+        vec!["prime", "foo"],
+    ] {
+        let out = run_in(&dir, &args)?;
+        assert_eq!(out.status.code(), Some(2), "{args:?} devia ser exit 2");
+    }
+    Ok(())
+}
+
+#[test]
+fn task_batch_creates_with_parent_and_edges() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+
+    let batch = concat!(
+        r#"{"key":"e","statement":"Programa","scope":"epic"}"#,
+        "\n",
+        r#"{"key":"i","statement":"Story","scope":"issue","parent":"e"}"#,
+        "\n",
+        r#"{"key":"a","statement":"A","scope":"task","parent":"i","depends_on":["i"]}"#,
+        "\n",
+        r#"{"key":"b","statement":"B","scope":"task","parent":"i","depends_on":["a"]}"#,
+        "\n",
+    );
+    let out = run_stdin(&dir, &["--json", "task", "new", "--batch", "-"], batch)?;
+    assert!(out.status.success(), "batch falhou: {:?}", out.stderr);
+    let value = json(&out)?;
+    let data = value.get("data").ok_or("sem data")?;
+    let keys = data
+        .get("keys")
+        .and_then(|keys| keys.as_object())
+        .ok_or("sem keys")?;
+    let epic = keys.get("e").and_then(|v| v.as_str()).ok_or("sem e")?;
+    let a = keys.get("a").and_then(|v| v.as_str()).ok_or("sem a")?;
+    let items = data
+        .get("items")
+        .and_then(|items| items.as_array())
+        .ok_or("sem items")?;
+    let b_item = items
+        .iter()
+        .find(|item| item.get("key").and_then(|k| k.as_str()) == Some("b"))
+        .ok_or("sem b")?;
+    let edges = b_item
+        .get("edges")
+        .and_then(|edges| edges.as_array())
+        .ok_or("sem edges")?;
+    assert!(
+        edges
+            .iter()
+            .any(|edge| edge.get("to").and_then(|t| t.as_str()) == Some(a)
+                && edge.get("kind").and_then(|k| k.as_str()) == Some("depends_on")),
+        "depends_on não resolvido: {edges:?}"
+    );
+    let graph = run_in(&dir, &["task", "graph", "--root", epic])?;
+    let text = String::from_utf8(graph.stdout)?;
+    assert!(text.contains(a), "graph sem a: {text}");
+    Ok(())
+}
+
+#[test]
+fn task_batch_dry_run_and_warnings() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+
+    let batch = "{\"statement\":\"Nada\",\"scope\":\"task\"}\n{nao-json}";
+    let out = run_stdin(
+        &dir,
+        &["--json", "task", "new", "--batch", "-", "--dry-run"],
+        batch,
+    )?;
+    assert!(out.status.success(), "dry-run falhou: {:?}", out.stderr);
+    let value = json(&out)?;
+    assert!(
+        value
+            .get("warnings")
+            .and_then(|warnings| warnings.as_array())
+            .is_some_and(|warnings| !warnings.is_empty()),
+        "linha inválida sem aviso"
+    );
+    let list = run_in(&dir, &["task", "list"])?;
+    let text = String::from_utf8(list.stdout)?;
+    assert!(!text.contains("Nada"), "dry-run gravou: {text}");
+    Ok(())
+}
+
+#[test]
+fn task_params_reparent_and_max() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+
+    // `--params` cria um item.
+    let params = r#"{"statement":"Único","scope":"task","body":"corpo"}"#;
+    let out = run_in(&dir, &["--json", "task", "new", "--params", params])?;
+    assert!(out.status.success(), "params falhou: {:?}", out.stderr);
+    let value = json(&out)?;
+    let item = value
+        .get("data")
+        .and_then(|data| data.get("items"))
+        .and_then(|items| items.as_array())
+        .and_then(|items| items.first())
+        .ok_or("sem item")?;
+    assert_eq!(item.get("action").and_then(|a| a.as_str()), Some("created"));
+
+    // Re-parenta via `id`+`parent`.
+    let epic = task(&dir, "Raiz", &["--scope", "epic"])?;
+    let orphan = task(&dir, "Órfã", &["--scope", "issue"])?;
+    let update = format!(r#"{{"id":"{orphan}","statement":"Órfã","parent":"{epic}"}}"#);
+    let out = run_in(&dir, &["task", "new", "--params", &update])?;
+    assert!(out.status.success(), "update falhou: {:?}", out.stderr);
+    let show = run_in(&dir, &["task", "show", "--id", &orphan])?;
+    let text = String::from_utf8(show.stdout)?;
+    assert!(
+        text.contains(&format!("pai: {epic}|Raiz")),
+        "sem pai: {text}"
+    );
+
+    // Teto `task.batch_max`.
+    let cap = config_set(&dir, "task.batch_max", "1")?;
+    assert!(cap.status.success());
+    let batch =
+        "{\"statement\":\"A\",\"scope\":\"task\"}\n{\"statement\":\"B\",\"scope\":\"task\"}";
+    let out = run_stdin(&dir, &["task", "new", "--batch", "-"], batch)?;
+    assert_eq!(out.status.code(), Some(2), "acima do teto devia ser 2");
+    Ok(())
+}
+
+#[test]
+fn d147_params_universal() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+
+    // `write --params` cria a nota.
+    let params = r#"{"statement":"Cache LRU","body":"detalhe","type":"decision","tags":["cache"]}"#;
+    let out = run_in(&dir, &["--json", "write", "--params", params])?;
+    assert!(
+        out.status.success(),
+        "write params falhou: {:?}",
+        out.stderr
+    );
+    let value = json(&out)?;
+    let id = value
+        .get("data")
+        .and_then(|data| data.get("items"))
+        .and_then(|items| items.as_array())
+        .and_then(|items| items.first())
+        .and_then(|item| item.get("id"))
+        .and_then(|id| id.as_str())
+        .ok_or("sem id")?
+        .to_string();
+
+    // `ask --params` executa a consulta.
+    let out = run_in(&dir, &["--json", "ask", "--params", r#"{"query":"cache"}"#])?;
+    assert!(out.status.success(), "ask params falhou: {:?}", out.stderr);
+    let value = json(&out)?;
+    let hits = value
+        .get("data")
+        .and_then(|data| data.get("hits"))
+        .and_then(|hits| hits.as_array())
+        .ok_or("sem hits")?;
+    assert!(
+        hits.iter()
+            .any(|hit| hit.get("id").and_then(|i| i.as_str()) == Some(id.as_str())),
+        "hit ausente: {hits:?}"
+    );
+
+    // `ask -` lê a consulta do stdin.
+    let out = run_stdin(&dir, &["--json", "ask", "-"], "cache\n")?;
+    assert!(out.status.success(), "ask - falhou: {:?}", out.stderr);
+
+    // `write --params -` lê o objeto do stdin.
+    let out = run_stdin(
+        &dir,
+        &["write", "--params", "-"],
+        r#"{"statement":"Via stdin","body":"x","type":"fact"}"#,
+    )?;
+    assert!(
+        out.status.success(),
+        "write params - falhou: {:?}",
+        out.stderr
+    );
     Ok(())
 }
 
@@ -1340,6 +1958,7 @@ fn task_new_accepts_anchor_singular_and_plural() -> TestResult {
                 "--json",
                 "task",
                 "new",
+                "--summary",
                 statement,
                 "--scope",
                 "task",
@@ -1373,9 +1992,12 @@ fn config_set_get_roundtrip() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success());
-    let set = run_in(&dir, &["config", "set", "recall.default_limit", "7"])?;
+    let set = config_set(&dir, "recall.default_limit", "7")?;
     assert!(set.status.success(), "set falhou: {:?}", set.stderr);
-    let get = run_in(&dir, &["--json", "config", "get", "recall.default_limit"])?;
+    let get = run_in(
+        &dir,
+        &["--json", "config", "get", "--key", "recall.default_limit"],
+    )?;
     assert!(get.status.success());
     let value = json(&get)?;
     assert_eq!(
@@ -1396,7 +2018,14 @@ fn ask_semantic_channel_reads_vector_index() -> TestResult {
 
     let write = run_in(
         &dir,
-        &["--json", "write", "o cache usa body_hash", "--type", "fact"],
+        &[
+            "--json",
+            "write",
+            "--summary",
+            "o cache usa body_hash",
+            "--type",
+            "fact",
+        ],
     )?;
     assert!(write.status.success(), "write falhou: {:?}", write.stderr);
     let envelope = json(&write)?;
@@ -1407,16 +2036,13 @@ fn ask_semantic_channel_reads_vector_index() -> TestResult {
         .ok_or("write sem id")?
         .to_string();
 
-    let provider = run_in(
-        &dir,
-        &["config", "set", "embeddings.provider", "lightweight"],
-    )?;
+    let provider = config_set(&dir, "embeddings.provider", "lightweight")?;
     assert!(
         provider.status.success(),
         "config falhou: {:?}",
         provider.stderr
     );
-    let drain = run_in(&dir, &["maintenance", "index", "--drain"])?;
+    let drain = run_in(&dir, &["knowledge", "digest", "--drain"])?;
     assert!(drain.status.success(), "index falhou: {:?}", drain.stderr);
 
     // Com o canal vetorial ligado (default), o `ask` acha a nota indexada.
@@ -1435,7 +2061,7 @@ fn ask_semantic_channel_reads_vector_index() -> TestResult {
     );
 
     // Desligar o canal preserva o resultado lexical.
-    let off = run_in(&dir, &["config", "set", "recall.semantic", "false"])?;
+    let off = config_set(&dir, "recall.semantic", "false")?;
     assert!(off.status.success(), "config falhou: {:?}", off.stderr);
     let ask_off = run_in(&dir, &["--json", "ask", "body_hash cache"])?;
     assert!(ask_off.status.success(), "ask falhou: {:?}", ask_off.stderr);
@@ -1458,7 +2084,7 @@ fn missing_key_reports_not_found() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success());
-    let out = run_in(&dir, &["--json", "config", "get", "nao.existe"])?;
+    let out = run_in(&dir, &["--json", "config", "get", "--key", "nao.existe"])?;
     assert_eq!(out.status.code(), Some(3));
     Ok(())
 }
@@ -1469,7 +2095,10 @@ fn task_plan_prompt_and_submit_from_file() -> TestResult {
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
 
-    let epic = task_new(&dir, &["task", "new", "Programa", "--scope", "epic"])?;
+    let epic = task_new(
+        &dir,
+        &["task", "new", "--summary", "Programa", "--scope", "epic"],
+    )?;
 
     let prompt = run_in(
         &dir,
@@ -1510,7 +2139,10 @@ fn task_plan_invalid_from_writes_nothing() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success());
-    let epic = task_new(&dir, &["task", "new", "Programa", "--scope", "epic"])?;
+    let epic = task_new(
+        &dir,
+        &["task", "new", "--summary", "Programa", "--scope", "epic"],
+    )?;
     let before = run_in(&dir, &["--json", "task", "list"])?;
     let before = json(&before)?;
 
@@ -1536,7 +2168,10 @@ fn task_plan_removed_flags_exit_two() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success());
-    let epic = task_new(&dir, &["task", "new", "Programa", "--scope", "epic"])?;
+    let epic = task_new(
+        &dir,
+        &["task", "new", "--summary", "Programa", "--scope", "epic"],
+    )?;
     for flag in ["--adopt", "--release", "--review", "--reorder"] {
         let out = run_in(&dir, &["task", "plan", &epic, flag])?;
         assert_eq!(out.status.code(), Some(2), "{flag} deveria ser exit 2");
@@ -1550,15 +2185,9 @@ fn task_graph_reports_reduced_mode_without_owner() -> TestResult {
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success());
 
-    let epic = task_new(&dir, &["task", "new", "Épico", "--scope", "epic"])?;
-    let _first = task_new(
-        &dir,
-        &["task", "new", "A", "--scope", "issue", "--parent", &epic],
-    )?;
-    let _second = task_new(
-        &dir,
-        &["task", "new", "B", "--scope", "issue", "--parent", &epic],
-    )?;
+    let epic = task(&dir, "Épico", &["--scope", "epic"])?;
+    let _first = task(&dir, "A", &["--scope", "issue", "--parent", &epic])?;
+    let _second = task(&dir, "B", &["--scope", "issue", "--parent", &epic])?;
 
     let graph = run_in(&dir, &["task", "graph", "--root", &epic])?;
     assert!(graph.status.success());
@@ -1604,18 +2233,33 @@ fn ask_tags_lists_vocabulary() -> TestResult {
         ("backoff", "retry"),
         ("buffer", "queue"),
     ] {
-        let out = run_in(&dir, &["write", statement, "--type", "fact", "--tag", tag])?;
+        let out = run_in(
+            &dir,
+            &[
+                "write",
+                "--summary",
+                statement,
+                "--type",
+                "fact",
+                "--tag",
+                tag,
+            ],
+        )?;
         assert!(out.status.success(), "write falhou: {:?}", out.stderr);
     }
 
-    let out = run_in(&dir, &["ask", "--tags"])?;
-    assert!(out.status.success(), "ask --tags falhou: {:?}", out.stderr);
+    let out = run_in(&dir, &["knowledge", "tags"])?;
+    assert!(
+        out.status.success(),
+        "knowledge tags falhou: {:?}",
+        out.stderr
+    );
     let text = String::from_utf8(out.stdout)?;
     let mut lines = text.lines();
     assert_eq!(lines.next(), Some("retry|2"));
     assert_eq!(lines.next(), Some("queue|1"));
 
-    let json_out = run_in(&dir, &["--json", "ask", "--tags"])?;
+    let json_out = run_in(&dir, &["--json", "knowledge", "tags"])?;
     let tags = json(&json_out)?
         .get("data")
         .and_then(|data| data.get("tags"))
@@ -1632,17 +2276,34 @@ fn rewind_manifest_shows_next_and_fresh() -> TestResult {
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
 
-    let epic = task_new(&dir, &["task", "new", "Épico", "--scope", "epic"])?;
+    let epic = task_new(
+        &dir,
+        &["task", "new", "--summary", "Épico", "--scope", "epic"],
+    )?;
     let story = task_new(
         &dir,
         &[
-            "task", "new", "Story", "--scope", "issue", "--parent", &epic,
+            "task",
+            "new",
+            "--summary",
+            "Story",
+            "--scope",
+            "issue",
+            "--parent",
+            &epic,
         ],
     )?;
     let _ready = task_new(
         &dir,
         &[
-            "task", "new", "Pronta", "--scope", "task", "--parent", &story,
+            "task",
+            "new",
+            "--summary",
+            "Pronta",
+            "--scope",
+            "task",
+            "--parent",
+            &story,
         ],
     )?;
 
@@ -1669,6 +2330,7 @@ fn write_typed(
         &[
             "--json",
             "write",
+            "--summary",
             statement,
             "--type",
             note_type,
@@ -1700,6 +2362,7 @@ fn task_outcome_promotes_anchored_note_in_ask() -> TestResult {
         &[
             "task",
             "new",
+            "--summary",
             "implementar retry",
             "--scope",
             "task",
@@ -1707,7 +2370,7 @@ fn task_outcome_promotes_anchored_note_in_ask() -> TestResult {
             "src/retry.ts",
         ],
     )?;
-    let outcome = run_in(&dir, &["write", "--outcome", "success", &task])?;
+    let outcome = run_in(&dir, &["write", "--outcome", "success", "--id", &task])?;
     assert!(
         outcome.status.success(),
         "outcome falhou: {:?}",
@@ -1749,6 +2412,7 @@ fn rewind_files_promotes_task_confirmed_note() -> TestResult {
         &[
             "task",
             "new",
+            "--summary",
             "implementar retry",
             "--scope",
             "task",
@@ -1756,7 +2420,7 @@ fn rewind_files_promotes_task_confirmed_note() -> TestResult {
             "src/retry.ts",
         ],
     )?;
-    let outcome = run_in(&dir, &["write", "--outcome", "success", &task])?;
+    let outcome = run_in(&dir, &["write", "--outcome", "success", "--id", &task])?;
     assert!(
         outcome.status.success(),
         "outcome falhou: {:?}",
@@ -1778,10 +2442,7 @@ fn idle_lazy_drains_queue_after_command() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
-    let provider = run_in(
-        &dir,
-        &["config", "set", "embeddings.provider", "lightweight"],
-    )?;
+    let provider = config_set(&dir, "embeddings.provider", "lightweight")?;
     assert!(
         provider.status.success(),
         "config falhou: {:?}",
@@ -1792,6 +2453,7 @@ fn idle_lazy_drains_queue_after_command() -> TestResult {
         &dir,
         &[
             "write",
+            "--summary",
             "o auto-drain ocioso indexa sozinho",
             "--type",
             "fact",
@@ -1800,7 +2462,7 @@ fn idle_lazy_drains_queue_after_command() -> TestResult {
     assert!(write.status.success(), "write falhou: {:?}", write.stderr);
 
     // `--status` é maintenance (não drena): reflete o que o auto-drain fez antes de sair.
-    let status = run_in(&dir, &["maintenance", "index", "--status"])?;
+    let status = run_in(&dir, &["knowledge", "digest", "--status"])?;
     assert!(
         status.status.success(),
         "status falhou: {:?}",
@@ -1816,22 +2478,20 @@ fn idle_manual_mode_leaves_queue_pending() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
-    let provider = run_in(
-        &dir,
-        &["config", "set", "embeddings.provider", "lightweight"],
-    )?;
+    let provider = config_set(&dir, "embeddings.provider", "lightweight")?;
     assert!(
         provider.status.success(),
         "config falhou: {:?}",
         provider.stderr
     );
-    let mode = run_in(&dir, &["config", "set", "embeddings.mode", "manual"])?;
+    let mode = config_set(&dir, "embeddings.mode", "manual")?;
     assert!(mode.status.success(), "config falhou: {:?}", mode.stderr);
 
     let write = run_in(
         &dir,
         &[
             "write",
+            "--summary",
             "no modo manual nada drena sozinho",
             "--type",
             "fact",
@@ -1839,7 +2499,7 @@ fn idle_manual_mode_leaves_queue_pending() -> TestResult {
     )?;
     assert!(write.status.success(), "write falhou: {:?}", write.stderr);
 
-    let status = run_in(&dir, &["maintenance", "index", "--status"])?;
+    let status = run_in(&dir, &["knowledge", "digest", "--status"])?;
     let text = String::from_utf8(status.stdout)?;
     assert_eq!(text.trim(), "pending: 1", "modo manual drenou: {text}");
     Ok(())
@@ -1850,7 +2510,7 @@ fn eager_mode_is_rejected() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
-    let out = run_in(&dir, &["config", "set", "embeddings.mode", "eager"])?;
+    let out = config_set(&dir, "embeddings.mode", "eager")?;
     assert_eq!(
         out.status.code(),
         Some(7),
@@ -1981,5 +2641,335 @@ fn watch_service_subscribe_runs_local_script() -> TestResult {
     let recorded = std::fs::read_to_string(&args_file)?;
     assert!(recorded.contains("subscribe"), "args: {recorded}");
     assert!(recorded.contains("--project"), "args: {recorded}");
+    Ok(())
+}
+
+/// Escreve uma nota com tag e classe e devolve o id.
+fn write_tagged(
+    dir: &Path,
+    statement: &str,
+    tag: &str,
+    class: &str,
+    anchor: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let out = run_in(
+        dir,
+        &[
+            "--json",
+            "write",
+            "--summary",
+            statement,
+            "--type",
+            "fact",
+            "--tag",
+            tag,
+            "--class",
+            class,
+            "--anchor",
+            anchor,
+        ],
+    )?;
+    assert!(out.status.success(), "write falhou: {:?}", out.stderr);
+    let id = json(&out)?
+        .get("data")
+        .and_then(|data| data.get("id"))
+        .and_then(|id| id.as_str())
+        .ok_or("write sem id")?
+        .to_string();
+    Ok(id)
+}
+
+/// Contagem `docs` do `--json knowledge map`.
+fn map_docs(value: &serde_json::Value) -> Option<u64> {
+    value
+        .get("data")
+        .and_then(|data| data.get("docs"))
+        .and_then(serde_json::Value::as_u64)
+}
+
+#[test]
+fn d143_knowledge_map_scope_and_filters() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+
+    let cache = write_typed(&dir, "cache usa lru", "decision", "src/cache.rs")?;
+    let _queue = write_tagged(
+        &dir,
+        "fila usa backoff",
+        "retry",
+        "foundational",
+        "src/queue.rs",
+    )?;
+
+    let bare = run_in(&dir, &["knowledge", "map"])?;
+    assert_eq!(bare.status.code(), Some(2), "map sem escopo devia ser 2");
+
+    for filter in [
+        vec!["--type", "decision"],
+        vec!["--anchor", "src/queue.rs"],
+        vec!["--tag", "retry"],
+        vec!["--class", "foundational"],
+    ] {
+        let mut args = vec!["--json", "knowledge", "map"];
+        args.extend(filter.iter().copied());
+        let out = run_in(&dir, &args)?;
+        assert!(out.status.success(), "map {filter:?}: {:?}", out.stderr);
+        assert_eq!(
+            map_docs(&json(&out)?),
+            Some(1),
+            "map {filter:?} não restringiu"
+        );
+    }
+
+    let around = run_in(
+        &dir,
+        &["knowledge", "map", "--around", &cache, "--depth", "1"],
+    )?;
+    assert!(around.status.success(), "map --around: {:?}", around.stderr);
+
+    let all = run_in(&dir, &["--json", "knowledge", "map", "--universe"])?;
+    assert_eq!(map_docs(&json(&all)?), Some(2), "--universe devia ver tudo");
+    Ok(())
+}
+
+#[test]
+fn d143_rewind_filters_scope_handoff() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+
+    let retry = write_tagged(&dir, "usar jitter", "retry", "tactical", "src/a.rs")?;
+    let queue = write_tagged(&dir, "usar fila", "queue", "tactical", "src/b.rs")?;
+
+    let scoped = run_in(&dir, &["rewind", "--tag", "retry"])?;
+    assert!(scoped.status.success(), "rewind --tag: {:?}", scoped.stderr);
+    let text = String::from_utf8(scoped.stdout)?;
+    assert!(text.contains(&retry), "nota com a tag ausente: {text}");
+    assert!(!text.contains(&queue), "nota fora da tag entrou: {text}");
+
+    let by_files = run_in(&dir, &["rewind", "--files", "src/a.rs", "--tag", "queue"])?;
+    let text = String::from_utf8(by_files.stdout)?;
+    assert!(
+        !text.contains(&retry),
+        "filtro não cortou o working set: {text}"
+    );
+    Ok(())
+}
+
+#[test]
+fn d144_maintenance_requires_scope() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let _ignored = write_tagged(
+        &dir,
+        "fila usa backoff",
+        "retry",
+        "tactical",
+        "src/queue.rs",
+    )?;
+
+    for cmd in ["learn", "compact", "prune"] {
+        let bare = run_in(&dir, &["maintenance", cmd])?;
+        assert_eq!(bare.status.code(), Some(2), "maintenance {cmd} sem escopo");
+        let universe = run_in(&dir, &["maintenance", cmd, "--universe"])?;
+        assert!(
+            universe.status.success(),
+            "{cmd} --universe: {:?}",
+            universe.stderr
+        );
+    }
+
+    let tagged = run_in(&dir, &["maintenance", "learn", "--tag", "retry"])?;
+    assert!(tagged.status.success(), "learn --tag: {:?}", tagged.stderr);
+    Ok(())
+}
+
+#[test]
+fn d144_task_list_requires_scope() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let _ignored = task(&dir, "Alfa", &["--scope", "task"])?;
+    let _ignored = task(&dir, "Beta", &["--scope", "task"])?;
+
+    let bare = run_in(&dir, &["task", "list"])?;
+    assert_eq!(bare.status.code(), Some(2), "task list sem escopo");
+    let sorted = run_in(&dir, &["task", "list", "--sort", "impact"])?;
+    assert_eq!(sorted.status.code(), Some(2), "--sort não é escopo");
+
+    let all = run_in(&dir, &["task", "list", "--universe"])?;
+    assert!(all.status.success(), "list --universe: {:?}", all.stderr);
+    assert_eq!(String::from_utf8(all.stdout)?.lines().count(), 2);
+
+    let by_scope = run_in(&dir, &["task", "list", "--scope", "task"])?;
+    assert!(
+        by_scope.status.success(),
+        "list --scope: {:?}",
+        by_scope.stderr
+    );
+    Ok(())
+}
+
+#[test]
+fn d146_ask_knowledge_only_and_with_task() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+
+    let knowledge = write_anchored(&dir, "cache usa lru", "src/cache.rs")?;
+    let task = task(
+        &dir,
+        "cache invalidation",
+        &["--scope", "task", "--anchor", "src/cache.rs"],
+    )?;
+
+    let out = run_in(&dir, &["--json", "ask", "cache"])?;
+    let hits = json(&out)?
+        .get("data")
+        .and_then(|data| data.get("hits"))
+        .and_then(|hits| hits.as_array())
+        .cloned()
+        .ok_or("sem hits")?;
+    let ids: Vec<&str> = hits
+        .iter()
+        .filter_map(|hit| hit.get("id").and_then(|id| id.as_str()))
+        .collect();
+    assert!(
+        ids.contains(&knowledge.as_str()),
+        "conhecimento ausente: {ids:?}"
+    );
+    assert!(
+        !ids.contains(&task.as_str()),
+        "tarefa entrou sem --with-task: {ids:?}"
+    );
+
+    let with_task = run_in(&dir, &["--json", "ask", "cache", "--with-task"])?;
+    let hits = json(&with_task)?
+        .get("data")
+        .and_then(|data| data.get("hits"))
+        .and_then(|hits| hits.as_array())
+        .cloned()
+        .ok_or("sem hits")?;
+    assert!(
+        hits.iter()
+            .any(|hit| hit.get("id").and_then(|id| id.as_str()) == Some(task.as_str())),
+        "--with-task não incluiu a tarefa"
+    );
+
+    let removed = run_in(&dir, &["ask", "--rank"])?;
+    assert_eq!(removed.status.code(), Some(2), "`ask --rank` devia sumir");
+    Ok(())
+}
+
+#[test]
+fn d146_knowledge_rank_and_tags() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let _ignored = write_tagged(
+        &dir,
+        "fila usa backoff",
+        "retry",
+        "tactical",
+        "src/queue.rs",
+    )?;
+
+    let bare = run_in(&dir, &["knowledge", "rank"])?;
+    assert_eq!(bare.status.code(), Some(2), "rank sem escopo devia ser 2");
+
+    let ranked = run_in(&dir, &["--json", "knowledge", "rank", "--universe"])?;
+    assert!(
+        ranked.status.success(),
+        "rank --universe: {:?}",
+        ranked.stderr
+    );
+    assert!(
+        json(&ranked)?
+            .get("data")
+            .and_then(|data| data.get("ranked"))
+            .is_some(),
+        "sem ranked"
+    );
+
+    let tags = run_in(&dir, &["knowledge", "tags"])?;
+    assert!(tags.status.success(), "knowledge tags: {:?}", tags.stderr);
+    assert!(String::from_utf8(tags.stdout)?.contains("retry|1"));
+    Ok(())
+}
+
+#[test]
+fn d151_ask_json_exposes_channel_contributions() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let id = write_anchored(&dir, "cache usa lru", "src/cache.rs")?;
+
+    let out = run_in(&dir, &["--json", "ask", "cache"])?;
+    assert!(out.status.success(), "ask: {:?}", out.stderr);
+    let hit = json(&out)?
+        .get("data")
+        .and_then(|data| data.get("hits"))
+        .and_then(|hits| hits.as_array())
+        .and_then(|hits| hits.first())
+        .cloned()
+        .ok_or("sem hit")?;
+    assert_eq!(hit.get("id").and_then(|v| v.as_str()), Some(id.as_str()));
+    let channels = hit.get("channels").ok_or("sem channels")?;
+    for key in ["lexical", "anchor", "semantic", "recent", "stars"] {
+        assert!(
+            channels
+                .get(key)
+                .and_then(serde_json::Value::as_f64)
+                .is_some(),
+            "canal ausente: {key}"
+        );
+    }
+
+    // O pipe segue `id|statement|score|why` (sem canais) — D151.
+    let pipe = run_in(&dir, &["ask", "cache"])?;
+    assert!(pipe.status.success(), "pipe: {:?}", pipe.stderr);
+    let text = String::from_utf8(pipe.stdout)?;
+    let first = text.lines().next().unwrap_or_default();
+    assert_eq!(first.split('|').count(), 4, "pipe mudou: {first}");
+    Ok(())
+}
+
+#[test]
+fn d152_empty_search_prints_no_results() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let _ignored = write_anchored(&dir, "cache usa lru", "src/cache.rs")?;
+
+    let out = run_in(&dir, &["ask", "termo-que-nao-existe-zzz"])?;
+    assert!(out.status.success(), "ask vazio: {:?}", out.stderr);
+    assert_eq!(String::from_utf8(out.stdout)?.trim_end(), "[no_results]");
+
+    let js = run_in(&dir, &["--json", "ask", "termo-que-nao-existe-zzz"])?;
+    assert!(js.status.success(), "ask --json: {:?}", js.stderr);
+    let hits = json(&js)?
+        .get("data")
+        .and_then(|data| data.get("hits"))
+        .and_then(|hits| hits.as_array())
+        .cloned()
+        .ok_or("sem hits")?;
+    assert!(hits.is_empty(), "hits devia ser vazio: {hits:?}");
+    Ok(())
+}
+
+#[test]
+fn d145_maintenance_eval_and_index_removed() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let removed: [&[&str]; 2] = [&["maintenance", "eval"], &["maintenance", "index"]];
+    for args in removed {
+        let out = run_in(&dir, args)?;
+        assert_eq!(out.status.code(), Some(2), "{args:?} devia sumir");
+    }
+    let digest = run_in(&dir, &["knowledge", "digest", "--status"])?;
+    assert!(digest.status.success(), "digest: {:?}", digest.stderr);
     Ok(())
 }

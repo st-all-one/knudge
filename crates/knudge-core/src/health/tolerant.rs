@@ -85,7 +85,7 @@ pub fn read_note_tolerant(store: &Store<'_>, id: &str) -> Result<TolerantNote> {
 fn read_one(store: &Store<'_>, id: &str) -> std::result::Result<(Note, Vec<String>), ReadFailure> {
     let bytes = store
         .fs()
-        .read(&store.note_path(id))
+        .read(&store.resolve_path(id))
         .map_err(|error| (error.to_string(), guidance(&error)))?;
     Note::parse_with_warnings(&bytes).map_err(|error| (error.to_string(), guidance(&error)))
 }

@@ -51,6 +51,8 @@ struct Settings {
     cache_enabled: bool,
     cache_path: PathBuf,
     max_bytes: usize,
+    /// Teto **soft** do cache versionado (aviso, nunca eviction — D148).
+    warn_bytes: Option<usize>,
     ttl_ms: i64,
     batch: usize,
     max_pending: usize,
@@ -65,11 +67,26 @@ impl Settings {
             .get_int("embeddings.cache_ttl_days")
             .unwrap_or(0)
             .max(0);
+        // `version_cache=true` (D148): cache fora do `.idx/`, versionado, sem eviction/TTL.
+        let versioned = input
+            .config
+            .get_bool("embeddings.version_cache")
+            .unwrap_or(false);
+        let soft_max = cache_max_bytes(input.config);
         Ok(Self {
             cache_enabled: input.config.get_bool("embeddings.cache").unwrap_or(true),
-            cache_path: input.store.root().join(".idx").join(CACHE_FILE),
-            max_bytes: cache_max_bytes(input.config),
-            ttl_ms: ttl_days.saturating_mul(86_400_000),
+            cache_path: if versioned {
+                input.store.root().join(CACHE_FILE)
+            } else {
+                input.store.root().join(".idx").join(CACHE_FILE)
+            },
+            max_bytes: if versioned { usize::MAX } else { soft_max },
+            warn_bytes: if versioned { Some(soft_max) } else { None },
+            ttl_ms: if versioned {
+                0
+            } else {
+                ttl_days.saturating_mul(86_400_000)
+            },
             batch: positive(input.config.get_int("embeddings.batch"), 32),
             max_pending: non_negative(input.config.get_int("embeddings.max_pending"), 1000),
         })
@@ -80,6 +97,17 @@ impl Settings {
             EmbeddingCache::load(fs, &self.cache_path, self.max_bytes, warnings)
         } else {
             EmbeddingCache::new(self.max_bytes)
+        }
+    }
+
+    /// Avisa (sem evictar) quando o cache versionado passa do teto soft (D148).
+    fn warn_if_large(&self, cache: &EmbeddingCache, warnings: &mut Vec<String>) {
+        if let Some(limit) = self.warn_bytes
+            && cache.bytes() > limit
+        {
+            warnings.push(format!(
+                "cache vetorial versionado acima de {limit} bytes; considere podar/`kd sync` (D148)"
+            ));
         }
     }
 }
@@ -108,6 +136,7 @@ pub fn drain(input: &DrainInput<'_>) -> Result<DrainOutcome> {
     let mut index = EmbeddingIndex::load(fs, root, &meta, &mut warnings)?
         .unwrap_or_else(|| EmbeddingIndex::new(meta.clone()));
     let mut cache = settings.load_cache(fs, &mut warnings);
+    settings.warn_if_large(&cache, &mut warnings);
     let _pruned = cache.prune_expired(input.now_ms, settings.ttl_ms);
 
     let (mut queue, stale) = pending_queue(input.store, &index, &mut warnings)?;

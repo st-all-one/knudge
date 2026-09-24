@@ -1,0 +1,80 @@
+[knowledge]
+persist_in_project = true
+
+[dedup]
+create_below = 0.75
+merge_below = 0.92
+
+[write]
+batch_max = 100
+
+[task]
+batch_max = 100
+
+[recall]
+default_limit = 5
+expand_depth = 1
+rrf_k = 60
+confirmation_from_tasks = 0.1
+lexical_weight = 1.0
+anchor_weight = 1.0
+semantic_weight = 30.0
+semantic = true
+semantic_top_k = 50
+
+[mcp]
+observation_mode = true
+observation_sessions = 3
+hints_cap = 3
+
+[behavior]
+strict = false
+
+[retention]
+foundational_days = 0
+tactical_days = 365
+observational_days = 30
+retired_days = 30
+
+[decay]
+anchor_threshold = 0.5
+grace_days = 30
+
+[clusters]
+min_volume = 10
+similarity_threshold = 0.8
+
+[hooks]
+pre_record = ""
+post_record = ""
+pre_prime = ""
+pre_prune = ""
+pre_compact = ""
+timeout_ms = 30000
+
+[ids]
+prefix_style = "declarative"
+
+[programs]
+glob = "plan/*.md"
+
+[embeddings]
+enabled = true
+provider = "http"
+model = "ibm-granite/granite-embedding-97m-multilingual-r2"
+revision = "main"
+dimensions = 384
+similarity = "cosine"
+normalize = true
+mode = "lazy"
+async = true
+batch = 32
+max_pending = 1000
+cache = true
+cache_max_bytes = 33554432
+cache_ttl_days = 30
+flush_ms = 2000
+endpoint = "http://127.0.0.1:8080/v1/embeddings"
+timeout_ms = 30000
+retries = 2
+api_key_env = "KNUDGE_EMBEDDING_API_KEY"

@@ -28,7 +28,7 @@ kd maintenance watch-service --install
 
 Ele **pergunta antes** de agir (`--no-deps` não baixa dependências; sem `systemd`/`launchd` ele
 imprime a linha de cron). O passo a passo manual por SO — **Windows, macOS, Ubuntu, Fedora,
-Arch** — está em [`docs/06-embeddings.md`](docs/06-embeddings.md).
+Arch** — está em [`docs/15-embeddings.md`](docs/15-embeddings.md).
 
 ## Quickstart
 
@@ -37,14 +37,14 @@ kd init                                        # funda .knudge/ e o AGENTS.md
 
 kd ask "como o gateway limita requisições" --brief
 
-kd write --type decision "Rate limit é 100 rps por chave" \
+kd write --summary "Rate limit é 100 rps por chave" --type decision \
   --tag gateway --anchor src/gateway.rs
 
-kd task new "Sync offline-first" --scope epic
-kd task new "Resolver conflito de merge" --scope task --parent <epic>
+kd task new --summary "Sync offline-first" --scope epic
+kd task new --summary "Resolver conflito de merge" --scope task --parent <epic>
 kd task list --ready --sort impact
 
-kd knowledge map --axis scope --semantic
+kd knowledge map --axis scope --semantic --universe
 kd maintenance watch-service --status
 ```
 
@@ -58,8 +58,8 @@ kd maintenance watch-service --status
 | **`kd maintenance watch-service`** | Sobe/checa o servidor de embeddings persistente e o worker de auto-drain (`--install`/`--status`/`--uninstall`). |
 | **`kd write`** | Grava conhecimento (fato/decisão/erro/risco): `--type`, `--tag`, `--anchor`, `--update`, `--link`, `--outcome`. |
 | **`kd task`** | Planeja/executa trabalho (`epic ⊃ { issue ⊃ task | task }`): `new`/`list`/`show`/`close`/`graph`. |
-| **`kd ask`** | Busca: filtros (`--type/--tag/--status/--anchor`), `--id`, `--around`, `--rank`, `--brief`. |
-| **`kd knowledge map`** | Mapa de clusters estrutural e `--semantic`; `--write` materializa `notas/MAP.md` + hubs versionados. |
+| **`kd ask`** | Busca: filtros (`--type/--tag/--status/--anchor`), `--id`, `--around`, `--with-task`, `--brief`. |
+| **`kd knowledge`** | `map` de clusters (`--semantic`, `--write` materializa `notas/MAP.md` + hubs), `rank` (mais confiáveis) e `tags`; `map`/`rank` exigem escopo ou `--universe`. |
 | `kd rewind` | Handoff de contexto com orçamento de tokens. |
 | `kd forget` · `kd sync` | Soft-delete e commit de `notas/` + `eventos/`. |
 | `kd maintenance doctor --audit` | Saúde, integridade e âncoras quebradas. |
@@ -73,7 +73,8 @@ do modelo.
 
 ## Documentação
 
-Guias de uso: [`docs/`](docs/README.md) · Para agentes: [`SKILL.md`](SKILL.md) · Índice para LLM:
+Guias de uso: [`docs/`](docs/README.md) — **um guia por comando** + [quickstart](docs/00-quickstart.md) e [conceitos](docs/01-conceitos.md).
+Para agentes: [`SKILL.md`](SKILL.md) · Índice para LLM:
 [`llms.txt`](llms.txt) · CLI completa: [`16_cli_surface.md`](plan/implementation/16_cli_surface.md) ·
 Contrato de bytes: [`TOON.md`](TOON.md) · Arquitetura: [`ARCHITECTURE.md`](ARCHITECTURE.md) ·
 Decisões: [`plan/03_decisoes-fechadas.md`](plan/03_decisoes-fechadas.md).

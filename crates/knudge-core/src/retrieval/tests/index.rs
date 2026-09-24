@@ -76,3 +76,26 @@ fn size_warning_only_above_threshold() {
     assert!(size_warning(limit).is_none());
     assert!(size_warning(limit.saturating_add(1)).is_some());
 }
+
+#[test]
+fn from_store_skips_invalid_notes() -> Result<()> {
+    let fs = MemFs::new();
+    let store = Store::new(&fs, "/p/.knudge");
+    store.ensure_dirs()?;
+    let good = note(NoteType::Fact, "boa", "corpo")?;
+    let good_id = good.id()?.to_string();
+    store.write(&good)?;
+    // Nota legada com `type` desconhecido (D149): não derruba o índice (D17/D18).
+    fs.insert(
+        "/p/.knudge/notas/alien/alien_00000000.md",
+        b"---\nid: alien_00000000\ntype: alien\nstatement: hmm\ncreated_at: 2023-11-14T22:13:20.000Z\nbody_hash: 00000000\nschema_version: 1\n---\n"
+            .to_vec(),
+    );
+    let index = Index::from_store(&store)?;
+    assert_eq!(index.docs.len(), 1);
+    assert_eq!(
+        index.docs.first().map(|doc| doc.meta.id.as_str()),
+        Some(good_id.as_str())
+    );
+    Ok(())
+}

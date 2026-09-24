@@ -22,12 +22,35 @@ pub use manifest::{
 pub use next::{NextTask, manifest_at, next_tasks};
 pub use scope::{FLIP_CONTAINERS, FLIP_NOTES, detect_scope, should_flip};
 
+use std::collections::BTreeSet;
+
 use crate::graph::Graph;
 use crate::lifecycle::Freshness;
-use crate::retrieval::Index;
+use crate::retrieval::{Filter, Index, Meta};
 use crate::schema::NoteType;
 use crate::store::Event;
 use crate::{Error, Result};
+
+/// Escopo do corpus do `rewind` (D143): filtro estrutural + vizinhança (`--around`).
+#[derive(Debug, Clone, Default)]
+pub struct CorpusScope {
+    /// Filtro estrutural (`--tag`/`--anchor`/`--type`/`--class`).
+    pub filter: Filter,
+    /// Ids permitidos pela vizinhança; `None` = tudo.
+    pub allowed: Option<BTreeSet<String>>,
+}
+
+impl CorpusScope {
+    /// `true` se a nota entra no escopo.
+    #[must_use]
+    pub fn matches(&self, meta: &Meta) -> bool {
+        self.filter.matches(meta)
+            && self
+                .allowed
+                .as_ref()
+                .is_none_or(|ids| ids.contains(&meta.id))
+    }
+}
 
 /// Modo de `rewind`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -89,6 +112,8 @@ pub struct RewindInput<'a> {
     pub changed_paths: &'a [String],
     /// Frescor do corpus (shelf-life + fila de embeddings — D106).
     pub freshness: Freshness,
+    /// Escopo do corpus (filtro + vizinhança) — D143.
+    pub scope: CorpusScope,
     /// Peso da confirmação derivada de tarefas (X1/D108).
     pub task_confirmation_weight: f64,
     /// Instante atual (ms).
@@ -138,6 +163,7 @@ pub fn rewind(
                 input.changed_paths,
                 &input.freshness,
                 request.budget,
+                &input.scope,
             );
             (text, Vec::new(), false, dropped)
         }
@@ -147,6 +173,7 @@ pub fn rewind(
                 input.graph,
                 &mode,
                 input.task_confirmation_weight,
+                &input.scope,
             );
             let lines: Vec<String> = items.iter().map(render_item).collect();
             let budgeted = budget::apply(&lines, request.budget);

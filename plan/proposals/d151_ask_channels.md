@@ -1,7 +1,6 @@
 # D151 — `ask` expõe a contribuição de canal no `--json`
 
-> **Status:** decisão fechada (registrada em `plan/03_decisoes-fechadas.md`); **implementação
-> pendente**. Origem: item 2 do `rascunho_melhorias.md`. Revisa **D39/D121/D124**. Sem execução.
+> **Status:** decisão fechada e **implementada** (v0.3.0). Origem: item 2 do `rascunho_melhorias.md`. Revisa **D39/D121/D124**.
 
 ## 1. Decisão
 
@@ -27,7 +26,7 @@
 
 ## 4. Aceite
 
-- [ ] `ask --json` traz `channels` por hit; o pipe segue `id|statement|score|why`.
-- [ ] A confirmação de tarefas é rotulada.
-- [ ] Doc descreve a recalibração offline.
-- [ ] `make check` verde; goldens atualizados.
+- [x] `ask --json` traz `channels` por hit; o pipe segue `id|statement|score|why`.
+- [x] A confirmação de tarefas é rotulada.
+- [x] Doc descreve a recalibração offline.
+- [x] `make check` verde; goldens atualizados.

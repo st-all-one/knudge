@@ -205,3 +205,18 @@ módulos. Onde mexer:
 - Matriz de aceite: [`plan/implementation/17_matriz_aceitacao.md`](plan/implementation/17_matriz_aceitacao.md).
 - Bordas: [`DIVERGENCES.md`](DIVERGENCES.md).
 - Rust: [`.agents/skill/rust/SKILL.md`](.agents/skill/rust/SKILL.md).
+
+<!-- knudge:start -->
+<!-- knudge:version: 1 -->
+# knudge — memória do projeto
+
+Este projeto usa **knudge** (`kd`). `notas/` é a fonte da verdade; não edite à mão.
+
+Antes de implementar:
+1. `kd prime` — protocolo completo (uma vez por sessão).
+2. `kd ask "<pergunta>"` — consulte antes de criar.
+3. `kd write "<afirmação>"` — registre cada aprendizado (uma afirmação por nota).
+4. `kd rewind` — situe a próxima sessão ao encerrar.
+
+Config: `.knudge/config.toml`. Diagnóstico: `kd maintenance doctor`.
+<!-- knudge:end -->

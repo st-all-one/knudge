@@ -1,7 +1,6 @@
 # D143 — escopo de conhecimento: ponto de partida no `knowledge map` e no `rewind`
 
-> **Status:** decisão fechada (registrada em `plan/03_decisoes-fechadas.md`); **implementação
-> pendente**. Origem: revisão de `docs/07-manutencao.md`. Revisa **D128/D129**. Sem execução.
+> **Status:** decisão fechada e **implementada** (v0.3.0). Origem: revisão de `docs/07-manutencao.md`. Revisa **D128/D129**.
 
 ## 1. Diagnóstico (evidência)
 
@@ -52,10 +51,10 @@ revisar** sob o mesmo princípio (decisão à parte):
 
 ## 5. Aceite
 
-- [ ] `knowledge map --tag X` / `--anchor 'src/**'` / `--type T` / `--class C` restringem o corpus.
-- [ ] `knowledge map --around <ID> --depth N` mostra a vizinhança.
-- [ ] `knowledge map` sem escopo e sem `--universe` → exit 2 (com orientação).
-- [ ] `knowledge map --universe` mostra o projeto inteiro.
-- [ ] `rewind --tag/--anchor/--type/--class` escopam o handoff.
-- [ ] Nenhuma operação varre o corpus sem escopo explícito (princípio §2.1).
-- [ ] `make check` verde; docs/`prime`/goldens atualizados.
+- [x] `knowledge map --tag X` / `--anchor 'src/**'` / `--type T` / `--class C` restringem o corpus.
+- [x] `knowledge map --around <ID> --depth N` mostra a vizinhança.
+- [x] `knowledge map` sem escopo e sem `--universe` → exit 2 (com orientação).
+- [x] `knowledge map --universe` mostra o projeto inteiro.
+- [x] `rewind --tag/--anchor/--type/--class` escopam o handoff.
+- [x] Nenhuma operação varre o corpus sem escopo explícito (princípio §2.1).
+- [x] `make check` verde; docs/`prime`/goldens atualizados.

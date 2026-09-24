@@ -4,6 +4,54 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+### Mudado
+- **v0.3.0 — superfície redefinida (D134–D150).** Ciclo de revisão que simplifica o modelo e a CLI:
+  - **Modelo (D134/D149).** `epic` é a raiz; `issue` opcional; `scope=plan` e `type=container`
+    removidos (grupo = `scope=epic`, `type` omitido). Filtro/eixo `container` → `scope`.
+  - **Contrato de bytes (D135/D142).** Chaves canônicas 28→25 (sem `expires_at`/`not_before`/
+    `confidence`); `--anchor` é o único vínculo externo; views colapsam em `compute_views`.
+  - **Agente único (D136).** Sem posse: removidos `claim`/`release`/`--owner`/`--mine`/`actor`;
+    `mode` reduzido a `sequential|concurrent|magentic`; `task list --since` removido.
+  - **Tarefas (D137/D138/D139).** `show` completo (corpo/`checks`/âncoras/tags/`outcomes`) e
+    `list --full-content`; `task plan` só `--prompt`/`--submit`; `graph` enxuto
+    (`id|kind|status|statement`) e `plan.md` ancora vários épicos (floresta).
+  - **Entrada universal (D140/D141/D147).** O posicional é **conteúdo** (corpo/consulta);
+    afirmação vira `--summary` e ids viram `--id`; `--body` removido; `task new --params`/
+    `--batch`; `write`/`ask`/`task new` aceitam `--params '<json>'`; stdin/heredoc universal.
+  - **Escopo explícito (D143/D144/D146).** `knowledge map`/`rank`, `maintenance
+    learn`/`compact`/`prune` e `task list` exigem filtro (`--tag`/`--anchor`/`--type`/
+    `--class`/`--around`) ou `--universe`; `rewind` ganha os mesmos filtros. `ask` devolve só
+    **conhecimento** por padrão (`--with-task` inclui trabalho) e `--with-body` vira
+    `--full-content`; `rank`/`tags` migram para `kd knowledge`.
+  - **Layout material (D150).** `notas/<tipo>/<id>.md` + `MAP.md` + notas-hub
+    (`kd knowledge map --write`).
+  - **Busca observável (D151/D152).** O `--json` do `ask` traz `channels` por hit (parcelas
+    RRF + boosts `recent`/`stars`; o pipe não muda); busca vazia → stdout `[no_results]`
+    (exit 0; `--json` com `hits: []`).
+  - **Digestão e cache (D145/D148/D153).** `maintenance eval`/`index` saem (`eval` era stub);
+    a fila vira `kd knowledge digest --status/--drain`. O cache vetorial deixa de ser descartável:
+    opt-in `embeddings.version_cache` o versiona em `.knudge/emb_cache.jsonl` (`merge=union`, sem
+    eviction), chave `(body_hash, model)` com *lookup* model-aware e desempate determinístico;
+    clone com o mesmo modelo reindexa **sem inferência**. Conflito de nota é pulado/reportado.
+
+### Corrigido
+- **Corpus legado (layout plano + `type: container`) volta a ser lido.** `Store::read`/`exists`/
+  `remove` caem em `notas/<id>.md` quando o canônico não existe, e `Index::from_store`/
+  `Graph::build`/varreduras do CLI usam `read_optional` — uma nota com `type` desconhecido é
+  **pulada** em vez de derrubar `ask`/`task list`/`rewind`/`doctor`. `doctor --fix` então migra o
+  corpus (D134/D149/D150). Coberto por `legacy_migration.rs` (inclui smoke no corpus real do
+  `TMP`) e por testes de `store`/`index`/`graph`.
+
+### Documentação
+- **`docs/` reestruturada: um guia por comando.** Cada verbo (`prime`, `init`, `ask`, `write`,
+  `task`, `knowledge`, `rewind`, `maintenance`, `config`, `forget`, `sync`, `self`) tem o seu
+  `.md` com o que faz, uso ideal, referência de cada flag/subcomando, resultados e exemplos em
+  **complexidade crescente**. Entrada rápida em [`docs/00-quickstart.md`](docs/00-quickstart.md)
+  (instalação, desinstalação, primeiros passos, troubleshooting) e
+  [`docs/01-conceitos.md`](docs/01-conceitos.md) (modelo de dados, layout, arquitetura e decisões
+  `Dxx`), mais [`docs/troubleshooting.md`](docs/troubleshooting.md) e os guias de
+  [`mcp`](docs/14-mcp.md)/[`embeddings`](docs/15-embeddings.md).
+
 ## [0.2.3] - 2026-09-23
 
 ### Adicionado

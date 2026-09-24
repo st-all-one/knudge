@@ -5,12 +5,14 @@
 //! `outcomes`, o feedback de tarefas (X1/D108) e a idade; `similarity` é `0` porque não
 //! há texto. Ordem determinística: `(confidence desc, id asc)`.
 
-use crate::lifecycle::confidence::{ConfidenceInput, confidence_score, from_tasks_with};
+use crate::lifecycle::confidence::{
+    ConfidenceInput, age_factor, confidence_score, from_tasks_with,
+};
 use crate::retrieval::DEFAULT_LIMIT;
 use crate::retrieval::filter::Filter;
 use crate::retrieval::index::Index;
 use crate::retrieval::pipeline::{age_days, task_confirmers};
-use crate::retrieval::{RecallHit, Why};
+use crate::retrieval::{HitChannels, RecallHit, Why};
 
 /// Universo do ranking (K2/D107).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -72,6 +74,11 @@ pub fn rank(index: &Index, filter: &Filter, query: &RankQuery) -> Vec<RecallHit>
                 score: confidence,
                 confidence,
                 why: why(doc.meta.confirmation, task_confirmation),
+                channels: HitChannels {
+                    recent: age_factor(age_days(doc, query.now_ms)),
+                    stars: (doc.meta.confirmation + task_confirmation).clamp(0.0, 1.0),
+                    ..HitChannels::default()
+                },
             }
         })
         .collect();

@@ -1,7 +1,6 @@
 # D144 — escopo obrigatório em `learn`/`compact`/`prune` e `task list`
 
-> **Status:** decisão fechada (registrada em `plan/03_decisoes-fechadas.md`); **implementação
-> pendente**. Aplica o princípio de **D143** ("nada de operação sem escopo"). Sem execução.
+> **Status:** decisão fechada e **implementada** (v0.3.0). Aplica o princípio de **D143** ("nada de operação sem escopo").
 
 ## 1. Decisão
 
@@ -34,8 +33,8 @@ Nenhum desses comandos varre o corpus sem **escopo explícito**; sem escopo → 
 
 ## 4. Aceite
 
-- [ ] `maintenance learn|compact|prune` sem filtro e sem `--universe` → exit 2 (com orientação).
-- [ ] `kd task list` sem filtro e sem `--universe` → exit 2; `--universe` lista tudo.
-- [ ] `--sort impact`/`--explain` sozinhos não satisfazem o escopo.
-- [ ] Filtros restringem de fato o corpus varrido (teste com 2 espaços de tags distintas).
-- [ ] `make check` verde; docs/`prime`/goldens atualizados.
+- [x] `maintenance learn|compact|prune` sem filtro e sem `--universe` → exit 2 (com orientação).
+- [x] `kd task list` sem filtro e sem `--universe` → exit 2; `--universe` lista tudo.
+- [x] `--sort impact`/`--explain` sozinhos não satisfazem o escopo.
+- [x] Filtros restringem de fato o corpus varrido (teste com 2 espaços de tags distintas).
+- [x] `make check` verde; docs/`prime`/goldens atualizados.

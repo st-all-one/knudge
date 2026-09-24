@@ -1,4 +1,4 @@
-//! Escopo `embeddings`: provedor plugável, cache, fila e avaliação (E11).
+//! Escopo `embeddings`: provedor plugável, cache, fila e digestão (E11).
 //!
 //! Vetores são **derivados e opcionais** (D42/D79). O sistema **nunca** bloqueia por embedding:
 //! notas recém-criadas ficam *dark* até serem digeridas por uma fila derivada (D80), com cache
@@ -7,7 +7,6 @@
 //! o GGUF — D101); sem inferência embutida no binário (R16/R43).
 
 pub mod cache;
-pub mod eval;
 pub mod flush;
 pub mod index;
 pub mod lightweight;
@@ -23,10 +22,7 @@ mod vectors;
 mod tests;
 
 pub use cache::{
-    CACHE_FILE, CacheEntry, DEFAULT_MAX_BYTES as CACHE_DEFAULT_MAX_BYTES, EmbeddingCache,
-};
-pub use eval::{
-    AbReport, EvalMetrics, GoldenCase, Winner, ab_compare, evaluate, mrr, ndcg_at_k, recall_at_k,
+    CACHE_FILE, CacheEntry, CacheKey, DEFAULT_MAX_BYTES as CACHE_DEFAULT_MAX_BYTES, EmbeddingCache,
 };
 pub use flush::{DEFAULT_FLUSH_MS, FlushState};
 pub use index::{EmbeddingIndex, INDEX_FILE as EMBEDDINGS_FILE, IndexedVector};

@@ -1,6 +1,7 @@
 //! Linhas dinâmicas do manifest: `next:` e `fresh:` (D106).
 
 use crate::Result;
+use crate::handoff::CorpusScope;
 use crate::handoff::manifest_at;
 use crate::handoff::next::{MAX_NEXT, next_tasks};
 use crate::lifecycle::Freshness;
@@ -20,7 +21,7 @@ fn next_orders_by_impact() -> Result<()> {
     let notes = [a0, a1, a2, b0];
     let (index, graph) = built(&notes)?;
 
-    let next = next_tasks(&index, &graph, MAX_NEXT);
+    let next = next_tasks(&index, &graph, MAX_NEXT, &CorpusScope::default());
     assert_eq!(
         next.first().map(|task| task.id.as_str()),
         Some(a0_id.as_str())
@@ -43,7 +44,7 @@ fn closed_ready_tasks_are_skipped() -> Result<()> {
     let notes = [closed, open];
     let (index, graph) = built(&notes)?;
 
-    let next = next_tasks(&index, &graph, MAX_NEXT);
+    let next = next_tasks(&index, &graph, MAX_NEXT, &CorpusScope::default());
     assert_eq!(next.len(), 1);
     assert_eq!(
         next.first().map(|task| task.id.as_str()),
@@ -64,7 +65,7 @@ fn manifest_appends_next_and_fresh() -> Result<()> {
         pending: 3,
     };
 
-    let (text, dropped) = manifest_at(&index, &graph, &[], &fresh, 4000);
+    let (text, dropped) = manifest_at(&index, &graph, &[], &fresh, 4000, &CorpusScope::default());
     assert!(text.contains(&format!("next: {a0_id}|a0")));
     assert!(text.ends_with("fresh: stale=1 expiring=2 pending=3"));
     assert_eq!(dropped, 0);
@@ -78,7 +79,14 @@ fn small_budget_drops_extra_next() -> Result<()> {
     let notes = [x, y];
     let (index, graph) = built(&notes)?;
 
-    let (text, dropped) = manifest_at(&index, &graph, &[], &Freshness::default(), 100);
+    let (text, dropped) = manifest_at(
+        &index,
+        &graph,
+        &[],
+        &Freshness::default(),
+        100,
+        &CorpusScope::default(),
+    );
     assert!(text.contains("next: "));
     assert_eq!(dropped, 1);
     Ok(())

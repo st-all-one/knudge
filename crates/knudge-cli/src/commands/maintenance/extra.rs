@@ -1,4 +1,4 @@
-//! Subcomandos de manutenção: compact, eval, index, learn e prune (E12-T01).
+//! Subcomandos de manutenção: compact, learn e prune (E12-T01).
 
 use std::collections::BTreeMap;
 
@@ -13,17 +13,20 @@ use knudge_core::maintenance::{LearnInput, learn, propose_compact};
 use knudge_core::store::Note;
 use serde_json::json;
 
+use crate::cli::CorpusArgs;
 use crate::output::Output;
 use crate::session::Session;
 
-use super::super::embedder;
+use super::super::corpus::CorpusScope;
 use super::super::hooks::{self, HookEvent};
 
 /// `kd maintenance compact` — propõe merge/supersede (nunca aplica em silêncio).
 ///
 /// # Errors
 /// Propaga erros de leitura do store/índice.
-pub fn compact(session: &Session, scope: Option<&str>) -> Result<Output> {
+pub fn compact(session: &Session, scope: Option<&str>, corpus: &CorpusArgs) -> Result<Output> {
+    let corpus = CorpusScope::from(corpus);
+    corpus.require("maintenance compact")?;
     let hook = hooks::run(session, HookEvent::PreCompact, &json!({ "scope": scope }))?;
     if hook.blocked {
         return Err(Error::invalid_input("hook `pre-compact` bloqueou"));
@@ -31,6 +34,7 @@ pub fn compact(session: &Session, scope: Option<&str>) -> Result<Output> {
     let store = session.store();
     let index = session.index()?;
     let graph = session.graph()?;
+    let selection = corpus.select(&index, &graph)?;
     let thresholds = session.thresholds()?;
     let proposals: Vec<_> = propose_compact(&store, &index, &thresholds)
         .into_iter()
@@ -38,6 +42,7 @@ pub fn compact(session: &Session, scope: Option<&str>) -> Result<Output> {
             Some(container) => belongs_to(&graph, &proposal.keep, container),
             None => true,
         })
+        .filter(|proposal| selection.matches_id(&proposal.keep))
         .collect();
     let text = proposals
         .iter()
@@ -68,9 +73,12 @@ pub fn compact(session: &Session, scope: Option<&str>) -> Result<Output> {
 ///
 /// # Errors
 /// Propaga erros de leitura de índice/eventos.
-pub fn learn_cmd(session: &Session, scope: Option<&str>) -> Result<Output> {
+pub fn learn_cmd(session: &Session, scope: Option<&str>, corpus: &CorpusArgs) -> Result<Output> {
+    let corpus = CorpusScope::from(corpus);
+    corpus.require("maintenance learn")?;
     let index = session.index()?;
     let graph = session.graph()?;
+    let selection = corpus.select(&index, &graph)?;
     let (events, warnings) = session.events().read_all()?;
     let changed = session.changed_paths()?;
     let thresholds = session.thresholds()?;
@@ -82,7 +90,10 @@ pub fn learn_cmd(session: &Session, scope: Option<&str>) -> Result<Output> {
         scope,
         thresholds: &thresholds,
     };
-    let proposals = learn(&input);
+    let proposals: Vec<_> = learn(&input)
+        .into_iter()
+        .filter(|proposal| proposal.ids.iter().any(|id| selection.matches_id(id)))
+        .collect();
     let text = proposals
         .iter()
         .map(|proposal| {
@@ -106,79 +117,24 @@ pub fn learn_cmd(session: &Session, scope: Option<&str>) -> Result<Output> {
     Ok(Output::new(text, data).with_warnings(warnings))
 }
 
-/// Ação de `kd maintenance index`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum IndexAction {
-    /// Mostra o estado da fila.
-    Status,
-    /// Drena um lote da fila agora (repita para drenar mais).
-    Drain,
-}
-
-/// `kd maintenance index` — status/drain da fila de embeddings (um lote por `--drain`).
-///
-/// # Errors
-/// Propaga erros de leitura do índice e de execução do provedor.
-pub fn index(session: &Session, action: IndexAction) -> Result<Output> {
-    if action == IndexAction::Drain {
-        return drain_queue(session);
-    }
-    let pending = embedder::pending(session)?;
-    let data = json!({ "pending": pending });
-    Ok(Output::new(format!("pending: {pending}"), data))
-}
-
-fn drain_queue(session: &Session) -> Result<Output> {
-    let Some(outcome) = embedder::drain_once(session)? else {
-        return Ok(Output::new(
-            "embeddings desligado (provider = none)",
-            json!({ "enabled": false, "indexed": 0, "pending": 0 }),
-        ));
-    };
-    let text = format!(
-        "indexed={} pending={} stale={} cache_hits={}",
-        outcome.indexed, outcome.pending, outcome.stale, outcome.cache_hits
-    );
-    let data = json!({
-        "enabled": true,
-        "indexed": outcome.indexed,
-        "pending": outcome.pending,
-        "stale": outcome.stale,
-        "cache_hits": outcome.cache_hits,
-    });
-    Ok(Output::new(text, data).with_warnings(outcome.warnings))
-}
-
-/// `kd maintenance eval` — métricas de retrieval (Recall@k/nDCG@k/MRR).
-///
-/// # Errors
-/// Propaga erros de leitura do índice.
-pub fn eval(session: &Session, ab: &[String]) -> Result<Output> {
-    let index = session.index()?;
-    let mut warnings = Vec::new();
-    if !ab.is_empty() {
-        warnings
-            .push("eval --ab requer um dataset de consultas; nenhum configurado (D90)".to_string());
-    }
-    let data = json!({
-        "docs": index.docs.len(),
-        "ab": ab,
-    });
-    Ok(Output::new(format!("docs: {}", index.docs.len()), data).with_warnings(warnings))
-}
-
 /// `kd maintenance prune` — propõe aposentadoria (`forget`) por shelf-life/decay (D112).
 ///
 /// Nunca grava (D47): o agente aplica com `kd forget`. Membros de ciclo ficam de fora (D45).
 ///
 /// # Errors
 /// Propaga erros de leitura do store/grafo e varredura de âncoras.
-pub fn prune(session: &Session, scope: Option<&str>) -> Result<Output> {
+pub fn prune(session: &Session, scope: Option<&str>, corpus: &CorpusArgs) -> Result<Output> {
+    let corpus = CorpusScope::from(corpus);
+    corpus.require("maintenance prune")?;
     let store = session.store();
+    let index = session.index()?;
     let graph = session.graph()?;
+    let selection = corpus.select(&index, &graph)?;
     let mut notes = Vec::new();
     for id in store.list_ids()? {
-        notes.push(store.read(&id)?);
+        if let Some(note) = store.read_optional(&id)? {
+            notes.push(note);
+        }
     }
     let shelf_life = ShelfLife::from_config(session.config());
     let decay = DecayPolicy::from_config(session.config());
@@ -193,6 +149,7 @@ pub fn prune(session: &Session, scope: Option<&str>) -> Result<Output> {
     if let Some(container) = scope {
         candidates.retain(|candidate| belongs_to(&graph, &candidate.id, container));
     }
+    candidates.retain(|candidate| selection.matches_id(&candidate.id));
     let text = candidates
         .iter()
         .map(|candidate| format!("forget|{}|{}", candidate.id, candidate.reason.as_str()))

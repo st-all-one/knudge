@@ -2,10 +2,16 @@
 
 mod knowledge;
 mod maintenance;
+mod rewind;
 mod task;
 
-pub use knowledge::KnowledgeCommand;
-pub use maintenance::{ConfigCommand, MaintenanceCommand, SelfCommand, WatchServiceArgs};
+pub use knowledge::{
+    KnowledgeCommand, KnowledgeDigestArgs, KnowledgeMapArgs, KnowledgeRankArgs, KnowledgeTagsArgs,
+};
+pub use maintenance::{
+    ConfigCommand, CorpusArgs, MaintenanceCommand, SelfCommand, WatchServiceArgs,
+};
+pub use rewind::RewindArgs;
 pub use task::{TaskCommand, TaskListArgs, TaskNewArgs, TaskPlanArgs, TaskSort};
 
 use clap::{Args, Parser, Subcommand};
@@ -62,7 +68,7 @@ pub enum Command {
         #[command(subcommand)]
         command: KnowledgeCommand,
     },
-    /// Manutenção (doctor, compact, eval, index, learn, watch-service).
+    /// Manutenção (doctor, compact, learn, prune, watch-service).
     Maintenance {
         /// Subcomando de manutenção.
         #[command(subcommand)]
@@ -128,36 +134,16 @@ pub struct PrimeArgs {
     pub long: bool,
 }
 
-/// Argumentos de `kd rewind`.
-#[derive(Debug, Args)]
-pub struct RewindArgs {
-    /// Container/domínio de escopo.
-    #[arg(long, value_name = "CONTAINER")]
-    pub scope: Option<String>,
-    /// Working set por arquivos.
-    #[arg(long, value_name = "PATH")]
-    pub files: Vec<String>,
-    /// Orçamento de tokens.
-    #[arg(long, value_name = "N")]
-    pub budget: Option<usize>,
-    /// Início do intervalo.
-    #[arg(long, value_name = "TS")]
-    pub since: Option<String>,
-    /// Fim do intervalo.
-    #[arg(long, value_name = "TS")]
-    pub until: Option<String>,
-    /// Retoma um contexto por id (handoff 1:1).
-    #[arg(long, value_name = "CONTEXT_ID")]
-    pub resume: Option<String>,
-}
-
 /// Argumentos de `kd ask`.
 #[allow(clippy::struct_excessive_bools, reason = "flags de CLI")]
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Default, Args)]
 pub struct AskArgs {
     /// Consulta textual (recall completo).
     #[arg(value_name = "QUERY")]
     pub query: Vec<String>,
+    /// Objeto JSON com a consulta e os filtros (`-` lê stdin) — D147.
+    #[arg(long, value_name = "JSON")]
+    pub params: Option<String>,
     /// Recupera os corpos dos ids.
     #[arg(long = "id", value_name = "ID")]
     pub ids: Vec<String>,
@@ -173,15 +159,12 @@ pub struct AskArgs {
     /// Saída mínima (`id|statement`).
     #[arg(long)]
     pub brief: bool,
-    /// Lista o vocabulário de tags (`tag|count`, `count` desc).
-    #[arg(long = "tags")]
-    pub tag_vocab: bool,
-    /// Ranqueia por confiança derivada, sem query textual (D107).
+    /// Inclui itens de trabalho (notas com `scope`) — D146.
     #[arg(long)]
-    pub rank: bool,
-    /// Inclui o corpo dos hits.
+    pub with_task: bool,
+    /// Inclui o corpo completo dos hits (ex-`--with-body`, D146).
     #[arg(long)]
-    pub with_body: bool,
+    pub full_content: bool,
     /// Filtro por tipo.
     #[arg(long = "type", value_name = "TIPO")]
     pub types: Vec<String>,
@@ -215,15 +198,15 @@ pub struct AskArgs {
 #[allow(clippy::struct_excessive_bools, reason = "flags de CLI")]
 #[derive(Debug, Args)]
 pub struct WriteArgs {
-    /// Afirmação da nota.
-    #[arg(value_name = "STATEMENT")]
-    pub statement: Vec<String>,
+    /// Corpo (Markdown); `-` lê stdin; vazio + pipe também lê stdin.
+    #[arg(value_name = "BODY")]
+    pub body: Vec<String>,
+    /// Afirmação (chave TOON `statement`).
+    #[arg(long, value_name = "TXT")]
+    pub summary: Option<String>,
     /// Tipo da nota (default: `fact`).
     #[arg(long = "type", value_name = "TIPO")]
     pub note_type: Option<String>,
-    /// Corpo da nota (`-` lê stdin).
-    #[arg(long, value_name = "TXT")]
-    pub body: Option<String>,
     /// Tags.
     #[arg(long = "tag", value_name = "TAG")]
     pub tags: Vec<String>,
@@ -244,6 +227,9 @@ pub struct WriteArgs {
     /// Aresta explícita `ARESTA:ID` a partir da nota.
     #[arg(long, value_name = "ARESTA:ID")]
     pub edge: Vec<String>,
+    /// Id da nota (usado com `--outcome`).
+    #[arg(long, value_name = "ID")]
+    pub id: Option<String>,
     /// Atualiza a nota existente.
     #[arg(long, value_name = "ID")]
     pub update: Option<String>,
@@ -256,6 +242,9 @@ pub struct WriteArgs {
     /// Aplica um lote de rascunhos JSONL (`-` lê stdin).
     #[arg(long, value_name = "FONTE")]
     pub batch: Option<String>,
+    /// Objeto JSON de um rascunho (`-` lê stdin) — D147.
+    #[arg(long, value_name = "JSON")]
+    pub params: Option<String>,
     /// Anexa um resultado (`success|partial|failure|abandoned`) a uma nota existente.
     #[arg(long, value_name = "OUTCOME")]
     pub outcome: Option<String>,
@@ -269,7 +258,7 @@ pub struct WriteArgs {
 #[derive(Debug, Args)]
 pub struct ForgetArgs {
     /// Id da nota.
-    #[arg(value_name = "ID")]
+    #[arg(long = "id", value_name = "ID")]
     pub id: String,
     /// Restaura em vez de esquecer.
     #[arg(long)]

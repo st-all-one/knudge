@@ -51,6 +51,26 @@ fn weight_scales_channel_contribution() {
     assert!((doubled - single * 2.0).abs() < f64::EPSILON);
 }
 
+/// As parcelas por canal somam exatamente o score fundido (D151).
+#[test]
+fn contributions_sum_to_score() {
+    let first = vec!["x".to_string(), "y".to_string()];
+    let second = vec!["y".to_string(), "z".to_string()];
+    let fused = fuse(&[Channel::new(&first, 1.0), Channel::new(&second, 2.0)], 60);
+    for hit in &fused {
+        let sum: f64 = hit.contribs.iter().sum();
+        assert!(
+            (sum - hit.score).abs() < 1e-12,
+            "parcelas != score: {sum} != {}",
+            hit.score
+        );
+    }
+    assert!(
+        fused.iter().all(|hit| hit.contribs.len() == 2),
+        "parcelas por canal ausentes"
+    );
+}
+
 #[test]
 fn semantic_weight_can_flip_the_winner() {
     let lexical = vec!["lex".to_string()];

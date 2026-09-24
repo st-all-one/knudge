@@ -2,11 +2,13 @@
 
 pub mod ask;
 pub mod config_cmd;
+pub mod corpus;
 pub mod embedder;
 pub mod forget_sync;
 pub mod hooks;
 pub mod idle;
 pub mod init;
+pub mod input;
 pub mod knowledge;
 pub mod maintenance;
 pub mod parse;

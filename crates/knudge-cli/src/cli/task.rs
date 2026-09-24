@@ -16,7 +16,13 @@ pub enum TaskCommand {
     /// Mostra uma ou mais tarefas.
     Show {
         /// Ids.
-        #[arg(value_name = "ID", required = true, num_args = 1..)]
+        #[arg(
+            long = "id",
+            value_name = "ID",
+            required = true,
+            num_args = 1..,
+            value_delimiter = ','
+        )]
         ids: Vec<String>,
         /// Inclui o histórico de supersessão.
         #[arg(long)]
@@ -25,7 +31,7 @@ pub enum TaskCommand {
     /// Atualiza uma tarefa.
     Update {
         /// Id.
-        #[arg(value_name = "ID")]
+        #[arg(long = "id", value_name = "ID")]
         id: String,
         /// Nova afirmação.
         #[arg(long, value_name = "TXT")]
@@ -43,7 +49,7 @@ pub enum TaskCommand {
     /// Fecha uma tarefa (roda validators e grava evidência).
     Close {
         /// Id.
-        #[arg(value_name = "ID")]
+        #[arg(long = "id", value_name = "ID")]
         id: String,
         /// Resultado: `success|partial|failure|abandoned`.
         #[arg(long, value_name = "OUTCOME")]
@@ -127,6 +133,12 @@ pub struct TaskListArgs {
     /// Filtro por âncora (repetível; aceita lista com vírgula: `--anchor a,b`).
     #[arg(long, value_name = "PATH", value_delimiter = ',')]
     pub anchor: Vec<String>,
+    /// Renderiza cada item como bloco completo (multilinha; não é pipe-safe) — D137.
+    #[arg(long)]
+    pub full_content: bool,
+    /// Panorama geral explícito: lista tudo sem exigir filtro (D144).
+    #[arg(long)]
+    pub universe: bool,
 }
 
 /// Campo de ordenação de `kd task list` (D109).
@@ -139,21 +151,21 @@ pub enum TaskSort {
 /// Argumentos de `kd task new`.
 #[derive(Debug, Args)]
 pub struct TaskNewArgs {
-    /// Afirmação.
-    #[arg(value_name = "STATEMENT")]
-    pub statement: Vec<String>,
-    /// Escopo fechado.
+    /// Corpo (Markdown); `-` lê stdin; vazio + pipe também lê stdin.
+    #[arg(value_name = "BODY")]
+    pub body: Vec<String>,
+    /// Afirmação (chave TOON `statement`).
+    #[arg(long, value_name = "TXT")]
+    pub summary: Option<String>,
+    /// Escopo fechado (obrigatório fora de `--params`/`--batch`).
     #[arg(long, value_name = "ESCOPO")]
-    pub scope: String,
+    pub scope: Option<String>,
     /// Espécie (`type`) do item: `task|error|question|risk|decision` (D113).
     #[arg(long, value_name = "ESPECIE")]
     pub kind: Option<String>,
     /// Pai na hierarquia.
     #[arg(long, value_name = "ID")]
     pub parent: Option<String>,
-    /// Corpo (`-` lê stdin).
-    #[arg(long, value_name = "TXT")]
-    pub body: Option<String>,
     /// Checks (validators).
     #[arg(long, value_name = "NOME")]
     pub checks: Vec<String>,
@@ -168,4 +180,13 @@ pub struct TaskNewArgs {
     /// Tags declaradas (repetível).
     #[arg(long, value_name = "TAG")]
     pub tag: Vec<String>,
+    /// Objeto JSON de uma tarefa (`-` lê stdin) — D141/D147.
+    #[arg(long, value_name = "JSON")]
+    pub params: Option<String>,
+    /// Lote JSONL de operações (`-` lê stdin) — D141.
+    #[arg(long, value_name = "FONTE")]
+    pub batch: Option<String>,
+    /// Só avalia o lote, sem gravar — D141.
+    #[arg(long)]
+    pub dry_run: bool,
 }

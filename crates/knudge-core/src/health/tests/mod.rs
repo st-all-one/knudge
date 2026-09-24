@@ -3,6 +3,7 @@
 mod anchors;
 mod audit;
 mod doctor;
+mod doctor_conflict;
 mod evidence;
 mod tolerant;
 mod validator;

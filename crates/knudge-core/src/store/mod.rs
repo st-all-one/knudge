@@ -29,6 +29,7 @@ pub use sweep::sweep_residues;
 use std::path::{Path, PathBuf};
 
 use crate::Error;
+use crate::ErrorKind;
 use crate::Result;
 use crate::ports::Fs;
 use crate::schema::{NoteType, id};
@@ -75,6 +76,29 @@ impl<'a> Store<'a> {
             .join(format!("{id}.md"))
     }
 
+    /// Caminho legado (pré-D150): `notas/<id>.md` na raiz de `notas/`.
+    #[must_use]
+    pub fn legacy_path(&self, id: &str) -> PathBuf {
+        self.notes_dir().join(format!("{id}.md"))
+    }
+
+    /// Caminho efetivo de leitura: o canônico ou, se ausente, o legado plano (D150).
+    ///
+    /// A leitura tolera o layout plano antigo para que `doctor --fix` consiga migrar sem
+    /// depender de um índice que já exija o layout novo.
+    #[must_use]
+    pub fn resolve_path(&self, id: &str) -> PathBuf {
+        let canonical = self.note_path(id);
+        if self.fs.exists(&canonical) {
+            return canonical;
+        }
+        let legacy = self.legacy_path(id);
+        if self.fs.exists(&legacy) {
+            return legacy;
+        }
+        canonical
+    }
+
     /// Garante a existência do diretório de notas e das pastas por tipo (D150).
     ///
     /// # Errors
@@ -88,24 +112,39 @@ impl<'a> Store<'a> {
         self.fs.create_dir_all(&dir.join(NoteType::Epic.as_str()))
     }
 
-    /// `true` se a nota existe.
+    /// `true` se a nota existe (canônica ou no layout plano legado).
     #[must_use]
     pub fn exists(&self, id: &str) -> bool {
-        self.fs.exists(&self.note_path(id))
+        self.fs.exists(&self.note_path(id)) || self.fs.exists(&self.legacy_path(id))
     }
 
-    /// Lê e valida uma nota.
+    /// Lê e valida uma nota (tolerando o layout plano legado — D150).
     ///
     /// # Errors
     /// Retorna `ErrorKind::NotFound` se a nota não existir, e `ErrorKind::Io`/`Schema`
     /// conforme o caso.
     pub fn read(&self, id: &str) -> Result<Note> {
-        let path = self.note_path(id);
+        let path = self.resolve_path(id);
         if !self.fs.exists(&path) {
             return Err(Error::not_found(format!("nota ausente: {id}")));
         }
         let bytes = self.fs.read(&path)?;
         Note::parse(&bytes)
+    }
+
+    /// Lê uma nota, degradando para `None` quando ela é **inválida** (tipo desconhecido,
+    /// frontmatter malformado) — uma nota ruim não derruba a leitura do corpus (D17/D18).
+    ///
+    /// # Errors
+    /// Propaga erros de I/O (globais).
+    pub fn read_optional(&self, id: &str) -> Result<Option<Note>> {
+        match self.read(id) {
+            Ok(note) => Ok(Some(note)),
+            Err(error) => match error.kind() {
+                ErrorKind::NotFound | ErrorKind::Schema | ErrorKind::InvalidInput => Ok(None),
+                _ => Err(error),
+            },
+        }
     }
 
     /// Grava uma nota atomicamente (sem `fsync`; ver [`Store::sync`]).
@@ -123,7 +162,7 @@ impl<'a> Store<'a> {
     /// # Errors
     /// Retorna `ErrorKind::Io` com o caminho se o `fsync` falhar.
     pub fn sync(&self, id: &str) -> Result<()> {
-        let path = self.note_path(id);
+        let path = self.resolve_path(id);
         self.fs.sync(&path)?;
         if let Some(parent) = path.parent() {
             self.fs.sync(parent)?;
@@ -155,6 +194,7 @@ impl<'a> Store<'a> {
             }
         }
         ids.sort();
+        ids.dedup();
         Ok(ids)
     }
 
@@ -184,7 +224,7 @@ impl<'a> Store<'a> {
     /// Retorna `ErrorKind::Io` se remoção/purga falharem.
     pub fn remove(&self, id: &str) -> Result<()> {
         detach::detach_referrers(self.fs, &self.root, id)?;
-        self.fs.remove_file(&self.note_path(id))?;
+        self.fs.remove_file(&self.resolve_path(id))?;
         purge_derived(self.fs, &self.root, id)
     }
 }

@@ -1,5 +1,6 @@
 //! Testes de tarefa/container (E08-T07).
 
+mod batch;
 mod context;
 mod hierarchy;
 mod impact;

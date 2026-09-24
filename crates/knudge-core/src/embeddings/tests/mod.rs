@@ -1,7 +1,6 @@
 //! Testes do escopo `embeddings` (E11).
 
 mod cache;
-mod eval;
 mod flush;
 mod index;
 mod lightweight;
@@ -10,6 +9,7 @@ mod pipeline;
 mod semantic;
 mod state;
 mod vector;
+mod versioned;
 
 use crate::Result;
 use crate::ports::fakes::MemFs;

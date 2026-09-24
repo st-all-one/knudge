@@ -11,67 +11,67 @@ use knudge_core::graph::Graph;
 use knudge_core::handoff::manifest::belongs_to;
 use knudge_core::lifecycle::{
     Cluster, ClusterAxis, MIN_SEMANTIC_VOLUME, SemanticCluster, semantic_clusters,
-    structural_clusters,
+    structural_clusters_filtered,
 };
 use knudge_core::store::Store;
 use serde_json::json;
 
+use crate::cli::KnowledgeMapArgs;
 use crate::output::Output;
 use crate::session::Session;
 
+use super::super::corpus::CorpusScope;
 use super::super::embedder;
 use super::hub;
 
 /// Linhas de texto + nós JSON de uma seção.
 type Section = (Vec<String>, Vec<serde_json::Value>);
 
-/// `kd knowledge map [--axis A] [--scope C] [--semantic] [--members]`.
+/// `kd knowledge map [--axis A] [--scope C] [--semantic] [--members] [--write]` + filtros de
+/// corpus (`--tag`/`--anchor`/`--type`/`--class`/`--around`/`--universe`) — D128/D143.
 ///
 /// # Errors
-/// Propaga erros de leitura do índice/store/config; `invalid_input` para eixo desconhecido.
-#[allow(
-    clippy::fn_params_excessive_bools,
-    reason = "`semantic`/`members`/`write` são as flags de CLI `--semantic`/`--members`/`--write`"
-)]
-#[allow(
-    clippy::too_many_arguments,
-    reason = "o `run` espelha as flags de CLI de `knowledge map` (D150)"
-)]
-pub fn run(
-    session: &Session,
-    axis: Option<&str>,
-    scope: Option<&str>,
-    semantic: bool,
-    members: bool,
-    write: bool,
-) -> Result<Output> {
-    if let Some(axis) = axis {
+/// Propaga erros de leitura do índice/store/config; `invalid_input` para eixo desconhecido e
+/// quando não há escopo nem `--universe` (D143).
+pub fn run(session: &Session, args: &KnowledgeMapArgs) -> Result<Output> {
+    if let Some(axis) = args.axis.as_deref() {
         validate_axis(axis)?;
     }
+    let scope = CorpusScope {
+        types: args.types.clone(),
+        classes: args.classes.clone(),
+        tags: args.tags.clone(),
+        anchors: args.anchor.clone(),
+        around: args.around.clone(),
+        depth: args.depth,
+        universe: args.universe,
+    };
+    scope.require("knowledge map")?;
     let index = session.index()?;
     let graph = session.graph()?;
-    let mut clusters = structural_clusters(&index, &graph);
-    if let Some(axis) = axis {
+    let selection = scope.select(&index, &graph)?;
+    let mut clusters = structural_clusters_filtered(&index, &graph, selection.filter());
+    if let Some(allowed) = selection.allowed() {
+        clusters = restrict(clusters, allowed);
+    }
+    if let Some(axis) = args.axis.as_deref() {
         clusters.retain(|cluster| cluster.axis.axis() == axis);
     }
-    if let Some(scope) = scope {
+    if let Some(scope) = args.scope.as_deref() {
         clusters = scope_clusters(clusters, &graph, scope);
     }
     let store = session.store();
-    let mut lines = vec![format!(
-        "docs={} clusters={}",
-        index.docs.len(),
-        clusters.len()
-    )];
+    let docs = selection.docs();
+    let mut lines = vec![format!("docs={docs} clusters={}", clusters.len())];
     let mut data = Vec::new();
     for cluster in &clusters {
-        let (line, value) = render_cluster(&store, cluster, members);
+        let (line, value) = render_cluster(&store, cluster, args.members);
         lines.push(line);
         data.push(value);
     }
     let mut warnings = Vec::new();
     let mut semantic_entries = Vec::new();
-    let semantic_data = if semantic {
+    let semantic_data = if args.semantic {
         let ((semantic_lines, semantic_json), entries) =
             semantic_section(session, &clusters, &mut warnings)?;
         semantic_entries = entries;
@@ -80,7 +80,7 @@ pub fn run(
     } else {
         Vec::new()
     };
-    if write {
+    if args.write {
         let hubs = hub::materialize(session, &clusters, &semantic_entries)?;
         warnings.push(format!(
             "mapa materializado: {n} hub(s) + notas/MAP.md",
@@ -88,11 +88,29 @@ pub fn run(
         ));
     }
     let value = json!({
-        "docs": index.docs.len(),
+        "docs": docs,
         "clusters": data,
         "semantic": semantic_data,
     });
     Ok(Output::new(lines.join("\n"), value).with_warnings(warnings))
+}
+
+/// Restringe os membros dos clusters à vizinhança (`--around`) e descarta clusters vazios.
+fn restrict(clusters: Vec<Cluster>, allowed: &std::collections::BTreeSet<String>) -> Vec<Cluster> {
+    clusters
+        .into_iter()
+        .filter_map(|cluster| {
+            let members: Vec<String> = cluster
+                .members
+                .into_iter()
+                .filter(|member| allowed.contains(member))
+                .collect();
+            (!members.is_empty()).then_some(Cluster {
+                axis: cluster.axis,
+                members,
+            })
+        })
+        .collect()
 }
 
 /// Valida o nome do eixo.

@@ -1,7 +1,10 @@
-//! `kd knowledge` — mapa de conhecimento (clusters estruturais e semânticos) — D128.
+//! `kd knowledge` — mapa/digestão/ranking/vocabulário de conhecimento (D128/D145/D146).
 
+pub mod digest;
 pub mod hub;
 pub mod map;
+pub mod rank;
+pub mod tags;
 
 use knudge_core::Result;
 
@@ -15,19 +18,9 @@ use crate::session::Session;
 /// Propaga erros do domínio (leitura de índice/store/config).
 pub fn run(session: &Session, command: &KnowledgeCommand) -> Result<Output> {
     match command {
-        KnowledgeCommand::Map {
-            axis,
-            scope,
-            semantic,
-            members,
-            write,
-        } => map::run(
-            session,
-            axis.as_deref(),
-            scope.as_deref(),
-            *semantic,
-            *members,
-            *write,
-        ),
+        KnowledgeCommand::Map(args) => map::run(session, args),
+        KnowledgeCommand::Digest(args) => digest::run(session, args),
+        KnowledgeCommand::Rank(args) => rank::run(session, args),
+        KnowledgeCommand::Tags(args) => tags::run(session, args),
     }
 }

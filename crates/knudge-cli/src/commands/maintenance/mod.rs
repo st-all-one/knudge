@@ -1,4 +1,4 @@
-//! `kd maintenance` — doctor, audit, compact, eval, index e learn (E12-T01).
+//! `kd maintenance` — doctor, audit, compact, learn e prune (E12-T01).
 
 pub mod extra;
 pub mod watch;
@@ -38,18 +38,15 @@ pub fn run(session: &Session, command: &MaintenanceCommand) -> Result<Output> {
                 DoctorMode::Report
             },
         ),
-        MaintenanceCommand::Compact { scope } => extra::compact(session, scope.as_deref()),
-        MaintenanceCommand::Eval { ab } => extra::eval(session, ab),
-        MaintenanceCommand::Index { drain, .. } => extra::index(
-            session,
-            if *drain {
-                extra::IndexAction::Drain
-            } else {
-                extra::IndexAction::Status
-            },
-        ),
-        MaintenanceCommand::Learn { scope } => extra::learn_cmd(session, scope.as_deref()),
-        MaintenanceCommand::Prune { scope, .. } => extra::prune(session, scope.as_deref()),
+        MaintenanceCommand::Compact { scope, corpus } => {
+            extra::compact(session, scope.as_deref(), corpus)
+        }
+        MaintenanceCommand::Learn { scope, corpus } => {
+            extra::learn_cmd(session, scope.as_deref(), corpus)
+        }
+        MaintenanceCommand::Prune { scope, corpus, .. } => {
+            extra::prune(session, scope.as_deref(), corpus)
+        }
         MaintenanceCommand::WatchService(args) => watch::run(session, args),
     }
 }

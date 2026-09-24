@@ -1,7 +1,6 @@
 # D145 — fim do `maintenance eval`; `index` vira `kd knowledge digest`
 
-> **Status:** decisão fechada (registrada em `plan/03_decisoes-fechadas.md`); **implementação
-> pendente**. Origem: revisão de `docs/07-manutencao.md`. Revisa **D90**. Sem execução.
+> **Status:** decisão fechada e **implementada** (v0.3.0). Origem: revisão de `docs/07-manutencao.md`. Revisa **D90**.
 
 ## 1. Decisões
 
@@ -34,7 +33,7 @@
 
 ## 4. Aceite
 
-- [ ] `kd maintenance eval` → subcomando inexistente (exit 2).
-- [ ] `embeddings/eval.rs` removido; nenhum re-export quebrado.
-- [ ] `kd knowledge digest --status`/`--drain` funcionam como o antigo `index`.
-- [ ] `make check` verde; docs/`prime`/`llms.txt`/goldens atualizados.
+- [x] `kd maintenance eval` → subcomando inexistente (exit 2).
+- [x] `embeddings/eval.rs` removido; nenhum re-export quebrado.
+- [x] `kd knowledge digest --status`/`--drain` funcionam como o antigo `index`.
+- [x] `make check` verde; docs/`prime`/`llms.txt`/goldens atualizados.

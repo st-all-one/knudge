@@ -27,6 +27,7 @@ fn writes_explicit_rules_for_all_file_types() -> Result<()> {
     assert!(text.contains("/.knudge/templates.toml text eol=lf"));
     assert!(text.contains("/.knudge/validators.toml text eol=lf"));
     assert!(text.contains("events*.jsonl text eol=lf merge=union"));
+    assert!(text.contains("/.knudge/emb_cache.jsonl text eol=lf merge=union"));
     for pattern in [
         "/.knudge/.idx/**",
         "/.knudge/cache/**",

@@ -86,6 +86,10 @@ Script leve opcional (`scripts/check_docs.sh`).
 
 ## 6. Ordem de execução sugerida (quando houver código)
 
+> **Status (v0.3.0):** as 7 fases foram **implementadas** e `make check` está verde. As decisões
+> D134–D153 estão registradas em `plan/03_decisoes-fechadas.md` e os textos em `plan/proposals/`
+> marcados como *implementada*.
+
 **Princípio:** contrato/schema → layout → convenção de entrada → superfície → escopo/ask →
 write/digest/cache. Cada etapa fecha com `make check` verde.
 
