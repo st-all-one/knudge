@@ -6,8 +6,28 @@
 
 use std::borrow::Cow;
 
-/// Marcador usado no lugar do valor sensível.
+/// Marcador genérico (compatibilidade). Prefira [`redacted`] para o rótulo tipado (D159).
 pub const REDACTED: &str = "[REDACTED]";
+
+/// Marcador tipado, ex.: `[REDACTED:token]` (D159).
+#[must_use]
+pub fn redacted(kind: &str) -> String {
+    format!("[REDACTED:{kind}]")
+}
+
+/// Rótulo tipado de uma chave sensível (D159).
+#[must_use]
+pub fn label_for(key: &str) -> &'static str {
+    match key {
+        "authorization" => "authorization",
+        "access_token" | "token" => "token",
+        "api_key" | "apikey" => "api_key",
+        "bearer" => "bearer",
+        "password" | "passwd" => "password",
+        "secret" => "secret",
+        _ => "custom",
+    }
+}
 
 /// Chaves cujo valor é sempre redigido.
 const SENSITIVE_KEYS: &[&str] = &[
@@ -52,7 +72,7 @@ impl Redactor {
         for secret in &self.secrets {
             let source = current.as_deref().unwrap_or(input);
             if source.contains(secret.as_str()) {
-                current = Some(source.replace(secret.as_str(), REDACTED));
+                current = Some(source.replace(secret.as_str(), &redacted("secret")));
             }
         }
 
@@ -120,9 +140,10 @@ fn redact_line(line: &str) -> Option<String> {
                     {
                         value_end += 1;
                     }
-                    let mut out = String::with_capacity(line.len() + REDACTED.len());
+                    let marker = redacted(label_for(key));
+                    let mut out = String::with_capacity(line.len() + marker.len());
                     out.push_str(line.get(..value_start).unwrap_or_default());
-                    out.push_str(REDACTED);
+                    out.push_str(&marker);
                     out.push_str(line.get(value_end..).unwrap_or_default());
                     return Some(out);
                 }
@@ -131,9 +152,10 @@ fn redact_line(line: &str) -> Option<String> {
                     while matches!(bytes.get(value_start), Some(b' ' | b'\t')) {
                         value_start += 1;
                     }
-                    let mut out = String::with_capacity(line.len() + REDACTED.len());
+                    let marker = redacted(label_for(key));
+                    let mut out = String::with_capacity(line.len() + marker.len());
                     out.push_str(line.get(..value_start).unwrap_or_default());
-                    out.push_str(REDACTED);
+                    out.push_str(&marker);
                     return Some(out);
                 }
             }
@@ -157,7 +179,7 @@ mod tests {
         let r = Redactor::new(["super-secreto-123".to_string()]);
         let out = r.redact("token é super-secreto-123 e pronto");
         assert!(!out.contains("super-secreto-123"), "vazou: {out}");
-        assert!(out.contains(REDACTED));
+        assert!(out.contains("[REDACTED:secret]"), "sem rótulo: {out}");
     }
 
     #[test]
@@ -165,7 +187,7 @@ mod tests {
         let r = Redactor::empty();
         let out = r.redact("Authorization: Bearer abc.def.ghi");
         assert!(!out.contains("abc.def.ghi"), "vazou: {out}");
-        assert!(out.starts_with("Authorization: "));
+        assert_eq!(out, "Authorization: [REDACTED:authorization]");
     }
 
     #[test]
@@ -173,6 +195,21 @@ mod tests {
         let r = Redactor::empty();
         let out = r.redact("evento token=deadbeef concluído");
         assert!(!out.contains("deadbeef"), "vazou: {out}");
+        assert_eq!(out, "evento token=[REDACTED:token] concluído");
+    }
+
+    #[test]
+    fn each_sensitive_key_gets_typed_label() {
+        let r = Redactor::empty();
+        let cases = [
+            ("api_key=abc", "[REDACTED:api_key]"),
+            ("password: hunter2", "[REDACTED:password]"),
+            ("secret = xyz", "[REDACTED:secret]"),
+        ];
+        for (line, marker) in cases {
+            let out = r.redact(line);
+            assert!(out.contains(marker), "`{line}` → `{out}` sem `{marker}`");
+        }
     }
 
     #[test]

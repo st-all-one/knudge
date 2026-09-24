@@ -6,7 +6,9 @@ mod rewind;
 mod task;
 
 pub use knowledge::{
-    KnowledgeCommand, KnowledgeDigestArgs, KnowledgeMapArgs, KnowledgeRankArgs, KnowledgeTagsArgs,
+    KnowledgeCommand, KnowledgeDigestArgs, KnowledgeMapArgs, KnowledgeRankArgs,
+    KnowledgeSuggestArgs, KnowledgeTagsArgs, PromoteCommand, PromoteEditArgs, PromoteRecommendArgs,
+    PromoteTargetArgs,
 };
 pub use maintenance::{
     ConfigCommand, CorpusArgs, MaintenanceCommand, SelfCommand, WatchServiceArgs,
@@ -189,6 +191,9 @@ pub struct AskArgs {
     /// Fim do intervalo.
     #[arg(long, value_name = "TS")]
     pub until: Option<String>,
+    /// Reconstrói o corpus ativo num instante (RFC3339 ou data) — D155.
+    #[arg(long = "as-of", value_name = "TS")]
+    pub as_of: Option<String>,
     /// Limite de resultados.
     #[arg(long, value_name = "N")]
     pub limit: Option<usize>,

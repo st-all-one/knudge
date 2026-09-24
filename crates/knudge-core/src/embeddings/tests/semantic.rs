@@ -6,6 +6,9 @@ use crate::embeddings::meta::{EmbeddingMeta, Similarity};
 use crate::embeddings::semantic::{
     clusters, duplicate_pairs, link_suggestions, neighbors, rank_query, unlinked_ids,
 };
+use crate::embeddings::suggest::{
+    AnchorShare, EdgeState, Relation, SuggestionPolicy, classify_pair, semantic_suggestions,
+};
 use crate::graph::Graph;
 
 use super::note;
@@ -131,5 +134,69 @@ fn unlinked_ids_lists_isolated_notes() -> Result<()> {
     assert!(isolated.contains(&fixture.a));
     assert!(isolated.contains(&fixture.b));
     assert!(isolated.contains(&fixture.c));
+    Ok(())
+}
+
+fn policy() -> SuggestionPolicy {
+    SuggestionPolicy {
+        duplicate: 0.92,
+        low: 0.4,
+        high: 0.75,
+    }
+}
+
+#[test]
+fn classify_pair_respects_bands_and_edges() {
+    let policy = policy();
+    assert_eq!(
+        classify_pair(0.95, EdgeState::Unlinked, AnchorShare::Disjoint, &policy),
+        Some(Relation::Duplicate)
+    );
+    assert_eq!(
+        classify_pair(0.8, EdgeState::Unlinked, AnchorShare::Disjoint, &policy),
+        Some(Relation::Link)
+    );
+    assert_eq!(
+        classify_pair(0.5, EdgeState::Unlinked, AnchorShare::Disjoint, &policy),
+        Some(Relation::Contradiction)
+    );
+    assert_eq!(
+        classify_pair(0.5, EdgeState::Unlinked, AnchorShare::Shared, &policy),
+        Some(Relation::Link)
+    );
+    assert_eq!(
+        classify_pair(0.39, EdgeState::Unlinked, AnchorShare::Disjoint, &policy),
+        None
+    );
+    assert_eq!(
+        classify_pair(0.95, EdgeState::Linked, AnchorShare::Shared, &policy),
+        None
+    );
+}
+
+#[test]
+fn semantic_suggestions_are_paired_and_sorted() -> Result<()> {
+    let fixture = setup()?;
+    let anchors = std::collections::BTreeMap::new();
+    let found = semantic_suggestions(&fixture.index, &fixture.graph, &anchors, &policy(), 5);
+    // `a` e `c` têm vetores idênticos → duplicata; o par aparece uma vez.
+    let duplicates: Vec<_> = found
+        .iter()
+        .filter(|s| s.relation == Relation::Duplicate)
+        .collect();
+    assert_eq!(duplicates.len(), 1);
+    if let Some(pair) = duplicates.first() {
+        let mut got = [pair.from.as_str(), pair.to.as_str()];
+        got.sort_unstable();
+        let mut want = [fixture.a.as_str(), fixture.c.as_str()];
+        want.sort_unstable();
+        assert_eq!(got, want);
+    }
+    assert!(found.windows(2).all(|w| {
+        match (w.first(), w.get(1)) {
+            (Some(left), Some(right)) => left.score >= right.score,
+            _ => true,
+        }
+    }));
     Ok(())
 }

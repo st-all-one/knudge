@@ -21,6 +21,7 @@ pub mod graph;
 pub mod handoff;
 pub mod health;
 pub mod jsonl;
+pub mod knowledge;
 pub mod lifecycle;
 pub mod logging;
 pub mod maintenance;

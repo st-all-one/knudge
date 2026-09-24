@@ -14,6 +14,65 @@ pub enum KnowledgeCommand {
     Rank(KnowledgeRankArgs),
     /// Vocabulário de tags (`tag|count`, `count` desc — ex-`ask --tags`, D146).
     Tags(KnowledgeTagsArgs),
+    /// Sugestões semânticas de aresta/contradição entre notas (read-only; D158).
+    Suggest(KnowledgeSuggestArgs),
+    /// Promove conhecimento a regras governadas no `AGENTS.md` (D157).
+    Promote {
+        /// Subcomando de promoção.
+        #[command(subcommand)]
+        command: PromoteCommand,
+    },
+}
+
+/// Subcomandos de `kd knowledge promote` (D157).
+#[derive(Debug, Subcommand)]
+pub enum PromoteCommand {
+    /// Recomenda candidatas a regra (read-only).
+    Recommend(PromoteRecommendArgs),
+    /// Promove uma nota para o bloco governado (respeita o teto).
+    Approve(PromoteTargetArgs),
+    /// Edita a linha promovida de uma nota (a proveniência continua).
+    Edit(PromoteEditArgs),
+    /// Remove uma nota do bloco governado (a nota de origem permanece).
+    Remove(PromoteTargetArgs),
+    /// Lista as notas promovidas.
+    List,
+}
+
+/// Argumentos de `kd knowledge promote recommend`.
+#[derive(Debug, Args)]
+pub struct PromoteRecommendArgs {
+    /// Varredura do projeto inteiro (sem filtro de trabalho).
+    #[arg(long)]
+    pub universe: bool,
+    /// Limite de candidatas.
+    #[arg(long, value_name = "N")]
+    pub limit: Option<usize>,
+}
+
+/// Argumentos de `kd knowledge promote approve|remove`.
+#[derive(Debug, Args)]
+pub struct PromoteTargetArgs {
+    /// Id da nota.
+    #[arg(value_name = "ID")]
+    pub id: String,
+    /// Varredura do projeto inteiro (sem filtro de trabalho).
+    #[arg(long)]
+    pub universe: bool,
+}
+
+/// Argumentos de `kd knowledge promote edit`.
+#[derive(Debug, Args)]
+pub struct PromoteEditArgs {
+    /// Id da nota.
+    #[arg(value_name = "ID")]
+    pub id: String,
+    /// Texto da regra.
+    #[arg(long, value_name = "TXT")]
+    pub summary: String,
+    /// Varredura do projeto inteiro (sem filtro de trabalho).
+    #[arg(long)]
+    pub universe: bool,
 }
 
 /// Argumentos de `kd knowledge digest`.
@@ -106,6 +165,20 @@ pub struct KnowledgeRankArgs {
 #[derive(Debug, Args)]
 pub struct KnowledgeTagsArgs {
     /// Limite de tags.
+    #[arg(long, value_name = "N")]
+    pub limit: Option<usize>,
+}
+
+/// Argumentos de `kd knowledge suggest` (D158).
+#[derive(Debug, Args)]
+pub struct KnowledgeSuggestArgs {
+    /// Nº máximo de vizinhos por nota.
+    #[arg(long = "top-k", value_name = "N", default_value_t = 5)]
+    pub top_k: usize,
+    /// Restringe a uma relação: `duplicate`/`contradiction`/`link`.
+    #[arg(long, value_name = "RELAÇÃO")]
+    pub relation: Option<String>,
+    /// Limite de sugestões.
     #[arg(long, value_name = "N")]
     pub limit: Option<usize>,
 }

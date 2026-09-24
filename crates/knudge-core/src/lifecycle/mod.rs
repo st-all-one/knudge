@@ -11,6 +11,7 @@ pub mod retire;
 pub mod semantic;
 pub mod shelf_life;
 pub mod supersession;
+pub mod usage;
 
 #[cfg(test)]
 mod tests;
@@ -36,6 +37,7 @@ pub use semantic::{
 };
 pub use shelf_life::{
     DAY_MS, EXPIRING_GRACE_DAYS, Freshness, ShelfLife, age_days, expired_ids, expiry_for,
-    freshness, is_expired,
+    expiry_for_with, freshness, freshness_with, is_expired, is_expired_with,
 };
 pub use supersession::{cycle_members, demote, filter_protected, protected};
+pub use usage::{Usage, UsageIndex, UsageStore, record_usage};

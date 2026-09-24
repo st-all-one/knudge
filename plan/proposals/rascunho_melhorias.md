@@ -72,6 +72,15 @@ Script leve opcional (`scripts/check_docs.sh`).
 `tests/stress.rs` não cobre corpus grande. Cenário determinístico (fakes) com N=10k: rebuild do
 índice, latência do `ask`, catch-up da fila — e o **layout D150** (`notas/<tipo>/`). Sem `Dxx`.
 
+### 3.6 Varredura de resíduos na inicialização — **implementada (D160)**
+`store::sweep_residues` estava sem chamador (E03-T08 ☑ sobredeclarava). Fechado como **D160**:
+`Session::sweep_residues` roda ao abrir a sessão (`run_session`) sobre `notas/`, `.idx/`,
+`cache/` e `eventos/`, removendo `*.tmp`/`*.stale` > `LockPolicy::default().stale_ms` (30 s) com
+`warn`. **Nunca** varre `*.lock` nem `.locks/` (o reclaim atômico fica no `lock.rs`/
+`doctor --fix`). Best-effort (R33): falha vira `warnings[]`. `prime`/`self version`/`completions`
+não abrem sessão (byte-a-byte, D57). Testes: `store::tests::sweep::*`,
+`cli::residues::startup_sweep_removes_aged_tmp_but_keeps_fresh_and_locks`.
+
 ## 4. Fora de escopo (não fazer agora)
 
 - `custom_types`/labels livres (enum fechado é decisão).

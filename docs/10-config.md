@@ -112,3 +112,21 @@ A lista completa (com tipos e defaults) está em
 ## Próximo passo
 
 ➡️ [`kd forget`](11-forget.md) · [Embeddings](15-embeddings.md)
+
+## Chaves da v0.3.2 (D154–D159)
+
+| Chave | Default | Efeito |
+|---|---|---|
+| `retention.renew_on_use` | `false` | Renova a expiração a partir do último uso (D154). |
+| `proposals.gate` | `""` | Nomes de gates (vírgula) do `validators.toml` (D156). |
+| `proposals.min_delta` | `0.0` | Ganho mínimo de placar para o gate aprovar. |
+| `proposals.enforce` | `false` | Bloqueia o `write` quando o gate reprova. |
+| `suggestions.enabled` | `true` | Liga `kd knowledge suggest` (D158). |
+| `suggestions.contradiction_low` | `0.4` | Piso da banda advisory. |
+| `suggestions.contradiction_high` | `0.75` | Teto da banda advisory. |
+| `rules.enabled` | `false` | Liga `kd knowledge promote` (D157). |
+| `rules.max_promoted` | `15` | Teto de regras no bloco governado. |
+| `rules.min_confidence` | `0.7` | Confiança derivada mínima para promover. |
+
+`validators.toml` aceita `kind = "check"|"gate"` (default `check`); o gate lê
+`{op,before,after}` no stdin e escreve `{passed,score_before,score_after}` no stdout.

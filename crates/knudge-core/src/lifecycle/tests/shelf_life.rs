@@ -3,8 +3,10 @@
 use crate::Result;
 use crate::config::Config;
 use crate::lifecycle::shelf_life::{
-    DAY_MS, ShelfLife, age_days, expiry_for, freshness, is_expired,
+    DAY_MS, ShelfLife, age_days, expiry_for, expiry_for_with, freshness, freshness_with,
+    is_expired, is_expired_with,
 };
+use crate::lifecycle::usage::{Usage, UsageIndex};
 use crate::schema::{Classification, NoteType};
 
 use super::{NOW, classified, note_created};
@@ -110,5 +112,63 @@ fn freshness_counts_stale_expiring_and_pending() -> Result<()> {
     assert_eq!(result.expiring, 1);
     assert_eq!(result.pending, 4);
     assert_eq!(result.render(), "stale=1 expiring=1 pending=4");
+    Ok(())
+}
+
+#[test]
+fn renewal_extends_but_never_shortens() -> Result<()> {
+    let policy = ShelfLife {
+        renew_on_use: true,
+        ..ShelfLife::default()
+    };
+    let note = classified(
+        "renovada",
+        Classification::Observational,
+        NOW.saturating_sub(days(40)),
+    )?;
+    let recent = NOW.saturating_sub(days(10));
+    assert!(!is_expired_with(&note, NOW, &policy, Some(recent))?);
+    assert!(is_expired(&note, NOW, &policy)?);
+    // Uso antigo não encurta: a expiração continua a partir de `created_at`.
+    let ancient = NOW.saturating_sub(days(1_000));
+    assert_eq!(
+        expiry_for_with(&note, &policy, Some(ancient))?,
+        expiry_for(&note, &policy)?
+    );
+    Ok(())
+}
+
+#[test]
+fn renewal_off_ignores_last_seen() -> Result<()> {
+    let policy = ShelfLife::default();
+    let note = classified(
+        "sem-renovação",
+        Classification::Observational,
+        NOW.saturating_sub(days(40)),
+    )?;
+    assert!(is_expired_with(&note, NOW, &policy, Some(NOW))?);
+    Ok(())
+}
+
+#[test]
+fn freshness_with_renewal_counts_recent_as_fresh() -> Result<()> {
+    let policy = ShelfLife {
+        renew_on_use: true,
+        ..ShelfLife::default()
+    };
+    let stale = classified(
+        "velha",
+        Classification::Observational,
+        NOW.saturating_sub(days(40)),
+    )?;
+    let stale_id = stale.id()?.to_string();
+    let usage = UsageIndex::new(&[Usage {
+        id: stale_id,
+        hits: 3,
+        last_seen_ms: NOW.saturating_sub(days(1)),
+    }]);
+    let result = freshness_with(&[stale], NOW, &policy, 0, &usage)?;
+    assert_eq!(result.stale, 0);
+    assert_eq!(result.expiring, 0);
     Ok(())
 }

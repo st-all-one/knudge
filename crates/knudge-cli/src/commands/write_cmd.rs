@@ -15,6 +15,7 @@ use crate::commands::parse;
 use crate::output::Output;
 use crate::session::Session;
 
+use super::gate;
 use super::hooks::{self, HookEvent};
 use super::input;
 
@@ -128,6 +129,22 @@ fn create_note(session: &Session, args: &WriteArgs) -> Result<Output> {
             })).collect::<Vec<_>>(),
         });
         return Ok(Output::new(format!("dry-run: {id}"), data));
+    }
+    if gate::enforced(session) {
+        let after = json!({
+            "statement": &draft.statement,
+            "body": &draft.body,
+            "type": draft.note_type.as_str(),
+            "tags": &draft.tags,
+            "anchors": &draft.anchors,
+        });
+        let report = gate::evaluate(session, "create", None, &after)?;
+        if !report.passed() {
+            let failed = report.failed().join(", ");
+            return Err(Error::conflict(format!(
+                "portão de evidência reprovou a gravação: {failed}"
+            )));
+        }
     }
     let ctx = session.write_context()?;
     let outcome = write(&ctx, &draft, &session.thresholds()?)?;

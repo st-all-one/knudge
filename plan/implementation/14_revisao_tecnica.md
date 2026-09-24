@@ -81,11 +81,14 @@
 ## 2. Recursos
 
 ### R10 🟠 Varredura de resíduos na inicialização
-- **Estado:** lock tem stale 30 s; `*.tmp` órfão pós-crash não é tratado.
-- **Recomendação:** no start, varrer `.idx/`/`notas/`/cache por `*.tmp`/`*.lock` mais velhos que
-  o threshold e removê-los com `warn`; **nunca** remover lock de processo vivo (pid/inode).
+- **Estado:** lock tem stale 30 s; `*.tmp`/`*.stale` órfãos são varridos ao abrir a sessão
+  (`Session::sweep_residues`, D160) — **não** varre `*.lock`/`.locks/` (reclaim atômico no
+  `lock.rs`/`doctor --fix`).
+- **Recomendação:** no start, varrer `notas/`/`.idx/`/`cache/`/`eventos/` por `*.tmp`/`*.stale`
+  mais velhos que `stale_ms` (30 s) e removê-los com `warn`; **não** varrer `*.lock`/`.locks/` —
+  o reclaim de lock é atômico e fica no `lock.rs`/`doctor --fix` (D160).
 - **Onde:** E03-T08; E09-T04.
-- **Aceite:** órfão antigo removido; lock vivo preservado.
+- **Aceite:** órfão antigo removido; fresco preservado; lock vivo preservado.
 
 ### R11 🟠 Backpressure e limites de concorrência
 - **Estado:** `max_pending` citado, mas sem canal/limites explícitos.
@@ -235,6 +238,20 @@
   `unsafe`, aritmética, `print_*`, `indexing_slicing`, `disallowed_*`, `await_holding_*`);
   análise individual das 95 opções e config pronta em [`15_clippy_config.md`](15_clippy_config.md)
   e [`clippy.toml`](clippy.toml).
+- **R45 🔴 Invariantes de retenção e reescrita (D154–D159):** toda feature que toca shelf-life,
+  ranking, curadoria ou reescrita deve respeitar: (1) **default identidade** — no-op
+  byte-a-byte até o usuário ligar a config, **inclusive sem criar derivados** (com
+  `retention.renew_on_use=false`, `ask`/`rewind` não gravam nem `.idx/usage.jsonl`);
+  (2) **renovação de uso só estende** retenção, nunca encurta; (3) **supersessão vence
+  evidência** — contagem/confiança sombreia ranking, não decide se a correção entra;
+  (4) **acesso ≠ evidência** — "ainda é usado" e "ainda é verdade" são eixos separados;
+  (5) **transformação não deleta a fonte** — supersessão/merge/decay/compact só propõem ou
+  reescrevem a linhagem, e `purge_derived` (D84) toca só `.idx/`; a **única** remoção do
+  canônico é o `forget --purge` explícito, após tombstone + retenção, com detach de referrers
+  (D32/D48/D84); (6) **toda varredura executada deixa relatório** (`warnings[]`/`--json`,
+  D47/R33); (7) **leitura nunca escreve nota** (só derivados em `.idx/`). Checklist no DoD de
+  cada PR. Detalhe em [`plan/proposals/melhorias_ai_memory.md`](../proposals/melhorias_ai_memory.md);
+  travado por [`crates/knudge-cli/tests/invariants.rs`](../../crates/knudge-cli/tests/invariants.rs).
 
 **Onde:** E01-T03 (R40/R41/R43/R44), E01-T08 (R01/R44), E13-T07 (R44), E13-T09 (R42).
 

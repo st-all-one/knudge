@@ -50,6 +50,7 @@ fn plans_expired_and_decayed_but_not_healthy() -> Result<()> {
         shelf_life: &shelf_life,
         decay: &decay,
         validity: &validity,
+        usage: None,
     };
     let candidates = demotion_candidates(&notes, &input, &graph)?;
     assert_eq!(candidates.len(), 2);
@@ -84,6 +85,7 @@ fn cycle_members_are_excluded_from_plan() -> Result<()> {
         shelf_life: &shelf_life,
         decay: &decay,
         validity: &validity,
+        usage: None,
     };
     let candidates = demotion_candidates(&notes, &input, &graph)?;
     assert!(candidates.is_empty());
@@ -115,6 +117,7 @@ fn end_to_end_decay_demotes_note() -> Result<()> {
         shelf_life: &shelf_life,
         decay: &decay,
         validity: &map,
+        usage: None,
     };
     let candidates = demotion_candidates(&notes, &input, &graph)?;
     assert_eq!(

@@ -26,6 +26,11 @@ pub(super) fn candidates(index: &Index, graph: &Graph, query: &RecallQuery) -> B
         if query.universe == Universe::Knowledge && doc.meta.scope.is_some() {
             continue;
         }
+        if let Some(active) = &query.as_of
+            && !active.contains(&doc.meta.id)
+        {
+            continue;
+        }
         if let Some(scope) = query.scope.as_deref()
             && !belongs_to(graph, &doc.meta.id, scope)
         {

@@ -6,7 +6,7 @@ use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::handoff::manifest::belongs_to;
 use knudge_core::lifecycle::{
-    AnchorValidity, DecayPolicy, DemotionInput, ShelfLife, compute_anchor_validity,
+    AnchorValidity, DecayPolicy, DemotionInput, ShelfLife, UsageStore, compute_anchor_validity,
     demotion_candidates,
 };
 use knudge_core::maintenance::{LearnInput, learn, propose_compact};
@@ -19,12 +19,18 @@ use crate::session::Session;
 
 use super::super::corpus::CorpusScope;
 use super::super::hooks::{self, HookEvent};
+use super::proposals::{VerifyMode, build_reports, render_proposals};
 
 /// `kd maintenance compact` — propõe merge/supersede (nunca aplica em silêncio).
 ///
 /// # Errors
 /// Propaga erros de leitura do store/índice.
-pub fn compact(session: &Session, scope: Option<&str>, corpus: &CorpusArgs) -> Result<Output> {
+pub fn compact(
+    session: &Session,
+    scope: Option<&str>,
+    corpus: &CorpusArgs,
+    verify: VerifyMode,
+) -> Result<Output> {
     let corpus = CorpusScope::from(corpus);
     corpus.require("maintenance compact")?;
     let hook = hooks::run(session, HookEvent::PreCompact, &json!({ "scope": scope }))?;
@@ -44,9 +50,22 @@ pub fn compact(session: &Session, scope: Option<&str>, corpus: &CorpusArgs) -> R
         })
         .filter(|proposal| selection.matches_id(&proposal.keep))
         .collect();
-    let text = proposals
-        .iter()
-        .map(|proposal| {
+    let (reports, warnings) = build_reports(session, verify, &proposals, |proposal| {
+        (
+            "merge".to_string(),
+            json!({
+                "strategy": proposal.strategy.as_str(),
+                "keep": proposal.keep,
+                "ids": proposal.ids,
+                "score": proposal.score,
+            }),
+        )
+    })?;
+    Ok(render_proposals(
+        &proposals,
+        &reports,
+        warnings,
+        |proposal| {
             format!(
                 "{}|{}|{}|{:.2}",
                 proposal.strategy.as_str(),
@@ -54,26 +73,29 @@ pub fn compact(session: &Session, scope: Option<&str>, corpus: &CorpusArgs) -> R
                 proposal.ids.join(","),
                 proposal.score
             )
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-    let data = json!({
-        "proposals": proposals.iter().map(|proposal| json!({
-            "strategy": proposal.strategy.as_str(),
-            "keep": proposal.keep,
-            "ids": proposal.ids,
-            "why": proposal.why,
-            "score": proposal.score,
-        })).collect::<Vec<_>>(),
-    });
-    Ok(Output::new(text, data))
+        },
+        |proposal| {
+            json!({
+                "strategy": proposal.strategy.as_str(),
+                "keep": proposal.keep,
+                "ids": proposal.ids,
+                "why": proposal.why,
+                "score": proposal.score,
+            })
+        },
+    ))
 }
 
 /// `kd maintenance learn` — propostas determinísticas (write-gap, dedup, link).
 ///
 /// # Errors
 /// Propaga erros de leitura de índice/eventos.
-pub fn learn_cmd(session: &Session, scope: Option<&str>, corpus: &CorpusArgs) -> Result<Output> {
+pub fn learn_cmd(
+    session: &Session,
+    scope: Option<&str>,
+    corpus: &CorpusArgs,
+    verify: VerifyMode,
+) -> Result<Output> {
     let corpus = CorpusScope::from(corpus);
     corpus.require("maintenance learn")?;
     let index = session.index()?;
@@ -94,27 +116,39 @@ pub fn learn_cmd(session: &Session, scope: Option<&str>, corpus: &CorpusArgs) ->
         .into_iter()
         .filter(|proposal| proposal.ids.iter().any(|id| selection.matches_id(id)))
         .collect();
-    let text = proposals
-        .iter()
-        .map(|proposal| {
+    let mut warnings = warnings;
+    let (reports, gate_warnings) = build_reports(session, verify, &proposals, |proposal| {
+        (
+            proposal.kind.as_str().to_string(),
+            json!({
+                "kind": proposal.kind.as_str(),
+                "ids": proposal.ids,
+                "score": proposal.score,
+            }),
+        )
+    })?;
+    warnings.extend(gate_warnings);
+    Ok(render_proposals(
+        &proposals,
+        &reports,
+        warnings,
+        |proposal| {
             format!(
                 "{}|{}|{:.2}",
                 proposal.kind.as_str(),
                 proposal.ids.join(","),
                 proposal.score
             )
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-    let data = json!({
-        "proposals": proposals.iter().map(|proposal| json!({
-            "kind": proposal.kind.as_str(),
-            "ids": proposal.ids,
-            "why": proposal.why,
-            "score": proposal.score,
-        })).collect::<Vec<_>>(),
-    });
-    Ok(Output::new(text, data).with_warnings(warnings))
+        },
+        |proposal| {
+            json!({
+                "kind": proposal.kind.as_str(),
+                "ids": proposal.ids,
+                "why": proposal.why,
+                "score": proposal.score,
+            })
+        },
+    ))
 }
 
 /// `kd maintenance prune` — propõe aposentadoria (`forget`) por shelf-life/decay (D112).
@@ -139,11 +173,13 @@ pub fn prune(session: &Session, scope: Option<&str>, corpus: &CorpusArgs) -> Res
     let shelf_life = ShelfLife::from_config(session.config());
     let decay = DecayPolicy::from_config(session.config());
     let validity = validity_map(session, &notes)?;
+    let usage = UsageStore::new(session.fs_dyn(), session.knowledge_dir()).index()?;
     let input = DemotionInput {
         now_ms: session.now_ms(),
         shelf_life: &shelf_life,
         decay: &decay,
         validity: &validity,
+        usage: Some(&usage),
     };
     let mut candidates = demotion_candidates(&notes, &input, &graph)?;
     if let Some(container) = scope {

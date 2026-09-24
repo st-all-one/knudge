@@ -4,6 +4,49 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+## [0.3.2] - 2026-09-24
+
+### Adicionado
+- **v0.3.2 — melhorias destiladas do `ai-memory` (D154–D159).** Sete contribuições adaptadas à
+  tese do knudge (protocolo explícito, núcleo puro, índice derivado); as demais foram recusadas
+  por premissa (captura automática, LLM interno, SQLite/servidor).
+  - **Renovação de shelf-life por uso (D154).** Uso vira derivado `.idx/usage.jsonl` (nunca
+    verdade, purgado em D84). Com `retention.renew_on_use=true`, a expiração passa a
+    `max(created_at, last_seen) + prazo` e **só estende** — `prune`/`rewind` respeitam o uso;
+    `ask`/`rewind` creditam os ids devolvidos, coalescidos no fim da invocação.
+  - **Consulta temporal `ask --as-of <TS>` (D155).** Reconstrói o corpus ativo em `T` a partir
+    de `forget`/`restore` e da cadeia de supersessão (`link replaces`) e roda o pipeline
+    determinístico sobre o subconjunto — o ranking de `T` é reproduzível. Nota purgada vira
+    `warnings[]`; `T` no futuro é `invalid_input`; `--json` traz `as_of`/`historical`.
+  - **Portão de evidência em propostas (D156).** `validators.toml` ganha `kind="gate"`
+    (stdin `{op,before,after}` → stdout `{passed,score_before,score_after}`).
+    `learn`/`compact --verify` anexam o veredito (read-only); com `proposals.enforce=true` e
+    `proposals.gate` configurado, o `write` bloqueia quando o gate reprova (`min_delta`).
+  - **Promoção de regras para `AGENTS.md` (D157).** `kd knowledge promote
+    recommend|approve|edit|remove|list` escreve um bloco governado (`knudge:rules:start/end`,
+    irmão do protocolo) com proveniência por linha e teto `rules.max_promoted`. Desligado por
+    default; nunca auto-edita; a nota de origem permanece.
+  - **Sugestão semântica de arestas/contradições (D158).** `kd knowledge suggest` classifica
+    pares do índice vetorial em `duplicate`/`contradiction`/`link` (banda
+    `suggestions.contradiction_low..high`) — advisory, nunca vira aresta (D49).
+  - **Redação tipada de segredos (D159).** O log passa a emitir `[REDACTED:<tipo>]`
+    (`authorization`/`token`/`api_key`/`password`/`secret`/`bearer`/`custom`) em vez do marcador
+    anônimo.
+  - **Invariantes transversais (R45).** Default identidade (inclusive sem criar derivados),
+    renovação só estende, supersessão vence evidência, acesso ≠ evidência, transformação não
+    deleta a fonte (a remoção do canônico é só o `forget --purge` explícito), toda varredura
+    executada deixa relatório, leitura nunca escreve nota. Travados de ponta a ponta por
+    `crates/knudge-cli/tests/invariants.rs` e `tests/improvements_032.rs`.
+  - **Varredura de resíduos na inicialização (D160).** `store::sweep_residues` (R10) passa a
+    rodar ao abrir a sessão sobre `notas/`/`.idx/`/`cache/`/`eventos/`, removendo `*.tmp`/
+    `*.stale` antigos (> 30 s) com `warn`; **nunca** toca `*.lock`/`.locks/` (o reclaim atômico
+    fica no `lock.rs`/`doctor --fix`). Best-effort (R33): falha vira aviso. Fecha E03-T08/R10.
+
+### Mudado
+- **Chaves de config novas:** `retention.renew_on_use`, `proposals.gate`/`min_delta`/`enforce`,
+  `suggestions.enabled`/`contradiction_low`/`contradiction_high`,
+  `rules.enabled`/`max_promoted`/`min_confidence`. Nenhuma chave canônica TOON mudou (25).
+
 ## [0.3.1] - 2026-09-24
 
 ### Corrigido

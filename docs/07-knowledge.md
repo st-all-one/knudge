@@ -139,3 +139,34 @@ drena um lote ao fim de cada verbo; `--drain` esvazia o resto. Ver
 ## Próximo passo
 
 ➡️ [`kd rewind`](08-rewind.md) · [Embeddings](15-embeddings.md)
+
+## `knowledge suggest` (D158)
+
+Sugestões semânticas **advisory** a partir do índice vetorial: classifica pares em
+`duplicate` (quase-duplicata → merge), `contradiction` (mesmo tópico, banda
+`suggestions.contradiction_low..high`) e `link` (relacionadas, sem aresta). Nunca vira aresta
+sozinha (D49) — é entrada para `kd write --link` ou `kd maintenance compact`.
+
+```
+kd knowledge suggest
+kd knowledge suggest --relation contradiction --limit 10
+```
+
+Pipe: `relação|from|to|score`; sem índice vetorial → `[no_results]`.
+
+## `knowledge promote` (D157)
+
+Promove conhecimento a **regras governadas** no bloco `knudge:rules` do `AGENTS.md` (irmão do
+bloco de protocolo, intocado pelo `init`). Desligado por default (`rules.enabled=false`).
+
+```
+kd knowledge promote recommend --universe   # read-only
+kd knowledge promote approve <ID> --universe
+kd knowledge promote edit <ID> --summary "regra revisada"
+kd knowledge promote remove <ID> --universe
+kd knowledge promote list
+```
+
+Elegíveis: `type=meta|decision`, `classification=foundational`, confiança derivada (D87) ≥
+`rules.min_confidence` e sem `contradicts` aberto. Teto rígido `rules.max_promoted` (recusa e
+nomeia quem sai). A nota de origem permanece.

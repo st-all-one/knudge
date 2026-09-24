@@ -19,6 +19,9 @@ pub enum MaintenanceCommand {
         /// Container/domínio de escopo.
         #[arg(long, value_name = "CONTAINER")]
         scope: Option<String>,
+        /// Avalia o portão de evidência sobre cada proposta (read-only) — D156.
+        #[arg(long)]
+        verify: bool,
         /// Filtros de corpus (D144).
         #[command(flatten)]
         corpus: CorpusArgs,
@@ -28,6 +31,9 @@ pub enum MaintenanceCommand {
         /// Container/domínio de escopo.
         #[arg(long, value_name = "CONTAINER")]
         scope: Option<String>,
+        /// Avalia o portão de evidência sobre cada proposta (read-only) — D156.
+        #[arg(long)]
+        verify: bool,
         /// Filtros de corpus (D144).
         #[command(flatten)]
         corpus: CorpusArgs,

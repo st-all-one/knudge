@@ -1,6 +1,7 @@
 //! `kd maintenance` — doctor, audit, compact, learn e prune (E12-T01).
 
 pub mod extra;
+pub mod proposals;
 pub mod watch;
 
 use knudge_core::Result;
@@ -39,12 +40,34 @@ pub fn run(session: &Session, command: &MaintenanceCommand) -> Result<Output> {
                 DoctorMode::Report
             },
         ),
-        MaintenanceCommand::Compact { scope, corpus } => {
-            extra::compact(session, scope.as_deref(), corpus)
-        }
-        MaintenanceCommand::Learn { scope, corpus } => {
-            extra::learn_cmd(session, scope.as_deref(), corpus)
-        }
+        MaintenanceCommand::Compact {
+            scope,
+            corpus,
+            verify,
+        } => extra::compact(
+            session,
+            scope.as_deref(),
+            corpus,
+            if *verify {
+                proposals::VerifyMode::Run
+            } else {
+                proposals::VerifyMode::Skip
+            },
+        ),
+        MaintenanceCommand::Learn {
+            scope,
+            corpus,
+            verify,
+        } => extra::learn_cmd(
+            session,
+            scope.as_deref(),
+            corpus,
+            if *verify {
+                proposals::VerifyMode::Run
+            } else {
+                proposals::VerifyMode::Skip
+            },
+        ),
         MaintenanceCommand::Prune { scope, corpus, .. } => {
             extra::prune(session, scope.as_deref(), corpus)
         }

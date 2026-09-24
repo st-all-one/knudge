@@ -5,6 +5,7 @@ pub mod config_cmd;
 pub mod corpus;
 pub mod embedder;
 pub mod forget_sync;
+pub mod gate;
 pub mod hooks;
 pub mod idle;
 pub mod init;
@@ -50,7 +51,10 @@ pub fn run(cli: &Cli) -> Result<Output> {
 
 fn run_session(command: &Command) -> Result<Output> {
     let session = Session::open()?;
-    let output = dispatch(&session, command)?;
+    let mut warnings = session.sweep_residues();
+    let mut output = dispatch(&session, command)?;
+    warnings.append(&mut output.warnings);
+    output.warnings = warnings;
     if session.config().strict() && !output.warnings.is_empty() {
         return Err(Error::config(format!(
             "modo estrito: {}",

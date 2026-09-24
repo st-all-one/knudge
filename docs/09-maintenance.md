@@ -144,3 +144,10 @@ kd maintenance watch-service --uninstall      # remove agendador + servidor
 ## Próximo passo
 
 ➡️ [Embeddings](15-embeddings.md) · [`kd config`](10-config.md)
+
+## `--verify` — portão de evidência (D156)
+
+`compact --verify`/`learn --verify` rodam os gates configurados (`proposals.gate`, catálogo
+`validators.toml` com `kind = "gate"`) sobre cada proposta e anexam `gate=passed|failed` ao
+pipe (e `gate` no `--json`). É **read-only**. Com `proposals.enforce=true`, o mesmo gate roda
+no `write` e **bloqueia** a gravação quando reprova (exit 4).

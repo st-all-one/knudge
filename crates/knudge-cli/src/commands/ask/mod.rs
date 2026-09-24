@@ -4,6 +4,7 @@ use std::io::IsTerminal;
 
 use knudge_core::graph::Graph;
 use knudge_core::jsonl;
+use knudge_core::lifecycle::UsageStore;
 use knudge_core::retrieval::get;
 use knudge_core::schema::{NoteType, Status, Value};
 use knudge_core::store::Note;
@@ -124,6 +125,7 @@ fn parse_ask_params(value: &Value) -> Result<AskArgs> {
     args.anchor = string_list(map.get("anchor"))?;
     args.since = map.get("since").and_then(Value::as_str).map(str::to_string);
     args.until = map.get("until").and_then(Value::as_str).map(str::to_string);
+    args.as_of = map.get("as_of").and_then(Value::as_str).map(str::to_string);
     if let Some(limit) = map.get("limit").and_then(Value::as_int) {
         args.limit = Some(
             usize::try_from(limit).map_err(|_| Error::invalid_input("`limit` fora do range"))?,
@@ -151,6 +153,7 @@ fn string_list(value: Option<&Value>) -> Result<Vec<String>> {
 fn get_ids(session: &Session, args: &AskArgs) -> Result<Output> {
     let store = session.store();
     let out = get(&store, &args.ids)?;
+    let mut warnings = out.warnings;
     let blocks: Vec<String> = out
         .notes
         .iter()
@@ -167,7 +170,15 @@ fn get_ids(session: &Session, args: &AskArgs) -> Result<Output> {
     let data = json!({
         "notes": out.notes.iter().map(note_json).collect::<Vec<_>>(),
     });
-    Ok(Output::new(blocks.join("\n"), data).with_warnings(out.warnings))
+    let ids: Vec<String> = out
+        .notes
+        .iter()
+        .filter_map(|note| note.frontmatter.id().ok().map(str::to_string))
+        .collect();
+    if let Some(warning) = record_usage(session, &ids) {
+        warnings.push(warning);
+    }
+    Ok(Output::new(blocks.join("\n"), data).with_warnings(warnings))
 }
 
 fn expand(session: &Session, args: &AskArgs, around: &str) -> Result<Output> {
@@ -193,7 +204,10 @@ fn expand(session: &Session, args: &AskArgs, around: &str) -> Result<Output> {
             "depth": hit.depth,
         })).collect::<Vec<_>>(),
     });
-    Ok(Output::new(text, data))
+    let mut ids: Vec<String> = hits.iter().map(|hit| hit.id.clone()).collect();
+    ids.push(around.to_string());
+    let warnings = record_usage(session, &ids).into_iter().collect();
+    Ok(Output::new(text, data).with_warnings(warnings))
 }
 
 fn note_json(note: &Note) -> serde_json::Value {
@@ -204,4 +218,25 @@ fn note_json(note: &Note) -> serde_json::Value {
         "status": note.frontmatter.status().map(Status::as_str).unwrap_or_default(),
         "body": note.body,
     })
+}
+
+/// Credita uso dos ids lidos (D154). No-op se `retention.renew_on_use` estiver desligado.
+///
+/// Retorna aviso (R33) quando o derivado não puder ser gravado; nunca derruba a leitura.
+fn record_usage(session: &Session, ids: &[String]) -> Option<String> {
+    if ids.is_empty() {
+        return None;
+    }
+    if !session
+        .config()
+        .get_bool("retention.renew_on_use")
+        .unwrap_or(false)
+    {
+        return None;
+    }
+    let store = UsageStore::new(session.fs_dyn(), session.knowledge_dir());
+    match store.record(ids, session.now_ms()) {
+        Ok(_ignored) => None,
+        Err(error) => Some(format!("uso: {error}")),
+    }
 }

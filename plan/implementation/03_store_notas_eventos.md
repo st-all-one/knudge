@@ -77,6 +77,10 @@ E02.
 - **Decisões:** D20, D23, D24. **Políticas:** R05, R10, R34.
 - **Aceite:** crash/erro não deixa resíduo; órfão antigo removido; lock vivo preservado.
 
+> **Resolvido por D160 (item 3.6 de `plan/proposals/rascunho_melhorias.md`):** a varredura de
+> resíduos roda ao abrir a sessão (`Session::sweep_residues`), removendo `*.tmp`/`*.stale`
+> antigos; **não** toca `*.lock`/`.locks/` (reclaim atômico no `lock.rs`/`doctor --fix`).
+
 ### E03-T09 ☑ Rotação e checkpoint de `eventos.jsonl`
 - **Objetivo:** o log de eventos não cresce para sempre.
 - **Entregáveis:** segmentação `eventos/<yyyy-mm>.jsonl` (ou por tamanho) + **checkpoint de

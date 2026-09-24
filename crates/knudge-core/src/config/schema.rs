@@ -46,6 +46,7 @@ pub struct KeySpec {
 pub const SECRETS_PREFIX: &str = "secrets";
 
 mod keys;
+mod keys_embeddings;
 
 pub use keys::KEYS;
 
@@ -70,7 +71,7 @@ pub fn default_value(spec: &KeySpec) -> ConfigValue {
 #[must_use]
 pub fn default_table() -> Table {
     let mut table = Table::new();
-    for entry in KEYS {
+    for entry in KEYS.iter() {
         let parts: Vec<&str> = entry.key.split('.').collect();
         // `set_path` só falha se um ancestral não for tabela, o que não ocorre aqui.
         let _ignored = set_path(&mut table, &parts, default_value(entry));

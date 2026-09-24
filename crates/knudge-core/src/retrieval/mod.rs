@@ -13,6 +13,7 @@ pub mod pipeline;
 pub mod rank;
 pub mod rrf;
 pub mod tags;
+pub mod temporal;
 pub mod token;
 pub mod views;
 pub mod why;
@@ -29,6 +30,7 @@ pub use index::{
 pub use rank::{RankQuery, Universe, rank};
 pub use rrf::{Channel, Fused, fuse};
 pub use tags::tag_counts;
+pub use temporal::{State, active_ids, state_at};
 pub use views::{BlockReason, Views, block_reason, compute_views};
 pub use why::Why;
 
@@ -123,6 +125,8 @@ pub struct RecallQuery {
     pub task_confirmation_weight: f64,
     /// Promove `warnings` a erro (config `behavior.strict` — D94).
     pub strict: bool,
+    /// Conjunto ativo em `as_of` (D155); `None` = corpus atual.
+    pub as_of: Option<BTreeSet<String>>,
 }
 
 impl RecallQuery {

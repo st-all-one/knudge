@@ -7,8 +7,8 @@ use knudge_core::embeddings::{EmbeddingIndex, rank_query};
 use knudge_core::lifecycle::DEFAULT_TASK_CONFIRMATION;
 use knudge_core::retrieval::{
     DEFAULT_ANCHOR_WEIGHT, DEFAULT_LEXICAL_WEIGHT, DEFAULT_LIMIT, DEFAULT_RRF_K,
-    DEFAULT_SEMANTIC_WEIGHT, Filter, FusionWeights, RecallHit, RecallQuery, Universe, format_brief,
-    format_hit, get, recall,
+    DEFAULT_SEMANTIC_WEIGHT, Filter, FusionWeights, Index, RecallHit, RecallQuery, Universe,
+    active_ids, format_brief, format_hit, get, recall,
 };
 use knudge_core::schema::Status;
 use serde_json::json;
@@ -30,11 +30,12 @@ pub(super) fn recall_query(session: &Session, args: &AskArgs) -> Result<Output> 
     let index = session.index()?;
     let graph = session.graph()?;
     let text = args.query.join(" ");
-    let mut query = build_recall_query(session, args, &text)?;
+    let mut query = build_recall_query(session, args, &index, &text)?;
     if !text.is_empty() {
         attach_semantic(session, &text, &mut query);
     }
     let out = recall(&index, &graph, &query)?;
+    let mut warnings = out.warnings;
     let format = if args.brief {
         HitFormat::Brief
     } else {
@@ -54,15 +55,30 @@ pub(super) fn recall_query(session: &Session, args: &AskArgs) -> Result<Output> 
             .collect::<Vec<_>>()
             .join("\n")
     };
+    let body = if let Some(as_of) = &args.as_of {
+        format!("as_of={as_of}\n{body}")
+    } else {
+        body
+    };
     let data = json!({
         "query": text,
-        "hits": out.hits.iter().map(|hit| hit_json(hit, format, &bodies)).collect::<Vec<_>>(),
+        "as_of": args.as_of,
+        "hits": out.hits.iter().map(|hit| hit_json(hit, format, &bodies, args.as_of.as_deref())).collect::<Vec<_>>(),
     });
-    Ok(Output::new(body, data).with_warnings(out.warnings))
+    let hit_ids: Vec<String> = out.hits.iter().map(|hit| hit.id.clone()).collect();
+    if let Some(warning) = super::record_usage(session, &hit_ids) {
+        warnings.push(warning);
+    }
+    Ok(Output::new(body, data).with_warnings(warnings))
 }
 
 /// Monta a `RecallQuery` a partir da config, dos filtros e do universo (D94/D102/D146).
-fn build_recall_query(session: &Session, args: &AskArgs, text: &str) -> Result<RecallQuery> {
+fn build_recall_query(
+    session: &Session,
+    args: &AskArgs,
+    index: &Index,
+    text: &str,
+) -> Result<RecallQuery> {
     let config = session.config();
     let mut query = RecallQuery::new(text.to_string());
     query.limit = args
@@ -102,14 +118,31 @@ fn build_recall_query(session: &Session, args: &AskArgs, text: &str) -> Result<R
     query.scope.clone_from(&args.scope);
     query.now_ms = Some(session.now_ms());
     query.strict = config.strict();
+    if let Some(raw) = &args.as_of {
+        let as_of_ms = parse::timestamp(raw)?;
+        if as_of_ms > session.now_ms() {
+            return Err(knudge_core::Error::invalid_input("`--as-of` no futuro"));
+        }
+        let (events, _warnings) = session.events().read_all()?;
+        let docs: Vec<(String, i64)> = index
+            .docs
+            .iter()
+            .map(|doc| (doc.meta.id.clone(), doc.meta.created_ms))
+            .collect();
+        query.as_of = Some(active_ids(&events, &docs, as_of_ms));
+    }
     Ok(query)
 }
 
 /// Statuses efetivos: os pedidos ou o default que esconde soft-delete/supersede (D43).
 fn resolve_statuses(args: &AskArgs) -> Result<Vec<Status>> {
     let statuses = parse::statuses(args.status.iter().cloned().collect::<Vec<_>>().as_slice())?;
+    // `--status forgotten`/`--status superseded` inspecionam a linhagem (D43).
+    if statuses.is_empty() && args.as_of.is_some() {
+        // Com `as_of`, o estado reconstruído é soberano: não pré-excluir do índice atual.
+        return Ok(Vec::new());
+    }
     Ok(if statuses.is_empty() {
-        // `--status forgotten`/`--status superseded` inspecionam a linhagem (D43).
         Status::ALL
             .into_iter()
             .filter(|status| !matches!(status, Status::Superseded | Status::Forgotten))
@@ -205,6 +238,7 @@ fn hit_json(
     hit: &RecallHit,
     format: HitFormat,
     bodies: &BTreeMap<String, String>,
+    as_of: Option<&str>,
 ) -> serde_json::Value {
     let mut value = if format == HitFormat::Brief {
         json!({ "id": hit.id, "statement": hit.statement })
@@ -224,6 +258,11 @@ fn hit_json(
             },
         })
     };
+    if as_of.is_some()
+        && let Some(object) = value.as_object_mut()
+    {
+        let _ignored = object.insert("historical".to_string(), json!(true));
+    }
     if let Some(text) = bodies.get(hit.id.as_str())
         && let Some(object) = value.as_object_mut()
     {

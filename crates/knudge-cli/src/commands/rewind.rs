@@ -5,7 +5,7 @@ use knudge_core::handoff::{
     ContextStore, CorpusScope as HandoffScope, DEFAULT_BUDGET, RewindInput, RewindMode,
     RewindRequest, rewind,
 };
-use knudge_core::lifecycle::{DEFAULT_TASK_CONFIRMATION, ShelfLife, freshness};
+use knudge_core::lifecycle::{DEFAULT_TASK_CONFIRMATION, ShelfLife, UsageStore, freshness_with};
 use serde_json::json;
 
 use crate::cli::RewindArgs;
@@ -44,7 +44,8 @@ pub fn run(session: &Session, args: &RewindArgs) -> Result<Output> {
     }
     let policy = ShelfLife::from_config(session.config());
     let pending = embedder::pending(session)?;
-    let fresh = freshness(&notes, session.now_ms(), &policy, pending)?;
+    let usage = UsageStore::new(session.fs_dyn(), session.knowledge_dir()).index()?;
+    let fresh = freshness_with(&notes, session.now_ms(), &policy, pending, &usage)?;
     let input = RewindInput {
         index: &index,
         graph: &graph,
@@ -63,6 +64,8 @@ pub fn run(session: &Session, args: &RewindArgs) -> Result<Output> {
     };
     let out = rewind(&input, &request, &contexts)?;
     warnings.extend(out.warnings.iter().cloned());
+    let ids: Vec<String> = out.items.iter().map(|item| item.id.clone()).collect();
+    warnings.extend(record_usage(session, &policy, &ids));
     let data = json!({
         "context_id": out.context_id,
         "text": out.text,
@@ -77,6 +80,20 @@ pub fn run(session: &Session, args: &RewindArgs) -> Result<Output> {
         "embeddings_pending": out.embeddings_pending,
     });
     Ok(Output::new(out.text, data).with_warnings(warnings))
+}
+
+/// Credita o uso dos itens devolvidos (D154), se `renew_on_use` estiver ligado.
+///
+/// Devolve aviso (R33) quando o derivado não puder ser gravado; nunca derruba a leitura.
+fn record_usage(session: &Session, policy: &ShelfLife, ids: &[String]) -> Option<String> {
+    if !policy.renew_on_use || ids.is_empty() {
+        return None;
+    }
+    let store = UsageStore::new(session.fs_dyn(), session.knowledge_dir());
+    match store.record(ids, session.now_ms()) {
+        Ok(_ignored) => None,
+        Err(error) => Some(format!("uso: {error}")),
+    }
 }
 
 fn mode_of(args: &RewindArgs) -> RewindMode {

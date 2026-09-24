@@ -14,6 +14,7 @@ pub mod meta;
 pub mod pipeline;
 pub mod semantic;
 pub mod state;
+pub mod suggest;
 pub mod vector;
 
 mod vectors;
@@ -34,4 +35,8 @@ pub use semantic::{
     neighbors, rank_query, unlinked_ids,
 };
 pub use state::{EmbeddingMode, EmbeddingState, classify, is_backlogged};
+pub use suggest::{
+    AnchorShare, EdgeState, Relation, SemanticSuggestion, SuggestionPolicy, classify_pair,
+    semantic_suggestions,
+};
 pub use vector::{cosine, dot, is_normalized, l2_norm, normalize, similarity};

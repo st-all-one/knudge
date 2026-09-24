@@ -178,3 +178,16 @@ Isso evita duplicata e mostra a nota que talvez você só precise atualizar
 ## Próximo passo
 
 ➡️ [`kd write`](05-write.md) · [Embeddings](15-embeddings.md)
+
+## `--as-of <TS>` — consulta temporal (D155)
+
+Reconstrói o corpus **ativo em `T`** a partir dos eventos (`forget`/`restore` e a cadeia de
+supersessão) e roda o mesmo pipeline determinístico — o ranking de `T` é reproduzível.
+
+```
+kd ask "postgres" --as-of 2026-07-01T00:00:00.000Z
+```
+
+O pipe ganha um banner `as_of=<TS>`; o `--json` traz `as_of` e `historical: true` por hit.
+`T` no futuro → exit 2. Nota cujo conteúdo já foi purgado vira `warnings[]` (não é
+reconstruível).

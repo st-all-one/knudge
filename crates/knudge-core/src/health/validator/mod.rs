@@ -65,6 +65,41 @@ impl Severity {
     }
 }
 
+/// Papel de um validator no catálogo (D156).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ValidatorKind {
+    /// Verificação de fechamento de task (default).
+    #[default]
+    Check,
+    /// Portão de evidência de proposta (`before → after`).
+    Gate,
+}
+
+impl ValidatorKind {
+    /// Rótulo canônico.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Check => "check",
+            Self::Gate => "gate",
+        }
+    }
+
+    /// Interpreta o rótulo.
+    ///
+    /// # Errors
+    /// Retorna `ErrorKind::Config` para valor desconhecido.
+    pub fn parse(text: &str) -> Result<Self> {
+        match text {
+            "check" => Ok(Self::Check),
+            "gate" => Ok(Self::Gate),
+            other => Err(Error::config(format!(
+                "kind de validator desconhecido: {other:?}"
+            ))),
+        }
+    }
+}
+
 /// Validator do catálogo.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Validator {
@@ -78,6 +113,8 @@ pub struct Validator {
     pub severity: Severity,
     /// Timeout em ms.
     pub timeout_ms: u64,
+    /// Papel (check de task × gate de proposta).
+    pub kind: ValidatorKind,
 }
 
 impl Validator {
@@ -222,12 +259,21 @@ fn parse_validator(name: &str, table: &Table) -> Result<Validator> {
         }
         None => DEFAULT_TIMEOUT_MS,
     };
+    let kind = match table.get("kind") {
+        Some(value) => ValidatorKind::parse(
+            value
+                .as_str()
+                .ok_or_else(|| Error::config(format!("`kind` de `{name}` deve ser string")))?,
+        )?,
+        None => ValidatorKind::Check,
+    };
     Ok(Validator {
         name: name.to_string(),
         cmd,
         scope,
         severity,
         timeout_ms,
+        kind,
     })
 }
 

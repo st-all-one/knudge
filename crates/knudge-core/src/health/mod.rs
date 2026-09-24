@@ -8,6 +8,7 @@ pub mod anchors;
 pub mod audit;
 pub mod doctor;
 pub mod evidence;
+pub mod gate;
 pub mod tolerant;
 pub mod validator;
 
@@ -24,8 +25,9 @@ pub use audit::{
 };
 pub use doctor::{CheckId, DoctorCheck, DoctorInput, DoctorReport, doctor, doctor_fix};
 pub use evidence::{CheckOutcome, CheckResult, CloseOutcome, close_task, infer_outcome};
+pub use gate::{GateOutcome, accept};
 pub use tolerant::{SkippedNote, TolerantRead, read_note_tolerant, read_tolerant};
 pub use validator::{
     CATALOG_FILE, CheckSource, DEFAULT_TIMEOUT_MS, ResolvedCheck, ResolvedChecks, Severity,
-    Validator, ValidatorCatalog, resolve_checks,
+    Validator, ValidatorCatalog, ValidatorKind, resolve_checks,
 };

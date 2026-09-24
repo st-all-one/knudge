@@ -178,7 +178,7 @@ pub fn clusters(index: &EmbeddingIndex, ids: &[String], threshold: f64) -> Vec<V
     })
 }
 
-fn linked(graph: &Graph, from: &str, to: &str) -> bool {
+pub(super) fn linked(graph: &Graph, from: &str, to: &str) -> bool {
     has_edge(graph, from, to) || has_edge(graph, to, from)
 }
 

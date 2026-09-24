@@ -10,7 +10,8 @@ use crate::graph::Graph;
 use crate::store::Note;
 
 use super::decay::{AnchorValidity, DecayPolicy, should_demote};
-use super::shelf_life::{ShelfLife, age_days, is_expired};
+use super::shelf_life::{ShelfLife, age_days, is_expired_with};
+use super::usage::UsageIndex;
 
 /// Motivo da demolição proposta.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -51,6 +52,8 @@ pub struct DemotionInput<'a> {
     pub decay: &'a DecayPolicy,
     /// Validade de âncoras por id (off-path).
     pub validity: &'a BTreeMap<String, AnchorValidity>,
+    /// Uso por id (renovação de shelf-life — D154); `None` desliga.
+    pub usage: Option<&'a UsageIndex>,
 }
 
 /// Planeja as demolições, excluindo membros de ciclo (D45).
@@ -71,7 +74,12 @@ pub fn demotion_candidates(
         if protected.contains(&id) {
             continue;
         }
-        if is_expired(note, input.now_ms, input.shelf_life)? {
+        if is_expired_with(
+            note,
+            input.now_ms,
+            input.shelf_life,
+            input.usage.and_then(|usage| usage.last_seen(&id)),
+        )? {
             candidates.push(DemotionCandidate {
                 id,
                 reason: DemotionReason::Expired,

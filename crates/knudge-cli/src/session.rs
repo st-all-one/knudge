@@ -10,10 +10,13 @@ use knudge_core::adapters::{StdEnv, StdFs, StdGit, SystemClock};
 use knudge_core::config::{Config, global_config_path};
 use knudge_core::git::Project;
 use knudge_core::graph::Graph;
+use knudge_core::logging::Redactor;
 use knudge_core::ports::{Clock, Fs, Git};
 use knudge_core::retrieval::Index;
-use knudge_core::store::{EventLog, Store};
+use knudge_core::store::{EventLog, LockPolicy, Store, sweep_residues};
 use knudge_core::write::{DedupThresholds, WriteContext, thresholds_from_config};
+
+use crate::logging::TracingLogger;
 
 /// Contexto resolvido de uma execução do `kd`.
 pub struct Session {
@@ -167,6 +170,29 @@ impl Session {
     #[must_use]
     pub fn fs_dyn(&self) -> &dyn Fs {
         &self.fs
+    }
+
+    /// Varre resíduos (`*.tmp`/`*.stale`) das áreas de dados no início da sessão (R10/D160).
+    ///
+    /// Nunca toca `*.lock` nem `.locks/` — o reclaim de lock é do `lock.rs`/`doctor --fix`.
+    /// Best-effort (R33): falha vira aviso; cada remoção é reportada em stderr pelo logger.
+    #[must_use]
+    pub fn sweep_residues(&self) -> Vec<String> {
+        let logger = TracingLogger::new(Redactor::empty());
+        let root = self.knowledge_dir();
+        let threshold = LockPolicy::default().stale_ms;
+        let mut warnings = Vec::new();
+        for area in ["notas", ".idx", "cache", "eventos"] {
+            let dir = root.join(area);
+            if !self.fs.exists(&dir) {
+                continue;
+            }
+            let swept = sweep_residues(&self.fs, &dir, self.now_ms, threshold, &logger);
+            if let Err(error) = swept {
+                warnings.push(format!("varredura de resíduos em {area}/: {error}"));
+            }
+        }
+        warnings
     }
 }
 

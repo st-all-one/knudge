@@ -1,7 +1,9 @@
-//! Varredura de resíduos na inicialização (R10).
+//! Varredura de resíduos na inicialização (R10/D160).
 //!
-//! Remove `*.tmp`, `*.lock` e `*.stale` mais velhos que um limiar, com `warn`. Archivos frescos
-//! de um processo vivo **não** são tocados (idade ≤ limiar).
+//! Remove `*.tmp` e `*.stale` mais velhos que um limiar, com `warn`. Arquivos frescos de um
+//! processo vivo **não** são tocados (idade ≤ limiar). **Não** remove `*.lock`: o reclaim de
+//! lock é do `lock.rs` (atômico, por `stale_ms`) e do `doctor --fix` — varrer lock aqui poderia
+//! roubar um lock vivo (D160).
 
 #![allow(
     clippy::arithmetic_side_effects,
@@ -70,7 +72,7 @@ fn is_residue(path: &Path) -> bool {
     let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
         return false;
     };
-    [".tmp", ".lock", ".stale"]
+    [".tmp", ".stale"]
         .iter()
         .any(|suffix| name.ends_with(suffix))
 }

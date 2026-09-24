@@ -356,3 +356,21 @@ pré-`write` (quase-duplicados), pré-edição (`kd rewind --files` contínuo), 
 
 Detalhe por verbo (pipe/`--json`/erro/exit/estado) em
 [`17_matriz_aceitacao.md`](17_matriz_aceitacao.md).
+
+## 16. Delta v0.3.2 (D154–D159)
+
+Adições que **não** mudam os verbos existentes (só flags/subcomandos) e nenhuma chave TOON:
+
+| Superfície | Forma | Papel |
+|---|---|---|
+| `kd ask --as-of <TS>` | flag de `ask` | corpus ativo em `T` (D155); `--json` ganha `as_of`/`historical` |
+| `kd knowledge suggest [--top-k N] [--relation R] [--limit N]` | subcomando | sugestões semânticas `duplicate`/`contradiction`/`link` (D158) |
+| `kd knowledge promote recommend\|approve\|edit\|remove\|list` | subcomando + sub-subcomandos | regras governadas no `AGENTS.md` (D157) |
+| `kd maintenance learn --verify` / `compact --verify` | flag | anexa o veredito do portão (read-only, D156) |
+| `retention.renew_on_use` | config | renovação de shelf-life por uso (D154) |
+| `proposals.gate` / `min_delta` / `enforce` | config | portão de evidência (D156) |
+| `suggestions.enabled` / `contradiction_low` / `contradiction_high` | config | banda semântica (D158) |
+| `rules.enabled` / `max_promoted` / `min_confidence` | config | promoção de regras (D157) |
+
+`validators.toml` ganha o campo opcional `kind = "check"|"gate"` (default `check`); `kind="gate"`
+usa stdin `{op,before,after}` → stdout `{passed,score_before,score_after}` (D156).
