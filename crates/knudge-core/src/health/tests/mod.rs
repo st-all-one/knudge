@@ -2,6 +2,7 @@
 
 mod anchors;
 mod audit;
+mod body;
 mod doctor;
 mod doctor_conflict;
 mod evidence;

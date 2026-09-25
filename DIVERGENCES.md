@@ -97,6 +97,11 @@
 | 86 | **Sugestão semântica** | sugestão virar aresta ou ordem instável | advisory em `.idx/suggestions.jsonl` (D50), nunca aresta (D49); banda `low..high` determinística e par já ligado nunca sugere | `embeddings::tests::semantic::classify_pair_respects_bands_and_edges`, `semantic_suggestions_are_paired_and_sorted` |
 | 87 | **Redação tipada** | rótulo tipado quebrar o teste de "não falso-positivo" | todo rótulo começa com `[REDACTED`; allowlist de chaves/segredos preservada (R22) | `logging::tests::*` |
 | 88 | **Varredura de resíduos × lock vivo** | varredura apagar `*.lock`/`.locks/` e roubar lock vivo | `sweep_residues` remove só `*.tmp`/`*.stale`; `.locks/` nem é varrido (reclaim atômico no `lock.rs`/`doctor --fix`); frescos ficam (idade ≤ 30 s) | `store::tests::sweep::sweep_removes_only_old_tmp_and_stale`, `cli::residues::startup_sweep_removes_aged_tmp_but_keeps_fresh_and_locks` |
+| 89 | **Revelação progressiva do corpo** | truncar o `--json` ou cortar no meio de um caractere | pipe progressivo (1º completo, 2–5 truncado, resto padrão), `--json` sempre completo; truncamento char-safe (`…`); `--brief`/`--full-content` desligam | `retrieval::snippet::tests::*`, `cli::body::ask_truncates_body_after_first_hit` |
+| 90 | **Skill do `init` × arquivo do usuário** | `onboard` sobrescrever uma skill editada à mão | só escreve se ausente ou se o version marker `knudge:skill:version` for nosso e estiver velho; sem marker → nunca toca | `git::skill::tests::apply_never_overwrites_user_owned_file` |
+| 91 | **Parcela do body nos canais** | achar que `channels.body` reordena o `ask` | é **informativa** (`[0,1]`), como `recent`/`stars`; a ordem segue RRF (D151) | `cli::body::ask_shows_body_of_top_hit_and_reports_match` |
+| 92 | **Corpo no `rewind`** | anexar corpo de toda nota ou furar o orçamento | só `foundational`/`decision`; o corpo entra na linha e passa pelo mesmo `budget` (D88) | `handoff::tests::rewind::scope_mode_appends_body_for_decision` |
+| 93 | **Check de corpo no `doctor`** | "sem corpo" deixar o corpus `unhealthy` | é **advisório** (`is_warning`), como `program-anchor` (D119); não bloqueia `healthy` | `health::tests::body::body_check_is_advisory_and_counts_missing_body` |
 
 ## Notas
 

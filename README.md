@@ -17,7 +17,7 @@ curl --proto '=https' --tlsv1.2 --show-error --fail \
   https://raw.githubusercontent.com/st-all-one/knudge/main/install.sh | bash
 ```
 
-Requer `git` no projeto. Versão fixa: `... | VERSION=v0.3.2 bash`. Do source: `make install`.
+Requer `git` no projeto. Versão fixa: `... | VERSION=v0.3.3 bash`. Do source: `make install`.
 
 **2. Embeddings (opcional, mas recomendado)** — um comando baixa o `llama.cpp`, o modelo GGUF e
 deixa o servidor **persistente** + worker de auto-drain de pé:

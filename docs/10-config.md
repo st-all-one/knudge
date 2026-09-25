@@ -78,6 +78,7 @@ catálogo de `checks` executáveis fica em `.knudge/validators.toml`.
 | Chave | Default | Para quê |
 |---|---|---|
 | `recall.default_limit` | `5` | Hits padrão do `ask` |
+| `recall.preview_chars` | `280` | Corpo exibido nos hits 2–5 do `ask` (D161) |
 | `recall.semantic` | `true` | Liga/desliga o canal vetorial |
 | `recall.semantic_weight` | `30.0` | Peso do canal vetorial no RRF |
 | `recall.confirmation_from_tasks` | `0.1` | Boost de tarefas que confirmam |

@@ -60,13 +60,22 @@ CONHECIMENTO (kd write — fatos, decisões, erros, riscos, perguntas):
   kd write --params '<json>' [--dry-run]  # item único (D147)
   --type task é rejeitado: use kd task.
 
+CORPO (quando e por quê) — o \"porquê\" que não cabe no statement:
+  Escreva corpo quando o statement sozinho NÃO permite agir. Template (2–4 linhas):
+    Por quê: <motivo/decisão>
+    Evidência: <comando, saída, erro, link>
+    Consequência: <o que muda na prática>
+  Na prática é esperado em decision/error/risk; dispensável em fact óbvio.
+  O `ask` mostra o corpo (1º hit completo, 2–5 truncado); leia com --id/--full-content.
+
 PESQUISA (kd ask — só conhecimento por padrão; --with-task inclui trabalho):
   kd ask <QUERY> [--type T...] [--class C...] [--tag T...] [--status S...] [--scope ID]
         [--anchor PATH...] [--since TS] [--until TS] [--limit N] [--brief] [--full-content]
   kd ask --params '<json>'                # consulta + filtros (D147); '-' lê a query do stdin
   kd ask --id <ID>...                     # corpos por id (inclui trabalho)
   kd ask --around <ID> [--via ARESTA] [--depth N]   # expande o grafo
-  Pipe (LLM): id|statement|score|why  (1 hit por linha). Corpo só com --id/--full-content.
+  Pipe (LLM): id|statement|score|why (1 hit/linha); 1º hit com corpo, 2–5 truncado (D161).
+              Corpo completo de todos com --full-content; --brief só id|statement.
   Busca vazia → stdout [no_results] (D152); --json traz channels por hit (D151).
   forgotten/superseded ficam fora do ask por padrão; use --status para incluí-los.
   Rank (--rank) e vocabulário de tags (--tags) agora em kd knowledge rank|tags (D146).

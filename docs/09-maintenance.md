@@ -151,3 +151,29 @@ kd maintenance watch-service --uninstall      # remove agendador + servidor
 `validators.toml` com `kind = "gate"`) sobre cada proposta e anexam `gate=passed|failed` ao
 pipe (e `gate` no `--json`). É **read-only**. Com `proposals.enforce=true`, o mesmo gate roda
 no `write` e **bloqueia** a gravação quando reprova (exit 4).
+
+## Check `body` e gate de corpo (D162)
+
+O `doctor` ganhou o check **advisório** `body`: conta notas de conhecimento ativas **sem corpo**
+e **sem lastro** (sem corpo **e** sem `outcome` **e** sem âncora). Como é advisório, não deixa o
+corpus `unhealthy` — aparece em `warnings`/`--json`.
+
+Para **exigir** corpo em `decision`, configure um gate (D156) no `validators.toml`:
+
+```toml
+[body]
+cmd = "/caminho/para/gate-body.sh"   # lê {op,before,after} no stdin; escreve {passed,...}
+kind = "gate"
+```
+
+```sh
+# gate-body.sh: reprova decision sem corpo
+#!/bin/sh
+input=$(cat)
+echo "$input" | grep -q '"type":"decision"' || { echo '{"passed":true,"score_before":0,"score_after":1}'; exit 0; }
+echo "$input" | grep -q '"body":""' && { echo '{"passed":false,"score_before":0,"score_after":0}'; exit 0; }
+echo '{"passed":true,"score_before":0,"score_after":1}'
+```
+
+Com `proposals.gate=body` e `proposals.enforce=true`, o `kd write` bloqueia (`conflict`, exit 4)
+quando o gate reprova.

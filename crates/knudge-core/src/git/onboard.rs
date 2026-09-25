@@ -13,6 +13,7 @@ use super::attributes;
 use super::exclude;
 use super::persistence::Persistence;
 use super::project::Project;
+use super::skill;
 
 /// Subdiretórios criados dentro de `.knudge/`.
 pub const LAYOUT_DIRS: &[&str] = &["notas", "eventos", ".idx", "cache"];
@@ -47,6 +48,8 @@ pub struct OnboardReport {
     pub attributes_changed: bool,
     /// `true` se o bloco do `AGENTS.md` foi criado/atualizado.
     pub agents_changed: bool,
+    /// `true` se a skill `.agents/skill/kd/SKILL.md` foi criada/atualizada (D162).
+    pub skill_changed: bool,
 }
 
 /// Executa `onboard`. Reexecutar é seguro: nada é duplicado nem sobrescrito sem `force`.
@@ -104,6 +107,7 @@ pub fn onboard(
         false
     };
     let agents_changed = agent_md::apply(fs, project.root())?;
+    let skill_changed = skill::apply(fs, project.root())?;
 
     Ok(OnboardReport {
         root: project.root().to_path_buf(),
@@ -114,5 +118,6 @@ pub fn onboard(
         exclude_changed,
         attributes_changed,
         agents_changed,
+        skill_changed,
     })
 }

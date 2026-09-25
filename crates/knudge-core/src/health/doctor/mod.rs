@@ -1,11 +1,12 @@
 //! `doctor [--fix]`: diagnóstico e reparo do reversível (D19, E09-T04).
 //!
-//! Doze checks determinísticos cobrem schema/TOON, integridade, ciclos, âncoras,
+//! Treze checks determinísticos cobrem schema/TOON, integridade, ciclos, âncoras,
 //! **programas externos** (D119), duplicatas, locks stale, config, `body_hash` desatualizado,
 //! `eventos.jsonl` malformado, **divergência canônico↔derivado** (D84) e o tamanho do índice
 //! vetorial/cache (R14). `--fix` corrige só o **reversível** e é **idempotente**: rodar duas
 //! vezes não muda nada na segunda.
 
+mod body_check;
 mod checks;
 mod fix;
 
@@ -23,6 +24,7 @@ use crate::store::{EventLog, Note, Store};
 use crate::write::dedup::DedupThresholds;
 
 use super::tolerant::read_tolerant;
+use body_check::body_check;
 use checks::{
     anchors_check, body_hash_check, config_check, cycles_check, derived_check, duplicates_check,
     embeddings_check, events_check, integrity_check, locks_check, program_anchor_check,
@@ -56,11 +58,13 @@ pub enum CheckId {
     Derived,
     /// Tamanho do índice vetorial/cache de embeddings.
     Embeddings,
+    /// Notas de conhecimento sem corpo / sem lastro (advisório, D162).
+    Body,
 }
 
 impl CheckId {
     /// Todos os checks, na ordem de exibição.
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::Schema,
         Self::Integrity,
         Self::Cycles,
@@ -73,6 +77,7 @@ impl CheckId {
         Self::Events,
         Self::Derived,
         Self::Embeddings,
+        Self::Body,
     ];
 
     /// Rótulo canônico.
@@ -91,6 +96,7 @@ impl CheckId {
             Self::Events => "events",
             Self::Derived => "derived",
             Self::Embeddings => "embeddings",
+            Self::Body => "body",
         }
     }
 }
@@ -119,7 +125,7 @@ impl DoctorCheck {
     /// sinalizar, mas não é erro de integridade do knudge.
     #[must_use]
     pub const fn is_warning(&self) -> bool {
-        !self.ok && matches!(self.id, CheckId::ProgramAnchor)
+        !self.ok && matches!(self.id, CheckId::ProgramAnchor | CheckId::Body)
     }
 }
 
@@ -174,7 +180,7 @@ pub struct DoctorInput<'a> {
     pub thresholds: &'a DedupThresholds,
 }
 
-/// Executa os doze checks (somente leitura).
+/// Executa os treze checks (somente leitura).
 ///
 /// # Errors
 /// Propaga erros de I/O de listagem/leitura do derivado.
@@ -195,6 +201,7 @@ pub fn doctor(input: &DoctorInput<'_>) -> Result<DoctorReport> {
         events_check(input),
         derived_check(input, &expected, &mut warnings),
         embeddings_check(input),
+        body_check(&read.notes)?,
     ];
     Ok(DoctorReport {
         checks,

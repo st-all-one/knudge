@@ -124,13 +124,16 @@ pub(super) fn build_hits(
             task_confirmation,
             ..ConfidenceInput::default()
         });
+        let mut channel_values =
+            hit_channels(fused_hit, channels.labels, doc, query, task_confirmation);
+        channel_values.body = index.body_share(doc, &query.text);
         hits.push(RecallHit {
             id: fused_hit.id.clone(),
             statement: doc.statement.clone(),
             score: fused_hit.score,
             confidence,
             why: choose_why(doc, query, graph, semantic_ids, task_confirmation),
-            channels: hit_channels(fused_hit, channels.labels, doc, query, task_confirmation),
+            channels: channel_values,
         });
     }
     hits

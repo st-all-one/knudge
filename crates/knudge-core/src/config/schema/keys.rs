@@ -49,6 +49,11 @@ const BASE: &[KeySpec] = &[
         default: Default::Int(5),
     },
     KeySpec {
+        key: "recall.preview_chars",
+        kind: Kind::Int,
+        default: Default::Int(280),
+    },
+    KeySpec {
         key: "recall.expand_depth",
         kind: Kind::Int,
         default: Default::Int(1),

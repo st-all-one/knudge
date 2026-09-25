@@ -90,30 +90,65 @@ impl Index {
         clippy::suboptimal_flops,
         reason = "fórmula BM25 em f64 com termos não negativos"
     )]
-    fn score_doc(&self, doc: &NoteDoc, terms: &[std::borrow::Cow<'_, str>]) -> f64 {
+    fn field_sum(&self, doc: &NoteDoc, terms: &[std::borrow::Cow<'_, str>], field: Field) -> f64 {
         let mut total = 0.0;
         for term in terms {
-            for field in Field::ALL {
-                let tf = doc.tf(field, term.as_ref());
-                if tf == 0 {
-                    continue;
-                }
-                let idf = self.idf(field, term.as_ref());
-                let length = f64::from(doc.len(field));
-                let avg = self.stats.avg_len.get(&field).copied().unwrap_or(0.0);
-                let norm = if avg > 0.0 {
-                    1.0 - B + B * length / avg
-                } else {
-                    1.0
-                };
-                let tf = f64::from(tf);
-                let denom = tf + K1 * norm;
-                if denom > 0.0 {
-                    total += field.weight() * idf * (tf * (K1 + 1.0)) / denom;
-                }
+            let tf = doc.tf(field, term.as_ref());
+            if tf == 0 {
+                continue;
+            }
+            let idf = self.idf(field, term.as_ref());
+            let length = f64::from(doc.len(field));
+            let avg = self.stats.avg_len.get(&field).copied().unwrap_or(0.0);
+            let norm = if avg > 0.0 {
+                1.0 - B + B * length / avg
+            } else {
+                1.0
+            };
+            let tf = f64::from(tf);
+            let denom = tf + K1 * norm;
+            if denom > 0.0 {
+                total += field.weight() * idf * (tf * (K1 + 1.0)) / denom;
             }
         }
-        total * type_weight(doc.meta.note_type) * (1.0 + CONFIRMATION_STEP * doc.meta.confirmation)
+        total
+    }
+
+    /// Soma crua dos campos (sem peso de tipo/confirmação).
+    fn raw_score(&self, doc: &NoteDoc, terms: &[std::borrow::Cow<'_, str>]) -> f64 {
+        Field::ALL
+            .iter()
+            .map(|field| self.field_sum(doc, terms, *field))
+            .sum()
+    }
+
+    #[allow(
+        clippy::arithmetic_side_effects,
+        clippy::suboptimal_flops,
+        reason = "multiplicação em f64 com fatores não negativos"
+    )]
+    fn score_doc(&self, doc: &NoteDoc, terms: &[std::borrow::Cow<'_, str>]) -> f64 {
+        self.raw_score(doc, terms)
+            * type_weight(doc.meta.note_type)
+            * (1.0 + CONFIRMATION_STEP * doc.meta.confirmation)
+    }
+
+    /// Fração do score BM25 cru que veio do campo `body`, em `[0,1]` (D161).
+    #[must_use]
+    #[allow(
+        clippy::arithmetic_side_effects,
+        reason = "divisão em f64 com divisor > 0"
+    )]
+    pub fn body_share(&self, doc: &NoteDoc, query: &str) -> f64 {
+        let terms = content_terms(query);
+        if terms.is_empty() {
+            return 0.0;
+        }
+        let raw = self.raw_score(doc, &terms);
+        if raw <= 0.0 {
+            return 0.0;
+        }
+        (self.field_sum(doc, &terms, Field::Body) / raw).clamp(0.0, 1.0)
     }
 
     /// IDF de um termo no campo (via document frequency do campo).

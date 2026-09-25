@@ -17,6 +17,7 @@ use crate::output::Output;
 use crate::session::Session;
 
 mod query;
+mod render;
 
 use query::recall_query;
 

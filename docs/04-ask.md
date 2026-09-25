@@ -191,3 +191,20 @@ kd ask "postgres" --as-of 2026-07-01T00:00:00.000Z
 O pipe ganha um banner `as_of=<TS>`; o `--json` traz `as_of` e `historical: true` por hit.
 `T` no futuro → exit 2. Nota cujo conteúdo já foi purgado vira `warnings[]` (não é
 reconstruível).
+
+## Corpo na resposta — revelação progressiva (D161)
+
+Por padrão o `ask` mostra o corpo da nota de forma progressiva:
+
+- **1º hit** — corpo **completo**.
+- **2º–5º** — corpo **truncado** a `recall.preview_chars` (default 280).
+- **6º+** — só o padrão `id|statement|score|why`.
+
+`--brief` desliga (só `id|statement`); `--full-content` mostra o corpo completo de todos.
+O `--json` traz, por hit, `body_match` (o termo casou no corpo) e `body_snippet` (trecho).
+
+```
+kd ask "postgres"
+kd ask "postgres" --limit 10        # só o top-5 mostra corpo
+kd ask "postgres" --brief           # enxuto
+```

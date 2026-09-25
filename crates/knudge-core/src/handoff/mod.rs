@@ -22,12 +22,12 @@ pub use manifest::{
 pub use next::{NextTask, manifest_at, next_tasks};
 pub use scope::{FLIP_CONTAINERS, FLIP_NOTES, detect_scope, should_flip};
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::graph::Graph;
 use crate::lifecycle::Freshness;
 use crate::retrieval::{Filter, Index, Meta};
-use crate::schema::NoteType;
+use crate::schema::{Classification, NoteType};
 use crate::store::Event;
 use crate::{Error, Result};
 
@@ -112,6 +112,8 @@ pub struct RewindInput<'a> {
     pub changed_paths: &'a [String],
     /// Frescor do corpus (shelf-life + fila de embeddings — D106).
     pub freshness: Freshness,
+    /// Corpos por id (anexados a `foundational`/`decision` — D162).
+    pub bodies: &'a BTreeMap<String, String>,
     /// Escopo do corpus (filtro + vizinhança) — D143.
     pub scope: CorpusScope,
     /// Peso da confirmação derivada de tarefas (X1/D108).
@@ -175,7 +177,10 @@ pub fn rewind(
                 input.task_confirmation_weight,
                 &input.scope,
             );
-            let lines: Vec<String> = items.iter().map(render_item).collect();
+            let lines: Vec<String> = items
+                .iter()
+                .map(|item| render_item_with_body(item, input.index, input.bodies))
+                .collect();
             let budgeted = budget::apply(&lines, request.budget);
             (budgeted.text, items, budgeted.truncated, budgeted.dropped)
         }
@@ -191,6 +196,35 @@ pub fn rewind(
         embeddings_pending: input.freshness.pending,
         warnings: Vec::new(),
     })
+}
+
+/// Renderiza um item e, quando a nota é `foundational`/`decision`, anexa o corpo (D162).
+fn render_item_with_body(
+    item: &ManifestItem,
+    index: &Index,
+    bodies: &BTreeMap<String, String>,
+) -> String {
+    let mut line = render_item(item);
+    let rich = index
+        .docs
+        .iter()
+        .find(|doc| doc.meta.id == item.id)
+        .is_some_and(|doc| {
+            doc.meta.classification == Classification::Foundational
+                || doc.meta.note_type == NoteType::Decision
+        });
+    if !rich {
+        return line;
+    }
+    if let Some(body) = bodies
+        .get(&item.id)
+        .map(String::as_str)
+        .filter(|body| !body.trim().is_empty())
+    {
+        line.push('\n');
+        line.push_str(body.trim());
+    }
+    line
 }
 
 fn resume_context(resume: &str, contexts: &ContextStore<'_>) -> Result<RewindOutput> {

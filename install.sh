@@ -16,7 +16,7 @@
 #
 # Uso:
 #   curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/st-all-one/knudge/main/install.sh | bash
-#   curl ... | VERSION=v0.3.2 bash
+#   curl ... | VERSION=v0.3.3 bash
 #   curl ... | INSTALL_DIR=/usr/local/bin bash
 #   ./install.sh --from-source
 #   ./install.sh --uninstall

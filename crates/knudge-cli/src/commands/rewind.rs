@@ -1,11 +1,14 @@
 //! `kd rewind` — estado/handoff ponto-no-tempo (E12-T01, D57/D88).
 
+use std::collections::BTreeMap;
+
 use knudge_core::Result;
 use knudge_core::handoff::{
     ContextStore, CorpusScope as HandoffScope, DEFAULT_BUDGET, RewindInput, RewindMode,
     RewindRequest, rewind,
 };
 use knudge_core::lifecycle::{DEFAULT_TASK_CONFIRMATION, ShelfLife, UsageStore, freshness_with};
+use knudge_core::store::{Note, Store};
 use serde_json::json;
 
 use crate::cli::RewindArgs;
@@ -35,23 +38,19 @@ pub fn run(session: &Session, args: &RewindArgs) -> Result<Output> {
         resume: args.resume.clone(),
     };
     let contexts = ContextStore::new(session.fs_dyn(), session.knowledge_dir());
-    let store = session.store();
-    let mut notes = Vec::new();
-    for id in store.list_ids()? {
-        if let Some(note) = store.read_optional(&id)? {
-            notes.push(note);
-        }
-    }
+    let notes = load_notes(&session.store())?;
     let policy = ShelfLife::from_config(session.config());
     let pending = embedder::pending(session)?;
     let usage = UsageStore::new(session.fs_dyn(), session.knowledge_dir()).index()?;
     let fresh = freshness_with(&notes, session.now_ms(), &policy, pending, &usage)?;
+    let bodies = bodies_of(&notes);
     let input = RewindInput {
         index: &index,
         graph: &graph,
         events: &events,
         changed_paths: &changed,
         freshness: fresh,
+        bodies: &bodies,
         scope: HandoffScope {
             filter: selection.filter().clone(),
             allowed: selection.allowed().cloned(),
@@ -94,6 +93,30 @@ fn record_usage(session: &Session, policy: &ShelfLife, ids: &[String]) -> Option
         Ok(_ignored) => None,
         Err(error) => Some(format!("uso: {error}")),
     }
+}
+
+/// Carrega todas as notas do store.
+fn load_notes(store: &Store<'_>) -> Result<Vec<Note>> {
+    let mut notes = Vec::new();
+    for id in store.list_ids()? {
+        if let Some(note) = store.read_optional(&id)? {
+            notes.push(note);
+        }
+    }
+    Ok(notes)
+}
+
+/// Mapa id → corpo das notas (para o `rewind` anexar `foundational`/`decision`, D162).
+fn bodies_of(notes: &[Note]) -> BTreeMap<String, String> {
+    notes
+        .iter()
+        .filter_map(|note| {
+            note.frontmatter
+                .id()
+                .ok()
+                .map(|id| (id.to_string(), note.body.clone()))
+        })
+        .collect()
 }
 
 fn mode_of(args: &RewindArgs) -> RewindMode {

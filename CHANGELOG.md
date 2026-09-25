@@ -4,6 +4,8 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+## [0.3.3] - 2026-09-25
+
 ## [0.3.2] - 2026-09-24
 
 ### Adicionado
@@ -41,11 +43,21 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
     rodar ao abrir a sessão sobre `notas/`/`.idx/`/`cache/`/`eventos/`, removendo `*.tmp`/
     `*.stale` antigos (> 30 s) com `warn`; **nunca** toca `*.lock`/`.locks/` (o reclaim atômico
     fica no `lock.rs`/`doctor --fix`). Best-effort (R33): falha vira aviso. Fecha E03-T08/R10.
+  - **Corpo da nota visível e incentivado (D161/D162).** `kd ask` revela o corpo
+    progressivamente (1º hit completo, 2–5 truncado a `recall.preview_chars`, resto padrão;
+    `--brief` desliga, `--full-content` mostra tudo); o `--json` ganha `body_match`/`body_snippet`
+    (snippet puro no core) e `channels.body` (parcela do body, informativa). O `prime` ganha a
+    seção **CORPO** com template (`Por quê`/`Evidência`/`Consequência`); o `kd init`/`onboard`
+    cria a skill `.agents/skill/kd/SKILL.md` (idempotente, governada por version marker); o
+    `rewind` anexa o corpo de `foundational`/`decision` (respeitando o orçamento); o `doctor`
+    ganha o check advisório `body` (notas sem corpo / sem lastro); e o gate de corpo para
+    `decision` fica disponível via `validators.toml kind="gate"`.
 
 ### Mudado
 - **Chaves de config novas:** `retention.renew_on_use`, `proposals.gate`/`min_delta`/`enforce`,
   `suggestions.enabled`/`contradiction_low`/`contradiction_high`,
-  `rules.enabled`/`max_promoted`/`min_confidence`. Nenhuma chave canônica TOON mudou (25).
+  `rules.enabled`/`max_promoted`/`min_confidence`, `recall.preview_chars`. Nenhuma chave canônica
+  TOON mudou (25).
 
 ## [0.3.1] - 2026-09-24
 

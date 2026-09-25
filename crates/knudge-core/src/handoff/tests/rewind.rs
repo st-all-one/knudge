@@ -7,9 +7,12 @@ use crate::handoff::{CorpusScope, RewindInput, RewindMode, RewindRequest, rewind
 use crate::lifecycle::{DEFAULT_TASK_CONFIRMATION, Freshness};
 use crate::ports::fakes::MemFs;
 use crate::retrieval::Index;
-use crate::schema::NoteType;
+use crate::schema::{EdgeKind, NoteType};
+use crate::write::Draft;
 
 use super::{NOW, built, container, member, note};
+
+static EMPTY_BODIES: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
 
 fn input<'a>(index: &'a Index, graph: &'a Graph, changed_paths: &'a [String]) -> RewindInput<'a> {
     RewindInput {
@@ -18,6 +21,7 @@ fn input<'a>(index: &'a Index, graph: &'a Graph, changed_paths: &'a [String]) ->
         events: &[],
         changed_paths,
         freshness: Freshness::default(),
+        bodies: &EMPTY_BODIES,
         scope: CorpusScope::default(),
         task_confirmation_weight: DEFAULT_TASK_CONFIRMATION,
         now_ms: NOW,
@@ -160,5 +164,43 @@ fn manifest_reports_embeddings_pending() -> Result<()> {
     let output = rewind(&input, &request, &contexts)?;
     assert!(output.text.contains("fresh: stale=0 expiring=0 pending=2"));
     assert_eq!(output.embeddings_pending, 2);
+    Ok(())
+}
+
+#[test]
+fn scope_mode_appends_body_for_decision() -> Result<()> {
+    let fs = MemFs::new();
+    let plan = container("plano")?;
+    let plan_id = plan.id()?.to_string();
+    let mut draft = Draft::new(NoteType::Decision, "usa cache");
+    draft.body = "Por quê: latência.".to_string();
+    draft.edges = vec![(EdgeKind::DependsOn, plan_id.clone())];
+    let decision = draft.to_note(NOW)?;
+    let decision_id = decision.id()?.to_string();
+    let notes = [plan, decision];
+    let (index, graph) = built(&notes)?;
+
+    let mut bodies = std::collections::BTreeMap::new();
+    let _ignored = bodies.insert(decision_id, "Por quê: latência.".to_string());
+    let input = RewindInput {
+        index: &index,
+        graph: &graph,
+        events: &[],
+        changed_paths: &[],
+        freshness: Freshness::default(),
+        bodies: &bodies,
+        scope: CorpusScope::default(),
+        task_confirmation_weight: DEFAULT_TASK_CONFIRMATION,
+        now_ms: NOW,
+    };
+    let contexts = ContextStore::new(&fs, "/p/.knudge");
+    let mut request = RewindRequest::new();
+    request.mode = RewindMode::Scope(plan_id);
+    let output = rewind(&input, &request, &contexts)?;
+    assert!(
+        output.text.contains("Por quê: latência."),
+        "corpo ausente no handoff: {}",
+        output.text
+    );
     Ok(())
 }

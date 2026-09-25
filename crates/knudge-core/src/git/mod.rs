@@ -11,6 +11,7 @@ pub mod exclude;
 pub mod onboard;
 pub mod persistence;
 pub mod project;
+pub mod skill;
 pub mod sync;
 
 #[cfg(test)]
@@ -22,4 +23,5 @@ pub use exclude::{DERIVED_PATTERNS, KNUDGE_PATTERN, exclude_path};
 pub use onboard::{LAYOUT_DIRS, OnboardOptions, OnboardReport, onboard};
 pub use persistence::Persistence;
 pub use project::{KNUDGE_DIR, Project, is_valid_name, logical_name};
+pub use skill::{DIR as SKILL_DIR, FILE as SKILL_FILE};
 pub use sync::{SyncReport, sync};

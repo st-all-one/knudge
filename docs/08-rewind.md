@@ -103,3 +103,9 @@ Cada execução gera um `context_id` retomável; `--resume` reabre **exatamente*
 ## Próximo passo
 
 ➡️ [`kd maintenance`](09-maintenance.md) · [`kd sync`](12-sync.md)
+
+## Corpo no handoff (D162)
+
+Quando a nota é `foundational` ou `decision`, o `rewind` **anexa o corpo** à linha do item — o
+"porquê" chega junto do statement na retomada de contexto. O corpo entra no mesmo orçamento de
+tokens (`--budget`), então handoffs grandes podem truncar como qualquer item.

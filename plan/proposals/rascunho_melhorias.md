@@ -81,6 +81,21 @@ Script leve opcional (`scripts/check_docs.sh`).
 não abrem sessão (byte-a-byte, D57). Testes: `store::tests::sweep::*`,
 `cli::residues::startup_sweep_removes_aged_tmp_but_keeps_fresh_and_locks`.
 
+### 3.7 Corpo da nota: incentivo e consulta — **implementada (D161/D162)**
+**Feito (v0.3.2):**
+- **D161** revelação progressiva no `ask` (1º hit com corpo completo, 2–5 truncado a
+  `recall.preview_chars`, resto padrão; `--json` com `body_match`/`body_snippet`; snippet puro no
+  core) **+ parcela do body** nos `channels` (`channels.body`, informativo).
+- **D162** seção **CORPO** no `prime` com template; `init`/`onboard` cria
+  `.agents/skill/kd/SKILL.md` (idempotente, governada); `rewind` anexa o corpo de
+  `foundational`/`decision` (respeitando o orçamento); check advisório do `doctor`
+  (`body`: notas sem corpo / sem lastro); gate de corpo para `decision` suportado via
+  `validators.toml kind="gate"` (exemplo + teste).
+
+Testes: `retrieval::snippet::*`, `retrieval::bm25` (`body_share`), `cli::body::*`,
+`handoff::tests::rewind::scope_mode_appends_body_for_decision`, `health::tests::body::*`,
+`git::skill::*`.
+
 ## 4. Fora de escopo (não fazer agora)
 
 - `custom_types`/labels livres (enum fechado é decisão).

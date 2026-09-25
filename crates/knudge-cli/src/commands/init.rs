@@ -47,6 +47,7 @@ pub fn run(session: &Session, args: &InitArgs) -> Result<Output> {
         "exclude_changed": report.exclude_changed,
         "attributes_changed": report.attributes_changed,
         "agents_changed": report.agents_changed,
+        "skill_changed": report.skill_changed,
     });
     Ok(Output::new(text, data))
 }

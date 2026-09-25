@@ -374,3 +374,16 @@ Adições que **não** mudam os verbos existentes (só flags/subcomandos) e nenh
 
 `validators.toml` ganha o campo opcional `kind = "check"|"gate"` (default `check`); `kind="gate"`
 usa stdin `{op,before,after}` → stdout `{passed,score_before,score_after}` (D156).
+
+### Delta D160–D162
+
+| Superfície | Forma | Papel |
+|---|---|---|
+| `kd ask` (padrão) | comportamento | revelação progressiva do corpo: 1º hit completo, 2–5 truncado, resto padrão (D161) |
+| `kd ask --json` | contrato | por hit: `body_match`/`body_snippet` (D161) |
+| `recall.preview_chars` | config | limite de caracteres dos hits parciais (default 280, D161) |
+| `kd init` / `onboard` | artefato | cria `.agents/skill/kd/SKILL.md` idempotente (D162) |
+| `kd prime` | texto | seção **CORPO** com template (D162) |
+| sessão (`run_session`) | comportamento | varredura de resíduos `*.tmp`/`*.stale` no início (D160) |
+
+Nenhum verbo novo; nenhuma chave TOON nova.

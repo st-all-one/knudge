@@ -12,6 +12,7 @@ pub mod index;
 pub mod pipeline;
 pub mod rank;
 pub mod rrf;
+pub mod snippet;
 pub mod tags;
 pub mod temporal;
 pub mod token;
@@ -29,6 +30,7 @@ pub use index::{
 };
 pub use rank::{RankQuery, Universe, rank};
 pub use rrf::{Channel, Fused, fuse};
+pub use snippet::{body_matches, body_snippet};
 pub use tags::tag_counts;
 pub use temporal::{State, active_ids, state_at};
 pub use views::{BlockReason, Views, block_reason, compute_views};
@@ -178,6 +180,8 @@ pub struct HitChannels {
     pub recent: f64,
     /// Confirmação derivada (`outcomes` + tarefas, X1/D108) em `[0,1]` — boost informativo.
     pub stars: f64,
+    /// Fração do score lexical que veio do campo `body`, em `[0,1]` — informativo (D161).
+    pub body: f64,
 }
 
 /// Resultado (possivelmente parcial) de `recall`.
