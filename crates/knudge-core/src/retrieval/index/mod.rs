@@ -107,6 +107,7 @@ impl NoteDoc {
 
     /// Frequência do termo no campo (0 se ausente).
     #[must_use]
+    #[inline]
     pub fn tf(&self, field: Field, term: &str) -> u32 {
         self.fields
             .get(&field)
@@ -117,6 +118,7 @@ impl NoteDoc {
 
     /// Número de tokens do campo.
     #[must_use]
+    #[inline]
     pub fn len(&self, field: Field) -> u32 {
         self.fields.get(&field).map_or(0, |entry| entry.len)
     }

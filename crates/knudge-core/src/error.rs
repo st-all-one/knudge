@@ -132,48 +132,56 @@ impl Error {
 
     /// Cria um [`Error::NotFound`].
     #[must_use]
+    #[cold]
     pub fn not_found(msg: impl Into<String>) -> Self {
         Self::NotFound(msg.into())
     }
 
     /// Cria um [`Error::InvalidInput`].
     #[must_use]
+    #[cold]
     pub fn invalid_input(msg: impl Into<String>) -> Self {
         Self::InvalidInput(msg.into())
     }
 
     /// Cria um [`Error::Conflict`].
     #[must_use]
+    #[cold]
     pub fn conflict(msg: impl Into<String>) -> Self {
         Self::Conflict(msg.into())
     }
 
     /// Cria um [`Error::Timeout`].
     #[must_use]
+    #[cold]
     pub fn timeout(msg: impl Into<String>) -> Self {
         Self::Timeout(msg.into())
     }
 
     /// Cria um [`Error::Config`].
     #[must_use]
+    #[cold]
     pub fn config(msg: impl Into<String>) -> Self {
         Self::Config(msg.into())
     }
 
     /// Cria um [`Error::Schema`].
     #[must_use]
+    #[cold]
     pub fn schema(msg: impl Into<String>) -> Self {
         Self::Schema(msg.into())
     }
 
     /// Cria um [`Error::Internal`].
     #[must_use]
+    #[cold]
     pub fn internal(msg: impl Into<String>) -> Self {
         Self::Internal(msg.into())
     }
 
     /// Cria um erro de I/O carregando o caminho (R34).
     #[must_use]
+    #[cold]
     pub fn io(path: impl AsRef<Path>, source: std::io::Error) -> Self {
         Self::Io {
             path: path.as_ref().to_path_buf(),

@@ -41,10 +41,11 @@ pub fn tokenize(input: &str) -> Vec<Cow<'_, str>> {
 /// Termos únicos da consulta, preservando a ordem de primeira aparição.
 #[must_use]
 pub fn query_terms(input: &str) -> Vec<Cow<'_, str>> {
-    let mut seen: BTreeSet<String> = BTreeSet::new();
+    let mut seen: BTreeSet<Cow<'_, str>> = BTreeSet::new();
     let mut out: Vec<Cow<'_, str>> = Vec::new();
     for token in tokenize(input) {
-        if seen.insert(token.to_string()) {
+        // `Cow::Borrowed` clona só o `&str` (sem alocar); `Owned` aloca uma vez, como antes.
+        if seen.insert(token.clone()) {
             out.push(token);
         }
     }
@@ -79,7 +80,8 @@ pub fn is_stopword(term: &str) -> bool {
 pub fn content_terms(input: &str) -> Vec<Cow<'_, str>> {
     query_terms(input)
         .into_iter()
-        .filter(|term| term.chars().count() >= 2 && !is_stopword(term))
+        // Tokens são ASCII por construção (D36), então `len()` em bytes = `chars().count()`.
+        .filter(|term| term.len() >= 2 && !is_stopword(term))
         .collect()
 }
 

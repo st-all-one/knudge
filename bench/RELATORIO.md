@@ -60,6 +60,7 @@
 | E15-T20 (O8) | `task list --full-content` (N=1167) | 22 ms | 14 ms | −36 % |
 | E15-T20 (O8) | `task list --sort impact` (N=1167) | 18 ms | 13 ms | −28 % |
 | E15-T20 (O8) | `task::impacts` (todos os ids) | 152 µs × N | 150 µs | O(N)→O(1) por id |
+| E15-T10 (O6) | `content_terms` (micro) | 2,13 µs | 1,91 µs | −10 % |
 
 Baseline pré-reforma preservado em [`ULTIMO-v0.3.3.md`](ULTIMO-v0.3.3.md); a bancada passou a
 medir `kd doctor`/`kd drain` (a reforma CLI de E15 T13/T14 renomeou os verbos). Os recortes de
@@ -67,7 +68,8 @@ T03/T04 estão em [`e2e-t03.md`](e2e-t03.md) e [`e2e-t04.md`](e2e-t04.md) (micro
 o recorte de T05 está em [`t05.md`](t05.md), o de T06 em [`t06.md`](t06.md) e o de T07 em
 [`t07.md`](t07.md); a micromb de T08 em [`micro-t08.md`](micro-t08.md) e o e2e em [`t08.md`](t08.md);
 o recorte de T09 em [`t09.md`](t09.md); o de T20 em [`t20.md`](t20.md) e a micromb em
-[`micro-t20.md`](micro-t20.md).
+[`micro-t20.md`](micro-t20.md); o de T10 em [`t10.md`](t10.md) e a micromb em
+[`micro-t10.md`](micro-t10.md).
 > **O3 e a densidade do corpus.** A peneira de postings só pula documentos **sem overlap**; no
 > corpus sintético (vocabulário de 24 palavras + prefixo comum por tipo) quase todo par
 > compartilha termos, então o ganho em `doctor`/`compact` é modesto. A micromb isola o efeito:

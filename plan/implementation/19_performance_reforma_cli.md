@@ -154,10 +154,13 @@ Fecho: T19 (docs/goldens/matriz/CHANGELOG)
   (N=1167): `rewind` **319→134 ms (−58 %)** e `rewind --json` **309→113 ms (−63 %)**; `knowledge
   map` estável (não usava o caminho O(N²)).
 
-### E15-T10 ☐ O6 restante
-- **Escopo:** `content_terms` via `len()`, `query_terms` sem `String` extra, `logging::init`
-  fast-path, `#[cold]`/`#[inline]` seletivos.
-- **Aceite:** testes de retrieval/logging verdes; piso fixo medido menor.
+### E15-T10 ☑ O6 restante
+- **Escopo:** `content_terms` por `len()` (O6.3); `query_terms` com `BTreeSet<Cow>` (O6.4);
+  `logging::init` fast-path (`off` sem subscriber + `LevelFilter`, O6.5); `#[cold]` nos
+  construtores de `Error` e `#[inline]` em `Index::tf`/`len` (O6.6). O5.4 (`rank_with`) foi
+  medido (`handoff::rank` = 175 µs) e dispensado por ficar abaixo do ruído.
+- **Aceite:** testes de retrieval/logging verdes; `make check` verde; micro: `content_terms`
+  2,13→1,91 µs (−10 %); piso fixo estável (dominado por startup do processo).
 
 ### E15-T11 ☐ O1.6 — carga persistida do `.idx/` com validação
 - **Escopo:** carregar `retrieval.jsonl`/embeddings quando válido (invalidação barata por

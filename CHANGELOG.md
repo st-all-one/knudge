@@ -55,6 +55,11 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   e `task graph` deriva grafo e notas do mesmo vetor (sem reler por nó, O8.4). A/B (N=1167):
   `task graph` 115→77 ms, `task list --ready` 99→76 ms, `task list --full-content` 22→14 ms,
   `task list --sort impact` 18→13 ms; `rewind` consolidado em ~100 ms.
+- **Consistência transversal (E15-T10/O6)** — `content_terms` filtra por `len()` (tokens são
+  ASCII por D36, sem varrer `chars`); `query_terms` deduplica com `BTreeSet<Cow<str>>` (sem
+  `String` por token já minúsculo); `logging::init` não instala subscriber em `--quiet`/`off` e
+  usa `LevelFilter` para níveis simples (sem parsear `EnvFilter`); `#[cold]` nos construtores de
+  `Error` e `#[inline]` em `Index::tf`/`len`. Micro: `content_terms` 2,13→1,91 µs (−10 %).
 - **Bancada de benchmark** (`bench/`, fora do workspace, zero dependências além do `knudge-core`)
   medindo componentes puros (**micromb**) e ações do binário (**ponta-a-ponta**) em corpora de
   200 e 1000 notas. Alvos `make bench`/`make bench-quick`; relatório de gargalos em

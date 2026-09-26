@@ -3,6 +3,7 @@
 use knudge_core::logging::Redactor;
 use knudge_core::ports::{Level, LogRecord, Logger};
 use tracing_subscriber::EnvFilter;
+use tracing_subscriber::filter::LevelFilter;
 
 use crate::cli::Cli;
 
@@ -46,17 +47,26 @@ impl Logger for TracingLogger {
     }
 }
 
-/// Inicializa o subscriber global (stderr, `EnvFilter`).
+/// Inicializa o subscriber global (stderr).
+///
+/// `--quiet`/`off` **não instalam** subscriber (nenhum evento é construído). Nível simples usa
+/// `LevelFilter` (sem parsear diretivas de `EnvFilter`); o `EnvFilter` fica para alvos.
 pub fn init(cli: &Cli) {
     let level = if cli.quiet {
-        "off".to_string()
+        "off"
     } else {
-        cli.log_level.clone()
+        cli.log_level.as_str()
     };
-    let filter = EnvFilter::try_new(level).unwrap_or_else(|_| EnvFilter::new("warn"));
-    let _ignored = tracing_subscriber::fmt()
+    if level.eq_ignore_ascii_case("off") {
+        return;
+    }
+    let builder = tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
-        .with_env_filter(filter)
-        .with_target(false)
-        .try_init();
+        .with_target(false);
+    if let Ok(filter) = level.parse::<LevelFilter>() {
+        let _ignored = builder.with_max_level(filter).try_init();
+    } else {
+        let filter = EnvFilter::try_new(level).unwrap_or_else(|_| EnvFilter::new("warn"));
+        let _ignored = builder.with_env_filter(filter).try_init();
+    }
 }

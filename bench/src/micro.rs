@@ -12,6 +12,7 @@ use knudge_core::embeddings::lightweight::embed;
 use knudge_core::embeddings::vector::cosine;
 use knudge_core::handoff::budget::apply;
 use knudge_core::handoff::estimate_tokens;
+use knudge_core::handoff::{RewindMode, rank as handoff_rank};
 use knudge_core::jsonl;
 use knudge_core::lifecycle::clusters::structural_clusters;
 use knudge_core::lifecycle::confidence::{ConfidenceInput, confidence_score};
@@ -267,6 +268,13 @@ fn scaling(harness: &mut Harness, sizes: &[usize]) {
         });
         harness.measure(&group, "task::impacts (todos)", 15, 1, || {
             let _ = black_box(impacts(black_box(&graph)));
+        });
+        harness.measure(&group, "handoff::rank (manifest)", 15, 1, || {
+            let _ = black_box(handoff_rank(
+                black_box(&index),
+                black_box(&graph),
+                black_box(&RewindMode::Manifest),
+            ));
         });
         harness.measure(&group, "Index::serialize + parse", 15, 1, || {
             let text = index.serialize().expect("serializa");
