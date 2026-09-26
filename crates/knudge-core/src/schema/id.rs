@@ -17,14 +17,22 @@ pub const HISTORICAL_PREFIXES: [&str; 1] = ["container"];
 /// Gera o `id` de uma nota a partir de `type` + `statement` normalizado (D01).
 #[must_use]
 pub fn note_id(note_type: NoteType, statement: &str) -> String {
-    let mut data = note_type.as_str().to_string();
-    data.push(ID_SEPARATOR);
-    data.push_str(&normalize(statement));
-    format!(
-        "{}_{}",
-        note_type.prefix(),
-        hash::base36_8(hash::short_hash(data.as_bytes()))
-    )
+    let normalized = normalize(statement);
+    let mut separator = [0_u8; 4];
+    let separator = ID_SEPARATOR.encode_utf8(&mut separator);
+    let hash = hash::short_hash_parts(&[
+        note_type.as_str().as_bytes(),
+        separator.as_bytes(),
+        normalized.as_bytes(),
+    ]);
+    let prefix = note_type.prefix();
+    let digits = hash::base36_8(hash);
+    let mut out =
+        String::with_capacity(prefix.len().saturating_add(1).saturating_add(digits.len()));
+    out.push_str(prefix);
+    out.push('_');
+    out.push_str(&digits);
+    out
 }
 
 /// Valida o formato `<prefixo>_<base36(8)>` e se o prefixo é de um [`NoteType`] conhecido.

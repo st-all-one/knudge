@@ -8,12 +8,12 @@ use std::collections::BTreeMap;
 
 use crate::graph::Graph;
 use crate::lifecycle::Freshness;
-use crate::retrieval::views::compute_views;
+use crate::retrieval::views::{Views, compute_views};
 use crate::retrieval::{Index, Meta};
 use crate::task::{impact, is_actionable};
 
 use super::CorpusScope;
-use super::manifest::{manifest_text, sanitize};
+use super::manifest::{manifest_text_in, sanitize};
 
 /// Máximo de tarefas `ready` listadas em `next:`.
 pub const MAX_NEXT: usize = 5;
@@ -38,7 +38,17 @@ pub fn next_tasks(
     limit: usize,
     scope: &CorpusScope,
 ) -> Vec<NextTask> {
-    let views = compute_views(graph);
+    next_tasks_in(&compute_views(graph), index, graph, limit, scope)
+}
+
+/// Como [`next_tasks`], mas com as `views` já computadas (evita recomputar o SCC — O5.2).
+fn next_tasks_in(
+    views: &Views,
+    index: &Index,
+    graph: &Graph,
+    limit: usize,
+    scope: &CorpusScope,
+) -> Vec<NextTask> {
     let created: BTreeMap<&str, i64> = index
         .docs
         .iter()
@@ -54,16 +64,18 @@ pub fn next_tasks(
         .iter()
         .map(|doc| (doc.meta.id.as_str(), &doc.meta))
         .collect();
-    let mut ready: Vec<&str> = views
+    // Impacto é pré-computado uma vez (antes era chamado dentro do comparador — O5.3).
+    let mut ready: Vec<(&str, usize)> = views
         .ready
         .iter()
         .map(String::as_str)
         .filter(|id| is_actionable(graph.status(id)))
         .filter(|id| metas.get(id).is_some_and(|meta| scope.matches(meta)))
+        .map(|id| (id, impact(graph, id)))
         .collect();
-    ready.sort_unstable_by(|left, right| {
-        impact(graph, right)
-            .cmp(&impact(graph, left))
+    ready.sort_unstable_by(|(left, left_impact), (right, right_impact)| {
+        right_impact
+            .cmp(left_impact)
             .then_with(|| {
                 created
                     .get(left)
@@ -76,7 +88,7 @@ pub fn next_tasks(
     ready
         .into_iter()
         .take(limit)
-        .map(|id| NextTask {
+        .map(|(id, _impact)| NextTask {
             id: id.to_string(),
             statement: sanitize(statements.get(id).copied().unwrap_or("")),
         })
@@ -98,9 +110,11 @@ pub fn manifest_at(
     scope: &CorpusScope,
 ) -> (String, usize) {
     let limit = (budget / NEXT_BUDGET_DIVISOR).clamp(1, MAX_NEXT);
-    let ready = next_tasks(index, graph, usize::MAX, scope);
+    // Views computadas uma única vez para `next` + contadores do manifest (O5.2).
+    let views = compute_views(graph);
+    let ready = next_tasks_in(&views, index, graph, usize::MAX, scope);
     let shown = ready.len().min(limit);
-    let mut text = manifest_text(index, graph, changed_paths, scope);
+    let mut text = manifest_text_in(&views, index, graph, changed_paths, scope);
     if shown > 0 {
         let items: Vec<String> = ready
             .iter()

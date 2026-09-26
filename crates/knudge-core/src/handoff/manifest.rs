@@ -10,7 +10,7 @@ use std::collections::BTreeSet;
 use crate::graph::Graph;
 use crate::lifecycle::confidence::{DEFAULT_TASK_CONFIRMATION, from_tasks_with, is_success_task};
 use crate::retrieval::anchor::glob_match;
-use crate::retrieval::views::compute_views;
+use crate::retrieval::views::{Views, compute_views};
 use crate::retrieval::{Index, Meta};
 use crate::schema::{Classification, EdgeKind, NoteType};
 
@@ -162,7 +162,17 @@ pub fn manifest_text(
     changed_paths: &[String],
     scope: &CorpusScope,
 ) -> String {
-    let views = compute_views(graph);
+    manifest_text_in(&compute_views(graph), index, graph, changed_paths, scope)
+}
+
+/// Como [`manifest_text`], mas com as `views` já computadas (O5.2).
+pub(super) fn manifest_text_in(
+    views: &Views,
+    index: &Index,
+    graph: &Graph,
+    changed_paths: &[String],
+    scope: &CorpusScope,
+) -> String {
     let containers = graph
         .ids()
         .iter()

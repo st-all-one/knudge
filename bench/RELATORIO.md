@@ -51,12 +51,17 @@
 | E15-T04 (O3) | `compact` (N=1167) | 2,44 s | 2,20 s | −10 % |
 | E15-T05 (O6.1/O6.2) | consistência (`sort_unstable` + capacidade) | — | — | neutro no e2e |
 | E15-T06 (O2) | índice invertido + hoisting BM25 | — | — | neutro no e2e (corpus denso) |
+| E15-T07 (O2.3) | glob com DP de uma linha | 223 ns/call | 138 ns/call | micro (e2e no ruído) |
+| E15-T08 (O4) | `normalize` / `body_hash` / `note_id` | 1,98 / 2,92 / 1,17 µs | 0,22 / 0,47 / 0,18 µs | −89 % / −84 % / −84 % |
+| E15-T09 (O5) | `rewind` (N=1167) | 319 ms | 134 ms | **−58 %** |
+| E15-T09 (O5) | `rewind --json` (N=1167) | 309 ms | 113 ms | **−63 %** |
 
 Baseline pré-reforma preservado em [`ULTIMO-v0.3.3.md`](ULTIMO-v0.3.3.md); a bancada passou a
 medir `kd doctor`/`kd drain` (a reforma CLI de E15 T13/T14 renomeou os verbos). Os recortes de
 T03/T04 estão em [`e2e-t03.md`](e2e-t03.md) e [`e2e-t04.md`](e2e-t04.md) (micro: [`micro-t04.md`](micro-t04.md));
-o recorte de T05 está em [`t05.md`](t05.md) e o de T06 em [`t06.md`](t06.md).
-
+o recorte de T05 está em [`t05.md`](t05.md), o de T06 em [`t06.md`](t06.md) e o de T07 em
+[`t07.md`](t07.md); a micromb de T08 em [`micro-t08.md`](micro-t08.md) e o e2e em [`t08.md`](t08.md);
+o recorte de T09 em [`t09.md`](t09.md).
 > **O3 e a densidade do corpus.** A peneira de postings só pula documentos **sem overlap**; no
 > corpus sintético (vocabulário de 24 palavras + prefixo comum por tipo) quase todo par
 > compartilha termos, então o ganho em `doctor`/`compact` é modesto. A micromb isola o efeito:

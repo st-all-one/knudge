@@ -15,6 +15,7 @@ use knudge_core::handoff::estimate_tokens;
 use knudge_core::jsonl;
 use knudge_core::lifecycle::clusters::structural_clusters;
 use knudge_core::lifecycle::confidence::{ConfidenceInput, confidence_score};
+use knudge_core::retrieval::anchor::{GlobPattern, glob_match};
 use knudge_core::retrieval::filter::Filter;
 use knudge_core::retrieval::rrf::{Channel, fuse};
 use knudge_core::retrieval::token;
@@ -151,6 +152,24 @@ fn fixed(harness: &mut Harness) {
     harness.measure("micro/fixo", "config::Config::parse", 25, 2000, || {
         let _ = black_box(Config::parse(black_box(SAMPLE_TOML)));
     });
+
+    // --- Globs (E15-T07/O2.3) ---
+    let pattern = GlobPattern::new("src/**/*.rs");
+    harness.measure("micro/fixo", "retrieval::anchor::glob_match", 25, 20000, || {
+        let _ = black_box(glob_match(
+            black_box("src/**/*.rs"),
+            black_box("src/a/b/main.rs"),
+        ));
+    });
+    harness.measure(
+        "micro/fixo",
+        "retrieval::anchor::GlobPattern::matches",
+        25,
+        20000,
+        || {
+            let _ = black_box(pattern.matches(black_box("src/a/b/main.rs")));
+        },
+    );
 
     // --- Embeddings lightweight (384d) ---
     let vector_a = embed(&note_body, 384);

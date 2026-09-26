@@ -39,6 +39,8 @@ struct Node {
 #[derive(Debug, Clone, Default)]
 pub struct Graph {
     nodes: BTreeMap<String, Node>,
+    /// Índice reverso filho→pai (aresta `results_in`), 1º vencedor na ordem do `BTreeMap` (O5.1).
+    parents: BTreeMap<String, String>,
 }
 
 /// Hit de expansão BFS determinística.
@@ -62,7 +64,7 @@ impl Graph {
         for note in notes {
             insert_note(&mut by_id, &note)?;
         }
-        Ok(Self { nodes: by_id })
+        Ok(Self::from_nodes(by_id))
     }
 
     /// Como [`Graph::from_notes`], mas **empresta** as notas já carregadas (sem consumir/clonar).
@@ -77,7 +79,23 @@ impl Graph {
         for note in notes {
             insert_note(&mut by_id, note)?;
         }
-        Ok(Self { nodes: by_id })
+        Ok(Self::from_nodes(by_id))
+    }
+
+    /// Monta o grafo a partir dos nós, derivando o índice reverso de pais.
+    fn from_nodes(by_id: BTreeMap<String, Node>) -> Self {
+        let mut parents: BTreeMap<String, String> = BTreeMap::new();
+        for (id, node) in &by_id {
+            if let Some(targets) = node.edges.get(&EdgeKind::ResultsIn) {
+                for target in targets {
+                    parents.entry(target.clone()).or_insert_with(|| id.clone());
+                }
+            }
+        }
+        Self {
+            nodes: by_id,
+            parents,
+        }
     }
 
     /// Constrói o grafo lendo todas as notas do store.
@@ -155,24 +173,13 @@ impl Graph {
     /// `true` se `id` é alvo de alguma aresta `results_in` (tem pai — D52/D119).
     #[must_use]
     pub fn has_parent(&self, id: &str) -> bool {
-        self.nodes.values().any(|node| {
-            node.edges
-                .get(&EdgeKind::ResultsIn)
-                .is_some_and(|targets| targets.iter().any(|target| target == id))
-        })
+        self.parents.contains_key(id)
     }
 
     /// Pai imediato de `id` (aresta `results_in` de entrada), se houver (D52/D127).
-    ///
-    /// Varredura reversa determinística (ordem de `BTreeMap`).
     #[must_use]
     pub fn parent(&self, id: &str) -> Option<&str> {
-        self.nodes.values().find_map(|node| {
-            node.edges
-                .get(&EdgeKind::ResultsIn)
-                .is_some_and(|targets| targets.iter().any(|target| target == id))
-                .then_some(node.id.as_str())
-        })
+        self.parents.get(id).map(String::as_str)
     }
 
     /// Expansão BFS determinística até `depth` (arestas explícitas apenas).

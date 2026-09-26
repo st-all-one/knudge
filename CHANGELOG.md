@@ -32,6 +32,22 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   toa). `field_sum` faz hoisting de `norm`/`weight` e reusa `idf_from`. A soma doc-major, pesos e
   IDF permanecem idênticos (goldens + proptest `sieve_positions_match_scan`). No corpus sintético
   (denso) o A/B é neutro; a peneira paga em vocabulário seletivo.
+- **Glob sem alocação por par (E15-T07/O2.3)** — `retrieval::anchor::GlobPattern` compila os
+  tokens uma vez e o matcher usa uma **matriz DP de uma linha** (1 `Vec` em vez de
+  `tokens.len()+1` por par); `match_note` compila cada âncora uma vez por nota. Semântica
+  idêntica (`glob_edge_cases` + proptest `glob_matches_reference` contra oráculo independente).
+- **Parse e hash sem alocação (E15-T08/O4)** — `normalize` ganha fast-path ASCII (NFC é
+  identidade) e `normalize_into` reutiliza buffer; `body_hash`/`note_id` hasheiam em partes
+  (`short_hash_parts`) sem concatenar; `hex8_value` e `base36_8` sem `format!`/`Vec<char>`; o
+  lexer TOON devolve `Cow<str>` por linha (sem alocar quando não há comentário) e o JSONL reserva
+  capacidade e pula `sort` já ordenado. Micro (N=1167): `normalize` −89 %, `body_hash` −84 %,
+  `note_id` −84 %, `base36_8` −63 %, `toon::parse` −21 %, `Note::parse` −8 %.
+- **Grafo, views e manifest (E15-T09/O5)** — `Graph` ganha **índice reverso filho→pai**
+  (`parents`, 1º vencedor na ordem do `BTreeMap`), tornando `parent`/`has_parent` O(1) (antes
+  varredura reversa O(V+E) por chamada); `next_tasks` **pré-computa `impact`** (antes chamado
+  dentro do comparador) e `manifest_at` computa `compute_views` **uma vez** (antes `next` +
+  contadores recomputavam o SCC). A/B (N=1167): `rewind` **319→134 ms (−58 %)** e
+  `rewind --json` **309→113 ms (−63 %)**; saída idêntica.
 - **Bancada de benchmark** (`bench/`, fora do workspace, zero dependências além do `knudge-core`)
   medindo componentes puros (**micromb**) e ações do binário (**ponta-a-ponta**) em corpora de
   200 e 1000 notas. Alvos `make bench`/`make bench-quick`; relatório de gargalos em

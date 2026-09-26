@@ -1,6 +1,6 @@
 //! Testes do schema canônico (E02-T01/T03/T05/T06).
 
-use super::body::{body_hash, normalize};
+use super::body::{body_hash, normalize, normalize_into};
 use super::frontmatter::Frontmatter;
 use super::hash::{base36_8, hex8};
 use super::id::{is_valid_note_id, note_id};
@@ -42,6 +42,20 @@ fn normalize_collapses_and_nfc() {
     // "e" + combining acute (U+0301) vira "é" pré-composto em NFC.
     assert_eq!(normalize("e\u{0301}"), "\u{e9}");
     assert_eq!(normalize(""), "");
+}
+
+#[test]
+fn normalize_into_appends_like_normalize() {
+    let mut out = String::from("base ");
+    normalize_into("  a\t b  ", &mut out);
+    assert_eq!(out, "base a b");
+    let mut ascii = String::new();
+    normalize_into("  x  ", &mut ascii);
+    assert_eq!(ascii, normalize("  x  "));
+    // Caminho não-ASCII (NFC) produz o mesmo que `normalize`.
+    let mut nfc = String::new();
+    normalize_into("e\u{301}", &mut nfc);
+    assert_eq!(nfc, normalize("e\u{301}"));
 }
 
 #[test]

@@ -127,21 +127,32 @@ Fecho: T19 (docs/goldens/matriz/CHANGELOG)
   corpus sintético faz o fallback varrer, evitando a regressão que o índice invertido traria a
   `write`/`ask`. O ganho de `ask` é real só em vocabulário seletivo (não medível aqui).
 
-### E15-T07 ☐ O2.3 — glob sem alocação
-- **Escopo:** matcher de glob iterativo/sem matriz DP (ou `globset` em T12, com testes).
-- **Aceite:** testes de glob existentes + novos casos; `ask --anchor`/`rewind --files` sem
-  regressão de bytes.
+### E15-T07 ☑ O2.3 — glob sem alocação
+- **Escopo:** `GlobPattern` compilado (tokens uma vez) + matcher com **matriz DP de uma linha**
+  (1 `Vec` em vez de `tokens.len()+1` por par); `match_note` compila a âncora uma vez por nota.
+- **Aceite:** testes de glob existentes + `glob_edge_cases` + proptest `glob_matches_reference`
+  (oráculo recursivo independente) provam a semântica; `make check` verde; micro `glob_match`
+  **223 ns** e `GlobPattern::matches` **138 ns**; e2e dentro do ruído (`ask --anchor`,
+  `rewind --files`) — o custo absoluto do glob não domina esses comandos.
 
-### E15-T08 ☐ O4 — normalize/hash/TOON/JSONL
-- **Escopo:** `normalize` fast-path ASCII; `body_hash` incremental; `id` sem `format!`; TOON
-  `Cow`/escrita direta; JSONL `with_capacity`/`is_sorted`.
-- **Aceite:** proptest de `normalize`/`body_hash`/`note_id` e round-trip TOON; goldens TOON/JSONL
-  inalterados.
+### E15-T08 ☑ O4 — normalize/hash/TOON/JSONL
+- **Escopo:** `normalize` fast-path ASCII + `normalize_into` (O4.1); `short_hash_parts`/`hex8_value`
+  para `body_hash`/`note_id` sem concatenar (O4.2/O4.3); `base36_8` em `[u8; 8]`; lexer TOON com
+  `Line<'a> { text: Cow<'a, str> }` e `strip_comment -> Cow` (O4.4); JSONL `with_capacity` +
+  `is_sorted` (O4.7). O4.5/O4.6 (emissor direto/`flow` com `Cow`) ficam para T10.
+- **Aceite:** proptests de `normalize`/`body_hash`/`note_id` e round-trip TOON/JSONL verdes;
+  `make check` verde; micro (N=1167): `normalize` −89 % (1,98→0,22 µs), `body_hash` −84 %
+  (2,92→0,47 µs), `note_id` −84 % (1,17→0,18 µs), `base36_8` −63 %, `toon::parse` −21 %,
+  `Note::parse` −8 %; e2e dentro do ruído (a leitura do corpus do disco domina).
 
-### E15-T09 ☐ O5 — grafo, views e manifest
-- **Escopo:** índice reverso de pai/filho; `compute_views`/SCC memoizados; `next_tasks` com
-  `impact` pré-computado; `rank_with` com `confirmers` pré-computado.
-- **Aceite:** `rewind`/`task list --ready`/`knowledge map` com ganho; saída idêntica.
+### E15-T09 ☑ O5 — grafo, views e manifest
+- **Escopo:** `Graph` com índice reverso `parents: BTreeMap<String,String>` (O5.1), derivado em
+  `from_nodes` (1º vencedor na ordem do `BTreeMap` = semântica anterior); `next_tasks_in`
+  pré-computa `impact` uma vez (O5.3); `manifest_at` computa `compute_views` uma vez e repassa às
+  variantes `*_in` de `next_tasks`/`manifest_text` (O5.2). O5.4 (`rank_with`) fica para T10.
+- **Aceite:** testes de grafo/views/manifest verdes (saída idêntica); `make check` verde; A/B
+  (N=1167): `rewind` **319→134 ms (−58 %)** e `rewind --json` **309→113 ms (−63 %)**; `knowledge
+  map` estável (não usava o caminho O(N²)).
 
 ### E15-T10 ☐ O6 restante
 - **Escopo:** `content_terms` via `len()`, `query_terms` sem `String` extra, `logging::init`

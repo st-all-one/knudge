@@ -37,32 +37,74 @@ enum Glob {
     Lit(u8),
 }
 
-/// `true` se `pattern` casa com `text` (globs `?`, `*`, `**`).
-#[must_use]
-#[allow(
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    reason = "matriz DP com índices limitados a `tokens.len()` e `text.len()`"
-)]
-pub fn glob_match(pattern: &str, text: &str) -> bool {
-    let tokens = glob_tokens(pattern);
-    let bytes = text.as_bytes();
-    let (rows, cols) = (tokens.len(), bytes.len());
-    let mut dp = vec![vec![false; cols + 1]; rows + 1];
-    dp[rows][cols] = true;
-    for row in (0..rows).rev() {
-        for col in (0..=cols).rev() {
-            dp[row][col] = match tokens[row] {
-                Glob::Any => col < cols && bytes[col] != b'/' && dp[row + 1][col + 1],
-                Glob::Star => {
-                    dp[row + 1][col] || (col < cols && bytes[col] != b'/' && dp[row][col + 1])
-                }
-                Glob::DoubleStar => dp[row + 1][col] || (col < cols && dp[row][col + 1]),
-                Glob::Lit(byte) => col < cols && bytes[col] == byte && dp[row + 1][col + 1],
-            };
+/// Padrão de glob compilado, reutilizável em muitos textos (E15-T07/O2.3).
+///
+/// Evita retokenizar o padrão e realocar a matriz DP a cada par (padrão, texto).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GlobPattern {
+    tokens: Vec<Glob>,
+}
+
+impl GlobPattern {
+    /// Compila `pattern` (globs `?`, `*`, `**`).
+    #[must_use]
+    pub fn new(pattern: &str) -> Self {
+        Self {
+            tokens: glob_tokens(pattern),
         }
     }
-    dp[0][0]
+
+    /// `true` se o padrão casa com `text`.
+    #[must_use]
+    pub fn matches(&self, text: &str) -> bool {
+        match_tokens(&self.tokens, text)
+    }
+}
+
+/// `true` se `pattern` casa com `text` (globs `?`, `*`, `**`).
+#[must_use]
+pub fn glob_match(pattern: &str, text: &str) -> bool {
+    GlobPattern::new(pattern).matches(text)
+}
+
+/// Casa tokens de glob contra `text` com uma matriz DP de **uma linha** (O(texto) de espaço).
+///
+/// Equivale à recorrência 2-D anterior (`dp[row][col]`), mas sem alocar `tokens.len()+1`
+/// `Vec`s por par: o texto é percorrido da direita para a esquerda guardando `dp[row+1][col+1]`
+/// num escalar.
+fn match_tokens(tokens: &[Glob], text: &str) -> bool {
+    let bytes = text.as_bytes();
+    let cols = bytes.len();
+    // `row[col]` representa `dp[row+1][col]`; `dp[rows]` só tem `dp[rows][cols] = true`.
+    let mut row = vec![false; cols.saturating_add(1)];
+    if let Some(last) = row.last_mut() {
+        *last = true;
+    }
+    for token in tokens.iter().rev() {
+        let Some(last) = row.last_mut() else {
+            break;
+        };
+        // `dp[row][cols]`: só `*`/`**` casam o fim do texto.
+        let mut old_right = *last;
+        *last = matches!(token, Glob::Star | Glob::DoubleStar) && old_right;
+        for col in (0..cols).rev() {
+            let Some(old_here) = row.get(col).copied() else {
+                break;
+            };
+            let right = row.get(col.saturating_add(1)).copied().unwrap_or(false);
+            let value = match token {
+                Glob::Any => bytes.get(col) != Some(&b'/') && old_right,
+                Glob::Star => old_here || (bytes.get(col) != Some(&b'/') && right),
+                Glob::DoubleStar => old_here || right,
+                Glob::Lit(byte) => bytes.get(col) == Some(byte) && old_right,
+            };
+            if let Some(target) = row.get_mut(col) {
+                *target = value;
+            }
+            old_right = old_here;
+        }
+    }
+    row.first().copied().unwrap_or(false)
 }
 
 /// Casa as âncoras de uma nota contra o working set.
@@ -70,14 +112,15 @@ pub fn glob_match(pattern: &str, text: &str) -> bool {
 pub fn match_note(meta: &Meta, working_paths: &[String], working_ids: &[String]) -> AnchorMatch {
     let mut result = AnchorMatch::default();
     for anchor in &meta.anchors {
+        let pattern = GlobPattern::new(anchor);
         for path in working_paths {
-            if glob_match(anchor, path) {
+            if pattern.matches(path) {
                 result.file = true;
                 result.count = result.count.saturating_add(1);
             }
         }
         for target in working_ids {
-            if anchor == target || glob_match(anchor, target) {
+            if anchor == target || pattern.matches(target) {
                 result.id = true;
                 result.count = result.count.saturating_add(1);
             }

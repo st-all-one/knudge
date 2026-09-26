@@ -10,7 +10,7 @@ use crate::{Error, Result};
 /// # Errors
 /// Retorna `ErrorKind::InvalidInput` se houver float não finito.
 pub fn encode(value: &Value) -> Result<String> {
-    let mut out = String::new();
+    let mut out = String::with_capacity(64);
     encode_into(value, &mut out)?;
     Ok(out)
 }
@@ -34,8 +34,11 @@ fn encode_into(value: &Value, out: &mut String) -> Result<()> {
             out.push(']');
         }
         Value::Map(map) => {
-            let mut keys: Vec<&String> = map.keys().collect();
-            keys.sort();
+            let mut keys: Vec<&String> = Vec::with_capacity(map.len());
+            keys.extend(map.keys());
+            if !keys.is_sorted() {
+                keys.sort_unstable();
+            }
             out.push('{');
             for (index, key) in keys.into_iter().enumerate() {
                 if index > 0 {

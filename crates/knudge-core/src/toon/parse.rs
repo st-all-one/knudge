@@ -44,7 +44,7 @@ fn is_dash(text: &str) -> bool {
 }
 
 fn parse_node(
-    lines: &[Line],
+    lines: &[Line<'_>],
     index: &mut usize,
     indent: usize,
     depth: usize,
@@ -68,7 +68,7 @@ fn parse_node(
 }
 
 fn parse_map(
-    lines: &[Line],
+    lines: &[Line<'_>],
     index: &mut usize,
     indent: usize,
     depth: usize,
@@ -104,7 +104,7 @@ fn parse_map(
 }
 
 fn parse_list(
-    lines: &[Line],
+    lines: &[Line<'_>],
     index: &mut usize,
     indent: usize,
     depth: usize,
@@ -136,7 +136,7 @@ fn parse_list(
 }
 
 fn parse_map_item(
-    lines: &[Line],
+    lines: &[Line<'_>],
     index: &mut usize,
     indent: usize,
     content: &str,
@@ -157,7 +157,7 @@ fn parse_map_item(
     Ok(Value::Map(map))
 }
 
-fn next_is_deeper(lines: &[Line], index: usize, indent: usize) -> bool {
+fn next_is_deeper(lines: &[Line<'_>], index: usize, indent: usize) -> bool {
     lines.get(index).is_some_and(|line| line.indent > indent)
 }
 
