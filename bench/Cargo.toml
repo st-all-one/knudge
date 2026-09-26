@@ -1,0 +1,27 @@
+# Bancada de benchmark do knudge (fora do workspace, como `fuzz/`).
+#
+# Zero dependências externas de propósito: `criterion` é não-objetivo explícito
+# (E13-T09, R43). O harness usa `std::time::Instant` e imprime uma tabela
+# determinística. Não entra em `make check` nem na release.
+
+[package]
+name = "knudge-bench"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.97"
+publish = false
+
+[workspace]
+
+[[bin]]
+name = "knudge-bench"
+path = "src/main.rs"
+
+[dependencies]
+knudge-core = { path = "../crates/knudge-core" }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+overflow-checks = false

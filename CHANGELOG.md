@@ -4,6 +4,13 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+### Adicionado
+- **Bancada de benchmark** (`bench/`, fora do workspace, zero dependências além do `knudge-core`)
+  medindo componentes puros (**micromb**) e ações do binário (**ponta-a-ponta**) em corpora de
+  200 e 1000 notas. Alvos `make bench`/`make bench-quick`; relatório de gargalos em
+  [`bench/RELATORIO.md`](bench/RELATORIO.md). Observação, não gate (E13-T09/R43: `criterion`
+  continua não-objetivo).
+
 ## [0.3.3] - 2026-09-25
 
 ## [0.3.2] - 2026-09-24

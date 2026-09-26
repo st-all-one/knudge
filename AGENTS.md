@@ -35,6 +35,7 @@ make update-version VERSION=v0.2.1  # bump em Cargo.toml/lock/goldens/install.sh
 make ci        # check + nextest + deny + audit + machete + typos
 make miri      # verificação dinâmica de UB no core puro
 make fuzz      # build dos alvos de fuzz (TOON, JSONL)
+make bench     # bancada de benchmark (micro + e2e) → bench/ULTIMO.md (observação, E13-T09)
 
 # alvos pontuais enquanto trabalha
 cargo test -p knudge-core toon::tests::round_trip_is_byte_exact
@@ -54,6 +55,7 @@ crates/knudge-mcp/    # servidor MCP: gatilhos + transporte JSON-RPC stdio (bin�
 plan/                 # visão (00), decisões (Dxx), implementação por épico (E0x-T0y) e políticas (Rn)
 refs/                 # projetos de referência (mulch-rs, seeds-rs, arags) — leitura, não editar
 fuzz/                 # alvos de fuzz (TOON, JSONL) — fora do workspace
+bench/                # bancada de benchmark (fora do workspace; micro + e2e; `make bench`)
 scripts/              # utilitários: bump-version.sh, knudge-idle.sh, package.sh, check_file_length.sh
 .agents/skill/rust/   # skill de Rust (SKILL.md + capítulos)
 DIVERGENCES.md        # bordas (Unicode, ordem, lock, atomicidade…) + teste que trava cada uma

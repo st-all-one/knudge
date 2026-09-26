@@ -5,7 +5,7 @@ PREFIX ?= $(HOME)/.local
 BINDIR ?= $(PREFIX)/bin
 
 .PHONY: check fmt clippy test build file-length clean install uninstall \
-        update-version nextest doc deny audit machete typos miri fuzz coverage ci dist
+        update-version nextest doc deny audit machete typos miri fuzz coverage ci dist bench bench-quick
 
 ## Portão completo local: formatação, lints, testes e gate de tamanho de arquivo.
 check: fmt clippy test file-length
@@ -106,3 +106,18 @@ coverage:
 
 ## Portão do CI: check + doc-tests + extras disponíveis.
 ci: check nextest deny audit machete typos
+
+# --- Bancada de benchmark (fora do workspace, observação — E13-T09) ---
+
+## Compara componentes (micromb) e ações (ponta-a-ponta) em corpora 200 e 1000.
+## Resultado em tabela Markdown; `--json`/`--out` guardam artefatos.
+bench:
+	$(CARGO) build --release -p knudge-cli
+	$(CARGO) run --release --manifest-path bench/Cargo.toml -- all \
+		--kd target/release/kd --sizes 200,1000 --samples 8 --out bench/ULTIMO.md
+
+## Versão rápida (1 corpus, 5 amostras).
+bench-quick:
+	$(CARGO) build --release -p knudge-cli
+	$(CARGO) run --release --manifest-path bench/Cargo.toml -- all \
+		--kd target/release/kd --quick
