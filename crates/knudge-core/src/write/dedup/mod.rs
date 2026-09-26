@@ -182,7 +182,7 @@ pub fn propose(
             score: dice(&draft_doc, doc),
         });
     }
-    candidates.sort_by(|a, b| b.score.total_cmp(&a.score).then_with(|| a.id.cmp(&b.id)));
+    candidates.sort_unstable_by(|a, b| b.score.total_cmp(&a.score).then_with(|| a.id.cmp(&b.id)));
     let decision = decide(thresholds, candidates.first());
     Ok(WriteProposal {
         candidates,

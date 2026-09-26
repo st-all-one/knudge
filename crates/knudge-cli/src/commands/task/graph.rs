@@ -94,7 +94,7 @@ impl Signals {
                 depends_on: graph.targets(&child, EdgeKind::DependsOn).to_vec(),
             });
         }
-        nodes.sort_by(|a, b| a.id.cmp(&b.id));
+        nodes.sort_unstable_by(|a, b| a.id.cmp(&b.id));
         ids.sort();
         Container {
             children: nodes,

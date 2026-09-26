@@ -106,7 +106,7 @@ pub(super) fn build_hits(
         .iter()
         .map(|doc| (doc.meta.id.as_str(), doc))
         .collect();
-    let mut hits = Vec::new();
+    let mut hits = Vec::with_capacity(limit.min(channels.fused.len()));
     for fused_hit in channels.fused.iter().take(limit) {
         let Some(doc) = by_id.get(fused_hit.id.as_str()) else {
             continue;

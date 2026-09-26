@@ -61,7 +61,7 @@ pub fn next_tasks(
         .filter(|id| is_actionable(graph.status(id)))
         .filter(|id| metas.get(id).is_some_and(|meta| scope.matches(meta)))
         .collect();
-    ready.sort_by(|left, right| {
+    ready.sort_unstable_by(|left, right| {
         impact(graph, right)
             .cmp(&impact(graph, left))
             .then_with(|| {

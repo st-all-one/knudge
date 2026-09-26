@@ -63,7 +63,7 @@ pub fn neighbors(index: &EmbeddingIndex, id: &str, top_k: usize, min_score: f64)
             })
         })
         .collect();
-    found.sort_by(|a, b| b.score.total_cmp(&a.score).then_with(|| a.id.cmp(&b.id)));
+    found.sort_unstable_by(|a, b| b.score.total_cmp(&a.score).then_with(|| a.id.cmp(&b.id)));
     if top_k > 0 {
         found.truncate(top_k);
     }
@@ -94,7 +94,7 @@ pub fn rank_query(
             })
         })
         .collect();
-    found.sort_by(|a, b| b.score.total_cmp(&a.score).then_with(|| a.id.cmp(&b.id)));
+    found.sort_unstable_by(|a, b| b.score.total_cmp(&a.score).then_with(|| a.id.cmp(&b.id)));
     if top_k > 0 {
         found.truncate(top_k);
     }
@@ -125,7 +125,7 @@ pub fn duplicate_pairs(index: &EmbeddingIndex, threshold: f64) -> Vec<DuplicateP
             }
         }
     }
-    pairs.sort_by(|left, right| {
+    pairs.sort_unstable_by(|left, right| {
         right
             .score
             .total_cmp(&left.score)
@@ -156,7 +156,7 @@ pub fn link_suggestions(
             });
         }
     }
-    suggestions.sort_by(|left, right| {
+    suggestions.sort_unstable_by(|left, right| {
         right
             .score
             .total_cmp(&left.score)

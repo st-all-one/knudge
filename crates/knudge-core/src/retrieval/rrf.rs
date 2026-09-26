@@ -84,6 +84,6 @@ pub fn fuse(channels: &[Channel<'_>], k: u32) -> Vec<Fused> {
             contribs: accum.contribs,
         })
         .collect();
-    fused.sort_by(|a, b| b.score.total_cmp(&a.score).then_with(|| a.id.cmp(&b.id)));
+    fused.sort_unstable_by(|a, b| b.score.total_cmp(&a.score).then_with(|| a.id.cmp(&b.id)));
     fused
 }

@@ -20,6 +20,18 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   `Index::score_doc` fica exposto. A soma doc-major do BM25 é preservada (proptest
   `sieve_matches_reference`). A/B (N≈1 k): `doctor` −13 %, `compact` −10 %; no micromb,
   `propose_merges` esparso é ~900× mais rápido que o denso (o corpus sintético é denso).
+- **Consistência de ordenação e capacidade (E15-T05/O6.1/O6.2)** — `sort_by` vira
+  `sort_unstable_by` onde a ordem é total (tiebreak por `id`/par único), poupando o buffer da
+  stable sort; `build_hits`, componentes/ordem de ciclo e `Store::list_ids` passam a reservar
+  capacidade. `suggestions` e `learn::learn` ficam estáveis (comparadores parciais). A/B neutro
+  no e2e; ordem/bytes inalterados.
+- **Índice invertido + BM25 (E15-T06/O2)** — novo `retrieval::postings::Postings` (índice invertido
+  derivado, cacheado por `OnceLock` no `Index`, **nunca** persistido) serve de peneira ao
+  `score_with`, que pontua só candidatos com ≥1 termo quando isso compensa; se os termos cobrem
+  ≥ metade do corpus, um fallback por `df` varre como antes (evita construir o índice invertido à
+  toa). `field_sum` faz hoisting de `norm`/`weight` e reusa `idf_from`. A soma doc-major, pesos e
+  IDF permanecem idênticos (goldens + proptest `sieve_positions_match_scan`). No corpus sintético
+  (denso) o A/B é neutro; a peneira paga em vocabulário seletivo.
 - **Bancada de benchmark** (`bench/`, fora do workspace, zero dependências além do `knudge-core`)
   medindo componentes puros (**micromb**) e ações do binário (**ponta-a-ponta**) em corpora de
   200 e 1000 notas. Alvos `make bench`/`make bench-quick`; relatório de gargalos em

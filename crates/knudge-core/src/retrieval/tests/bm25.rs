@@ -1,16 +1,29 @@
 //! BM25, pesos e boost (D35–D38).
 
+use std::borrow::Cow;
 use std::collections::BTreeSet;
 
+use proptest::prelude::*;
+
 use crate::Result;
-use crate::retrieval::{Index, type_weight};
+use crate::retrieval::token::content_terms;
+use crate::retrieval::{Index, Postings, type_weight};
 use crate::schema::NoteType;
 use crate::store::Note;
 
-use super::{base, note, with_outcomes};
+use super::{base, note, tagged, with_outcomes};
 
 fn allowed(index: &Index) -> BTreeSet<String> {
     index.docs.iter().map(|doc| doc.meta.id.clone()).collect()
+}
+
+/// Corpus pequeno com overlap em `statement`, `body` e `tags`, e um doc sem overlap.
+fn corpus() -> Option<Index> {
+    let in_statement = note(NoteType::Fact, "json decoder cache", "").ok()?;
+    let in_body = note(NoteType::Fact, "grafo indice", "json decoder").ok()?;
+    let in_tags = tagged(NoteType::Fact, "nota solta", &["json"]).ok()?;
+    let disjoint = note(NoteType::Fact, "assunto alheio", "outro texto").ok()?;
+    Index::build(&[in_statement, in_body, in_tags, disjoint]).ok()
 }
 
 fn id_of(note: &Note) -> Result<String> {
@@ -103,4 +116,58 @@ fn task_boost_raises_score() -> Result<()> {
         .map(|hit| hit.score);
     assert!(boosted_score > base_score, "boost não alterou o score");
     Ok(())
+}
+
+#[test]
+fn score_matches_manual_scan() -> Result<()> {
+    let index = Index::build(&[
+        note(NoteType::Fact, "json decoder", "")?,
+        note(NoteType::Fact, "notas soltas", "json decoder")?,
+        tagged(NoteType::Fact, "sem corpo", &["json"])?,
+        note(NoteType::Fact, "assunto alheio", "outro texto")?,
+    ])?;
+    let allowed = allowed(&index);
+    let terms = content_terms("json decoder");
+
+    let mut expected: Vec<(String, f64)> = index
+        .docs
+        .iter()
+        .filter(|doc| allowed.contains(&doc.meta.id))
+        .map(|doc| (doc.meta.id.clone(), index.score_doc(doc, &terms)))
+        .filter(|(_, score)| *score > 0.0)
+        .collect();
+    expected.sort_unstable_by(|a, b| b.1.total_cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+
+    let hits: Vec<(String, f64)> = index
+        .score("json decoder", &allowed)
+        .into_iter()
+        .map(|hit| (hit.id, hit.score))
+        .collect();
+    assert_eq!(hits, expected);
+    Ok(())
+}
+
+proptest! {
+    #[test]
+    fn sieve_positions_match_scan(terms in prop::collection::vec("[a-z]{2,6}", 1..5)) {
+        if let Some(index) = corpus() {
+            let postings = Postings::build(&index);
+            let borrowed: Vec<Cow<'_, str>> =
+                terms.iter().map(|term| Cow::Borrowed(term.as_str())).collect();
+            let positions = postings.sieve(&borrowed);
+            prop_assert!(
+                positions
+                    .windows(2)
+                    .all(|window| matches!(window, [a, b] if a < b))
+            );
+            let expected: Vec<u32> = index
+                .docs
+                .iter()
+                .enumerate()
+                .filter(|(_, doc)| index.score_doc(doc, &borrowed) > 0.0)
+                .filter_map(|(position, _)| u32::try_from(position).ok())
+                .collect();
+            prop_assert_eq!(positions, expected);
+        }
+    }
 }

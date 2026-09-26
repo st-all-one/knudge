@@ -43,9 +43,9 @@ impl Index {
         for line in jsonl::lines(text) {
             docs.push(doc_from_value(&json::decode(line)?)?);
         }
-        docs.sort_by(|a, b| a.meta.id.cmp(&b.meta.id));
+        docs.sort_unstable_by(|a, b| a.meta.id.cmp(&b.meta.id));
         let stats = compute_stats(&docs);
-        Ok(Self { docs, stats })
+        Ok(Self::from_parts(docs, stats))
     }
 
     /// Grava o índice atomicamente (`tmp + rename`), avisando se ultrapassar o teto.

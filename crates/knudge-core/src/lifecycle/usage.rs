@@ -132,7 +132,7 @@ impl<'a> UsageStore<'a> {
                 entries.push(entry);
             }
         }
-        entries.sort_by(|left, right| left.id.cmp(&right.id));
+        entries.sort_unstable_by(|left, right| left.id.cmp(&right.id));
         Ok(entries)
     }
 

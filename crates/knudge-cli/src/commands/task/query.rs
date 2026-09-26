@@ -34,7 +34,7 @@ pub(super) fn list(session: &Session, args: &TaskListArgs) -> Result<Output> {
     let filters = ListFilters::resolve(args, graph.as_ref())?;
     let mut rows = collect_rows(session, args, graph.as_ref(), &filters)?;
     if args.sort == Some(TaskSort::Impact) {
-        rows.sort_by(|left, right| {
+        rows.sort_unstable_by(|left, right| {
             right
                 .impact
                 .cmp(&left.impact)

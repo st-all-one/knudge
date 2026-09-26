@@ -104,7 +104,7 @@ pub fn rank(
             hits.push((matched.count, doc.meta.id.as_str()));
         }
     }
-    hits.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(b.1)));
+    hits.sort_unstable_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(b.1)));
     hits.into_iter().map(|(_, id)| id.to_string()).collect()
 }
 

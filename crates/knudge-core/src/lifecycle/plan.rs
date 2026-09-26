@@ -95,6 +95,7 @@ pub fn demotion_candidates(
             });
         }
     }
-    candidates.sort_by(|left, right| (&left.id, left.reason).cmp(&(&right.id, right.reason)));
+    candidates
+        .sort_unstable_by(|left, right| (&left.id, left.reason).cmp(&(&right.id, right.reason)));
     Ok(candidates)
 }

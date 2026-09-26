@@ -19,7 +19,7 @@ use knudge_core::retrieval::filter::Filter;
 use knudge_core::retrieval::rrf::{Channel, fuse};
 use knudge_core::retrieval::token;
 use knudge_core::retrieval::{
-    Index, RankQuery, RecallQuery, Universe, rank as composite_rank, recall,
+    Index, Postings, RankQuery, RecallQuery, Universe, rank as composite_rank, recall,
 };
 use knudge_core::schema::{NoteType, body, hash, id};
 use knudge_core::toon;
@@ -189,6 +189,9 @@ fn scaling(harness: &mut Harness, sizes: &[usize]) {
 
         harness.measure(&group, "retrieval::Index::build", 15, 1, || {
             let _ = black_box(Index::build(black_box(&notes)));
+        });
+        harness.measure(&group, "retrieval::Postings::build", 15, 1, || {
+            let _ = black_box(Postings::build(black_box(&index)));
         });
         harness.measure(&group, "retrieval::Index::score (BM25)", 15, 1, || {
             let _ = black_box(index.score(black_box(query_text), black_box(&allowed)));

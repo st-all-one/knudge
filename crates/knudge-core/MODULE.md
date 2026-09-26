@@ -21,7 +21,7 @@ existem no mesmo crate, mas o domínio **nunca** as importa — só as portas.
 | `config` | Config em dois níveis, schema e codec TOML próprio (E04). |
 | `git` | Worktree principal, `info/exclude`, `AGENTS.md`, `sync`, skill do projeto (`.agents/skill/kd/SKILL.md`, D162) (E04). |
 | `graph` | Arestas explícitas, integridade, ciclos, sugestões e **item de trabalho** (`scope`/`is_work_item`, D120) (E05). |
-| `retrieval` | Índice derivado, BM25, âncoras, filtros, views, RRF, pipeline de hits, ranking por confiança (`rank`, D107), vocabulário de tags (`tag_counts`, D107), `why` semântico (D121), stopwords/fragmentos (`content_terms`, D122), parcelas de canal por hit (`HitChannels`, D151), **consulta temporal** (`temporal`, D155) e **snippet/match do corpo** (`snippet`, D161). |
+| `retrieval` | Índice derivado, **índice invertido derivado** (`postings::Postings`, peneira do BM25, nunca persistido, E15-T06/O2), BM25, âncoras, filtros, views, RRF, pipeline de hits, ranking por confiança (`rank`, D107), vocabulário de tags (`tag_counts`, D107), `why` semântico (D121), stopwords/fragmentos (`content_terms`, D122), parcelas de canal por hit (`HitChannels`, D151), **consulta temporal** (`temporal`, D155) e **snippet/match do corpo** (`snippet`, D161). |
 | `write` | Escrita idempotente, dedup em duas fases, update/supersede, ciclo de vida, `outcomes[]` para qualquer nota (D103) e lote JSONL (`batch`, D110). |
 | `handoff` | `rewind` (manifest com `next:`/`fresh:` — D106, escopo/files), orçamento sem tokenizer e `context_id` (E08); anexa o corpo de `foundational`/`decision` (D162). |
 | `maintenance` | `diff`, `learn` (write-gap, quase-duplicata, lacuna de grafo e tarefa→conhecimento — X2/D111) e `compact` como propostas (E08). |

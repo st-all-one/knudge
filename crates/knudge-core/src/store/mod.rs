@@ -179,8 +179,9 @@ impl<'a> Store<'a> {
         if !self.fs.exists(&dir) {
             return Ok(Vec::new());
         }
-        let mut ids = Vec::new();
-        for path in self.fs.list_dir(&dir)? {
+        let entries = self.fs.list_dir(&dir)?;
+        let mut ids = Vec::with_capacity(entries.len());
+        for path in entries {
             if self.fs.is_dir(&path) {
                 for sub in self.fs.list_dir(&path)? {
                     if let Some(id) = note_stem(&sub) {

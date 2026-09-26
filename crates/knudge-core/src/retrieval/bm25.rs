@@ -4,7 +4,8 @@
 //! IDF próprio), há **peso por tipo**, e a confirmação derivada de `outcomes` aplica
 //! `score * (1 + 0.1 * (success + partial*0.5))`.
 
-use std::collections::BTreeSet;
+use std::borrow::Cow;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::retrieval::filter::Meta;
 use crate::retrieval::index::{Field, Index, NoteDoc};
@@ -66,12 +67,37 @@ impl Index {
         if terms.is_empty() {
             return Vec::new();
         }
+        let mut hits = if self.sieve_pays_off(&terms) {
+            let positions = self.postings().sieve(&terms);
+            self.collect_hits(positions.into_iter(), &terms, allowed, &boost)
+        } else {
+            let all = (0..self.docs.len()).filter_map(|position| u32::try_from(position).ok());
+            self.collect_hits(all, &terms, allowed, &boost)
+        };
+        hits.sort_unstable_by(|a, b| b.score.total_cmp(&a.score).then_with(|| a.id.cmp(&b.id)));
+        hits
+    }
+
+    /// Pontua as posições dadas, devolvendo os hits (ordem doc-major preservada).
+    fn collect_hits<F: Fn(&Meta) -> f64>(
+        &self,
+        positions: impl Iterator<Item = u32>,
+        terms: &[Cow<'_, str>],
+        allowed: &BTreeSet<String>,
+        boost: &F,
+    ) -> Vec<Bm25Hit> {
         let mut hits = Vec::new();
-        for doc in &self.docs {
+        for position in positions {
+            let Ok(position) = usize::try_from(position) else {
+                continue;
+            };
+            let Some(doc) = self.docs.get(position) else {
+                continue;
+            };
             if !allowed.contains(&doc.meta.id) {
                 continue;
             }
-            let base = self.score_doc(doc, &terms);
+            let base = self.score_doc(doc, terms);
             if base <= 0.0 {
                 continue;
             }
@@ -81,8 +107,29 @@ impl Index {
                 score,
             });
         }
-        hits.sort_by(|a, b| b.score.total_cmp(&a.score).then_with(|| a.id.cmp(&b.id)));
         hits
+    }
+
+    /// Estima se a peneira compensa (O2.1).
+    ///
+    /// Soma a maior document frequency por termo (limite superior dos candidatos). Se os termos
+    /// cobrem metade ou mais do corpus, construir o índice invertido custa mais do que varrer.
+    fn sieve_pays_off(&self, terms: &[Cow<'_, str>]) -> bool {
+        let n = self.docs.len();
+        if n == 0 {
+            return false;
+        }
+        let mut reach = 0usize;
+        for term in terms {
+            let df = Field::ALL
+                .iter()
+                .filter_map(|field| self.stats.df.get(field)?.get(term.as_ref()))
+                .copied()
+                .max()
+                .unwrap_or(0);
+            reach = reach.saturating_add(usize::try_from(df).unwrap_or(usize::MAX));
+        }
+        reach.saturating_mul(2) < n
     }
 
     #[allow(
@@ -90,32 +137,34 @@ impl Index {
         clippy::suboptimal_flops,
         reason = "fórmula BM25 em f64 com termos não negativos"
     )]
-    fn field_sum(&self, doc: &NoteDoc, terms: &[std::borrow::Cow<'_, str>], field: Field) -> f64 {
+    fn field_sum(&self, doc: &NoteDoc, terms: &[Cow<'_, str>], field: Field) -> f64 {
+        let weight = field.weight();
+        let length = f64::from(doc.len(field));
+        let avg = self.stats.avg_len.get(&field).copied().unwrap_or(0.0);
+        let norm = if avg > 0.0 {
+            1.0 - B + B * length / avg
+        } else {
+            1.0
+        };
+        let df_terms = self.stats.df.get(&field);
         let mut total = 0.0;
         for term in terms {
             let tf = doc.tf(field, term.as_ref());
             if tf == 0 {
                 continue;
             }
-            let idf = self.idf(field, term.as_ref());
-            let length = f64::from(doc.len(field));
-            let avg = self.stats.avg_len.get(&field).copied().unwrap_or(0.0);
-            let norm = if avg > 0.0 {
-                1.0 - B + B * length / avg
-            } else {
-                1.0
-            };
+            let idf = idf_from(df_terms, self.stats.n, term.as_ref());
             let tf = f64::from(tf);
             let denom = tf + K1 * norm;
             if denom > 0.0 {
-                total += field.weight() * idf * (tf * (K1 + 1.0)) / denom;
+                total += weight * idf * (tf * (K1 + 1.0)) / denom;
             }
         }
         total
     }
 
     /// Soma crua dos campos (sem peso de tipo/confirmação).
-    fn raw_score(&self, doc: &NoteDoc, terms: &[std::borrow::Cow<'_, str>]) -> f64 {
+    fn raw_score(&self, doc: &NoteDoc, terms: &[Cow<'_, str>]) -> f64 {
         Field::ALL
             .iter()
             .map(|field| self.field_sum(doc, terms, *field))
@@ -133,7 +182,7 @@ impl Index {
     ///
     /// Exposto para a peneira do dedup (E15-T04/O3), que pontua só os candidatos que
     /// compartilham ≥1 termo em vez de varrer o corpus inteiro.
-    pub fn score_doc(&self, doc: &NoteDoc, terms: &[std::borrow::Cow<'_, str>]) -> f64 {
+    pub fn score_doc(&self, doc: &NoteDoc, terms: &[Cow<'_, str>]) -> f64 {
         self.raw_score(doc, terms)
             * type_weight(doc.meta.note_type)
             * (1.0 + CONFIRMATION_STEP * doc.meta.confirmation)
@@ -164,15 +213,23 @@ impl Index {
         reason = "fórmula IDF em f64; `n` e `df` não negativos"
     )]
     pub fn idf(&self, field: Field, term: &str) -> f64 {
-        let df = self
-            .stats
-            .df
-            .get(&field)
-            .and_then(|terms| terms.get(term))
-            .copied()
-            .unwrap_or(0);
-        let n = f64::from(self.stats.n);
-        let df = f64::from(df);
-        ((n - df + 0.5) / (df + 0.5)).ln_1p()
+        idf_from(self.stats.df.get(&field), self.stats.n, term)
     }
+}
+
+/// IDF de um termo a partir do mapa de document frequency do campo (D37).
+///
+/// Fatorado para o `field_sum` reusar o mapa hoisted e economizar uma busca por termo (O2.2).
+#[allow(
+    clippy::arithmetic_side_effects,
+    reason = "fórmula IDF em f64; `n` e `df` não negativos"
+)]
+fn idf_from(df_terms: Option<&BTreeMap<String, u32>>, n: u32, term: &str) -> f64 {
+    let df = df_terms
+        .and_then(|terms| terms.get(term))
+        .copied()
+        .unwrap_or(0);
+    let n = f64::from(n);
+    let df = f64::from(df);
+    ((n - df + 0.5) / (df + 0.5)).ln_1p()
 }

@@ -103,15 +103,29 @@ Fecho: T19 (docs/goldens/matriz/CHANGELOG)
   `doctor --json` inalterados. Nota: o corpus sintético é denso (vocabulário compartilhado), então
   o ganho e2e é modesto; a micromb isola o efeito assintótico.
 
-### E15-T05 ☐ O6.1/O6.2 — `sort_unstable` + capacidade
-- **Escopo:** `sort_unstable_by` onde o comparador é total (tiebreak por `id`); `with_capacity`/
-  `try_reserve` consistentes.
-- **Aceite:** ordem determinística preservada; `make check` verde.
+### E15-T05 ☑ O6.1/O6.2 — `sort_unstable` + capacidade
+- **Escopo:** `sort_by` → `sort_unstable_by` onde o comparador é **total** (tiebreak por `id` ou
+  par único): `bm25`, `rrf`, `anchor`, `rank`, `tags`, `index`/`persist`, `semantic`,
+  `suggest`, `integrity`, `next`, `manifest`, `anchors/store`, `retire`, `plan`, `usage`,
+  `diff`, `learn::scoped_docs`, `merges`, `dedup`, `promote`, `task/graph`, `task/query`.
+  `suggestions` e `learn::learn` **permanecem estáveis**: os comparadores omitem `targets`/`why`
+  e não são totais (reordenar mudaria bytes). Capacidade em `build_hits`, `cyclic_components`,
+  `strongly_connected`, `finishing_order` e `Store::list_ids`.
+- **Aceite:** ordem determinística preservada (goldens/proptest verdes); `make check` verde; A/B
+  neutro no e2e (`bench/t05.md`) — ganho é de consistência (sem scratch da stable sort) e de
+  alocação, não de tempo de parede neste corpus.
 
-### E15-T06 ☐ O2 — postings (peneira) + BM25
-- **Escopo:** `retrieval::postings`, `allowed` como máscara, hoisting de `idf`/`norm`; **manter a
-  soma doc-major** (ver `O2.1`).
-- **Aceite:** ranking/score **byte-idênticos** (golden + proptest de RRF); `ask` −15–30 %.
+### E15-T06 ☑ O2 — postings (peneira) + BM25
+- **Escopo:** `retrieval::postings::Postings` (índice invertido derivado, cacheado por `OnceLock`
+  no `Index`, nunca persistido); `score_with` pontua só candidatos com ≥1 termo quando a peneira
+  compensa, com fallback por `df` para varrer quando os termos cobrem ≥ metade do corpus;
+  `field_sum` faz hoisting de `norm`/`weight` e reusa `idf_from`; `allowed` segue checado por
+  candidato (não por máscara — a máscara não paga em corpus denso). A soma doc-major é mantida.
+- **Aceite:** ranking/score **byte-idênticos** (goldens + `score_matches_manual_scan` + proptest
+  `sieve_positions_match_scan`); `make check` verde; micro `Postings::build` 4,26 ms e
+  `Index::score` neutro (1,368→1,392 ms) no corpus denso; A/B e2e neutro — o vocabulário denso do
+  corpus sintético faz o fallback varrer, evitando a regressão que o índice invertido traria a
+  `write`/`ask`. O ganho de `ask` é real só em vocabulário seletivo (não medível aqui).
 
 ### E15-T07 ☐ O2.3 — glob sem alocação
 - **Escopo:** matcher de glob iterativo/sem matriz DP (ou `globset` em T12, com testes).

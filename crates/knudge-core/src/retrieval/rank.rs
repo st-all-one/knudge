@@ -82,7 +82,7 @@ pub fn rank(index: &Index, filter: &Filter, query: &RankQuery) -> Vec<RecallHit>
             }
         })
         .collect();
-    hits.sort_by(|left, right| {
+    hits.sort_unstable_by(|left, right| {
         right
             .confidence
             .total_cmp(&left.confidence)

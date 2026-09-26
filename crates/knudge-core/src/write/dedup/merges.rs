@@ -111,7 +111,7 @@ pub fn propose_merges(index: &Index, thresholds: &DedupThresholds) -> Vec<MergeP
             });
         }
     }
-    proposals.sort_by(|a, b| {
+    proposals.sort_unstable_by(|a, b| {
         b.score
             .total_cmp(&a.score)
             .then_with(|| a.keep.cmp(&b.keep))
@@ -140,7 +140,7 @@ fn top_candidates(
             (base > 0.0).then_some((candidate, base))
         })
         .collect();
-    ranked.sort_by(|a, b| {
+    ranked.sort_unstable_by(|a, b| {
         b.1.total_cmp(&a.1).then_with(|| {
             let a_id = index.docs.get(a.0).map_or("", |doc| doc.meta.id.as_str());
             let b_id = index.docs.get(b.0).map_or("", |doc| doc.meta.id.as_str());

@@ -134,7 +134,8 @@ impl<'a> AnchorStore<'a> {
                 records.push(record);
             }
         }
-        records.sort_by(|left, right| (&left.id, &left.path).cmp(&(&right.id, &right.path)));
+        records
+            .sort_unstable_by(|left, right| (&left.id, &left.path).cmp(&(&right.id, &right.path)));
         Ok(records)
     }
 
@@ -150,7 +151,7 @@ impl<'a> AnchorStore<'a> {
             .cloned()
             .collect();
         all.extend(records.iter().cloned());
-        all.sort_by(|left, right| (&left.id, &left.path).cmp(&(&right.id, &right.path)));
+        all.sort_unstable_by(|left, right| (&left.id, &left.path).cmp(&(&right.id, &right.path)));
         if all == existing {
             return Ok(false);
         }

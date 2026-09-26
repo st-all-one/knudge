@@ -109,7 +109,7 @@ fn scoped_docs<'a>(input: &LearnInput<'a>) -> Vec<&'a NoteDoc> {
                 .is_none_or(|container| belongs_to(input.graph, &doc.meta.id, container))
         })
         .collect();
-    docs.sort_by(|a, b| a.meta.id.cmp(&b.meta.id));
+    docs.sort_unstable_by(|a, b| a.meta.id.cmp(&b.meta.id));
     docs.truncate(MAX_DOCS);
     docs
 }

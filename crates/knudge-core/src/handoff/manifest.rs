@@ -139,7 +139,7 @@ pub fn rank_with(
             }
         })
         .collect();
-    items.sort_by(compare);
+    items.sort_unstable_by(compare);
     items
 }
 
@@ -174,7 +174,7 @@ pub fn manifest_text(
         .map(|doc| &doc.meta)
         .filter(|meta| scope.matches(meta))
         .collect();
-    recent.sort_by(|a, b| {
+    recent.sort_unstable_by(|a, b| {
         b.created_ms
             .cmp(&a.created_ms)
             .then_with(|| a.id.cmp(&b.id))

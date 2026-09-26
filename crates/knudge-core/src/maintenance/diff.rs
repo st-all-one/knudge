@@ -49,7 +49,7 @@ pub fn diff(
             at: event.at,
         });
     }
-    entries.sort_by(|left, right| {
+    entries.sort_unstable_by(|left, right| {
         left.at
             .cmp(&right.at)
             .then_with(|| left.id.cmp(&right.id))

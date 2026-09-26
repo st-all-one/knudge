@@ -136,7 +136,7 @@ pub fn recommend(
             ),
         });
     }
-    candidates.sort_by(|left, right| {
+    candidates.sort_unstable_by(|left, right| {
         right
             .confidence
             .total_cmp(&left.confidence)

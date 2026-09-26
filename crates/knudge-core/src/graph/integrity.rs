@@ -63,7 +63,7 @@ impl Graph {
             }
             self.check_supersession(node, &mut issues);
         }
-        issues.sort_by(|left, right| {
+        issues.sort_unstable_by(|left, right| {
             (&left.kind, &left.from, &left.to, left.edge).cmp(&(
                 &right.kind,
                 &right.from,

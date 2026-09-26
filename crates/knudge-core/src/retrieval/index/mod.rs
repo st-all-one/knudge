@@ -5,9 +5,11 @@
 //! As estatísticas (df/avgdl) são **recomputadas ao carregar**, então nunca divergem do corpo.
 
 use std::collections::BTreeMap;
+use std::sync::OnceLock;
 
 use crate::Result;
 use crate::retrieval::filter::Meta;
+use crate::retrieval::postings::Postings;
 use crate::retrieval::token::tokenize;
 use crate::store::{Note, Store};
 
@@ -132,15 +134,42 @@ pub struct Stats {
 }
 
 /// Índice de retrieval.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Default)]
 pub struct Index {
     /// Documentos, ordenados por id.
     pub docs: Vec<NoteDoc>,
     /// Estatísticas globais.
     pub stats: Stats,
+    /// Cache do índice invertido (derivado, construído sob demanda — E15-T06/O2.1).
+    postings: OnceLock<Postings>,
+}
+
+impl Clone for Index {
+    fn clone(&self) -> Self {
+        Self::from_parts(self.docs.clone(), self.stats.clone())
+    }
+}
+
+impl PartialEq for Index {
+    fn eq(&self, other: &Self) -> bool {
+        self.docs == other.docs && self.stats == other.stats
+    }
 }
 
 impl Index {
+    fn from_parts(docs: Vec<NoteDoc>, stats: Stats) -> Self {
+        Self {
+            docs,
+            stats,
+            postings: OnceLock::new(),
+        }
+    }
+
+    /// Índice invertido em cache, construído na primeira consulta BM25 (E15-T06/O2.1).
+    pub(crate) fn postings(&self) -> &Postings {
+        self.postings.get_or_init(|| Postings::build(self))
+    }
+
     /// Constrói o índice a partir de notas já parseadas.
     ///
     /// # Errors
@@ -151,9 +180,9 @@ impl Index {
         for note in notes {
             docs.push(NoteDoc::from_note(note)?);
         }
-        docs.sort_by(|a, b| a.meta.id.cmp(&b.meta.id));
+        docs.sort_unstable_by(|a, b| a.meta.id.cmp(&b.meta.id));
         let stats = compute_stats(&docs);
-        Ok(Self { docs, stats })
+        Ok(Self::from_parts(docs, stats))
     }
 
     /// Constrói o índice lendo todas as notas do store.

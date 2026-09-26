@@ -149,7 +149,7 @@ pub fn semantic_suggestions(
             }
         }
     }
-    out.sort_by(|left, right| {
+    out.sort_unstable_by(|left, right| {
         right
             .score
             .total_cmp(&left.score)

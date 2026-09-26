@@ -32,7 +32,7 @@ pub fn cyclic_components(nodes: &BTreeSet<String>, adjacency: &Adjacency) -> Vec
         }
     }
     let mut assigned: BTreeSet<String> = BTreeSet::new();
-    let mut cycles = Vec::new();
+    let mut cycles = Vec::with_capacity(nodes.len());
     for node in order.into_iter().rev() {
         if !assigned.insert(node.clone()) {
             continue;
@@ -75,7 +75,7 @@ pub fn strongly_connected(nodes: &BTreeSet<String>, adjacency: &Adjacency) -> Ve
         }
     }
     let mut assigned: BTreeSet<String> = BTreeSet::new();
-    let mut components = Vec::new();
+    let mut components = Vec::with_capacity(nodes.len());
     for node in order.into_iter().rev() {
         if !assigned.insert(node.clone()) {
             continue;
@@ -101,7 +101,7 @@ pub fn strongly_connected(nodes: &BTreeSet<String>, adjacency: &Adjacency) -> Ve
 
 fn finishing_order(nodes: &BTreeSet<String>, adjacency: &Adjacency) -> Vec<String> {
     let mut visited: BTreeSet<String> = BTreeSet::new();
-    let mut order = Vec::new();
+    let mut order = Vec::with_capacity(nodes.len());
     for root in nodes {
         if !visited.insert(root.clone()) {
             continue;

@@ -90,7 +90,9 @@ pub fn retirements(events: &[Event]) -> Vec<Retirement> {
             None => latest.push(retirement),
         }
     }
-    latest.sort_by(|left, right| (&left.id, left.retired_at).cmp(&(&right.id, right.retired_at)));
+    latest.sort_unstable_by(|left, right| {
+        (&left.id, left.retired_at).cmp(&(&right.id, right.retired_at))
+    });
     latest
 }
 

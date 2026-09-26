@@ -22,6 +22,6 @@ pub fn tag_counts(index: &Index) -> Vec<(String, usize)> {
         }
     }
     let mut out: Vec<(String, usize)> = counts.into_iter().collect();
-    out.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
+    out.sort_unstable_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
     out
 }

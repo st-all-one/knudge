@@ -10,6 +10,7 @@ pub mod filter;
 pub mod format;
 pub mod index;
 pub mod pipeline;
+pub mod postings;
 pub mod rank;
 pub mod rrf;
 pub mod snippet;
@@ -28,6 +29,7 @@ pub use format::{format_brief, format_hit};
 pub use index::{
     Field, FieldTf, INDEX_FILE, INDEX_WARN_BYTES, Index, NoteDoc, Stats, size_warning,
 };
+pub use postings::Postings;
 pub use rank::{RankQuery, Universe, rank};
 pub use rrf::{Channel, Fused, fuse};
 pub use snippet::{body_matches, body_snippet};
