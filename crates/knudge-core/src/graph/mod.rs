@@ -60,37 +60,22 @@ impl Graph {
     pub fn from_notes(notes: impl IntoIterator<Item = Note>) -> Result<Self> {
         let mut by_id = BTreeMap::new();
         for note in notes {
-            let frontmatter = &note.frontmatter;
-            let id = note.id()?.to_string();
-            let note_type = frontmatter.note_type()?;
-            let scope = frontmatter.scope()?;
-            let status = frontmatter.status()?;
-            let superseded_by = match frontmatter.get("superseded_by") {
-                Some(Value::Str(target)) => Some(target.clone()),
-                _ => None,
-            };
-            let mut edges = BTreeMap::new();
-            for kind in EdgeKind::ALL {
-                let targets: Vec<String> = frontmatter
-                    .string_list(kind.key())?
-                    .into_iter()
-                    .map(str::to_string)
-                    .collect();
-                if !targets.is_empty() {
-                    edges.insert(kind, targets);
-                }
-            }
-            by_id.insert(
-                id.clone(),
-                Node {
-                    id,
-                    note_type,
-                    scope,
-                    status,
-                    superseded_by,
-                    edges,
-                },
-            );
+            insert_note(&mut by_id, &note)?;
+        }
+        Ok(Self { nodes: by_id })
+    }
+
+    /// Como [`Graph::from_notes`], mas **empresta** as notas já carregadas (sem consumir/clonar).
+    ///
+    /// Usado pelo corpus de leitura única (E15-T02/O1) para derivar o grafo do mesmo vetor de
+    /// notas que alimenta o índice.
+    ///
+    /// # Errors
+    /// Retorna `ErrorKind::Schema` se um frontmatter for inválido.
+    pub fn from_notes_ref(notes: &[Note]) -> Result<Self> {
+        let mut by_id = BTreeMap::new();
+        for note in notes {
+            insert_note(&mut by_id, note)?;
         }
         Ok(Self { nodes: by_id })
     }
@@ -227,6 +212,43 @@ impl Graph {
         }
         hits
     }
+}
+
+/// Insere um nó no mapa do grafo a partir de uma nota (compartilhado por
+/// [`Graph::from_notes`]/[`Graph::from_notes_ref`]).
+fn insert_note(by_id: &mut BTreeMap<String, Node>, note: &Note) -> Result<()> {
+    let frontmatter = &note.frontmatter;
+    let id = note.id()?.to_string();
+    let note_type = frontmatter.note_type()?;
+    let scope = frontmatter.scope()?;
+    let status = frontmatter.status()?;
+    let superseded_by = match frontmatter.get("superseded_by") {
+        Some(Value::Str(target)) => Some(target.clone()),
+        _ => None,
+    };
+    let mut edges = BTreeMap::new();
+    for kind in EdgeKind::ALL {
+        let targets: Vec<String> = frontmatter
+            .string_list(kind.key())?
+            .into_iter()
+            .map(str::to_string)
+            .collect();
+        if !targets.is_empty() {
+            edges.insert(kind, targets);
+        }
+    }
+    by_id.insert(
+        id.clone(),
+        Node {
+            id,
+            note_type,
+            scope,
+            status,
+            superseded_by,
+            edges,
+        },
+    );
+    Ok(())
 }
 
 /// Adiciona uma aresta explícita ao frontmatter, sem duplicar (D49).

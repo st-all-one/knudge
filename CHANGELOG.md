@@ -5,6 +5,16 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 ## [Não publicado]
 
 ### Adicionado
+- **Leitura única do corpus (E15-T02/O1)** — `knudge_core::corpus::Corpus` (`notes`+`index`+
+  `graph` de uma só passada) e `knudge_cli::Session::corpus()`; `Graph::from_notes_ref(&[Note])`
+  deriva o grafo sem clonar. `ask`/`rewind`/`doctor`/`learn`/`compact`/`prune` relêem `notas/`
+  **uma** vez em vez de 2–5 (o `pending` da fila de embeddings recebe o corpus pronto). Saída
+  byte-idêntica (goldens); `Session::index()`/`graph()` seguem como wrappers. A/B (`make bench`,
+  N≈1 k): `rewind` ≈ −18 %, `rewind --files` ≈ −39 %, `ask --anchor` ≈ −26 %.
+- **Auto-drain ocioso barato (E15-T03/O1.5)** — `KNUDGE_NO_IDLE` é checado **antes** de
+  `Session::open` e `maybe_drain` não roda em `prime`/`self` (além de `doctor`/`drain`/
+  `maintenance`); `provider=none`/`enabled=false` saem antes de varrer o corpus. A/B (N≈1 k):
+  `self version` 42,9→3,5 ms (−92 %), `prime` 43,6→2,5 ms (−94 %).
 - **Bancada de benchmark** (`bench/`, fora do workspace, zero dependências além do `knudge-core`)
   medindo componentes puros (**micromb**) e ações do binário (**ponta-a-ponta**) em corpora de
   200 e 1000 notas. Alvos `make bench`/`make bench-quick`; relatório de gargalos em

@@ -17,6 +17,7 @@ existem no mesmo crate, mas o domínio **nunca** as importa — só as portas.
 | `toon` | Parser/emissor TOON próprio (E02). |
 | `jsonl` | Leitura/escrita JSONL e codec JSON canônico (E03). |
 | `store` | Notas, eventos, lock, rebuild, purge e sweep (D160: só `*.tmp`/`*.stale`, nunca `*.lock`); layout por tipo (`notas/<tipo>/<id>.md`) com leitura tolerante ao layout plano legado e `read_optional` (D150) (E03). |
+| `corpus` | Leitura **única** do store: `Corpus { notes, index, graph }` derivados do mesmo vetor, sem clonar (E15-T02/O1). |
 | `config` | Config em dois níveis, schema e codec TOML próprio (E04). |
 | `git` | Worktree principal, `info/exclude`, `AGENTS.md`, `sync`, skill do projeto (`.agents/skill/kd/SKILL.md`, D162) (E04). |
 | `graph` | Arestas explícitas, integridade, ciclos, sugestões e **item de trabalho** (`scope`/`is_work_item`, D120) (E05). |

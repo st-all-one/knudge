@@ -8,7 +8,7 @@ use knudge_core::handoff::{
     RewindRequest, rewind,
 };
 use knudge_core::lifecycle::{DEFAULT_TASK_CONFIRMATION, ShelfLife, UsageStore, freshness_with};
-use knudge_core::store::{Note, Store};
+use knudge_core::store::Note;
 use serde_json::json;
 
 use crate::cli::RewindArgs;
@@ -24,10 +24,11 @@ use super::embedder;
 /// # Errors
 /// Propaga erros de índice/eventos e de `context_id` inválido.
 pub fn run(session: &Session, args: &RewindArgs) -> Result<Output> {
-    let index = session.index()?;
-    let graph = session.graph()?;
+    let loaded = session.corpus()?;
+    let index = &loaded.index;
+    let graph = &loaded.graph;
     let corpus = corpus_of(args);
-    let selection = corpus.select(&index, &graph)?;
+    let selection = corpus.select(index, graph)?;
     let (events, mut warnings) = session.events().read_all()?;
     let changed = session.changed_paths()?;
     let request = RewindRequest {
@@ -38,15 +39,15 @@ pub fn run(session: &Session, args: &RewindArgs) -> Result<Output> {
         resume: args.resume.clone(),
     };
     let contexts = ContextStore::new(session.fs_dyn(), session.knowledge_dir());
-    let notes = load_notes(&session.store())?;
+    let notes = &loaded.notes;
     let policy = ShelfLife::from_config(session.config());
-    let pending = embedder::pending(session)?;
+    let pending = embedder::pending(session, notes)?;
     let usage = UsageStore::new(session.fs_dyn(), session.knowledge_dir()).index()?;
-    let fresh = freshness_with(&notes, session.now_ms(), &policy, pending, &usage)?;
-    let bodies = bodies_of(&notes);
+    let fresh = freshness_with(notes, session.now_ms(), &policy, pending, &usage)?;
+    let bodies = bodies_of(notes);
     let input = RewindInput {
-        index: &index,
-        graph: &graph,
+        index,
+        graph,
         events: &events,
         changed_paths: &changed,
         freshness: fresh,
@@ -93,17 +94,6 @@ fn record_usage(session: &Session, policy: &ShelfLife, ids: &[String]) -> Option
         Ok(_ignored) => None,
         Err(error) => Some(format!("uso: {error}")),
     }
-}
-
-/// Carrega todas as notas do store.
-fn load_notes(store: &Store<'_>) -> Result<Vec<Note>> {
-    let mut notes = Vec::new();
-    for id in store.list_ids()? {
-        if let Some(note) = store.read_optional(&id)? {
-            notes.push(note);
-        }
-    }
-    Ok(notes)
 }
 
 /// Mapa id → corpo das notas (para o `rewind` anexar `foundational`/`decision`, D162).

@@ -2657,6 +2657,52 @@ fn idle_manual_mode_leaves_queue_pending() -> TestResult {
 }
 
 #[test]
+fn idle_skips_prime_and_self_verbs() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    let provider = config_set(&dir, "embeddings.provider", "lightweight")?;
+    assert!(
+        provider.status.success(),
+        "config falhou: {:?}",
+        provider.stderr
+    );
+
+    // Escreve com o auto-drain desligado: a fila fica `pending` de propósito.
+    let write = run_env(
+        &dir,
+        &[
+            "write",
+            "--summary",
+            "a fila fica pendente de propósito",
+            "--type",
+            "fact",
+        ],
+        &[("KNUDGE_NO_IDLE", "1")],
+    )?;
+    assert!(write.status.success(), "write falhou: {:?}", write.stderr);
+
+    // `prime`/`self version` não drenam a fila (E15-T03/O1.5).
+    let prime = run_in(&dir, &["prime"])?;
+    assert!(prime.status.success(), "prime falhou: {:?}", prime.stderr);
+    let version = run_in(&dir, &["self", "version"])?;
+    assert!(
+        version.status.success(),
+        "self version falhou: {:?}",
+        version.stderr
+    );
+
+    let status = run_in(&dir, &["--json", "drain", "--status"])?;
+    let value = json(&status)?;
+    let pending = value
+        .get("data")
+        .and_then(|data| data.get("pending"))
+        .and_then(serde_json::Value::as_u64);
+    assert_eq!(pending, Some(1), "prime/self drenaram: {value}");
+    Ok(())
+}
+
+#[test]
 fn drain_without_flags_shows_help_and_does_nothing() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;

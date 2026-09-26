@@ -39,14 +39,15 @@ pub fn compact(
         return Err(Error::invalid_input("hook `pre-compact` bloqueou"));
     }
     let store = session.store();
-    let index = session.index()?;
-    let graph = session.graph()?;
-    let selection = corpus.select(&index, &graph)?;
+    let loaded = session.corpus()?;
+    let index = &loaded.index;
+    let graph = &loaded.graph;
+    let selection = corpus.select(index, graph)?;
     let thresholds = session.thresholds()?;
-    let proposals: Vec<_> = propose_compact(&store, &index, &thresholds)
+    let proposals: Vec<_> = propose_compact(&store, index, &thresholds)
         .into_iter()
         .filter(|proposal| match scope {
-            Some(container) => belongs_to(&graph, &proposal.keep, container),
+            Some(container) => belongs_to(graph, &proposal.keep, container),
             None => true,
         })
         .filter(|proposal| selection.matches_id(&proposal.keep))
@@ -105,15 +106,16 @@ pub fn learn_cmd(
 ) -> Result<Output> {
     let corpus = CorpusScope::from(corpus);
     corpus.require("maintenance learn")?;
-    let index = session.index()?;
-    let graph = session.graph()?;
-    let selection = corpus.select(&index, &graph)?;
+    let loaded = session.corpus()?;
+    let index = &loaded.index;
+    let graph = &loaded.graph;
+    let selection = corpus.select(index, graph)?;
     let (events, warnings) = session.events().read_all()?;
     let changed = session.changed_paths()?;
     let thresholds = session.thresholds()?;
     let input = LearnInput {
-        index: &index,
-        graph: &graph,
+        index,
+        graph,
         events: &events,
         changed_paths: &changed,
         scope,
@@ -173,19 +175,14 @@ pub fn learn_cmd(
 pub fn prune(session: &Session, scope: Option<&str>, corpus: &CorpusArgs) -> Result<Output> {
     let corpus = CorpusScope::from(corpus);
     corpus.require("maintenance prune")?;
-    let store = session.store();
-    let index = session.index()?;
-    let graph = session.graph()?;
-    let selection = corpus.select(&index, &graph)?;
-    let mut notes = Vec::new();
-    for id in store.list_ids()? {
-        if let Some(note) = store.read_optional(&id)? {
-            notes.push(note);
-        }
-    }
+    let loaded = session.corpus()?;
+    let index = &loaded.index;
+    let graph = &loaded.graph;
+    let selection = corpus.select(index, graph)?;
+    let notes = &loaded.notes;
     let shelf_life = ShelfLife::from_config(session.config());
     let decay = DecayPolicy::from_config(session.config());
-    let validity = validity_map(session, &notes)?;
+    let validity = validity_map(session, notes)?;
     let usage = UsageStore::new(session.fs_dyn(), session.knowledge_dir()).index()?;
     let input = DemotionInput {
         now_ms: session.now_ms(),
@@ -194,9 +191,9 @@ pub fn prune(session: &Session, scope: Option<&str>, corpus: &CorpusArgs) -> Res
         validity: &validity,
         usage: Some(&usage),
     };
-    let mut candidates = demotion_candidates(&notes, &input, &graph)?;
+    let mut candidates = demotion_candidates(notes, &input, graph)?;
     if let Some(container) = scope {
-        candidates.retain(|candidate| belongs_to(&graph, &candidate.id, container));
+        candidates.retain(|candidate| belongs_to(graph, &candidate.id, container));
     }
     candidates.retain(|candidate| selection.matches_id(&candidate.id));
     let mut text = candidates

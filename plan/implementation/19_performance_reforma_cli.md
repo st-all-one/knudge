@@ -75,19 +75,23 @@ Fecho: T19 (docs/goldens/matriz/CHANGELOG)
   `make bench-quick`; relatório em `bench/RELATORIO.md`.
 - **Aceite:** roda fora de `make check`; baseline registrado (`bench/ULTIMO.md`).
 
-### E15-T02 ☐ O1 — leitura única do corpus
-- **Escopo:** `store::corpus` (`O1.1`), `Graph::from_notes_ref` (`O1.2`), `embedder::pending`
-  sobre `&[Note]` (`O1.3`), `Session::corpus()` + migrar `ask`/`rewind`/`doctor`/`learn`/`compact`/
-  `prune` (`O1.4`).
-- **Aceite:** outputs byte-idênticos (goldens), `make check` verde; `rewind`/`ask` com ganho no
-  A/B (`make bench`); `Session::index()`/`graph()` seguem existindo como wrappers.
+### E15-T02 ☑ O1 — leitura única do corpus
+- **Escopo:** `core::corpus::Corpus` (`O1.1`; módulo de topo em vez de `store::corpus` para não
+  inverter a camada store→retrieval/graph), `Graph::from_notes_ref` (`O1.2`), `embedder::pending`
+  sobre `&[Note]` (`O1.3`), `Session::corpus()` + migração de `ask`/`rewind`/`doctor`/`learn`/
+  `compact`/`prune` (`O1.4`).
+- **Aceite:** outputs byte-idênticos (goldens), `make check` verde; A/B (`make bench`, N≈1 k) com
+  `rewind` 362→295 ms (−18 %), `rewind --files` 164→101 ms (−39 %), `ask --anchor` 129→96 ms
+  (−26 %); `Session::index()`/`graph()` seguem existindo como wrappers. Testes em
+  `core/src/corpus/tests.rs` travam `Corpus::load == Index::from_store + Graph::build`.
 
-### E15-T03 ☐ O1.5 — auto-drain barato e exclusão
-- **Escopo:** checar `KNUDGE_NO_IDLE` **antes** de `Session::open`; pular em
-  `prime`/`self`/**`doctor`**/**`drain`**; pular quando `embeddings.enabled=false`/`provider=none`
-  (ou sem índice de embeddings).
-- **Aceite:** `self version`/`prime` não reabrem sessão nem varrem o corpus; teste
-  `idle_*` permanece verde; `kd doctor`/`kd drain` **não** auto-drenam.
+### E15-T03 ☑ O1.5 — auto-drain barato e exclusão
+- **Escopo:** `KNUDGE_NO_IDLE` checado **antes** de `Session::open` (via `StdEnv` na borda);
+  `maybe_drain` pula `prime`/`self` além de `doctor`/`drain`/`maintenance`; `provider=none`/
+  `enabled=false` já saem por `drain_once` antes de varrer o corpus.
+- **Aceite:** A/B (`bench/e2e-t03.md`, N=1167) `self version` 42,9→3,5 ms (−92 %) e `prime`
+  43,6→2,5 ms (−94 %); `idle_skips_prime_and_self_verbs` novo; `idle_lazy_*`/`idle_manual_*`
+  seguem verdes; `kd doctor`/`kd drain` não auto-drenam.
 
 ### E15-T04 ☐ O3 — dedup sem quadrático
 - **Escopo:** `propose_merges` com lookup O(1) (`by_id`), `terms` do `statement` cacheados e a

@@ -9,6 +9,7 @@ use knudge_core::embeddings::{
 };
 use knudge_core::ports::Embedder;
 use knudge_core::schema::Value;
+use knudge_core::store::Note;
 
 use crate::session::Session;
 
@@ -53,14 +54,14 @@ pub fn meta(session: &Session) -> Result<EmbeddingMeta> {
     EmbeddingMeta::from_config(config)
 }
 
-/// Conta notas `pending`/`stale` na fila de embeddings.
+/// Conta notas `pending`/`stale` na fila de embeddings a partir do corpus já carregado.
+///
+/// O vetor de notas vem do corpus de leitura única (E15-T02/O1), evitando reler o store.
 ///
 /// # Errors
-/// Propaga erros de leitura do índice/store.
-pub fn pending(session: &Session) -> Result<usize> {
+/// Propaga erros de leitura do índice.
+pub fn pending(session: &Session, notes: &[Note]) -> Result<usize> {
     let meta = meta(session)?;
-    let store = session.store();
-    let ids = store.list_ids()?;
     let mut warnings = Vec::new();
     let Some(index) = EmbeddingIndex::load(
         session.fs_dyn(),
@@ -69,17 +70,11 @@ pub fn pending(session: &Session) -> Result<usize> {
         &mut warnings,
     )?
     else {
-        let mut readable = 0_usize;
-        for id in &ids {
-            if store.read_optional(id)?.is_some() {
-                readable = readable.saturating_add(1);
-            }
-        }
-        return Ok(readable);
+        return Ok(notes.len());
     };
     let mut pending = 0_usize;
-    for id in &ids {
-        let Some(note) = store.read_optional(id)? else {
+    for note in notes {
+        let Some(id) = note.frontmatter.id().ok() else {
             continue;
         };
         let body_hash = note

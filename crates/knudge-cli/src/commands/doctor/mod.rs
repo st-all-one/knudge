@@ -29,8 +29,8 @@ pub fn run(session: &Session, args: &DoctorArgs) -> Result<Output> {
     let project_root = session.project_root();
     let now_ms = session.now_ms();
 
+    let pre = session.corpus()?;
     let report = {
-        let graph = session.graph()?;
         let input = DoctorInput {
             fs: session.fs_dyn(),
             root: &root,
@@ -38,7 +38,7 @@ pub fn run(session: &Session, args: &DoctorArgs) -> Result<Output> {
             store: &store,
             events: &events,
             config: session.config(),
-            graph: &graph,
+            graph: &pre.graph,
             now_ms,
             lock_stale_ms: LOCK_STALE_MS,
             thresholds: &thresholds,
@@ -51,16 +51,24 @@ pub fn run(session: &Session, args: &DoctorArgs) -> Result<Output> {
     };
 
     // `--fix` grava no disco; índice/grafo/auditoria são relidos depois para refletir o reparo.
-    let index = session.index()?;
-    let graph = session.graph()?;
+    // Sem reparo, o mesmo corpus serve às duas fases (uma só passada pelo store — E15-T02/O1).
+    let post = if args.fix {
+        Some(session.corpus()?)
+    } else {
+        None
+    };
+    let loaded = match &post {
+        Some(corpus) => corpus,
+        None => &pre,
+    };
     let audit = {
         let input = AuditInput {
             fs: session.fs_dyn(),
             root: &root,
             project_root,
             store: &store,
-            graph: &graph,
-            index: &index,
+            graph: &loaded.graph,
+            index: &loaded.index,
             now_ms,
             lock_stale_ms: LOCK_STALE_MS,
             thresholds: &thresholds,

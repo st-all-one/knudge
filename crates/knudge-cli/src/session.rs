@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use knudge_core::Result;
 use knudge_core::adapters::{StdEnv, StdFs, StdGit, SystemClock};
 use knudge_core::config::{Config, global_config_path};
+use knudge_core::corpus::Corpus;
 use knudge_core::git::Project;
 use knudge_core::graph::Graph;
 use knudge_core::logging::Redactor;
@@ -104,6 +105,17 @@ impl Session {
     /// Propaga erros de listagem/leitura/parse das notas.
     pub fn index(&self) -> Result<Index> {
         Index::from_store(&self.store())
+    }
+
+    /// Corpus de leitura única: notas + índice + grafo (E15-T02/O1).
+    ///
+    /// Prefira este método a chamar [`Session::index`]/[`Session::graph`] (ou a reler as notas)
+    /// separadamente: todos derivam do **mesmo** vetor de notas, numa só passada pelo store.
+    ///
+    /// # Errors
+    /// Propaga erros de listagem/leitura/parse das notas.
+    pub fn corpus(&self) -> Result<Corpus> {
+        Corpus::load(&self.store())
     }
 
     /// Grafo de arestas (reconstruído do store).

@@ -14,6 +14,7 @@
 
 pub mod adapters;
 pub mod config;
+pub mod corpus;
 pub mod embeddings;
 pub mod error;
 pub mod git;

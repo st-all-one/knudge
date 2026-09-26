@@ -29,14 +29,15 @@ const NO_RESULTS: &str = "[no_results]";
 /// # Errors
 /// Propaga erros de índice/grafo e `strict`.
 pub(super) fn recall_query(session: &Session, args: &AskArgs) -> Result<Output> {
-    let index = session.index()?;
-    let graph = session.graph()?;
+    let loaded = session.corpus()?;
+    let index = &loaded.index;
+    let graph = &loaded.graph;
     let text = args.query.join(" ");
-    let mut query = build_recall_query(session, args, &index, &text)?;
+    let mut query = build_recall_query(session, args, index, &text)?;
     if !text.is_empty() {
         attach_semantic(session, &text, &mut query);
     }
-    let out = recall(&index, &graph, &query)?;
+    let out = recall(index, graph, &query)?;
     let mut warnings = out.warnings;
     let format = hit_format(args);
     let preview_chars = preview_chars(session);

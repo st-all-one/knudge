@@ -337,18 +337,14 @@ fn measure_reads(
     harness.measure_cmd(group, "knowledge tags", samples, || {
         runner.timed(&args(&["knowledge", "tags"])).0
     });
-    harness.measure_cmd(group, "knowledge digest --status", samples, || {
-        runner
-            .timed(&args(&["knowledge", "digest", "--status"]))
-            .0
+    harness.measure_cmd(group, "drain --status", samples, || {
+        runner.timed(&args(&["drain", "--status"])).0
     });
-    harness.measure_cmd(group, "maintenance doctor", samples, || {
-        runner.timed(&args(&["maintenance", "doctor"])).0
+    harness.measure_cmd(group, "doctor", samples, || {
+        runner.timed(&args(&["doctor"])).0
     });
-    harness.measure_cmd(group, "maintenance doctor --audit", samples, || {
-        runner
-            .timed(&args(&["maintenance", "doctor", "--audit"]))
-            .0
+    harness.measure_cmd(group, "doctor --explain", samples, || {
+        runner.timed(&args(&["doctor", "--explain"])).0
     });
     harness.measure_cmd(group, "maintenance learn --universe", samples, || {
         runner

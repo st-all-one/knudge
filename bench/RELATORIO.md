@@ -38,6 +38,20 @@
    `Session::open`). Processo + `git` (resolução de projeto) + subscriber de log explicam boa
    parte do custo das ações baratas.
 
+## Progresso (A/B por tarefa)
+
+| Tarefa | Ação | Antes | Depois | Ganho |
+|---|---|---:|---:|---:|
+| E15-T02 (O1) | `rewind` (N=1167) | 362 ms | 295 ms | −18 % |
+| E15-T02 (O1) | `rewind --files` (N=1167) | 164 ms | 101 ms | −39 % |
+| E15-T02 (O1) | `ask --anchor` (N=1167) | 129 ms | 96 ms | −26 % |
+| E15-T03 (O1.5) | `self version` (N=1167) | 42,9 ms | 3,5 ms | −92 % |
+| E15-T03 (O1.5) | `prime` (N=1167) | 43,6 ms | 2,5 ms | −94 % |
+
+Baseline pré-reforma preservado em [`ULTIMO-v0.3.3.md`](ULTIMO-v0.3.3.md); a bancada passou a
+medir `kd doctor`/`kd drain` (a reforma CLI de E15 T13/T14 renomeou os verbos). O recorte de
+T03 está em [`e2e-t03.md`](e2e-t03.md).
+
 ## Velocidade do sistema (ponta-a-ponta)
 
 Medianas, corpus de 235 notas (`N=200`) e 1167 notas (`N=1000`):
