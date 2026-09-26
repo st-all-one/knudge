@@ -103,21 +103,21 @@ manual_guide() {
      WantedBy=default.target
    depois: systemctl --user daemon-reload && systemctl --user enable --now knudge-embed.service
    macOS (launchd): crie ~/Library/LaunchAgents/local.knudge.embed.plist apontando para o llama
-     (modelo em docs/06-embeddings.md) e carregue: launchctl bootstrap gui/\$(id -u) <plist>
+     (modelo em docs/15-embeddings.md) e carregue: launchctl bootstrap gui/\$(id -u) <plist>
    Windows: atalho/.bat no Startup do usuario ou tarefa no Agendador de Tarefas:
      llama.exe serve -m "%USERPROFILE%\\granite-97m-r2-Q8_0.gguf" --embeddings --pooling mean -b 2048 -ub 2048 --port $PORT
    Sem agendador (qualquer SO):
      nohup llama serve -m "$MODEL" --embeddings --pooling mean -b 2048 -ub 2048 --host 127.0.0.1 --port $PORT >> "$LOG_DIR/embed.log" 2>&1 &
 
 5) Aponte o kd e valide:
-   kd config set embeddings.provider http
-   kd config set embeddings.endpoint http://127.0.0.1:$PORT/v1/embeddings
-   kd config set embeddings.model ibm-granite/granite-embedding-97m-multilingual-r2
-   kd config set embeddings.dimensions 384
-   kd maintenance index --drain
+   kd config set --key embeddings.provider --value http
+   kd config set --key embeddings.endpoint --value http://127.0.0.1:$PORT/v1/embeddings
+   kd config set --key embeddings.model --value ibm-granite/granite-embedding-97m-multilingual-r2
+   kd config set --key embeddings.dimensions --value 384
+   kd drain --digest
    kd maintenance watch-service --status
 
-Guia completo por SO: docs/06-embeddings.md
+Guia completo por SO: docs/15-embeddings.md
 EOF
 }
 
@@ -435,36 +435,17 @@ cleanup() {
     return 0
 }
 
-# Drena cada projeto em lotes (`--drain` processa `embeddings.batch` por chamada) até pending=0.
+# Drena cada projeto: `kd drain --digest` processa todos os lotes numa chamada até pending=0.
 drain_all() {
-    local rc=0 proj n out pending indexed last
+    local rc=0 proj out
     for proj in "$@"; do
-        n=0
-        last=""
-        while :; do
-            out=$(cd "$proj" 2>/dev/null && "$KD" maintenance index --drain 2>&1) || {
-                log "falha no drain de $proj: $out"
-                rc=1
-                break
-            }
-            printf '%s: %s\n' "$proj" "$out"
-            pending=$(printf '%s\n' "$out" | sed -n 's/.*pending=\([0-9][0-9]*\).*/\1/p' | tail -1)
-            indexed=$(printf '%s\n' "$out" | sed -n 's/.*indexed=\([0-9][0-9]*\).*/\1/p' | tail -1)
-            [ -z "$pending" ] && break
-            [ "$pending" -eq 0 ] && break
-            if [ "${indexed:-0}" -eq 0 ] && [ "$pending" = "$last" ]; then
-                log "sem progresso em $proj (pending=$pending) — provedor ok?"
-                rc=1
-                break
-            fi
-            last="$pending"
-            n=$((n + 1))
-            if [ "$n" -ge "${KNUDGE_DRAIN_MAX:-10000}" ]; then
-                log "backstop de lotes atingido em $proj"
-                rc=1
-                break
-            fi
-        done
+        # `kd drain --digest` já processa **todos** os lotes numa chamada (D170).
+        out=$(cd "$proj" 2>/dev/null && "$KD" drain --digest 2>&1) || {
+            log "falha no drain de $proj: $out"
+            rc=1
+            continue
+        }
+        printf '%s: %s\n' "$proj" "$out"
     done
     return $rc
 }
@@ -670,7 +651,7 @@ cmd_status() {
     printf 'projeto atual: %s\n' "$(has_project "$current" && printf cadastrado || printf não-cadastrado)"
     printf 'projetos (%s):\n' "${#PROJECTS[@]}"
     for p in "${PROJECTS[@]}"; do
-        pending=$(cd "$p" 2>/dev/null && "$KD" maintenance index --status 2>/dev/null | sed -n 's/.*pending: \([0-9][0-9]*\).*/\1/p' | tail -1)
+        pending=$(cd "$p" 2>/dev/null && "$KD" drain --status 2>/dev/null | sed -n 's/.*pending=\([0-9][0-9]*\).*/\1/p' | tail -1)
         printf '  %s (pending=%s)\n' "$p" "${pending:-?}"
     done
     return 0

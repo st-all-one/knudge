@@ -76,8 +76,8 @@ Cada achado traz **estado atual, recomendação, onde aplicar e aceite** em `14_
 **MVP = Fase 0 + Fase 1** (+ leitura tolerante mínima de E09). O resto é incremental.
 
 **Status:** E01–E14 ✅ (`make check` verde; 458 testes). Projeto completo pelo plano; evolução
-segue as decisões `Dxx` e as políticas `Rnn`. **E15 ◐** (performance + reforma da CLI) em
-andamento — plano em [`../proposals/`](../proposals/) e épico em
+segue as decisões `Dxx` e as políticas `Rnn`. **E15 ✅** (performance + reforma da CLI) concluído —
+plano em [`../proposals/`](../proposals/) e épico em
 [`19_performance_reforma_cli.md`](19_performance_reforma_cli.md).
 
 **Superfície CLI:** o contrato dos verbos do `kd` está congelado em

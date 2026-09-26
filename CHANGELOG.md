@@ -4,6 +4,8 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+## [0.4.0] - 2026-09-26
+
 ### Adicionado
 - **Leitura única do corpus (E15-T02/O1)** — `knudge_core::corpus::Corpus` (`notes`+`index`+
   `graph` de uma só passada) e `knudge_cli::Session::corpus()`; `Graph::from_notes_ref(&[Note])`
@@ -75,6 +77,12 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   economiza < 20 % porque as notas ainda são lidas para o grafo). A/B (N=1167, `--no-idle`):
   `Corpus::load_notes` −65 %, `Corpus::load` −44 %, `ask` −40 %, `task list --universe` −51 %,
   `task graph` −31 %. Travado por `load_notes_parallel_matches_sequential_order`.
+- **Revisão de coleções (E15-T21/O9)** — `entry` substitui `contains_key` + `insert` em
+  `toon::flow::insert` e `config::toml::parse::insert_leaf` (**uma** busca por inserção; micro
+  `toon::parse` 1,66→1,52 µs, `Note::parse` 3,54→3,35 µs). A auditoria confirma que o restante já
+  usa chave emprestada ótima (`Postings::build` clona só no *miss*) e `sort_by` estável apenas
+  onde o comparador é parcial (`suggestions`, `learn`); `swap_remove` rejeitado (a ordem é
+  contrato) e `HashMap`/`HashSet`/`rayon` rejeitados por princípio.
 - **Bancada de benchmark** (`bench/`, fora do workspace, zero dependências além do `knudge-core`)
   medindo componentes puros (**micromb**) e ações do binário (**ponta-a-ponta**) em corpora de
   200 e 1000 notas. Alvos `make bench`/`make bench-quick`; relatório de gargalos em

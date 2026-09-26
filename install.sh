@@ -16,7 +16,7 @@
 #
 # Uso:
 #   curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/st-all-one/knudge/main/install.sh | bash
-#   curl ... | VERSION=v0.3.3 bash
+#   curl ... | VERSION=v0.4.0 bash
 #   curl ... | INSTALL_DIR=/usr/local/bin bash
 #   ./install.sh --from-source
 #   ./install.sh --uninstall
@@ -45,6 +45,13 @@ INSTALL_DIR="${INSTALL_DIR:-${HOME}/.local/bin}"
 VERSION="${VERSION:-latest}"
 FROM_SOURCE=0
 DO_UNINSTALL=0
+
+# HTTPS obrigatório por padrão (evita downgrade de TLS no `curl | bash`). Um `KD_BASE_URL`
+# `http://` explícito (servidor de teste local) libera — nunca é o caminho default.
+CURL_PROTO=""
+case "$BASE_URL_ROOT" in
+    https://*) CURL_PROTO="--proto =https --proto-redir =https --tlsv1.2" ;;
+esac
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -147,7 +154,9 @@ resolve_version() {
     fi
     # Segue o redirect de /releases/latest e extrai a tag do caminho final.
     local effective tag
-    effective="$(curl -fsSL -I -o /dev/null -w '%{url_effective}' "${BASE_URL_ROOT}/${REPO}/releases/latest")" \
+    # `$CURL_PROTO` é intencionalmente não-entre-aspas (word-split das flags).
+    # shellcheck disable=SC2086
+    effective="$(curl -fsSL $CURL_PROTO -I -o /dev/null -w '%{url_effective}' "${BASE_URL_ROOT}/${REPO}/releases/latest")" \
         || err "Falha ao resolver a versão latest em ${BASE_URL_ROOT}/${REPO}"
     tag="${effective##*/tag/}"
     case "$tag" in
@@ -233,11 +242,16 @@ download_release() {
     mkdir -p "${staging}/out"
 
     info "Baixando ${asset}..."
-    curl -fsSL -o "${staging}/${asset}" "${base_url}/${asset}" \
+    # shellcheck disable=SC2086
+    curl -fsSL $CURL_PROTO -o "${staging}/${asset}" "${base_url}/${asset}" \
         || err "Falha no download: ${base_url}/${asset}"
 
     info "Verificando checksum SHA-256..."
-    curl -fsSL -o "${staging}/sha256sums.txt" "${base_url}/sha256sums.txt" \
+    if ! command -v sha256sum >/dev/null 2>&1 && ! command -v shasum >/dev/null 2>&1; then
+        err "Nenhum verificador SHA-256 encontrado (instale coreutils ou perl-Digest-SHA)"
+    fi
+    # shellcheck disable=SC2086
+    curl -fsSL $CURL_PROTO -o "${staging}/sha256sums.txt" "${base_url}/sha256sums.txt" \
         || err "Falha no download do checksum: ${base_url}/sha256sums.txt"
     (
         cd "$staging"
@@ -253,7 +267,7 @@ download_release() {
     if [ "$ext" = "zip" ]; then
         unzip -o -q "${staging}/${asset}" -d "${staging}/out"
     else
-        tar -xzf "${staging}/${asset}" -C "${staging}/out"
+        tar --no-same-owner -xzf "${staging}/${asset}" -C "${staging}/out"
     fi
     SRC_DIR="${staging}/out"
 }
@@ -277,6 +291,15 @@ install_binaries() {
     done
 }
 
+# Confirma que o binário instalado **executa** (pega linker/arquitetura errados antes do PATH).
+verify_binaries() {
+    local kd="${INSTALL_DIR}/kd" version
+    [ -x "$kd" ] || err "Binário não instalado: $(tilde "$kd")"
+    version="$("$kd" self version 2>/dev/null | head -n1)" \
+        || err "O binário instalado não executa ($(tilde "$kd")); verifique dependências do sistema"
+    ok "Binário responde: ${version}"
+}
+
 # Cria a pasta de configuração global e semeia os defaults (D61).
 setup_global_config() {
     info "Configurando a config global..."
@@ -287,7 +310,7 @@ setup_global_config() {
         ok "config global já existe em $(tilde "$global_file")"
         return 0
     fi
-    if "${INSTALL_DIR}/kd" config set mcp.hints_cap 3 --global >/dev/null 2>&1; then
+    if "${INSTALL_DIR}/kd" config set --key mcp.hints_cap --value 3 --global >/dev/null 2>&1; then
         ok "config global criada em $(tilde "$global_file")"
     else
         mkdir -p "$global_dir" 2>/dev/null || true
@@ -432,6 +455,7 @@ else
 fi
 
 install_binaries
+verify_binaries
 setup_global_config
 setup_completions
 setup_path
@@ -444,13 +468,13 @@ echo ""
 info "Próximos passos:"
 echo "  cd ~/meu-projeto"
 echo "  kd init                     # funda .knudge/ e o AGENTS.md"
-echo "  kd write --type fact \"...\"      # o statement é posicional (aceita --anchor PATH)"
+echo "  kd write --summary \"...\" --type fact --anchor src/x.rs   # statement em --summary; corpo é posicional"
 echo "  kd ask \"...\"                # busca no corpus"
 echo ""
 echo "  # Config global (template copiado pelo \`kd init\`):"
 echo "  #   $(tilde "${XDG_CONFIG_HOME:-$HOME/.config}/local/knudge/config.toml")"
 echo "  # Config do projeto: .knudge/config.toml"
-echo "  kd config set mcp.hints_cap 3 --global   # exemplo"
+echo "  kd config set --key mcp.hints_cap --value 3 --global   # exemplo"
 echo ""
 echo "  # Busca semântica (opcional): baixa llama.cpp + modelo e sobe o servidor persistente"
 echo "  kd maintenance watch-service --install"

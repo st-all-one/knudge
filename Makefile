@@ -114,7 +114,8 @@ ci: check nextest deny audit machete typos
 bench:
 	$(CARGO) build --release -p knudge-cli
 	$(CARGO) run --release --manifest-path bench/Cargo.toml -- all \
-		--kd target/release/kd --sizes 200,1000 --samples 8 --out bench/ULTIMO.md
+		--kd target/release/kd --sizes 200,1000 --samples 8 \
+		--out bench/ULTIMO.md --json bench/ULTIMO.json
 
 ## Versão rápida (1 corpus, 5 amostras).
 bench-quick:

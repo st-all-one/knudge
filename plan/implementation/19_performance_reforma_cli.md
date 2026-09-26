@@ -285,34 +285,42 @@ binário do `.idx/`. Cada item foi medido um por vez, com recorte em `bench/`.
 - **Aceite:** grep por `maintenance doctor`, `--audit`, `knowledge digest`, `--re-digest`, `kd`
   sem argumentos = `prime` vazio; `make check` verde.
 
-### E15-T21 ☐ O9 — revisão de coleções (fecho)
+### E15-T21 ☑ O9 — revisão de coleções (fecho)
 - **Objetivo:** varrer o código pelos padrões de `.agents/skill/rust/05-collections.md` e
   incorporar só o que dá ganho **sem mudar bytes**; registrar o que é rejeitado.
-- **Escopo (incorporar):** `entry` onde há `contains_key` + `insert`/`get_mut`
-  (`toon::flow::insert`, `config::toml::parse::insert_leaf` + auditoria em `schema`/`health`/
-  `store`); chave **emprestada** (`&str`/`Cow`) em mapas temporários que hoje fazem `to_string()`
-  só para servir de chave (extensão de O6.4); `Vec::with_capacity`/`try_reserve` residual;
-  reconferir `sort_unstable_by` (comparador total) e `#[cold]`/`#[inline]` (T05/T10).
-- **Escopo (avaliar sem aplicar cego):** `swap_remove` só onde a ordem **não** é contrato e há
-  re-sort total depois; no knudge a ordem é contrato (TOON/goldens) — documentar cada caso.
-- **Rejeitado (registrar):** `HashMap`/`HashSet` (proibidos por `clippy.toml`; determinismo exige
-  `BTreeMap`/`IndexMap`); `par_lines`/`rayon` como padrão local (contraria R43 e o determinismo;
-  só pela Onda 7, com gate de dependência).
+- **Resultado:**
+  - **O9.1 `entry` — INCORPORADO:** `toon::flow::insert` e `config::toml::parse::insert_leaf`
+    trocaram `contains_key` + `insert` por `entry` (uma busca). Micro: `toon::parse`
+    1,66→1,52 µs (−8 %), `Note::parse` 3,54→3,35 µs (−5 %), `Config::parse` 3,08 µs. Bytes
+    idênticos (goldens/TOON/proptest).
+  - **O9.2 chave emprestada — AUDITADO (já ótimo):** `Postings::build` usa
+    `get_mut(term.as_str())` + `insert(term.clone())` — clona **só no miss**, melhor que
+    `entry(owned)` (que clonaria a cada termo); `Graph::from_nodes` usa
+    `entry(target.clone()).or_insert_with(|| id.clone())`; `query_terms` (O6.4) já é `BTreeSet<Cow>`.
+    Nada a mudar sem churn de lifetimes.
+  - **O9.3 `swap_remove` — REJEITADO:** não há `Vec::remove` em caminho quente cuja ordem não
+    seja contrato; no knudge a ordem é contrato (TOON/goldens).
+  - **O9.4 re-verificação — OK:** `sort_by` permanece só onde o comparador é **parcial**
+    (`graph::suggestions`, `maintenance::learn`), como em T05; `#[cold]`/`#[inline]`/capacidade
+    de T10 seguem aplicados.
+  - **Rejeitado por princípio:** `HashMap`/`HashSet` (proibidos por `clippy.toml`; determinismo
+    exige `BTreeMap`/`IndexMap`) e `par_lines`/`rayon` como padrão local (R43 + determinismo; só
+    pela Onda 7, com gate de dependência).
 - **Depende de:** T05/T10 (padrões já aplicados) — é o fecho que varre o residual.
 - **Aceite:** `make check` verde; nenhum byte alterado (goldens/proptest); micro do que mudou;
   decisão escrita (incorporado/rejeitado) por padrão neste épico.
 
 ## Definition of Done
 
-- [ ] `make check` verde em cada tarefa; `make ci` verde ao fechar.
-- [ ] Bytes idênticos nos goldens (TOON/JSONL/`prime`/`--json`) salvo T15 (intencional).
-- [ ] Ganho medido por A/B em todas as tarefas de performance (`bench/ULTIMO.md` atualizado).
-- [ ] `doctor`/`drain` de topo, `--audit` e `knowledge digest` inexistentes; auto-drain não os
+- [x] `make check` verde em cada tarefa; `make ci` verde ao fechar.
+- [x] Bytes idênticos nos goldens (TOON/JSONL/`prime`/`--json`) salvo T15 (intencional).
+- [x] Ganho medido por A/B em todas as tarefas de performance (`bench/ULTIMO.md` atualizado).
+- [x] `doctor`/`drain` de topo, `--audit` e `knowledge digest` inexistentes; auto-drain não os
       dispara; `kd` sozinho = `kd help` (D171); `kd task` otimizado (O8).
-- [ ] Toda tarefa com linha na matriz de aceite e `CHANGELOG.md` atualizado.
-- [ ] O9 revisada: cada padrão da skill de coleções tem decisão (incorporado/rejeitado) e o
+- [x] Toda tarefa com linha na matriz de aceite e `CHANGELOG.md` atualizado.
+- [x] O9 revisada: cada padrão da skill de coleções tem decisão (incorporado/rejeitado) e o
       residual varrido.
-- [ ] Nenhum `src/` > 300 linhas; zero `unwrap/expect/panic/unsafe`.
+- [x] Nenhum `src/` > 300 linhas; zero `unwrap/expect/panic/unsafe`.
 
 ## Não-objetivos
 

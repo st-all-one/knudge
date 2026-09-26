@@ -66,6 +66,8 @@
 | E15-T12 (O7) | `task list --universe` (N=1167, `--no-idle`) | 50,3 ms | 24,4 ms | **−51 %** |
 | E15-T12 (O7) | `task graph` (N=1167, `--no-idle`) | 49,3 ms | 34,2 ms | −31 % |
 | E15-T12 (O7) | deps O7 (`memchr`…`mimalloc`) + binário `.idx/` | — | — | **rejeitadas por medição** |
+| E15-T21 (O9) | `toon::parse` (micro, `entry`) | 1,66 µs | 1,52 µs | −8 % |
+| E15-T21 (O9) | `Note::parse` (micro, `entry`) | 3,54 µs | 3,35 µs | −5 % |
 
 Baseline pré-reforma preservado em [`ULTIMO-v0.3.3.md`](ULTIMO-v0.3.3.md); a bancada passou a
 medir `kd doctor`/`kd drain` (a reforma CLI de E15 T13/T14 renomeou os verbos). Os recortes de

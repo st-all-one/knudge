@@ -309,6 +309,12 @@ R43 e o determinismo — só pela Onda 7, com gate de dependência).
 
 **Ganho:** micro/consistência; sem mudança de contrato. **Risco:** baixo.
 
+**Resultado (E15-T21):** O9.1 incorporado (`entry` em `toon::flow::insert` e
+`config::toml::parse::insert_leaf`; micro `toon::parse` −8 %, `Note::parse` −5 %); O9.2 auditado
+(o código já usa chave emprestada ótima — `Postings::build` clona só no *miss*); O9.3 rejeitado
+(ordem é contrato); O9.4 reconfirmado (`sort_by` estável só em `suggestions`/`learn`).
+`HashMap`/`HashSet` e `rayon`/`par_lines` rejeitados por princípio.
+
 ---
 
 ## Matriz de impacto × risco

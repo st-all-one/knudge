@@ -2,6 +2,7 @@
 
 use crate::config::value::{ConfigValue, Table};
 use crate::{Error, Result};
+use indexmap::map::Entry;
 
 /// Garante que a tabela do cabeçalho exista, sem sobrescrever valores.
 pub(super) fn ensure_table(root: &mut Table, path: &[String]) -> Result<()> {
@@ -31,9 +32,12 @@ pub(super) fn insert_leaf(root: &mut Table, path: &[String], value: ConfigValue)
             .as_table_mut()
             .ok_or_else(|| Error::config(format!("`{segment}` não é uma tabela")))?;
     }
-    if table.contains_key(last) {
-        return Err(Error::config(format!("chave duplicada: `{last}`")));
+    // `entry` faz **uma** busca (O9.1) em vez de `contains_key` + `insert`.
+    match table.entry(last.clone()) {
+        Entry::Occupied(_) => Err(Error::config(format!("chave duplicada: `{last}`"))),
+        Entry::Vacant(entry) => {
+            entry.insert(value);
+            Ok(())
+        }
     }
-    table.insert(last.clone(), value);
-    Ok(())
 }

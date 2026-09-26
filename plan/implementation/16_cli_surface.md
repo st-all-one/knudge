@@ -303,9 +303,9 @@ Restrições:
 ## 11. `kd config`, `kd forget`, `kd sync`, `kd init`, `kd self`
 
 ```
-kd config get <KEY>
-kd config set <KEY> <VALUE> [--global]     # projeto por padrão; grava .knudge/config.toml
-kd config unset <KEY> [--global]
+kd config get --key <CHAVE>
+kd config set --key <CHAVE> --value <VALOR> [--global]   # projeto por padrão; grava .knudge/config.toml
+kd config unset --key <CHAVE> [--global]
 kd config list [--global]
 
 kd forget --id <ID>             # status=forgotten (soft; nunca apaga arquivo)

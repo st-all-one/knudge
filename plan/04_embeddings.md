@@ -22,7 +22,7 @@ O embedding **nunca bloqueia** `write`, `recall` ou o rebuild estrutural. Ele é
 
 - No `write`, a nota é commitada imediatamente (nota + evento); o id entra numa **fila pendente** (derivada, em `.idx/`).
 - Um **worker** processa a fila em lote — numa invocação ociosa do CLI, por timer ou via
-  `kd knowledge digest --drain`.
+  `kd drain --digest`.
 - `recall` **nunca espera**: usa BM25 + estrutura sempre; usa embeddings só para as notas já digeridas.
 
 **Notas “apagadas” (dark).** Notas recém-criadas ficam invisíveis à camada vetorial até serem digeridas. Numa rajada de 10–20 notas, elas ficam dark por uma janela curta — **gap tolerado e aceito pelo projeto**. Continuam acháveis por BM25/estrutura/`get`; só não participam de dedup semântico e cluster até serem embeddadas.
@@ -34,7 +34,7 @@ O embedding **nunca bloqueia** `write`, `recall` ou o rebuild estrutural. Ele é
 - **Visibilidade:** `prime()` reporta `embeddings_pending: N`; `audit()`/`doctor` sinalizam backlog grande.
 - **Backpressure:** `max_pending` limita a fila; acima disso, força catch-up em lote — **nunca descarta nota**.
 
-**Modos:** `lazy` (default; o CLI drena **um lote** no fim de cada invocação, ocioso e *best-effort* — E11-T03/D131) e `manual` (só via `kd knowledge digest --drain`). Os dois **coexistem**: mesmo em `lazy`, o `--drain` explícito funciona. O worker contínuo (quando você não usa o `kd`) é gerenciado por `kd maintenance watch-service` (`--install`/`--subscribe`/`--unsubscribe`/`--status`/`--uninstall`, multi-projeto — D132).
+**Modos:** `lazy` (default; o CLI drena **um lote** no fim de cada invocação, ocioso e *best-effort* — E11-T03/D131) e `manual` (só via `kd drain --digest`). Os dois **coexistem**: mesmo em `lazy`, o `--digest` explícito funciona. O worker contínuo (quando você não usa o `kd`) é gerenciado por `kd maintenance watch-service` (`--install`/`--subscribe`/`--unsubscribe`/`--status`/`--uninstall`, multi-projeto — D132).
 
 ```toml
 [embeddings]

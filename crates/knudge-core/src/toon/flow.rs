@@ -3,6 +3,7 @@
 //! `null`/`~` não existem no subconjunto: um valor textual assim vira string (D05).
 
 use indexmap::IndexMap;
+use indexmap::map::Entry;
 
 use super::fail;
 use crate::Result;
@@ -10,11 +11,14 @@ use crate::schema::Value;
 
 /// Insere um par rejeitando chave duplicada.
 pub(crate) fn insert(map: &mut IndexMap<String, Value>, key: String, value: Value) -> Result<()> {
-    if map.contains_key(&key) {
-        return Err(fail(format!("chave duplicada: {key:?}")));
+    // `entry` faz **uma** busca (O9.1) em vez de `contains_key` + `insert`.
+    match map.entry(key) {
+        Entry::Occupied(entry) => Err(fail(format!("chave duplicada: {:?}", entry.key()))),
+        Entry::Vacant(entry) => {
+            entry.insert(value);
+            Ok(())
+        }
     }
-    map.insert(key, value);
-    Ok(())
 }
 
 /// Separa `chave: valor` no primeiro `:` de nível zero (fora de aspas/coleções).
