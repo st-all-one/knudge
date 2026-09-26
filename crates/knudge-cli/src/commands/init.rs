@@ -23,7 +23,7 @@ pub fn run(session: &Session, args: &InitArgs) -> Result<Output> {
     let prompt = if args.no_prompt {
         String::new()
     } else {
-        prime::run(prime::PrimeFormat::Short).text
+        prime::run(prime::PrimeFormat::Compact).text
     };
     let text = if prompt.is_empty() {
         format!(

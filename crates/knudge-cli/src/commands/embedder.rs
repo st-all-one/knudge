@@ -96,7 +96,7 @@ pub fn pending(session: &Session) -> Result<usize> {
 
 /// Drena **um lote** da fila; `None` quando embeddings estão desligados (`provider = none`).
 ///
-/// É o caminho único do `kd knowledge digest --drain` e do auto-drain ocioso (E11-T03).
+/// É o caminho único do `kd drain --digest` e do auto-drain ocioso (E11-T03).
 ///
 /// # Errors
 /// Propaga erros de leitura do índice e de execução do provedor.

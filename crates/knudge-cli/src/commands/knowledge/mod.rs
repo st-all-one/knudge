@@ -1,6 +1,5 @@
-//! `kd knowledge` — mapa/digestão/ranking/vocabulário de conhecimento (D128/D145/D146).
+//! `kd knowledge` — mapa/ranking/vocabulário de conhecimento (D128/D145/D146).
 
-pub mod digest;
 pub mod hub;
 pub mod map;
 pub mod promote;
@@ -21,7 +20,6 @@ use crate::session::Session;
 pub fn run(session: &Session, command: &KnowledgeCommand) -> Result<Output> {
     match command {
         KnowledgeCommand::Map(args) => map::run(session, args),
-        KnowledgeCommand::Digest(args) => digest::run(session, args),
         KnowledgeCommand::Rank(args) => rank::run(session, args),
         KnowledgeCommand::Tags(args) => tags::run(session, args),
         KnowledgeCommand::Suggest(args) => suggest::run(session, args),

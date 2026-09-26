@@ -17,7 +17,7 @@ use super::embedder;
 pub fn maybe_drain(cli: &Cli) {
     if matches!(
         cli.command,
-        Some(Command::Maintenance { .. } | Command::Doctor(_))
+        Some(Command::Maintenance { .. } | Command::Doctor(_) | Command::Drain(_))
     ) {
         return;
     }

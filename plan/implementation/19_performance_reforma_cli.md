@@ -157,7 +157,7 @@ Fecho: T19 (docs/goldens/matriz/CHANGELOG)
   ação) e de garantia (`healthy` ⇔ zero achados); `kd maintenance` sem `doctor` → exit 2; linha da
   matriz e `prime` atualizados.
 
-### E15-T14 ☐ Fase 2 — `kd drain` de topo (D170)
+### E15-T14 ☑ Fase 2 — `kd drain` de topo (D170)
 - **Escopo:** `Command::Drain(DrainArgs{digest,status,force})`; sem flag = help; `--digest` (log
   mínimo) e `--digest --force` (apaga `.idx/` e redigeri tudo); `--status` rico + recomendação;
   remover `KnowledgeCommand::Digest`.
@@ -165,7 +165,7 @@ Fecho: T19 (docs/goldens/matriz/CHANGELOG)
 - **Aceite:** testes de `knowledge digest` migrados; `--force` sem `--digest` → exit 2; benchmark
   do `--status`.
 
-### E15-T15 ☐ Fase 3 — `prime` compacto (D166)
+### E15-T15 ☑ Fase 3 — `prime` compacto (D166)
 - **Escopo:** `PrimeFormat::{Compact,Long}`, default Compact, `--long` completo; `init` usa
   Compact.
 - **Aceite:** goldens `prime.txt`/`json_prime.json` regenerados com intenção; `kd prime`

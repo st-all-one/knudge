@@ -2105,7 +2105,7 @@ fn ask_semantic_channel_reads_vector_index() -> TestResult {
         "config falhou: {:?}",
         provider.stderr
     );
-    let drain = run_in(&dir, &["knowledge", "digest", "--drain"])?;
+    let drain = run_in(&dir, &["drain", "--digest"])?;
     assert!(drain.status.success(), "index falhou: {:?}", drain.stderr);
 
     // Com o canal vetorial ligado (default), o `ask` acha a nota indexada.
@@ -2524,15 +2524,19 @@ fn idle_lazy_drains_queue_after_command() -> TestResult {
     )?;
     assert!(write.status.success(), "write falhou: {:?}", write.stderr);
 
-    // `--status` é maintenance (não drena): reflete o que o auto-drain fez antes de sair.
-    let status = run_in(&dir, &["knowledge", "digest", "--status"])?;
+    // `drain` é verbo de topo (não drena): reflete o que o auto-drain fez antes de sair.
+    let status = run_in(&dir, &["--json", "drain", "--status"])?;
     assert!(
         status.status.success(),
         "status falhou: {:?}",
         status.stderr
     );
-    let text = String::from_utf8(status.stdout)?;
-    assert_eq!(text.trim(), "pending: 0", "fila não drenou: {text}");
+    let value = json(&status)?;
+    let pending = value
+        .get("data")
+        .and_then(|data| data.get("pending"))
+        .and_then(serde_json::Value::as_u64);
+    assert_eq!(pending, Some(0), "fila não drenou: {value}");
     Ok(())
 }
 
@@ -2562,9 +2566,146 @@ fn idle_manual_mode_leaves_queue_pending() -> TestResult {
     )?;
     assert!(write.status.success(), "write falhou: {:?}", write.stderr);
 
-    let status = run_in(&dir, &["knowledge", "digest", "--status"])?;
-    let text = String::from_utf8(status.stdout)?;
-    assert_eq!(text.trim(), "pending: 1", "modo manual drenou: {text}");
+    let status = run_in(&dir, &["--json", "drain", "--status"])?;
+    let value = json(&status)?;
+    let pending = value
+        .get("data")
+        .and_then(|data| data.get("pending"))
+        .and_then(serde_json::Value::as_u64);
+    assert_eq!(pending, Some(1), "modo manual drenou: {value}");
+    Ok(())
+}
+
+#[test]
+fn drain_without_flags_shows_help_and_does_nothing() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let out = run_in(&dir, &["drain"])?;
+    assert!(out.status.success(), "drain: {:?}", out.stderr);
+    let text = String::from_utf8(out.stdout)?;
+    assert!(text.contains("Usage: kd drain"), "sem help: {text}");
+    assert!(out.stderr.is_empty(), "help não deve ir ao stderr");
+    assert!(
+        !dir.join(".knudge")
+            .join(".idx")
+            .join("embeddings.jsonl")
+            .exists(),
+        "`kd drain` sem flags não pode digerir"
+    );
+    Ok(())
+}
+
+#[test]
+fn drain_force_requires_digest() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let out = run_in(&dir, &["drain", "--force"])?;
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "`--force` sem `--digest` devia dar exit 2"
+    );
+    Ok(())
+}
+
+#[test]
+fn drain_status_reports_states_and_recommendation() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let provider = config_set(&dir, "embeddings.provider", "lightweight")?;
+    assert!(provider.status.success(), "config: {:?}", provider.stderr);
+    let write = run_in(
+        &dir,
+        &["write", "--summary", "nota para o drain", "--type", "fact"],
+    )?;
+    assert!(write.status.success(), "write: {:?}", write.stderr);
+    let out = run_in(&dir, &["--json", "drain", "--status"])?;
+    let value = json(&out)?;
+    let data = value.get("data").ok_or("sem data")?;
+    assert_eq!(
+        data.get("provider").and_then(serde_json::Value::as_str),
+        Some("lightweight")
+    );
+    for key in ["indexed", "pending", "stale"] {
+        assert!(
+            data.get(key).and_then(serde_json::Value::as_u64).is_some(),
+            "faltou `{key}`: {data}"
+        );
+    }
+    assert!(
+        data.get("recommendation")
+            .and_then(serde_json::Value::as_str)
+            .is_some(),
+        "sem recomendação: {data}"
+    );
+    Ok(())
+}
+
+#[test]
+fn drain_status_explains_when_disabled() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let off = config_set(&dir, "embeddings.enabled", "false")?;
+    assert!(off.status.success(), "config: {:?}", off.stderr);
+    let out = run_in(&dir, &["--json", "drain", "--status"])?;
+    let value = json(&out)?;
+    let data = value.get("data").ok_or("sem data")?;
+    assert_eq!(
+        data.get("enabled").and_then(serde_json::Value::as_bool),
+        Some(false)
+    );
+    let recommendation = data
+        .get("recommendation")
+        .and_then(serde_json::Value::as_str)
+        .ok_or("sem recomendação")?;
+    assert!(recommendation.contains("desligados"), "{recommendation}");
+    Ok(())
+}
+
+#[test]
+fn drain_digest_force_rebuilds_derived() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let provider = config_set(&dir, "embeddings.provider", "lightweight")?;
+    assert!(provider.status.success(), "config: {:?}", provider.stderr);
+    let write = run_in(
+        &dir,
+        &[
+            "write",
+            "--summary",
+            "reconstruir derivado",
+            "--type",
+            "fact",
+        ],
+    )?;
+    assert!(write.status.success(), "write: {:?}", write.stderr);
+
+    let out = run_in(&dir, &["--json", "drain", "--digest", "--force"])?;
+    assert!(out.status.success(), "drain --force: {:?}", out.stderr);
+    let value = json(&out)?;
+    let data = value.get("data").ok_or("sem data")?;
+    assert_eq!(
+        data.get("rebuilt").and_then(serde_json::Value::as_bool),
+        Some(true)
+    );
+    let removed = data
+        .get("removed")
+        .and_then(serde_json::Value::as_array)
+        .ok_or("sem removed")?;
+    assert!(!removed.is_empty(), "nada removido: {value}");
+
+    let out = run_in(&dir, &["--json", "drain", "--status"])?;
+    let value = json(&out)?;
+    let pending = value
+        .get("data")
+        .and_then(|data| data.get("pending"))
+        .and_then(serde_json::Value::as_u64);
+    assert_eq!(pending, Some(0), "fila não redigeriu: {value}");
     Ok(())
 }
 
@@ -3032,7 +3173,7 @@ fn d145_maintenance_eval_and_index_removed() -> TestResult {
         let out = run_in(&dir, args)?;
         assert_eq!(out.status.code(), Some(2), "{args:?} devia sumir");
     }
-    let digest = run_in(&dir, &["knowledge", "digest", "--status"])?;
-    assert!(digest.status.success(), "digest: {:?}", digest.stderr);
+    let digest = run_in(&dir, &["drain", "--status"])?;
+    assert!(digest.status.success(), "drain: {:?}", digest.stderr);
     Ok(())
 }

@@ -204,8 +204,7 @@ fn semantic_section(
         EmbeddingIndex::load(session.fs_dyn(), &session.knowledge_dir(), &meta, warnings)?
     else {
         warnings.push(
-            "fase 2 ignorada: sem índice de embeddings (rode `kd knowledge digest --status`)"
-                .to_string(),
+            "fase 2 ignorada: sem índice de embeddings (rode `kd drain --status`)".to_string(),
         );
         return Ok(((Vec::new(), Vec::new()), Vec::new()));
     };

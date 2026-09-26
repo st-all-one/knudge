@@ -187,8 +187,8 @@ fn knowledge_map_rank_tags_digest() -> TestResult {
     assert!(ranked.get("ranked").and_then(|v| v.as_array()).is_some());
     let tags = ok(&dir, &["knowledge", "tags"])?;
     assert!(tags.contains("cache|"), "tags: {tags}");
-    let digest = ok(&dir, &["knowledge", "digest", "--status"])?;
-    assert!(digest.contains("pending:"));
+    let drain = ok(&dir, &["drain", "--status"])?;
+    assert!(drain.contains("pending="), "drain status: {drain}");
 
     // Escopo obrigatório (D143/D144).
     expect_code(&dir, &["knowledge", "map", "--axis", "type"], 2)?;

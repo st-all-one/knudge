@@ -8,8 +8,6 @@ pub enum KnowledgeCommand {
     /// Mapa de conhecimento: clusters por eixo estrutural (fase 1) e, com `--semantic`,
     /// semântico (fase 2).
     Map(KnowledgeMapArgs),
-    /// Digere o conteúdo num vetor (fila de embeddings; ex-`maintenance index`, D145).
-    Digest(KnowledgeDigestArgs),
     /// Notas mais confiáveis, sem pergunta textual (ex-`ask --rank`, D146).
     Rank(KnowledgeRankArgs),
     /// Vocabulário de tags (`tag|count`, `count` desc — ex-`ask --tags`, D146).
@@ -73,21 +71,6 @@ pub struct PromoteEditArgs {
     /// Varredura do projeto inteiro (sem filtro de trabalho).
     #[arg(long)]
     pub universe: bool,
-}
-
-/// Argumentos de `kd knowledge digest`.
-#[allow(
-    clippy::struct_excessive_bools,
-    reason = "`--drain`/`--status` são ações mutuamente exclusivas da CLI"
-)]
-#[derive(Debug, Args)]
-pub struct KnowledgeDigestArgs {
-    /// Drena um lote da fila agora (repita para drenar mais).
-    #[arg(long)]
-    pub drain: bool,
-    /// Mostra o estado da fila (default).
-    #[arg(long)]
-    pub status: bool,
 }
 
 /// Argumentos de `kd knowledge map`.

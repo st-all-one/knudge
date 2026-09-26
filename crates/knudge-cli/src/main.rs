@@ -19,6 +19,7 @@ pub mod session;
 use std::process::ExitCode;
 
 use clap::Parser;
+use clap::error::ErrorKind as ClapErrorKind;
 use knudge_core::{Error, ErrorKind};
 
 use crate::cli::{Cli, Command};
@@ -76,6 +77,10 @@ fn emit_error(cli: &Cli, command: &str, err: &Error, warnings: &[String]) -> Exi
 
 /// Trata erros de parsing do `clap` (help/version em stdout; erros em stderr).
 fn handle_parse_error(err: &clap::Error) -> ExitCode {
+    // Verbo com `arg_required_else_help` e sem argumentos: equivale a `--help` (stdout, exit 0).
+    if err.kind() == ClapErrorKind::DisplayHelpOnMissingArgumentOrSubcommand {
+        return emit_stdout(err.render().to_string().as_bytes());
+    }
     let to_stderr = err.use_stderr();
     let rendered = err.render().to_string();
     if to_stderr {

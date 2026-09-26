@@ -18,6 +18,16 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   `encontrado` × `ação`). `--audit` deixa de existir; `kd maintenance` mantém
   `compact|learn|prune|watch-service`. O `--json` ganha `degraded`/`status`/`audit`/`suggestions`
   (e `explain[]` com `--explain`). `kd help` e `kd help <verbo>` passam a funcionar (D164).
+- **Fila de embeddings de topo: `kd drain` (D170).** O antigo `kd knowledge digest
+  [--status|--drain]` vira `kd drain [--status | --digest [--force]]`: `--status` mostra o estado
+  rico (`provider`/`mode`/`dimensions`, `indexed/pending/stale` e uma recomendação); `--digest`
+  digere em lotes até esvaziar/estagnar (log mínimo) e `--digest --force` apaga `.idx/` (derivado,
+  D84) e redigeri tudo — `--force` sem `--digest` é `invalid_input` (2). `kd drain` sem flags
+  mostra o help e **não** executa nada.
+- **`prime` compacto por padrão (D166).** O protocolo padrão passa a ser a versão **compacta**
+  (ciclo, guia dos verbos essenciais, âncoras, corpo, ID, saída); `kd prime --long` traz o
+  protocolo completo + gramática TOON/schema. O `kd init` usa a versão compacta como prompt
+  inicial. Goldens `prime.txt`/`json_prime.json` regenerados (novo `prime_long.txt`).
 
 ## [0.3.3] - 2026-09-25
 

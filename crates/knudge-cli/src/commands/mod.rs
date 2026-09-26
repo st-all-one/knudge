@@ -4,6 +4,7 @@ pub mod ask;
 pub mod config_cmd;
 pub mod corpus;
 pub mod doctor;
+pub mod drain;
 pub mod embedder;
 pub mod forget_sync;
 pub mod gate;
@@ -34,11 +35,11 @@ use crate::session::Session;
 /// Propaga o erro do domínio; `strict` promove avisos a erro (D94).
 pub fn run(cli: &Cli) -> Result<Output> {
     match cli.command.as_ref() {
-        None => Ok(prime::run(prime::PrimeFormat::Short)),
+        None => Ok(prime::run(prime::PrimeFormat::Compact)),
         Some(Command::Prime(args)) => Ok(prime::run(if args.long {
             prime::PrimeFormat::Long
         } else {
-            prime::PrimeFormat::Short
+            prime::PrimeFormat::Compact
         })),
         Some(Command::SelfCmd {
             command: SelfCommand::Version,
@@ -75,6 +76,7 @@ fn dispatch(session: &Session, command: &Command) -> Result<Output> {
         Command::Knowledge { command } => knowledge::run(session, command),
         Command::Maintenance { command } => maintenance::run(session, command),
         Command::Doctor(args) => doctor::run(session, args),
+        Command::Drain(args) => drain::run(session, args),
         Command::Config { command } => config_cmd::run(session, command),
         Command::Forget(args) => forget_sync::forget(session, args),
         Command::Sync(args) => forget_sync::sync(session, args),
@@ -82,7 +84,7 @@ fn dispatch(session: &Session, command: &Command) -> Result<Output> {
         Command::Prime(args) => Ok(prime::run(if args.long {
             prime::PrimeFormat::Long
         } else {
-            prime::PrimeFormat::Short
+            prime::PrimeFormat::Compact
         })),
     }
 }

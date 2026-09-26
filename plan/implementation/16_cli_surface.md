@@ -29,7 +29,8 @@
 | `kd ask` | `recall`, `get`, `expand` | toda pesquisa |
 | `kd write` | `write`, `update`, `link` | toda escrita |
 | `kd task` | `epic`, grupos de tarefa | epic/issue/task |
-| `kd knowledge` | `clusters`, `digest` | mapa/digestão de conhecimento (D128/D145) |
+| `kd knowledge` | `clusters` | mapa/ranking/vocabulário de conhecimento (D128/D146) |
+| `kd drain` | — | fila de embeddings: status/digestão (D170) |
 | `kd doctor` | — | saúde do corpus: 13 checks + auditoria (`--fix`, `--explain`) — D163 |
 | `kd maintenance` | `compact`, `learn`, `prune`, `watch-service` | manutenção |
 | `kd config` | `config` | `.knudge/config.toml` |
@@ -113,12 +114,13 @@ aceita `-` (stdin) e pipe/heredoc sem posicional (`cat body.md | kd write --summ
 ## 5. `kd prime` — protocolo estático
 
 **Sempre a mesma resposta** para uma dada versão do binário (cacheável, byte-idêntico):
-tipos, tools, regras, orçamento, formato de saída. `kd` sem argumentos executa `kd prime`.
+tipos, tools, regras, orçamento, formato de saída. O default é **compacto** (D166);
+`--long` inclui a gramática TOON e o schema completo. `kd` sem argumentos executa `kd prime`.
 O corpo é organizado por **fluxo** — `CICLO` (ask→write→task→sync), `CONHECIMENTO`,
 `PESQUISA`, `TAREFAS` — e recomenda `--limit`/`--brief` para economizar contexto (D130).
 
 ```
-kd prime [--long]         # --long inclui a gramática TOON e o schema completo
+kd prime [--long]         # default compacto; --long inclui a gramática TOON e o schema completo
 ```
 
 ## 6. `kd rewind` — estado/handoff ponto-no-tempo
@@ -206,14 +208,13 @@ kd task plan <ID> [--prompt [--template <NOME>] | --submit --from <TXT|->]
   `task graph --program` imprime a **floresta** (ordem de `id`); `--root <ID>` rende uma árvore só;
   `programs.glob` define o que é um programa (D139).
 
-## 8. `kd knowledge` — mapa/digestão de conhecimento (D128/D145)
+## 8. `kd knowledge` — mapa/ranking/vocabulário de conhecimento (D128/D146)
 
 ```
 kd knowledge map [--axis <anchor|type|classification|scope>] [--scope <ESCOPO>]
                 [--semantic] [--members] [--write]
                 [--tag <T>...] [--anchor <PATH>...] [--type <T>...] [--class <C>...]
                 [--around <ID>] [--depth <N>] [--universe]
-kd knowledge digest [--status|--drain]   # fila de embeddings (ex-`maintenance index`, D145)
 kd knowledge rank [--tag ...] [--anchor ...] [--type ...] [--class ...]
                   [--around <ID>] [--depth <N>] [--universe] [--limit <N>]
 kd knowledge tags [--limit <N>]
@@ -246,13 +247,14 @@ kd maintenance prune [--scope <C>] [--tag ...|--anchor ...|--type ...|--class ..
 kd maintenance watch-service [--install|--subscribe|--unsubscribe|--status|--uninstall]
                              [--yes] [--dry-run] [--every 1h] [--port 8999]
                                           # gerencia o worker e o servidor de embeddings (systemd/launchd)
+kd drain [--status | --digest [--force]]   # fila de embeddings: estado rico e digestão (D170)
 ```
 
 - `audit` virou modo do `doctor` (relatório de integridade + arestas sugeridas).
 - `link` **não** mora aqui: virou `kd write --link`.
-- `index` é, por padrão, interno (worker); `kd knowledge digest --status`/`--drain` é diagnóstico. Com
-  `embeddings.mode=lazy` (default) o CLI ainda drena **um lote** ao fim de qualquer verbo
-  não-`maintenance` (auto-drain ocioso, D131); `manual` desliga esse caminho.
+- `index` é, por padrão, interno (worker); `kd drain --status`/`--digest` é o diagnóstico e a
+  digestão manual. Com `embeddings.mode=lazy` (default) o CLI ainda drena **um lote** ao fim de
+  qualquer verbo não-`maintenance`/`doctor`/`drain` (auto-drain ocioso, D131); `manual` desliga.
 - `prune` **só propõe** (`forget|id|motivo`); a aplicação é `kd forget` (D47/D112).
 - `watch-service` gerencia o worker **sem supply-chain**: o `knudge-idle.sh` é embutido no binário
   (`--script`/`--url` sobrescrevem). Ações (exclusivas; default `--status`): `--install` faz
@@ -338,7 +340,7 @@ strict = false   # true promove warnings (leitura, retrieval, embeddings) a erro
 | `plan` | `kd task` |
 | `doctor` / `doctor --audit` | `kd doctor` (auditoria é o padrão) |
 | `compact` / `learn` / `prune` | `kd maintenance …` |
-| `eval` / `index` | **removidos** — avaliação offline (`bench/`); fila é `kd knowledge digest` (D145) |
+| `eval` / `index` | **removidos** — avaliação offline (`bench/`); fila é `kd drain` (D170) |
 | `onboard` | `kd init` |
 | `setup` / `completions` / `upgrade` / `version` | `kd self …` |
 

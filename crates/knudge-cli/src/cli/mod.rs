@@ -1,14 +1,15 @@
 //! Argumentos e subcomandos do `kd` (superfície v2, ver `plan/implementation/16_cli_surface.md`).
 
+mod health;
 mod knowledge;
 mod maintenance;
 mod rewind;
 mod task;
 
+pub use health::{DoctorArgs, DrainArgs};
 pub use knowledge::{
-    KnowledgeCommand, KnowledgeDigestArgs, KnowledgeMapArgs, KnowledgeRankArgs,
-    KnowledgeSuggestArgs, KnowledgeTagsArgs, PromoteCommand, PromoteEditArgs, PromoteRecommendArgs,
-    PromoteTargetArgs,
+    KnowledgeCommand, KnowledgeMapArgs, KnowledgeRankArgs, KnowledgeSuggestArgs, KnowledgeTagsArgs,
+    PromoteCommand, PromoteEditArgs, PromoteRecommendArgs, PromoteTargetArgs,
 };
 pub use maintenance::{
     ConfigCommand, CorpusArgs, MaintenanceCommand, SelfCommand, WatchServiceArgs,
@@ -73,6 +74,8 @@ pub enum Command {
     },
     /// Saúde do corpus: 13 checks + auditoria, com reparo reversível (D163).
     Doctor(DoctorArgs),
+    /// Fila de embeddings: estado rico (`--status`) e digestão (`--digest`; D170).
+    Drain(DrainArgs),
     /// Configuração do projeto.
     Config {
         /// Subcomando de configuração.
@@ -106,6 +109,7 @@ impl Command {
             Self::Knowledge { .. } => "knowledge",
             Self::Maintenance { .. } => "maintenance",
             Self::Doctor(_) => "doctor",
+            Self::Drain(_) => "drain",
             Self::Config { .. } => "config",
             Self::Forget(_) => "forget",
             Self::Sync(_) => "sync",
@@ -132,18 +136,6 @@ pub struct PrimeArgs {
     /// Inclui a gramática TOON e o schema completo.
     #[arg(long)]
     pub long: bool,
-}
-
-/// Argumentos de `kd doctor`.
-#[allow(clippy::struct_excessive_bools, reason = "flags de CLI")]
-#[derive(Debug, Args)]
-pub struct DoctorArgs {
-    /// Corrige o que for reversível (idempotente).
-    #[arg(long)]
-    pub fix: bool,
-    /// Detalha cada achado (`esperado` × `encontrado` × `ação`).
-    #[arg(long)]
-    pub explain: bool,
 }
 
 /// Argumentos de `kd ask`.
