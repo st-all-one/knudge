@@ -21,7 +21,7 @@ const CLIENTS: [&str; 4] = ["claude", "cursor", "codex", "pi"];
 #[must_use]
 pub fn version() -> Output {
     Output::new(
-        format!("kd {VERSION}"),
+        format!("kd {VERSION}\najuda: kd help (ou `kd help <verbo>`); protocolo: kd prime"),
         json!({ "version": VERSION, "name": "knudge" }),
     )
 }
@@ -41,6 +41,8 @@ pub fn completions(shell: &str) -> Result<Output> {
             )));
         }
     };
+    let bytes = script.len();
+    tracing::info!(shell, bytes, "completions geradas");
     let data = json!({ "shell": shell, "script": &script });
     Ok(Output::new(script, data))
 }
@@ -86,7 +88,10 @@ fn setup_client(session: &Session, client: &str) -> Result<Output> {
     session.fs().write_atomic(&path, &bytes)?;
     let data = json!({ "client": client, "path": path });
     Ok(Output::new(
-        format!("recipe {client} gravada em {}", path.display()),
+        format!(
+            "recipe {client} gravada em {}\npróximos: aponte o cliente para `knudge-mcp` (stdio) e `AGENTS.md`",
+            path.display()
+        ),
         data,
     ))
 }

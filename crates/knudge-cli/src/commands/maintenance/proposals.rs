@@ -1,4 +1,7 @@
-//! Saída comum e portão de evidência de `learn`/`compact` (D156).
+//! Saída comum e portão de evidência de `learn`/`compact` (D156/D165).
+
+use std::collections::BTreeMap;
+use std::fmt::Write as _;
 
 use knudge_core::Result;
 use serde_json::json;
@@ -87,4 +90,35 @@ where
         })
         .collect();
     Output::new(text, json!({ "proposals": items })).with_warnings(warnings)
+}
+
+/// Contagem determinística por rótulo (ordem de `BTreeMap`).
+pub(super) fn count_kinds<T, F>(items: &[T], label: F) -> Vec<(&'static str, usize)>
+where
+    F: Fn(&T) -> &'static str,
+{
+    let mut counts: BTreeMap<&'static str, usize> = BTreeMap::new();
+    for item in items {
+        let entry = counts.entry(label(item)).or_insert(0);
+        *entry = entry.saturating_add(1);
+    }
+    counts.into_iter().collect()
+}
+
+/// Acrescenta a contagem por `kind` e o `próximos:` ao texto (D165); o JSON não muda.
+pub(super) fn annotate(mut output: Output, counts: &[(&'static str, usize)], next: &str) -> Output {
+    let summary = if counts.is_empty() {
+        "nenhuma".to_string()
+    } else {
+        counts
+            .iter()
+            .map(|(kind, total)| format!("{kind}={total}"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    if !output.text.is_empty() {
+        output.text.push('\n');
+    }
+    let _ignored = write!(output.text, "propostas: {summary}\npróximos: {next}");
+    output
 }

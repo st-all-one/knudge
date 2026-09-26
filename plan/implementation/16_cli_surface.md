@@ -22,7 +22,7 @@
 
 | Verbo | Absorve | Papel |
 |---|---|---|
-| `kd` (sem args) | = `kd prime` | protocolo estático |
+| `kd` (sem args) | = `kd help` (D171) | help completo, exit 0 |
 | `kd init` | `onboard` | funda `.knudge/` + prompt inicial |
 | `kd prime` | — | protocolo de uso, byte-idêntico |
 | `kd rewind` | `prime(scope)`, `get_context`, `diff` | estado/handoff ponto-no-tempo |
@@ -110,12 +110,15 @@ kd write --summary <TXT> [<BODY>|-]
 
 O **posicional é o corpo** (a verdade do knudge); a afirmação vai em `--summary` (D140). O corpo
 aceita `-` (stdin) e pipe/heredoc sem posicional (`cat body.md | kd write --summary S`).
+`--anchor` é a **única** grafia (o alias `--anchors` foi removido — D168); o canônico do corpo
+completo é `--full-content`.
 
 ## 5. `kd prime` — protocolo estático
 
 **Sempre a mesma resposta** para uma dada versão do binário (cacheável, byte-idêntico):
 tipos, tools, regras, orçamento, formato de saída. O default é **compacto** (D166);
-`--long` inclui a gramática TOON e o schema completo. `kd` sem argumentos executa `kd prime`.
+`--long` inclui a gramática TOON e o schema completo. `kd` sozinho mostra o **help** (D171);
+`prime` é sempre explícito.
 O corpo é organizado por **fluxo** — `CICLO` (ask→write→task→sync), `CONHECIMENTO`,
 `PESQUISA`, `TAREFAS` — e recomenda `--limit`/`--brief` para economizar contexto (D130).
 
@@ -256,6 +259,8 @@ kd drain [--status | --digest [--force]]   # fila de embeddings: estado rico e d
   digestão manual. Com `embeddings.mode=lazy` (default) o CLI ainda drena **um lote** ao fim de
   qualquer verbo não-`maintenance`/`doctor`/`drain` (auto-drain ocioso, D131); `manual` desliga.
 - `prune` **só propõe** (`forget|id|motivo`); a aplicação é `kd forget` (D47/D112).
+- **Verbosidade (D165):** `compact`/`learn`/`prune` terminam com `propostas: <kind>=N` e
+  `próximos:` (aplicar via `kd write`/`kd forget`); `watch-service` termina com `próximos:`.
 - `watch-service` gerencia o worker **sem supply-chain**: o `knudge-idle.sh` é embutido no binário
   (`--script`/`--url` sobrescrevem). Ações (exclusivas; default `--status`): `--install` faz
   pré-flight (`kd`/`llama`/GGUF/projeto), instala o agendador — `systemd --user` (Linux) ou
@@ -317,6 +322,12 @@ kd self upgrade
 kd self version
 ```
 
+- **Verbosidade (D165):** `init` lista o que criou/alterou (`novo`/`atualizado`/`inalterado`) e
+  `próximos:`; `config` mostra `(projeto|global) — <path do arquivo>`; `sync` mostra
+  `<branch>: N arquivo(s) commitados (<hash curto>)` ou `nada a sincronizar`; `self version`
+  aponta o help; `self setup` lista o próximo passo; `self completions` mantém o **script puro**
+  no stdout (resumo só em stderr).
+
 ## 12. `strict` como config (D94)
 
 `strict` **não é flag nem subcomando**: é chave de projeto em `.knudge/config.toml`:
@@ -352,7 +363,7 @@ pré-`write` (quase-duplicados), pré-edição (`kd rewind --files` contínuo), 
 
 ## 15. Aceite
 
-- [x] `kd` sem argumentos == `kd prime`; `prime` byte-idêntico por versão (teste de golden).
+- [x] `kd` sem argumentos == `kd help`; `prime` byte-idêntico por versão (teste de golden).
 - [x] `ask` cobre recall/get/expand com um só envelope.
 - [x] `write` rejeita `task`/`container`; `--link` cobre arestas.
 - [x] `task` valida hierarquia fechada (profundidade ≤ 4, pai único, sem ciclo).

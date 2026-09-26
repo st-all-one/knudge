@@ -8,6 +8,7 @@ use clap::{Args, Subcommand, ValueEnum};
     reason = "variantes são argumentos de CLI derivados pelo clap, sem Box"
 )]
 #[derive(Debug, Subcommand)]
+#[command(arg_required_else_help = true)]
 pub enum TaskCommand {
     /// Cria uma tarefa.
     New(TaskNewArgs),
@@ -48,7 +49,6 @@ pub enum TaskCommand {
         /// Novas âncoras (repetível; aceita lista com vírgula). Substitui as existentes.
         #[arg(
             long = "anchor",
-            visible_alias = "anchors",
             value_name = "PATH",
             value_delimiter = ',',
             conflicts_with = "clear_anchors"
@@ -182,12 +182,7 @@ pub struct TaskNewArgs {
     #[arg(long, value_name = "NOME")]
     pub checks: Vec<String>,
     /// Âncoras (repetível; aceita lista com vírgula: `--anchor a,b`).
-    #[arg(
-        long = "anchor",
-        visible_alias = "anchors",
-        value_name = "PATH",
-        value_delimiter = ','
-    )]
+    #[arg(long = "anchor", value_name = "PATH", value_delimiter = ',')]
     pub anchors: Vec<String>,
     /// Tags declaradas (repetível).
     #[arg(long, value_name = "TAG")]

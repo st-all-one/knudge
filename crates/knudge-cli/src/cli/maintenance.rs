@@ -4,6 +4,7 @@ use clap::{Args, Subcommand};
 
 /// Subcomandos de manutenção.
 #[derive(Debug, Subcommand)]
+#[command(arg_required_else_help = true)]
 pub enum MaintenanceCommand {
     /// Propõe consolidação (merge/supersede), nunca em silêncio.
     Compact {
@@ -119,6 +120,7 @@ pub struct CorpusArgs {
 
 /// Subcomandos de `kd config`.
 #[derive(Debug, Subcommand)]
+#[command(arg_required_else_help = true)]
 pub enum ConfigCommand {
     /// Lê uma chave.
     Get {
@@ -160,6 +162,7 @@ pub enum ConfigCommand {
 
 /// Subcomandos de `kd self`.
 #[derive(Debug, Subcommand)]
+#[command(arg_required_else_help = true)]
 pub enum SelfCommand {
     /// Instala a recipe de um cliente (`claude`/`cursor`/`codex`/`pi`).
     Setup {

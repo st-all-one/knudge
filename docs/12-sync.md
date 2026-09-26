@@ -53,7 +53,7 @@ inferência**:
 
 ```bash
 git pull
-kd knowledge digest --drain    # reindexa do cache, zero inferência
+kd drain --digest    # reindexa do cache, zero inferência
 ```
 
 Conflito de nota (mesma `statement`, corpos divergentes): o git deixa marcadores; o TOON não
@@ -71,7 +71,7 @@ o knudge **nunca** auto-mergeia um derivado. Ver [Conceitos §9](01-conceitos.md
 - **Use** ao fim de uma sessão de escrita, ou quando quiser um ponto de retorno.
 - **Não use** para sincronizar o índice — ele é derivado; cada clone reconstrói.
 - Para ver o que está pendente antes de commitar, use `git status` e
-  [`kd maintenance doctor`](09-maintenance.md).
+  [`kd doctor`](09-maintenance.md).
 
 ## Próximo passo
 

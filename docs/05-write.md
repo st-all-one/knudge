@@ -129,7 +129,7 @@ O schema do lote é o **canônico** (`statement`, `body`, `type`, `tags`, `ancho
 | `--summary <TXT>` | Afirmação (chave TOON `statement`) |
 | `--type <TIPO>` | Espécie (default `fact`; `task` é rejeitado) |
 | `--tag <T>` | Tag (repetível) |
-| `--anchor <PATH>` | Âncora (repetível; aceita vírgula; alias `--anchors`) |
+| `--anchor <PATH>` | Âncora (repetível; aceita vírgula) |
 | `--clear-anchors` | Com `--update`, limpa todas as âncoras (conflita com `--anchor`) |
 | `--class <CLASSE>` | `foundational`/`tactical`/`observational` |
 | `--status <STATUS>` | Status inicial |

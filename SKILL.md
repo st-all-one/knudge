@@ -32,7 +32,7 @@ kd ask → kd write → kd task → kd sync
 ```
 
 **Sempre busque antes de gravar** — o `write` faz dedup (0.75/0.92). O `prime` é o protocolo
-estático (byte-idêntico): `kd` sem argumentos = `kd prime`.
+estático (byte-idêntico): `kd` sozinho = `kd help`; o protocolo é `kd prime`.
 
 ### Capacidades-chave
 
@@ -70,7 +70,7 @@ estático (byte-idêntico): `kd` sem argumentos = `kd prime`.
 | WBS | `kd task graph [--program plan/<slug>.md\|--root ID]` |
 | Handoff | `kd rewind [--scope C] [--files PATH...] [--budget N]` |
 | Mapa de conhecimento | `kd knowledge map --universe [--axis A] [--semantic] [--members] [--write]` |
-| Manutenção | `kd maintenance doctor [--audit]` |
+| Manutenção | `kd doctor [--fix] [--explain]` |
 | Esquecer (soft) | `kd forget --id <ID>` (`--restore`, `--purge [--force]`) |
 | Commit | `kd sync` |
 
@@ -86,8 +86,8 @@ que já sei sobre `src/gateway.rs`” mesmo sem query textual.
 - **Glob casa subárvores:** `--anchor src/gateway/**`.
 - **Busca por âncora (sem query):** `kd ask --anchor src/gateway.rs`.
 - **NÃO ancore** nota de conceito global (sem arquivo) nem path que ainda não existe.
-- **Manutenção:** `kd maintenance doctor --audit` lista âncoras quebradas (arquivo removido).
-- **Alias:** `--anchors` (plural) continua aceito em `write`/`task new`.
+- **Manutenção:** `kd doctor` lista âncoras quebradas (arquivo removido).
+- **Âncora:** `--anchor` é a única grafia (o plural `--anchors` foi removido — D168).
 
 ---
 
@@ -167,11 +167,11 @@ kd rewind --resume <context_id>         # retoma 1:1
 ### Auditar / manter
 
 ```bash
-kd maintenance doctor --audit           # integridade + arestas sugeridas
+kd doctor           # integridade + arestas sugeridas
 kd maintenance learn --universe         # o que deveria virar nota? (exige escopo)
 kd knowledge map --axis scope --semantic --universe
 kd maintenance prune --universe         # propõe forget por shelf-life (exige escopo)
-kd knowledge digest --status           # fila de embeddings (pending) por projeto
+kd drain --status           # fila de embeddings (pending) por projeto
 kd maintenance watch-service --status   # saúde do worker de auto-drain (systemd/launchd)
 ```
 

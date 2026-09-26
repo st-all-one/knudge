@@ -28,6 +28,22 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   (ciclo, guia dos verbos essenciais, âncoras, corpo, ID, saída); `kd prime --long` traz o
   protocolo completo + gramática TOON/schema. O `kd init` usa a versão compacta como prompt
   inicial. Goldens `prime.txt`/`json_prime.json` regenerados (novo `prime_long.txt`).
+- **Verbosidade explícita (D165).** `kd init` lista a estrutura e os arquivos com
+  `novo`/`atualizado`/`inalterado` + `próximos:`; `kd config` mostra `(projeto|global) — <path>`;
+  `kd sync` mostra `<branch>: N arquivo(s) commitados (<hash>)` ou `nada a sincronizar`;
+  `kd self version` aponta o help e `setup` lista o próximo passo (`completions` mantém o script
+  puro no stdout); `compact`/`learn`/`prune`/`watch-service` terminam com `propostas:`/`próximos:`.
+  O `init` tem golden regenerado.
+- **`kd` sozinho = `kd help` (D171).** Sem verbo, o `kd` imprime o help completo (`== kd --help`,
+  exit 0); `--json` sem verbo é `invalid_input` (2) — não há envelope sem comando. `kd <verbo>`
+  sem argumentos mostra o help do verbo (exit 0); `kd help`/`kd help <verbo>` funcionam; `kd ask`
+  vazio segue exit 2 (D130), agora com o help completo. `after_help` global com ciclo/âncoras/corpo.
+- **Redundância removida (D168).** O alias `--anchors` sai de `write`, `task new`/`task list`
+  (`--anchor` é a única grafia); `--with-body` permanece só como chave JSON de `--params`
+  (documentada). Testes de regressão garantem exit 2 para o alias removido.
+- **Documentação sincronizada (D169).** `AGENTS.md`, `docs/*`, `SKILL.md`, `llms.txt`, `README.md`,
+  `DIVERGENCES.md` e os templates embutidos (`agent_md.rs`/`skill.rs`) refletem `kd doctor`,
+  `kd drain`, `kd` sozinho = `kd help`, `--anchor` canônico (sem `--anchors`) e a verbosidade.
 
 ## [0.3.3] - 2026-09-25
 

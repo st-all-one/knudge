@@ -4,6 +4,7 @@ use clap::{Args, Subcommand};
 
 /// Subcomandos de conhecimento.
 #[derive(Debug, Subcommand)]
+#[command(arg_required_else_help = true)]
 pub enum KnowledgeCommand {
     /// Mapa de conhecimento: clusters por eixo estrutural (fase 1) e, com `--semantic`,
     /// semântico (fase 2).
@@ -24,6 +25,7 @@ pub enum KnowledgeCommand {
 
 /// Subcomandos de `kd knowledge promote` (D157).
 #[derive(Debug, Subcommand)]
+#[command(arg_required_else_help = true)]
 pub enum PromoteCommand {
     /// Recomenda candidatas a regra (read-only).
     Recommend(PromoteRecommendArgs),

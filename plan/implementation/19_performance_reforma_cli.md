@@ -171,12 +171,12 @@ Fecho: T19 (docs/goldens/matriz/CHANGELOG)
 - **Aceite:** goldens `prime.txt`/`json_prime.json` regenerados com intenção; `kd prime`
   byte-idêntico; `kd` sozinho = `kd help` (D171).
 
-### E15-T16 ☐ Fase 4 — verbosidade (D165)
+### E15-T16 ☑ Fase 4 — verbosidade (D165)
 - **Escopo:** `init`/`self`/`config`/`sync`/`maintenance` explícitos (o que fizeram) e
   `maintenance` com `próximos:`; logs `info` via porta `Logger`, stdout=dados.
 - **Aceite:** testes de saída ajustados; `--json 2>/dev/null` continua JSON válido.
 
-### E15-T17 ☐ Fase 5 — help embutido + `kd` = `help` (D167/D171)
+### E15-T17 ☑ Fase 5 — help embutido + `kd` = `help` (D167/D171)
 - **Escopo:** `arg_required_else_help` + `long_about`/`after_help` por verbo com exemplos,
   “quando NÃO usar” e escopo explícito (`--universe`); `kd` sozinho imprime o help (D171) e
   `--json` sem verbo é `invalid_input` (2).
@@ -184,12 +184,12 @@ Fecho: T19 (docs/goldens/matriz/CHANGELOG)
   <verbo>` funciona; `ask` vazio mantém exit 2 (D130) com texto de ajuda; `json_prime` em
   `--json prime`.
 
-### E15-T18 ☐ Fase 6 — redundância (D168)
+### E15-T18 ☑ Fase 6 — redundância (D168)
 - **Escopo:** remover `visible_alias="anchors"` e aliases residuais de `body`; um vocabulário por
   conceito; corpo documentado num só lugar.
 - **Aceite:** testes de regressão para cada alias removido (exit 2).
 
-### E15-T19 ☐ Fase 7 — documentação (D169)
+### E15-T19 ☑ Fase 7 — documentação (D169)
 - **Escopo:** `16_cli_surface.md`, `17_matriz_aceitacao.md`, `docs/*`, `SKILL.md`, `AGENTS.md`,
   `llms.txt`, `README.md`, `CHANGELOG.md`, `MODULE.md`.
 - **Aceite:** grep por `maintenance doctor`, `--audit`, `knowledge digest`, `--re-digest`, `kd`

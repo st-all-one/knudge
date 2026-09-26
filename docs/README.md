@@ -19,7 +19,7 @@ para **usar** o knudge no dia a dia; a referência interna do código fica em
 | [`kd ask`](04-ask.md) | Toda a **pesquisa**: recall, get e expand |
 | [`kd write`](05-write.md) | Toda a **escrita**: create, update e arestas |
 | [`kd task`](06-task.md) | Planejar e executar trabalho (épico → issue → tarefa) |
-| [`kd knowledge`](07-knowledge.md) | Mapa, ranking, tags e digestão |
+| [`kd knowledge`](07-knowledge.md) | Mapa, ranking e tags |
 | [`kd rewind`](08-rewind.md) | Estado/handoff ponto-no-tempo |
 | [`kd maintenance`](09-maintenance.md) | Saúde, propostas e worker de embeddings |
 | [`kd config`](10-config.md) | Configuração em dois níveis |
@@ -55,4 +55,4 @@ cria, `0.75–0.92` faz merge, `≥ 0.92` rejeita.
 - **Posicional = conteúdo:** em `write`/`task new` é o **corpo**; em `ask` é a **consulta**.
   `-` lê de stdin; sem posicional com stdin não-TTY, também lê de stdin (heredoc/pipe).
 - **`--params '<json>'`** envia o objeto completo de uma vez (`-` lê de stdin).
-- **`kd` sem argumentos = `kd prime`.**
+- **`kd` sozinho = `kd help`; protocolo: `kd prime`.**

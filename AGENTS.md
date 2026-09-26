@@ -159,7 +159,7 @@ módulos. Onde mexer:
 - **Golden** para contrato de bytes (TOON, hash, exit codes, mensagens de erro).
 - **Poison** de mutex em teste: `catch_unwind(AssertUnwindSafe(...))` +
   `resume_unwind(Box::new("..."))` — **não** use `panic!`.
-- **Integração do binário:** cubra `--help`, `kd == kd prime`, `--json` válido, exit codes e
+- **Integração do binário:** cubra `--help`, `kd == kd help`, `--json` válido, exit codes e
   **EPIPE → 0**. Use `env!("CARGO_BIN_EXE_kd")`.
 - Bug encontrado ⇒ adicione o **teste de regressão** que o pega (ex.: whitespace Unicode no TOON)
   antes de fechar.
@@ -220,5 +220,5 @@ Antes de implementar:
 3. `kd write "<afirmação>"` — registre cada aprendizado (uma afirmação por nota).
 4. `kd rewind` — situe a próxima sessão ao encerrar.
 
-Config: `.knudge/config.toml`. Diagnóstico: `kd maintenance doctor`.
+Config: `.knudge/config.toml`. Diagnóstico: `kd doctor`.
 <!-- knudge:end -->

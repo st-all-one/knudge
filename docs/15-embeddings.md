@@ -55,7 +55,7 @@ kd config set --key embeddings.model --value ibm-granite/granite-embedding-97m-m
 kd config set --key embeddings.dimensions --value 384
 kd config set --key embeddings.endpoint --value http://127.0.0.1:8084/v1/embeddings
 
-kd knowledge digest --drain
+kd drain --digest
 ```
 
 > ⚠️ O `-ub` (µbatch físico) do `llama.cpp` é **512** por default e o `/v1/embeddings` rejeita a
@@ -65,14 +65,14 @@ kd knowledge digest --drain
 ## Nível 2 — fila e modos
 
 Notas novas ficam `pending`; com `embeddings.mode=lazy` (default), o CLI drena **um lote** ao fim
-de cada comando (auto-drain ocioso). O `kd knowledge digest --drain` esvazia o resto.
+de cada comando (auto-drain ocioso). O `kd drain --digest` esvazia o resto.
 
 ```bash
-kd knowledge digest --status     # estado da fila (pending)
-kd knowledge digest --drain      # drena um lote agora (repita para mais)
+kd drain --status     # estado da fila (pending)
+kd drain --digest      # drena um lote agora (repita para mais)
 ```
 
-`mode=manual` só drena sob `--drain` explícito. Para desligar o canal:
+`mode=manual` só drena sob `--digest` explícito. Para desligar o canal:
 
 ```bash
 kd config set --key recall.semantic --value false
@@ -92,7 +92,7 @@ o mesmo modelo reconstrói o índice de notas + cache **sem chamar o modelo**:
 
 ```bash
 git pull                       # notas/ + eventos/ + .knudge/emb_cache.jsonl (union)
-kd knowledge digest --drain    # reindexa do cache, zero inferência
+kd drain --digest    # reindexa do cache, zero inferência
 ```
 
 A chave lógica é `(body_hash, model)`: entradas de outro modelo são ignoradas no *lookup* (rede de
@@ -138,7 +138,7 @@ kd maintenance watch-service --uninstall    # remove agendador + servidor
 | `indexed=0` no drain | `-ub` default (512) | Suba o llama com `-ub 2048` |
 | `warnings[]` "provedor inalcançável" | servidor fora do ar | `kd maintenance watch-service --status`; suba o servidor |
 | Notas longas presas em `pending` | `-ub` pequeno ou nota grande | Reinicie com `-b 2048 -ub 2048` |
-| `Connection refused` no `--drain` | nenhum servidor no endpoint | Configure/instale o servidor persistente |
+| `Connection refused` no `--digest` | nenhum servidor no endpoint | Configure/instale o servidor persistente |
 
 Se um provedor cair no meio do drain, o knudge **não** trava a fila: mantém as notas `pending` e
 emite **um** warning.

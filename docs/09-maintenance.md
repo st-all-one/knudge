@@ -1,12 +1,12 @@
-# `kd maintenance` — saúde, propostas e worker
+# `kd doctor` e `kd maintenance` — saúde, propostas e worker
 
 ## O que faz
 
-Reúne a **manutenção** do corpus e o **worker de embeddings**:
+`kd doctor` (verbo de topo) é a **saúde**: 13 checks + auditoria, com `--fix` e `--explain` (D163).
+`kd maintenance` reúne as **propostas** e o **worker de embeddings**:
 
 | Subcomando | O que dá |
 |---|---|
-| `doctor` | Relatório de saúde (e reparo reversível com `--fix`); `--audit` foca integridade |
 | `compact` | **Propõe** merge/supersede de quase-duplicatas |
 | `learn` | **Sugere** notas/links/merges a partir de eventos e âncoras |
 | `prune` | **Propõe** aposentadoria (`forget`) por shelf-life/decay |
@@ -18,17 +18,17 @@ muda sem o seu aceite.
 ## Em 30 segundos
 
 ```bash
-kd maintenance doctor                  # como está a saúde?
-kd maintenance doctor --fix            # repara o reversível
+kd doctor                  # como está a saúde?
+kd doctor --fix            # repara o reversível
 kd maintenance learn --universe        # o que merece virar nota?
 ```
 
-## `maintenance doctor`
+## `kd doctor`
 
 ### Nível 1 — relatório
 
 ```bash
-kd maintenance doctor
+kd doctor
 ```
 
 Uma linha por check:
@@ -48,7 +48,7 @@ importado costuma não ter o programa externo.
 ### Nível 2 — reparar
 
 ```bash
-kd maintenance doctor --fix
+kd doctor --fix
 ```
 
 Repara o **reversível**: migra layout plano legado (`notas/<id>.md` → `notas/<tipo>/<id>.md`),
@@ -57,16 +57,18 @@ do schema (`confidence`/`expires_at`/`not_before`), recalcula `body_hash`, remov
 quebradas (inclusive diretórios) e locks stale, e reconstrói o índice divergente. É
 **idempotente** e nunca apaga notas.
 
-### Nível 3 — auditoria
+### Nível 3 — detalhes dos achados
 
 ```bash
-kd maintenance doctor --audit
+kd doctor --explain
 ```
 
-Foca integridade de grafo/arestas: âncoras quebradas, ciclos de dependência, duplicatas,
-supersessão e arestas sugeridas. O `--json` traz os **detalhes** (ids/pares): `duplicate_pairs`,
-`broken_anchor_details`, `missing_edge_details`, `stale_lock_details`, `integrity_issues` e os
-ciclos — para agir sem rodar `compact`/`audit` à parte.
+A auditoria é **sempre** incluída (D163): integridade de grafo/arestas — âncoras quebradas,
+ciclos de dependência, duplicatas, supersessão e arestas sugeridas. O `--json` traz os
+**detalhes** (ids/pares): `duplicate_pairs`, `broken_anchor_details`, `missing_edge_details`,
+`stale_lock_details`, `integrity_issues` e os ciclos — para agir sem rodar nada à parte. Com
+`--explain`, cada achado mostra `esperado` × `encontrado` × `ação`; `--fix` re-audita e lista o
+residual.
 
 ## `maintenance compact`
 
@@ -114,22 +116,23 @@ kd maintenance watch-service --uninstall      # remove agendador + servidor
 - `--install` **baixa `llama.cpp` e o GGUF se faltarem** (script oficial + fallback para
   `brew`/`winget`/`scoop`/`choco`/`apt`/`dnf`/`pacman`/`zypper`); `--no-deps` pula.
 - O servidor sobe como unidade/agente próprio (`knudge-embed`), com `-b 2048 -ub 2048` — o
-  `--drain` manual e o auto-drain ocioso sempre o encontram.
+  `kd drain --digest` manual e o auto-drain ocioso sempre o encontram.
 - Sem `systemd`/`launchd`, o comando recusa o `--install` e imprime a linha de cron equivalente.
 - Ações que mudam perguntam no stderr (`s/N`); `--yes` pula; stdin não-TTY cancela.
 
 ## Referência de flags
 
-| Subcomando | Flags |
+| Comando | Flags |
 |---|---|
-| `doctor` | `--fix`, `--audit` |
+| `kd doctor` (topo) | `--fix`, `--explain` |
 | `compact`/`learn`/`prune` | `--scope`, `--type`/`--class`/`--tag`/`--anchor`, `--around`/`--depth`, `--universe` (escopo obrigatório) |
 | `prune` | + `--dry-run` (paridade; já é read-only) |
 | `watch-service` | `--install`/`--subscribe`/`--unsubscribe`/`--status`/`--uninstall`, `--yes`, `--dry-run`, `--every`, `--port`, `--model`, `--no-deps`, `--script`, `--url` |
 
 ## Resultados
 
-- `doctor` — `{checks[], healthy, fixed[]}`; cada check tem `ok`/`warn`; texto `ok|warn|fail <check> <msg>`.
+- `kd doctor` — `{checks[], healthy, degraded, status, fixed[], audit{...}, suggestions[]}`; cada
+  check tem `ok`/`warn`/`fail`; texto `ok|warn|fail <check> <msg>` + `auditoria:` + `próximos:`.
 - `compact`/`learn`/`prune` — `{proposals[]}`; texto pipe por linha.
 - `watch-service` — `{action, done, script}` ou `{dry_run, action, source, reference, command}`.
 - `compact`/`learn`/`prune` sem escopo → exit 2.
@@ -139,7 +142,7 @@ kd maintenance watch-service --uninstall      # remove agendador + servidor
 - **Use** periodicamente: `doctor` para saúde, `learn`/`prune` para revisar, `compact` para
   duplicatas.
 - **Não use** esperando que algo seja aplicado sozinho: `compact`/`learn`/`prune` **só propõem**.
-- Para a fila de embeddings, prefira [`kd knowledge digest`](07-knowledge.md).
+- Para a fila de embeddings, prefira [`kd drain`](07-knowledge.md).
 
 ## Próximo passo
 
@@ -154,7 +157,7 @@ no `write` e **bloqueia** a gravação quando reprova (exit 4).
 
 ## Check `body` e gate de corpo (D162)
 
-O `doctor` ganhou o check **advisório** `body`: conta notas de conhecimento ativas **sem corpo**
+O `kd doctor` ganhou o check **advisório** `body`: conta notas de conhecimento ativas **sem corpo**
 e **sem lastro** (sem corpo **e** sem `outcome` **e** sem âncora). Como é advisório, não deixa o
 corpus `unhealthy` — aparece em `warnings`/`--json`.
 

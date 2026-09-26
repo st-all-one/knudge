@@ -49,7 +49,7 @@ kd maintenance watch-service --status
 ```
 
 **Sempre busque antes de gravar** — o `write` faz dedup (`< 0.75` cria, `0.75–0.92` merge,
-`≥ 0.92` rejeita). `kd` sozinho = `kd prime`, o protocolo estático (o "help da IA").
+`≥ 0.92` rejeita). `kd` sozinho = `kd help`; o protocolo estático (o "help da IA") é `kd prime`.
 
 ## Comandos principais
 
@@ -62,7 +62,7 @@ kd maintenance watch-service --status
 | **`kd knowledge`** | `map` de clusters (`--semantic`, `--write` materializa `notas/MAP.md` + hubs), `rank` (mais confiáveis) e `tags`; `map`/`rank` exigem escopo ou `--universe`. |
 | `kd rewind` | Handoff de contexto com orçamento de tokens. |
 | `kd forget` · `kd sync` | Soft-delete e commit de `notas/` + `eventos/`. |
-| `kd maintenance doctor --audit` | Saúde, integridade e âncoras quebradas. |
+| `kd doctor` | Saúde, integridade e âncoras quebradas. |
 
 ## MCP
 

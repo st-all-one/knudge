@@ -11,7 +11,7 @@ use knudge_core::store::Note;
 use knudge_core::{Error, Result};
 use serde_json::json;
 
-use crate::cli::AskArgs;
+use crate::cli::{AskArgs, subcommand_help};
 use crate::commands::input;
 use crate::output::Output;
 use crate::session::Session;
@@ -20,17 +20,6 @@ mod query;
 mod render;
 
 use query::recall_query;
-
-/// Uso resumido quando nenhum modo de busca é selecionado (token-optimized).
-const ASK_USAGE: &str = "\
-nenhum modo de busca: informe uma QUERY ou um modo.
-  kd ask <QUERY> [--type T] [--class C] [--tag T] [--status S] [--scope ID]
-                 [--anchor PATH] [--since TS] [--until TS] [--limit N]
-                 [--brief] [--full-content] [--with-task]
-  kd ask --id <ID>...                              # corpos por id
-  kd ask --around <ID> [--via ARESTA] [--depth N]  # expande o grafo
-  kd ask --anchor <PATH>                           # por âncora, sem query
-veja: kd ask --help";
 
 /// Executa `kd ask` no modo adequado (get > expand > recall).
 ///
@@ -56,7 +45,7 @@ pub fn run(session: &Session, args: &AskArgs) -> Result<Output> {
         return expand(session, args, around);
     }
     if args.query.is_empty() && args.anchor.is_empty() {
-        return Err(Error::invalid_input(ASK_USAGE));
+        return Err(Error::invalid_input(subcommand_help("ask")));
     }
     recall_query(session, args)
 }

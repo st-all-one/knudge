@@ -34,7 +34,7 @@ pub fn protocol_block() -> String {
          3. `kd write \"<afirmação>\"` — registre cada aprendizado (uma afirmação por nota).\n\
          4. `kd rewind` — situe a próxima sessão ao encerrar.\n\
          \n\
-         Config: `.knudge/config.toml`. Diagnóstico: `kd maintenance doctor`.\n\
+         Config: `.knudge/config.toml`. Diagnóstico: `kd doctor`.\n\
          {MARKER_END}\n"
     )
 }

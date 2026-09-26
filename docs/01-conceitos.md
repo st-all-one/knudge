@@ -24,7 +24,7 @@ de uma busca é `id|statement|score|why`, uma linha por hit.
 | `.knudge/config.toml` | Config efetiva do projeto (precedência sobre a global). | Formato fixo |
 
 **Regra de ouro:** `notas/` + `eventos/` sempre reconstroem o `.idx/` do zero. O índice **nunca**
-é fonte da verdade; se ele divergir, `kd maintenance doctor --fix` reconstrói.
+é fonte da verdade; se ele divergir, `kd doctor --fix` reconstrói.
 
 ## 3. A nota (TOON)
 

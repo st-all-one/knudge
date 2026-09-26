@@ -7,13 +7,14 @@
 
 Coisas para lembrar ao usar o knudge:
 
-- **`kd` sem argumentos == `kd prime`** — o protocolo estático (byte-idêntico por versão) que
-  ensina o ciclo `ask → write → task → sync`. `kd prime --long` anexa a gramática TOON + schema.
+- **`kd` sozinho == `kd help`** — o help completo. O protocolo estático (byte-idêntico por
+  versão) que ensina o ciclo `ask → write → task → sync` é `kd prime`; `kd prime --long` anexa a
+  gramática TOON + schema.
 - **Sempre busque antes de gravar:** `kd ask "<rascunho>"`; score `< 0.75` cria, `0.75–0.92` faz
   merge, `≥ 0.92` rejeita (dedup lexical).
 - **Âncoras (`--anchor PATH`) ligam a nota ao código** — repetível e com vírgula; glob (`src/**`)
-  casa subárvores; `kd ask --anchor PATH` busca sem query textual; `doctor --audit` lista âncoras
-  quebradas. Use em toda nota/tarefa que fala de arquivo; `--anchors` também é aceito.
+  casa subárvores; `kd ask --anchor PATH` busca sem query textual; `doctor` lista âncoras
+  quebradas. Use em toda nota/tarefa que fala de arquivo.
 - **stdout = dados** (pipe/`--json`); **stderr = logs**. Em `--json`, stdout é **só** o envelope
   `{success, command, data?, error?, warnings?}` — nenhum log vaza. EPIPE → exit 0 (D73).
 - **Exit codes** (contrato): `2` invalid, `3` not_found, `4` conflict, `5` io, `6` timeout,
@@ -63,7 +64,8 @@ Coisas para lembrar ao usar o knudge:
 - **`kd task`:** `new/list/show/update/close/graph/plan`; `--ready`/`--blocked`, `--sort impact`; rollup de progresso por épico (D127). `task update` aceita `--anchor` (substitui) e `--clear-anchors`; `task list --scope` aceita o nível (`epic|issue|task`) ou o id do container (`results_in`).
 - **`kd write`:** `--update` aceita `--params '<json>'` (patch: `type/statement/body/tags/anchors/classification/status/scope`) e `--clear-anchors`; `--anchor ""` é rejeitado (exit 2). **`kd forget`:** `--purge` exige retenção; `--purge --force` libera tombstone `forgotten`/`superseded`.
 - **`kd knowledge map|rank|tags|suggest|promote`** — `map [--axis ...] [--semantic] [--members] [--write]` com clusters estruturais + fase 2 complete-link (D128/D129); `--write` materializa `notas/MAP.md` + hubs versionados (D150); `rank`/`tags` são ex-`ask --rank`/`--tags` (D146); `suggest [--top-k N] [--relation R]` lista sugestões semânticas `duplicate`/`contradiction`/`link` (advisory, D158); `promote recommend|approve|edit|remove|list` governa regras no bloco `knudge:rules` do `AGENTS.md` (D157, desligado por default em `rules.enabled`). `map`/`rank` exigem escopo (`--tag/--anchor/--type/--class/--around`) ou `--universe` (D143).
-- **`kd maintenance`:** `doctor [--fix] [--audit]` · `compact [--verify]` · `learn [--verify]` · `prune` · `watch-service [--install|--subscribe|--unsubscribe|--status|--uninstall]` (compact/learn/prune só propõem; `--verify` anexa o portão de evidência read-only — D156; watch-service = worker de auto-drain + servidor persistente, systemd/launchd, multi-projeto). `program-anchor` é **warn** (não deixa `healthy=false`); o check `body` também é **warn** (notas sem corpo / sem lastro — D162); `doctor --audit --json` traz os detalhes (`duplicate_pairs`, `broken_anchor_details`, `missing_edge_details`, `stale_lock_details`, `integrity_issues`); dedup/`learn` de item com `scope` compara só o `statement`. A digestão da fila de embeddings é `kd knowledge digest [--status|--drain]` (ex-`maintenance index`); `maintenance eval` saiu — avaliação é offline em `bench/` (D145).
+- **`kd doctor`:** `[--fix] [--explain]` — 13 checks + auditoria (D163). `program-anchor` é **warn** (não deixa `healthy=false`); o check `body` também é **warn** (notas sem corpo / sem lastro — D162); `kd doctor --json` traz os detalhes (`duplicate_pairs`, `broken_anchor_details`, `missing_edge_details`, `stale_lock_details`, `integrity_issues`).
+- **`kd maintenance`:** `compact [--verify]` · `learn [--verify]` · `prune` · `watch-service [--install|--subscribe|--unsubscribe|--status|--uninstall]` (compact/learn/prune só propõem; `--verify` anexa o portão de evidência read-only — D156; dedup/`learn` de item com `scope` compara só o `statement`). A fila de embeddings é `kd drain [--status|--digest]` (D170); `maintenance eval` saiu — avaliação é offline em `bench/` (D145).
 - **`kd rewind`:** handoff ponto-no-tempo; orçamento `ceil(len/4)` tokens (default 4000); `--resume` retomável 1:1 (D88); filtros de corpus `--tag/--anchor/--type/--class/--around` escopam o handoff (D143); anexa o corpo de notas `foundational`/`decision` (D162).
 - **`kd self setup <claude|cursor|codex|pi>`**, `kd self completions <bash|zsh|fish>`.
 - **Config global** (template): `~/.config/local/knudge/config.toml` (Linux), `~/Library/Application Support/knudge/config.toml` (macOS), `%APPDATA%\knudge\config.toml` (Windows). **Projeto** (efetivo): `.knudge/config.toml`.

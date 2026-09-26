@@ -84,10 +84,48 @@ fn help_exits_zero_and_mentions_usage() -> TestResult {
 }
 
 #[test]
-fn no_args_equals_prime() -> TestResult {
-    let bare = run(&[])?.stdout;
-    let prime = run(&["prime"])?.stdout;
-    assert_eq!(bare, prime, "`kd` deve ser idêntico a `kd prime`");
+fn no_args_shows_help() -> TestResult {
+    let bare = run(&[])?;
+    assert!(bare.status.success(), "`kd` sozinho deve ter exit 0");
+    let help = run(&["--help"])?.stdout;
+    assert_eq!(bare.stdout, help, "`kd` deve ser idêntico a `kd --help`");
+    Ok(())
+}
+
+#[test]
+fn json_without_verb_is_invalid_input() -> TestResult {
+    let out = run(&["--json"])?;
+    assert_eq!(out.status.code(), Some(2), "`--json` sem verbo é uso (2)");
+    let value = json(&out)?;
+    assert_eq!(value.get("success"), Some(&serde_json::Value::Bool(false)));
+    Ok(())
+}
+
+#[test]
+fn verb_without_args_shows_help() -> TestResult {
+    for verb in [
+        "task",
+        "knowledge",
+        "maintenance",
+        "config",
+        "self",
+        "drain",
+    ] {
+        let out = run(&[verb])?;
+        assert!(out.status.success(), "`kd {verb}` deve ter exit 0");
+        let text = String::from_utf8(out.stdout)?;
+        assert!(text.contains("Usage"), "`kd {verb}` sem help: {text}");
+    }
+    Ok(())
+}
+
+#[test]
+fn help_subcommand_lists_verbs() -> TestResult {
+    let out = run(&["help"])?;
+    assert!(out.status.success(), "`kd help` deve ter exit 0");
+    let text = String::from_utf8(out.stdout)?;
+    assert!(text.contains("Usage"), "help ausente: {text}");
+    assert!(text.contains("ask"), "verbo ausente: {text}");
     Ok(())
 }
 
@@ -101,7 +139,7 @@ fn prime_is_byte_identical_across_runs() -> TestResult {
 
 #[test]
 fn json_envelope_for_prime_is_valid() -> TestResult {
-    let out = run(&["--json"])?;
+    let out = run(&["--json", "prime"])?;
     assert!(out.status.success());
     let value = json(&out)?;
     assert_eq!(value.get("success"), Some(&serde_json::Value::Bool(true)));
@@ -676,7 +714,7 @@ fn task_list_filters_by_tag_anchor_and_since() -> TestResult {
             "task",
             "--tag",
             "retry",
-            "--anchors",
+            "--anchor",
             "src/retry.ts",
         ],
     )?;
@@ -691,7 +729,7 @@ fn task_list_filters_by_tag_anchor_and_since() -> TestResult {
             "task",
             "--tag",
             "storage",
-            "--anchors",
+            "--anchor",
             "src/storage.ts",
         ],
     )?;
@@ -1358,7 +1396,7 @@ fn task_graph_program_renders_subtree() -> TestResult {
             "Programa",
             "--scope",
             "epic",
-            "--anchors",
+            "--anchor",
             "plan/foo.md",
         ],
     )?;
@@ -1406,7 +1444,7 @@ fn task_graph_program_renders_forest_for_multiple_epics() -> TestResult {
             "Programa A",
             "--scope",
             "epic",
-            "--anchors",
+            "--anchor",
             "plan/foo.md",
         ],
     )?;
@@ -1419,7 +1457,7 @@ fn task_graph_program_renders_forest_for_multiple_epics() -> TestResult {
             "Programa B",
             "--scope",
             "epic",
-            "--anchors",
+            "--anchor",
             "plan/foo.md",
         ],
     )?;
@@ -1705,7 +1743,40 @@ fn ask_without_mode_returns_usage() -> TestResult {
     let out = run_in(&dir, &["ask"])?;
     assert_eq!(out.status.code(), Some(2), "ask vazio devia ser 2");
     let text = String::from_utf8(out.stderr)?;
-    assert!(text.contains("kd ask"), "uso ausente: {text}");
+    assert!(
+        text.contains("Usage") && text.contains("--around"),
+        "help do verbo ausente: {text}"
+    );
+    Ok(())
+}
+
+#[test]
+fn removed_anchors_alias_is_rejected() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let cases: [&[&str]; 3] = [
+        &["write", "--summary", "x", "--anchors", "src/a.rs"],
+        &[
+            "task",
+            "new",
+            "--summary",
+            "x",
+            "--scope",
+            "task",
+            "--anchors",
+            "src/a.rs",
+        ],
+        &["task", "list", "--universe", "--anchors", "src/a.rs"],
+    ];
+    for args in cases {
+        let out = run_in(&dir, args)?;
+        assert_eq!(
+            out.status.code(),
+            Some(2),
+            "alias removido deveria ser 2: {args:?}"
+        );
+    }
     Ok(())
 }
 
@@ -2005,48 +2076,57 @@ fn d147_params_universal() -> TestResult {
 }
 
 #[test]
-fn task_new_accepts_anchor_singular_and_plural() -> TestResult {
+fn task_new_accepts_anchor_and_rejects_plural_alias() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success());
-    // Canônico `--anchor` e alias `--anchors` produzem a mesma âncora.
-    let mut ids = Vec::new();
-    for (flag, statement) in [
-        ("--anchor", "Ajustar backoff (singular)"),
-        ("--anchors", "Ajustar backoff (plural)"),
-    ] {
-        let out = run_in(
-            &dir,
-            &[
-                "--json",
-                "task",
-                "new",
-                "--summary",
-                statement,
-                "--scope",
-                "task",
-                flag,
-                "src/retry.ts",
-            ],
-        )?;
-        assert!(
-            out.status.success(),
-            "task new {flag} falhou: {:?}",
-            out.stderr
-        );
-        let id = json(&out)?
-            .get("data")
-            .and_then(|data| data.get("id"))
-            .and_then(|id| id.as_str())
-            .ok_or("task sem id")?
-            .to_string();
-        ids.push(id);
-    }
+    let out = run_in(
+        &dir,
+        &[
+            "--json",
+            "task",
+            "new",
+            "--summary",
+            "Ajustar backoff",
+            "--scope",
+            "task",
+            "--anchor",
+            "src/retry.ts",
+        ],
+    )?;
+    assert!(
+        out.status.success(),
+        "task new --anchor falhou: {:?}",
+        out.stderr
+    );
+    let id = json(&out)?
+        .get("data")
+        .and_then(|data| data.get("id"))
+        .and_then(|id| id.as_str())
+        .ok_or("task sem id")?
+        .to_string();
     let list = run_in(&dir, &["task", "list", "--anchor", "src/retry.ts"])?;
     let text = String::from_utf8(list.stdout)?;
-    for id in ids {
-        assert!(text.contains(&id), "âncora não filtrou {id}: {text}");
-    }
+    assert!(text.contains(&id), "âncora não filtrou {id}: {text}");
+    // O plural é alias removido (D168): deve ser erro de uso (2).
+    let plural = run_in(
+        &dir,
+        &[
+            "task",
+            "new",
+            "--summary",
+            "x",
+            "--scope",
+            "task",
+            "--anchors",
+            "src/a.rs",
+        ],
+    )?;
+    assert_eq!(
+        plural.status.code(),
+        Some(2),
+        "alias `--anchors` deveria ser 2"
+    );
     Ok(())
 }
 
@@ -2397,7 +2477,7 @@ fn write_typed(
             statement,
             "--type",
             note_type,
-            "--anchors",
+            "--anchor",
             anchor,
         ],
     )?;
@@ -2429,7 +2509,7 @@ fn task_outcome_promotes_anchored_note_in_ask() -> TestResult {
             "implementar retry",
             "--scope",
             "task",
-            "--anchors",
+            "--anchor",
             "src/retry.ts",
         ],
     )?;
@@ -2479,7 +2559,7 @@ fn rewind_files_promotes_task_confirmed_note() -> TestResult {
             "implementar retry",
             "--scope",
             "task",
-            "--anchors",
+            "--anchor",
             "src/retry.ts",
         ],
     )?;

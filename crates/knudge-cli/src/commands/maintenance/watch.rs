@@ -172,7 +172,7 @@ fn plan(action: Action, source: &Source, worker: &[String]) -> Output {
     };
     let command = format!("bash {script} {}", worker.join(" "));
     Output::new(
-        format!("dry-run: {command}"),
+        format!("dry-run: {command}\npróximos: {}", next_step(action)),
         json!({
             "dry_run": true,
             "action": action.name(),
@@ -181,6 +181,16 @@ fn plan(action: Action, source: &Source, worker: &[String]) -> Output {
             "command": command,
         }),
     )
+}
+
+/// Passo seguinte sugerido por ação (D165).
+fn next_step(action: Action) -> &'static str {
+    match action {
+        Action::Install => "verifique com `kd maintenance watch-service --status`",
+        Action::Subscribe | Action::Unsubscribe => "confira com `--status`",
+        Action::Uninstall => "nada a fazer",
+        Action::Status => "`--install`/`--subscribe` são opcionais",
+    }
 }
 
 /// Pergunta sim/não em stderr (stdin não-TTY ou vazio ⇒ não).
@@ -267,7 +277,7 @@ fn run_worker(script: &Path, action: Action, worker: &[String]) -> Result<Output
         stdout.trim().to_string()
     };
     Ok(Output::new(
-        text,
+        format!("{text}\npróximos: {}", next_step(action)),
         json!({
             "action": action.name(),
             "done": true,

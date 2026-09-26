@@ -1,12 +1,14 @@
 //! Argumentos e subcomandos do `kd` (superfície v2, ver `plan/implementation/16_cli_surface.md`).
 
 mod health;
+mod help;
 mod knowledge;
 mod maintenance;
 mod rewind;
 mod task;
 
 pub use health::{DoctorArgs, DrainArgs};
+pub use help::{render_help, subcommand_help};
 pub use knowledge::{
     KnowledgeCommand, KnowledgeMapArgs, KnowledgeRankArgs, KnowledgeSuggestArgs, KnowledgeTagsArgs,
     PromoteCommand, PromoteEditArgs, PromoteRecommendArgs, PromoteTargetArgs,
@@ -25,7 +27,12 @@ use clap::{Args, Parser, Subcommand};
     reason = "flags de CLI; bools são o tipo natural"
 )]
 #[derive(Debug, Parser)]
-#[command(name = "kd", version, about = "knudge — memória otimizada para LLM")]
+#[command(
+    name = "kd",
+    version,
+    about = "knudge — memória otimizada para LLM",
+    after_help = help::AFTER_HELP
+)]
 pub struct Cli {
     /// Emite o resultado no envelope JSON (contrato de máquina).
     #[arg(long, global = true)]
@@ -36,7 +43,7 @@ pub struct Cli {
     /// Silencia o stderr.
     #[arg(long, global = true)]
     pub quiet: bool,
-    /// Subcomando; sem argumentos equivale a `prime`.
+    /// Subcomando; sem verbo o `kd` mostra o help (D171).
     #[command(subcommand)]
     pub command: Option<Command>,
 }
@@ -218,12 +225,7 @@ pub struct WriteArgs {
     #[arg(long = "tag", value_name = "TAG")]
     pub tags: Vec<String>,
     /// Âncoras (repetível; aceita lista com vírgula: `--anchor a,b`).
-    #[arg(
-        long = "anchor",
-        visible_alias = "anchors",
-        value_name = "PATH",
-        value_delimiter = ','
-    )]
+    #[arg(long = "anchor", value_name = "PATH", value_delimiter = ',')]
     pub anchors: Vec<String>,
     /// Limpa todas as âncoras (com `--update`).
     #[arg(long, conflicts_with = "anchors")]

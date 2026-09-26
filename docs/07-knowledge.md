@@ -1,4 +1,4 @@
-# `kd knowledge` — mapa, ranking, tags e digestão
+# `kd knowledge` — mapa, ranking e tags
 
 ## O que faz
 
@@ -7,12 +7,12 @@ Reúne as visões **agregadas** do corpus de conhecimento:
 | Subcomando | O que dá |
 |---|---|
 | `map` | Clusters por eixo (âncora, tipo, classificação, escopo) e, opcionalmente, semânticos |
-| `digest` | Estado/dreno da fila de embeddings (ex-`maintenance index`, D145) |
 | `rank` | As notas mais **confiáveis**, sem pergunta textual (ex-`ask --rank`, D146) |
 | `tags` | O vocabulário de tags (`tag\|count`) |
 
 `map` e `rank` **exigem escopo** (`--tag`/`--anchor`/`--type`/`--class`/`--around`) ou
-`--universe` (D143). `digest` e `tags` não são varredura de corpus.
+`--universe` (D143). `tags` não é varredura de corpus; a **fila de embeddings** é `kd drain`
+(top-level, D170).
 
 ## Em 30 segundos
 
@@ -20,7 +20,7 @@ Reúne as visões **agregadas** do corpus de conhecimento:
 kd knowledge map --universe --axis type     # panorama por tipo
 kd knowledge rank --universe --limit 10     # mais confiáveis
 kd knowledge tags                           # vocabulário de tags
-kd knowledge digest --status                # fila de embeddings
+kd drain --status                # fila de embeddings
 ```
 
 ## `knowledge map`
@@ -60,7 +60,7 @@ kd knowledge map --universe --semantic
 ```
 
 Roda o agrupamento semântico (complete-link) **dentro** de cada cluster estrutural. Requer
-embeddings ([`kd knowledge digest`](15-embeddings.md)); sem índice, degrada com `warnings[]`.
+embeddings ([`kd drain`](15-embeddings.md)); sem índice, degrada com `warnings[]`.
 
 ### Nível 4 — materializar o mapa (D150)
 
@@ -90,16 +90,18 @@ kd knowledge tags --limit 20
 
 Lista `tag|count` (count desc) — ajuda a escolher tags consistentes.
 
-## `knowledge digest`
+## Fila de embeddings — `kd drain`
+
+O estado/digestão da fila de embeddings é verbo de topo (D170):
 
 ```bash
-kd knowledge digest --status     # estado da fila (pending)
-kd knowledge digest --drain      # digere um lote agora (repita para mais)
+kd drain --status              # estado rico (provider/mode/dimensions, pending/stale)
+kd drain --digest             # digere lotes até esvaziar/estagnar
+kd drain --digest --force     # apaga `.idx/` (derivado) e redigeri tudo
 ```
 
-Digere o conteúdo num vetor (384d). `--status` é o default. Com `embeddings.mode=lazy`, o CLI já
-drena um lote ao fim de cada verbo; `--drain` esvazia o resto. Ver
-[Embeddings](15-embeddings.md).
+Com `embeddings.mode=lazy`, o CLI já drena um lote ao fim de cada verbo; `--digest` esvazia o
+resto. Ver [Embeddings](15-embeddings.md).
 
 ## Referência de flags
 
@@ -116,23 +118,21 @@ drena um lote ao fim de cada verbo; `--drain` esvazia o resto. Ver
 | `--around <ID>` `--depth <N>` | Vizinhança de uma nota |
 | `--universe` | Varredura explícita do projeto inteiro |
 
-### `rank` / `tags` / `digest`
+### `rank` / `tags`
 
 `rank`: mesmos filtros de corpus + `--universe` + `--limit`.
 `tags`: `--limit`.
-`digest`: `--status` (default) / `--drain`.
 
 ## Resultados
 
 - `map` — `{docs, clusters[], semantic[]}`; pipe `<axis>|<key>|<count>`.
 - `rank` — `{ranked[]}` com `id`/`statement`/`confidence`/`why`/`channels`.
 - `tags` — `{tags[]}`.
-- `digest` — `{pending}` ou `{enabled, indexed, pending, stale, cache_hits}`.
 
 ## Quando (não) usar
 
-- **Use** para panorama (`map`), priorização (`rank`), consistência de tags (`tags`) e fila de
-  embeddings (`digest`).
+- **Use** para panorama (`map`), priorização (`rank`) e consistência de tags (`tags`); a fila de
+  embeddings é [`kd drain`](15-embeddings.md).
 - **Não use** para achar **uma** nota (use [`kd ask`](04-ask.md)) nem para listar trabalho
   ([`kd task list`](06-task.md)).
 

@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Problemas comuns e como resolver. Se nada aqui ajudar, rode `kd maintenance doctor --audit` e leia
+Problemas comuns e como resolver. Se nada aqui ajudar, rode `kd doctor` e leia
 o [`plan/`](../plan/) — a referência interna é detalhada.
 
 ## Instalação e PATH
@@ -21,19 +21,19 @@ which kd knudge-mcp      # confirma o PATH
 
 | Sintoma | Causa | Ação |
 |---|---|---|
-| `nota ausente: <id>` | layout plano legado / id errado | `kd maintenance doctor --fix` |
-| `tipo desconhecido` | corpus legado (`type: container`) | `kd maintenance doctor --fix` |
-| `schema`/`body_hash` no doctor | nota editada à mão | `kd maintenance doctor --fix` |
-| Índice divergente | `.idx/` corrompido | `kd maintenance doctor --fix` (reconstrói) |
-| Conflito de merge | mesma `statement`, corpos divergentes | `kd maintenance doctor` aponta; resolva/supersede |
+| `nota ausente: <id>` | layout plano legado / id errado | `kd doctor --fix` |
+| `tipo desconhecido` | corpus legado (`type: container`) | `kd doctor --fix` |
+| `schema`/`body_hash` no doctor | nota editada à mão | `kd doctor --fix` |
+| Índice divergente | `.idx/` corrompido | `kd doctor --fix` (reconstrói) |
+| Conflito de merge | mesma `statement`, corpos divergentes | `kd doctor` aponta; resolva/supersede |
 
 **Notas são a verdade.** Nunca edite à mão um arquivo em `.knudge/notas/` — use `kd write`/
 `kd task`. O `doctor --fix` é reversível e **não apaga** notas.
 
 ```bash
-kd maintenance doctor          # o que está errado?
-kd maintenance doctor --fix    # repara o reversível
-kd maintenance doctor --audit  # integridade de grafo/arestas
+kd doctor          # o que está errado?
+kd doctor --fix    # repara o reversível
+kd doctor  # integridade de grafo/arestas
 ```
 
 ## Busca (`kd ask`)
@@ -69,8 +69,8 @@ Ver a seção de [solução de problemas](15-embeddings.md#solução-de-problema
 
 ```bash
 kd maintenance watch-service --status   # agendador/servidor/fila
-kd knowledge digest --status            # fila pending
-kd knowledge digest --drain             # tenta de novo
+kd drain --status            # fila pending
+kd drain --digest             # tenta de novo
 kd config set --key recall.semantic --value false   # desliga o canal
 ```
 
@@ -106,7 +106,7 @@ kd config set --key recall.semantic --value false   # desliga o canal
 
 ```bash
 kd prime                       # releia o protocolo
-kd maintenance doctor --audit  # integridade
+kd doctor  # integridade
 kd rewind --budget 2000        # onde eu estava?
 ```
 

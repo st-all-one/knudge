@@ -114,7 +114,7 @@ kd write --outcome <success|partial|failure|abandoned> --id <ID> [--note TXT]
 kd task new --summary "<...>" --scope <epic|issue|task> [--parent ID] [--anchor PATH]
 kd task close --id <ID> [--outcome S]      # só declara com evidência
 kd rewind [--budget N]                     # retomar contexto entre sessões
-kd maintenance doctor [--audit]            # saúde da base
+kd doctor [--fix] [--explain]            # saúde da base
 kd sync [--message M]                      # commit de notas/ + eventos/
 ```
 

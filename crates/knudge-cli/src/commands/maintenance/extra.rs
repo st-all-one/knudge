@@ -1,6 +1,7 @@
 //! Subcomandos de manutenção: compact, learn e prune (E12-T01).
 
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 
 use knudge_core::Error;
 use knudge_core::Result;
@@ -19,7 +20,7 @@ use crate::session::Session;
 
 use super::super::corpus::CorpusScope;
 use super::super::hooks::{self, HookEvent};
-use super::proposals::{VerifyMode, build_reports, render_proposals};
+use super::proposals::{VerifyMode, annotate, build_reports, count_kinds, render_proposals};
 
 /// `kd maintenance compact` — propõe merge/supersede (nunca aplica em silêncio).
 ///
@@ -61,7 +62,7 @@ pub fn compact(
             }),
         )
     })?;
-    Ok(render_proposals(
+    let output = render_proposals(
         &proposals,
         &reports,
         warnings,
@@ -83,6 +84,12 @@ pub fn compact(
                 "score": proposal.score,
             })
         },
+    );
+    let counts = count_kinds(&proposals, |proposal| proposal.strategy.as_str());
+    Ok(annotate(
+        output,
+        &counts,
+        "aplique com `kd write --supersede <keep> <ids>` e revalide com `kd doctor`",
     ))
 }
 
@@ -128,7 +135,7 @@ pub fn learn_cmd(
         )
     })?;
     warnings.extend(gate_warnings);
-    Ok(render_proposals(
+    let output = render_proposals(
         &proposals,
         &reports,
         warnings,
@@ -148,6 +155,12 @@ pub fn learn_cmd(
                 "score": proposal.score,
             })
         },
+    );
+    let counts = count_kinds(&proposals, |proposal| proposal.kind.as_str());
+    Ok(annotate(
+        output,
+        &counts,
+        "aplique com `kd write --link`/`--supersede` e revalide com `kd doctor`",
     ))
 }
 
@@ -186,11 +199,19 @@ pub fn prune(session: &Session, scope: Option<&str>, corpus: &CorpusArgs) -> Res
         candidates.retain(|candidate| belongs_to(&graph, &candidate.id, container));
     }
     candidates.retain(|candidate| selection.matches_id(&candidate.id));
-    let text = candidates
+    let mut text = candidates
         .iter()
         .map(|candidate| format!("forget|{}|{}", candidate.id, candidate.reason.as_str()))
         .collect::<Vec<_>>()
         .join("\n");
+    if !text.is_empty() {
+        text.push('\n');
+    }
+    let _ignored = write!(
+        text,
+        "propostas: forget={}\npróximos: kd forget --id <ID>",
+        candidates.len()
+    );
     let data = json!({
         "proposals": candidates.iter().map(|candidate| json!({
             "action": "forget",

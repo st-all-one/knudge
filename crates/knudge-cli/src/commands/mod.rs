@@ -35,7 +35,7 @@ use crate::session::Session;
 /// Propaga o erro do domínio; `strict` promove avisos a erro (D94).
 pub fn run(cli: &Cli) -> Result<Output> {
     match cli.command.as_ref() {
-        None => Ok(prime::run(prime::PrimeFormat::Compact)),
+        None => Err(Error::invalid_input("informe um verbo (veja `kd help`)")),
         Some(Command::Prime(args)) => Ok(prime::run(if args.long {
             prime::PrimeFormat::Long
         } else {

@@ -89,7 +89,7 @@ Envelope JSON: `{project, root}`.
 
 - **Use** uma vez, no começo.
 - **Não use** para atualizar notas nem para migrar corpus: para isso há
-  `kd maintenance doctor --fix` (ver [Manutenção](09-maintenance.md)).
+  `kd doctor --fix` (ver [Manutenção](09-maintenance.md)).
 - Fora de um repositório git, o `init` funciona, mas as integrações de git ficam no-op.
 
 ## Próximo passo

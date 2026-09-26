@@ -149,10 +149,10 @@ nota que talvez você só precise atualizar (`kd write --update <ID> --summary "
 | Sintoma | Causa provável | Ação |
 |---|---|---|
 | `kd: command not found` | PATH não atualizado | `export PATH="$HOME/.local/bin:$PATH"` |
-| `nota ausente`/`schema` | corpus legado ou nota malformada | `kd maintenance doctor --fix` |
+| `nota ausente`/`schema` | corpus legado ou nota malformada | `kd doctor --fix` |
 | `ask` sem resultados | termo não casa | veja o sentinela `[no_results]`; ajuste a query |
 | Embeddings fora do ar | servidor não sobe | `kd maintenance watch-service --status` |
-| Conflito de merge | dois devs editaram a mesma nota | `kd maintenance doctor` aponta; resolva/supersede |
+| Conflito de merge | dois devs editaram a mesma nota | `kd doctor` aponta; resolva/supersede |
 
 A lista completa está em [Troubleshooting](troubleshooting.md).
 

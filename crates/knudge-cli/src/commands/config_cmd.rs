@@ -94,7 +94,10 @@ fn get(session: &Session, key: &str, scope: Scope) -> Result<Output> {
         return Err(Error::not_found(format!("chave ausente: {key}")));
     };
     let data = json!({ "key": name, "value": value, "scope": scope.as_str() });
-    Ok(Output::new(format!("{name} = {value}"), data))
+    Ok(Output::new(
+        format!("{name} = {value} ({}) — {}", scope.as_str(), path.display()),
+        data,
+    ))
 }
 
 fn set(session: &Session, key: &str, value: &str, scope: Scope) -> Result<Output> {
@@ -102,8 +105,12 @@ fn set(session: &Session, key: &str, value: &str, scope: Scope) -> Result<Output
     let mut config = load(session, &path)?;
     config.set_str(key, value)?;
     config.save(session.fs_dyn(), &path)?;
+    tracing::info!(key, scope = scope.as_str(), "config atualizada");
     let data = json!({ "key": key, "value": value, "scope": scope.as_str() });
-    Ok(Output::new(format!("{key} = {value}"), data))
+    Ok(Output::new(
+        format!("{key} = {value} ({}) — {}", scope.as_str(), path.display()),
+        data,
+    ))
 }
 
 fn unset(session: &Session, key: &str, scope: Scope) -> Result<Output> {
@@ -116,9 +123,9 @@ fn unset(session: &Session, key: &str, scope: Scope) -> Result<Output> {
     let data = json!({ "key": key, "removed": removed, "scope": scope.as_str() });
     Ok(Output::new(
         if removed {
-            format!("{key} removida")
+            format!("{key} removida ({}) — {}", scope.as_str(), path.display())
         } else {
-            format!("{key} já ausente")
+            format!("{key} já ausente ({}) — {}", scope.as_str(), path.display())
         },
         data,
     ))
@@ -128,11 +135,21 @@ fn list(session: &Session, scope: Scope) -> Result<Output> {
     let path = target(session, scope)?;
     let config = load(session, &path)?;
     let entries = config.list();
-    let text = entries
-        .iter()
-        .map(|(key, value)| format!("{key} = {value}"))
-        .collect::<Vec<_>>()
-        .join("\n");
+    let body = if entries.is_empty() {
+        "(vazio)".to_string()
+    } else {
+        entries
+            .iter()
+            .map(|(key, value)| format!("{key} = {value}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    let text = format!(
+        "{} ({}) — {}\n{body}",
+        scope.as_str(),
+        entries.len(),
+        path.display()
+    );
     let data = json!({
         "scope": scope.as_str(),
         "entries": entries.iter().map(|(key, value)| json!({

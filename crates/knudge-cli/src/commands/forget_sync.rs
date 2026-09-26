@@ -4,6 +4,7 @@ use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::git::{Persistence, SyncReport, sync as git_sync};
 use knudge_core::lifecycle::{Retention, due_for_purge, retirements};
+use knudge_core::ports::Git;
 use knudge_core::schema::Status;
 use knudge_core::write::{forget as forget_note, restore};
 use serde_json::json;
@@ -104,21 +105,51 @@ pub fn sync(session: &Session, args: &SyncArgs) -> Result<Output> {
         persistence,
         args.message.as_deref(),
     )?;
+    let (branch, hash) = if report.committed {
+        let root = session.project_root().to_string_lossy().into_owned();
+        (
+            git_field(session, &["-C", &root, "rev-parse", "--abbrev-ref", "HEAD"]),
+            git_field(session, &["-C", &root, "rev-parse", "--short", "HEAD"]),
+        )
+    } else {
+        (None, None)
+    };
+    let text = if report.committed {
+        let branch = branch.as_deref().unwrap_or("?");
+        let short = hash
+            .as_deref()
+            .map(|value| format!(" ({value})"))
+            .unwrap_or_default();
+        format!(
+            "sync {branch}: {} arquivo(s) commitados{short}",
+            report.files.len()
+        )
+    } else if report.message == "sem mudanças" {
+        "nada a sincronizar".to_string()
+    } else {
+        format!("sem commit: {}", report.message)
+    };
+    tracing::info!(
+        committed = report.committed,
+        files = report.files.len(),
+        "sync concluído"
+    );
     let data = json!({
         "committed": report.committed,
         "message": report.message,
         "files": report.files,
+        "branch": branch,
+        "hash": hash,
     });
-    Ok(Output::new(
-        format!(
-            "{}: {}",
-            if report.committed {
-                "commit"
-            } else {
-                "sem commit"
-            },
-            report.message
-        ),
-        data,
-    ))
+    Ok(Output::new(text, data))
+}
+
+/// Campo de `git` (uma linha), tolerante a falha: `None` se o comando falhar/vazio.
+fn git_field(session: &Session, args: &[&str]) -> Option<String> {
+    let output = session.git().run(args).ok()?;
+    if output.status != 0 {
+        return None;
+    }
+    let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    (!value.is_empty()).then_some(value)
 }

@@ -6,7 +6,7 @@ Imprime o **protocolo de uso** do knudge: o "help da IA". É um texto **estátic
 para uma mesma versão do binário, pensado para ser colado no início de uma sessão de agente. Diz o
 que usar, quando usar e — principalmente — **quando não usar**.
 
-`kd` sem argumentos é exatamente `kd prime`.
+`kd` sozinho é exatamente `kd help`; o protocolo é `kd prime`.
 
 ## Em 30 segundos
 

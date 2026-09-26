@@ -72,7 +72,7 @@ fn prime_long_matches_golden() -> TestResult {
 #[test]
 fn json_prime_matches_golden() -> TestResult {
     let dir = temp_project();
-    let out = run_in(&dir, &["--json"])?;
+    let out = run_in(&dir, &["--json", "prime"])?;
     assert!(out.status.success());
     assert_golden(&out.stdout, include_str!("golden/json_prime.json"), &dir);
     Ok(())

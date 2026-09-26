@@ -34,6 +34,9 @@ pub fn run() -> ExitCode {
         Err(err) => return handle_parse_error(&err),
     };
     logging::init(&cli);
+    if cli.command.is_none() {
+        return no_command(&cli);
+    }
     let name = command_name(cli.command.as_ref());
     match commands::run(&cli) {
         Ok(output) => {
@@ -45,9 +48,22 @@ pub fn run() -> ExitCode {
     }
 }
 
-/// Nome canônico do comando (ou `prime` quando ausente).
+/// `kd` sozinho = `kd help` (exit 0); com `--json` não há envelope sem verbo (D171).
+fn no_command(cli: &Cli) -> ExitCode {
+    if cli.json {
+        let err = Error::invalid_input("informe um verbo (veja `kd help`)");
+        return emit_error(cli, "help", &err, &[]);
+    }
+    let mut help = cli::render_help();
+    if !help.ends_with('\n') {
+        help.push('\n');
+    }
+    emit_stdout(help.as_bytes())
+}
+
+/// Nome canônico do comando (ou `help` quando ausente).
 fn command_name(command: Option<&Command>) -> &'static str {
-    command.map_or("prime", Command::name)
+    command.map_or("help", Command::name)
 }
 
 /// Emite o resultado (texto no pipe ou envelope JSON).
