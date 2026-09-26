@@ -6,7 +6,7 @@ use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::graph::Graph;
 use knudge_core::schema::{EdgeKind, NoteType, Value};
-use knudge_core::store::Store;
+use knudge_core::store::Note;
 use knudge_core::task::{
     Child, Container, Mode, children, mode, progress_of, role, roots_for_path, subtree,
 };
@@ -24,16 +24,21 @@ pub(super) fn graph_tree(
     program: Option<&str>,
     root: Option<&str>,
 ) -> Result<Output> {
-    let store = session.store();
-    let graph = session.graph()?;
+    // Uma única leitura do corpus (O8.1): grafo e notas derivam do mesmo vetor.
+    let notes = session.notes()?;
+    let graph = Graph::from_notes_ref(&notes)?;
+    let by_id: BTreeMap<&str, &Note> = notes
+        .iter()
+        .filter_map(|note| note.id().ok().map(|id| (id, note)))
+        .collect();
     let signals = Signals::collect(session)?;
-    let roots = resolve_roots(&store, &graph, program, root)?;
+    let roots = resolve_roots(&notes, &graph, program, root)?;
     let mut tree = Tree::default();
     if let Some(path) = program {
         tree.lines.push(path.to_string());
     }
     for root_id in &roots {
-        render_subtree(&store, &graph, &signals, root_id, &mut tree)?;
+        render_subtree(&by_id, &graph, &signals, root_id, &mut tree)?;
     }
     let empty = roots.is_empty();
     let data = json!({ "program": program, "roots": roots, "nodes": tree.json_rows });
@@ -104,19 +109,13 @@ impl Signals {
 }
 
 fn resolve_roots(
-    store: &Store<'_>,
+    notes: &[Note],
     graph: &Graph,
     program: Option<&str>,
     root: Option<&str>,
 ) -> Result<Vec<String>> {
     if let Some(path) = program {
-        let mut notes = Vec::new();
-        for id in store.list_ids()? {
-            if let Some(note) = store.read_optional(&id)? {
-                notes.push(note);
-            }
-        }
-        let roots = roots_for_path(&notes, path)?;
+        let roots = roots_for_path(notes, path)?;
         if roots.is_empty() {
             return Err(Error::not_found(format!(
                 "nenhum Épico-raiz ancorado a {path}"
@@ -131,19 +130,16 @@ fn resolve_roots(
         return Ok(vec![root.to_string()]);
     }
     let mut roots = Vec::new();
-    for id in store.list_ids()? {
-        let Some(note) = store.read_optional(&id)? else {
-            continue;
-        };
-        if note.frontmatter.note_type()? == NoteType::Epic && !graph.has_parent(&id) {
-            roots.push(id);
+    for note in notes {
+        if note.frontmatter.note_type()? == NoteType::Epic && !graph.has_parent(note.id()?) {
+            roots.push(note.id()?.to_string());
         }
     }
     Ok(roots)
 }
 
 fn render_subtree(
-    store: &Store<'_>,
+    by_id: &BTreeMap<&str, &Note>,
     graph: &Graph,
     signals: &Signals,
     root: &str,
@@ -151,7 +147,9 @@ fn render_subtree(
 ) -> Result<()> {
     let nodes = subtree(graph, root);
     for entry in &nodes {
-        let note = store.read(&entry.id)?;
+        let Some(note) = by_id.get(entry.id.as_str()).copied() else {
+            return Err(Error::not_found(format!("nó {} não existe", entry.id)));
+        };
         let kind = note.frontmatter.note_type()?;
         note.frontmatter
             .scope()?

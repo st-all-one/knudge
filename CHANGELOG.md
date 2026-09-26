@@ -48,6 +48,13 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   dentro do comparador) e `manifest_at` computa `compute_views` **uma vez** (antes `next` +
   contadores recomputavam o SCC). A/B (N=1167): `rewind` **319→134 ms (−58 %)** e
   `rewind --json` **309→113 ms (−63 %)**; saída idêntica.
+- **`kd task` ponta a ponta (E15-T20/O8)** — o impacto de todos os ids passa a ser calculado
+  **numa passada** (`task::impacts`, O8.2): antes cada id relia o corpus e fazia uma travessia;
+  agora um único percurso credita cada ancestral (custo de **um** `impact`). `task list` lê o
+  corpus **uma vez** (`Session::notes` + `Graph::from_notes_ref`, O8.1) em vez de grafo + releitura,
+  e `task graph` deriva grafo e notas do mesmo vetor (sem reler por nó, O8.4). A/B (N=1167):
+  `task graph` 115→77 ms, `task list --ready` 99→76 ms, `task list --full-content` 22→14 ms,
+  `task list --sort impact` 18→13 ms; `rewind` consolidado em ~100 ms.
 - **Bancada de benchmark** (`bench/`, fora do workspace, zero dependências além do `knudge-core`)
   medindo componentes puros (**micromb**) e ações do binário (**ponta-a-ponta**) em corpora de
   200 e 1000 notas. Alvos `make bench`/`make bench-quick`; relatório de gargalos em

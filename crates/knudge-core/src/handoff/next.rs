@@ -10,7 +10,7 @@ use crate::graph::Graph;
 use crate::lifecycle::Freshness;
 use crate::retrieval::views::{Views, compute_views};
 use crate::retrieval::{Index, Meta};
-use crate::task::{impact, is_actionable};
+use crate::task::{impacts, is_actionable};
 
 use super::CorpusScope;
 use super::manifest::{manifest_text_in, sanitize};
@@ -64,14 +64,15 @@ fn next_tasks_in(
         .iter()
         .map(|doc| (doc.meta.id.as_str(), &doc.meta))
         .collect();
-    // Impacto é pré-computado uma vez (antes era chamado dentro do comparador — O5.3).
+    // Impacto é pré-computado **numa passada** (antes era chamado por id — O5.3/O8.2).
+    let impact_by_id = impacts(graph);
     let mut ready: Vec<(&str, usize)> = views
         .ready
         .iter()
         .map(String::as_str)
         .filter(|id| is_actionable(graph.status(id)))
         .filter(|id| metas.get(id).is_some_and(|meta| scope.matches(meta)))
-        .map(|id| (id, impact(graph, id)))
+        .map(|id| (id, impact_by_id.get(id).copied().unwrap_or(0)))
         .collect();
     ready.sort_unstable_by(|(left, left_impact), (right, right_impact)| {
         right_impact

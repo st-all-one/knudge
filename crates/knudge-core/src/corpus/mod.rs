@@ -28,11 +28,13 @@ pub struct Corpus {
 }
 
 impl Corpus {
-    /// Lê todas as notas legíveis e deriva índice e grafo de uma só passada.
+    /// Lê todas as notas legíveis numa só passada, **sem** derivar índice/grafo.
+    ///
+    /// Use quando o comando só precisa dos frontmatters e o grafo é opcional (E15-T20/O8.1).
     ///
     /// # Errors
-    /// Propaga erros de listagem/leitura (`Io`) e de extração de metadados (`Schema`).
-    pub fn load(store: &Store<'_>) -> Result<Self> {
+    /// Propaga erros de listagem/leitura (`Io`).
+    pub fn load_notes(store: &Store<'_>) -> Result<Vec<Note>> {
         let ids = store.list_ids()?;
         let mut notes = Vec::new();
         let _reserved = notes.try_reserve(ids.len());
@@ -41,7 +43,15 @@ impl Corpus {
                 notes.push(note);
             }
         }
-        Self::from_notes(notes)
+        Ok(notes)
+    }
+
+    /// Lê todas as notas legíveis e deriva índice e grafo de uma só passada.
+    ///
+    /// # Errors
+    /// Propaga erros de listagem/leitura (`Io`) e de extração de metadados (`Schema`).
+    pub fn load(store: &Store<'_>) -> Result<Self> {
+        Self::from_notes(Self::load_notes(store)?)
     }
 
     /// Deriva índice e grafo de um vetor de notas já carregado.

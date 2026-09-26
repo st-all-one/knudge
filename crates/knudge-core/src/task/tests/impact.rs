@@ -4,7 +4,7 @@ use crate::Result;
 use crate::graph::{self, Graph};
 use crate::schema::{EdgeKind, NoteType, Scope, Status};
 use crate::store::Note;
-use crate::task::{TaskSpec, impact, is_actionable, submit};
+use crate::task::{TaskSpec, impact, impacts, is_actionable, submit};
 use crate::write;
 use proptest::prelude::*;
 
@@ -128,6 +128,22 @@ proptest! {
             for index in 0..4 {
                 if let Ok(id) = task_id(index) {
                     prop_assert!(impact(&after, &id) >= impact(&before, &id));
+                }
+            }
+        }
+    }
+
+    /// `impacts` (passada única, O8.2) deve bater com `impact` id a id em qualquer grafo.
+    #[test]
+    fn impacts_matches_per_id_impact(
+        edges in prop::collection::vec((0usize..4, 0usize..4), 0..6),
+    ) {
+        let graph = graph_with(&edges).ok();
+        if let Some(graph) = graph {
+            let all = impacts(&graph);
+            for index in 0..4 {
+                if let Ok(id) = task_id(index) {
+                    prop_assert_eq!(all.get(&id).copied().unwrap_or(0), impact(&graph, &id));
                 }
             }
         }

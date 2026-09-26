@@ -24,7 +24,7 @@ mod tests;
 pub use batch::{TaskBatchItem, TaskBatchMode, TaskBatchOutput, TaskOp, batch_jsonl};
 pub use context::{TaskContext, TaskRef, context_of};
 pub use hierarchy::{child, children, validate_blocks, validate_parent};
-pub use impact::{impact, is_actionable};
+pub use impact::{impact, impacts, is_actionable};
 pub use lifecycle::{OutcomeStatus, TaskAction, apply, outcome, validate_transition};
 pub use membership::Marker;
 pub use mode::{Child, Container, Mode};

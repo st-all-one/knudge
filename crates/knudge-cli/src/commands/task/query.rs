@@ -5,7 +5,8 @@ use knudge_core::Result;
 use knudge_core::graph::Graph;
 use knudge_core::retrieval::block_reason;
 use knudge_core::schema::Scope;
-use knudge_core::task::{impact, is_actionable};
+use knudge_core::store::Note;
+use knudge_core::task::{impacts, is_actionable};
 use serde_json::json;
 
 use crate::cli::{TaskListArgs, TaskSort};
@@ -30,9 +31,13 @@ pub(super) fn list(session: &Session, args: &TaskListArgs) -> Result<Output> {
             .scope
             .as_deref()
             .is_some_and(|text| text.parse::<Scope>().is_err());
-    let graph = needs_graph.then(|| session.graph()).transpose()?;
+    // Uma única leitura do corpus (O8.1); o grafo deriva das mesmas notas.
+    let notes = session.notes()?;
+    let graph = needs_graph
+        .then(|| Graph::from_notes_ref(&notes))
+        .transpose()?;
     let filters = ListFilters::resolve(args, graph.as_ref())?;
-    let mut rows = collect_rows(session, args, graph.as_ref(), &filters)?;
+    let mut rows = collect_rows(session, &notes, args, graph.as_ref(), &filters)?;
     if args.sort == Some(TaskSort::Impact) {
         rows.sort_unstable_by(|left, right| {
             right
@@ -55,17 +60,22 @@ pub(super) fn list(session: &Session, args: &TaskListArgs) -> Result<Output> {
 /// Coleta as linhas que passam pelos filtros, com motivo/impacto derivados (D104/D109).
 fn collect_rows(
     session: &Session,
+    notes: &[Note],
     args: &TaskListArgs,
     graph: Option<&Graph>,
     filters: &ListFilters<'_>,
 ) -> Result<Vec<Row>> {
     let sort_impact = args.sort == Some(TaskSort::Impact);
+    // Impacto de todos os ids numa passada (O8.2), reusado por `--sort impact` e `--explain`.
+    let impact_by_id = if sort_impact {
+        graph.map(impacts)
+    } else {
+        None
+    };
     let mut rows = Vec::new();
-    for id in session.store().list_ids()? {
-        let Some(note) = session.store().read_optional(&id)? else {
-            continue;
-        };
-        if !passes_filters(&note, filters, graph)? {
+    for note in notes {
+        let id = note.id()?.to_string();
+        if !passes_filters(note, filters, graph)? {
             continue;
         }
         if sort_impact && !is_actionable(graph.and_then(|graph| graph.status(&id))) {
@@ -77,7 +87,11 @@ fn collect_rows(
             None
         };
         let unblocks = if sort_impact {
-            Some(graph.map_or(0, |graph| impact(graph, &id)))
+            Some(
+                impact_by_id
+                    .as_ref()
+                    .map_or(0, |map| map.get(&id).copied().unwrap_or(0)),
+            )
         } else {
             None
         };
@@ -87,7 +101,7 @@ fn collect_rows(
             };
             show_one(&session.store(), graph, &id, ShowMode::Plain)?
         } else {
-            render_row(&note, &id, reason.as_ref(), unblocks)?
+            render_row(note, &id, reason.as_ref(), unblocks)?
         };
         if args.explain
             && let Some(unblocks) = unblocks

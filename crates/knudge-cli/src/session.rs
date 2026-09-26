@@ -14,7 +14,7 @@ use knudge_core::graph::Graph;
 use knudge_core::logging::Redactor;
 use knudge_core::ports::{Clock, Fs, Git};
 use knudge_core::retrieval::Index;
-use knudge_core::store::{EventLog, LockPolicy, Store, sweep_residues};
+use knudge_core::store::{EventLog, LockPolicy, Note, Store, sweep_residues};
 use knudge_core::write::{DedupThresholds, WriteContext, thresholds_from_config};
 
 use crate::logging::TracingLogger;
@@ -116,6 +116,14 @@ impl Session {
     /// Propaga erros de listagem/leitura/parse das notas.
     pub fn corpus(&self) -> Result<Corpus> {
         Corpus::load(&self.store())
+    }
+
+    /// Notas do corpus numa única passada, sem índice/grafo (E15-T20/O8.1).
+    ///
+    /// # Errors
+    /// Propaga erros de listagem/leitura das notas.
+    pub fn notes(&self) -> Result<Vec<Note>> {
+        Corpus::load_notes(&self.store())
     }
 
     /// Grafo de arestas (reconstruído do store).

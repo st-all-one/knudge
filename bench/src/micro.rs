@@ -20,9 +20,10 @@ use knudge_core::retrieval::filter::Filter;
 use knudge_core::retrieval::rrf::{Channel, fuse};
 use knudge_core::retrieval::token;
 use knudge_core::retrieval::{
-    Index, Postings, RankQuery, RecallQuery, Universe, rank as composite_rank, recall,
+    Index, Postings, RankQuery, RecallQuery, Universe, compute_views, rank as composite_rank, recall,
 };
 use knudge_core::schema::{NoteType, body, hash, id};
+use knudge_core::task::{impact, impacts};
 use knudge_core::toon;
 use knudge_core::write::{DedupThresholds, Draft, propose_merges};
 
@@ -254,6 +255,18 @@ fn scaling(harness: &mut Harness, sizes: &[usize]) {
         });
         harness.measure(&group, "Graph::dependency_cycles", 15, 1, || {
             let _ = black_box(graph.dependency_cycles());
+        });
+        harness.measure(&group, "retrieval::compute_views", 15, 1, || {
+            let _ = black_box(compute_views(black_box(&graph)));
+        });
+        let some_id = index.docs.first().map(|doc| doc.meta.id.clone());
+        harness.measure(&group, "task::impact (1 id)", 15, 1, || {
+            if let Some(id) = &some_id {
+                let _ = black_box(impact(black_box(&graph), black_box(id)));
+            }
+        });
+        harness.measure(&group, "task::impacts (todos)", 15, 1, || {
+            let _ = black_box(impacts(black_box(&graph)));
         });
         harness.measure(&group, "Index::serialize + parse", 15, 1, || {
             let text = index.serialize().expect("serializa");

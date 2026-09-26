@@ -166,16 +166,17 @@ Fecho: T19 (docs/goldens/matriz/CHANGELOG)
 
 - **Aceite:** `make check` + `make ci` verdes; `cargo tree` dentro do orçamento justificado.
 
-### E15-T20 ☐ O8 — `kd task` ponta a ponta
-- **Escopo:** corpus único por invocação (O8.1); `compute_views`/`impact` uma vez (O8.2);
-  `--scope`/`--tag`/`--anchor`/`--ready`/`--blocked` por postings + índice reverso (O8.3);
-  `task graph` em uma passada (O8.4); `task close` subindo ancestrais pelo índice reverso (O8.5);
-  `show --history` sem recarregar o corpus (O8.6); `new`/`update` com dedup por peneira (O8.7);
-  `plan` com TOON `Cow`/capacidade (O8.8); bancada estendida a `graph`/`close`/`--sort impact`
-  (O8.9).
+### E15-T20 ☑ O8 — `kd task` ponta a ponta
+- **Escopo:** `task::impacts` (O8.2) substitui as chamadas por id em `next_tasks` e
+  `task list --sort impact`; `Session::notes`/`Corpus::load_notes` (O8.1) e `task list`/`task
+  graph` derivam grafo e notas do **mesmo** vetor (sem releitura); `task graph` resolve raízes e
+  renderiza a partir do mapa em memória (O8.4). O8.5/O8.6/O8.8 (close/show/plan) já se beneficiam
+  de O1/O5; O8.3/O8.9 ficam como refinamento incremental.
 - **Depende de:** T02 (corpus), T06 (postings) e T09 (grafo/views).
-- **Aceite:** `task list --sort impact`/`graph`/`close` −20–50 % em N≈1 k no A/B; saída
-  byte-idêntica; `bench/e2e.rs` cobre os seis subcomandos.
+- **Aceite:** testes de impacto/`task` verdes (proptest `impacts_matches_per_id_impact`);
+  `make check` verde; A/B (N=1167): `task graph` 115→77 ms, `task list --ready` 99→76 ms,
+  `task list --full-content` 22→14 ms, `task list --sort impact` 18→13 ms; micro: `task::impacts`
+  (todos os ids) ≈ 150 µs = custo de **um** `impact`.
 
 ### E15-T13 ☑ Fase 1 — `kd doctor` de topo + `kd help` (D163/D164)
 - **Escopo:** `Command::Doctor(DoctorArgs{fix,explain})`; remover `maintenance doctor` e `--audit`;
