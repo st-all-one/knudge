@@ -1,10 +1,18 @@
 //! Similaridade lexical e propostas de merge (D26/D47/D80).
 
-use std::collections::BTreeSet;
+use std::borrow::Cow;
+use std::collections::{BTreeMap, BTreeSet};
 
+use crate::retrieval::token::content_terms;
 use crate::retrieval::{Field, Index, NoteDoc};
+use crate::schema::Status;
 
-use super::{DedupThresholds, MAX_CANDIDATES, MergeProposal, live_ids};
+use super::{DedupThresholds, MAX_CANDIDATES, MergeProposal};
+
+/// `true` se a nota ainda participa do dedup (`forgotten`/`superseded` ficam fora — D43).
+fn is_live(doc: &NoteDoc) -> bool {
+    !matches!(doc.meta.status, Status::Forgotten | Status::Superseded)
+}
 
 /// Similaridade Dice sobre o conjunto de termos de dois documentos.
 #[must_use]
@@ -43,33 +51,50 @@ fn dice_sets(a: &BTreeSet<&str>, b: &BTreeSet<&str>) -> f64 {
 }
 
 /// Propõe pares quase-duplicados para revisão (`compact`), sem escrever nada.
+///
+/// Usa uma peneira de postings (E15-T04/O3): só pontua documentos que compartilham ≥1 termo,
+/// preservando a fórmula BM25 e a **ordem de soma doc-major** de [`Index::score`] (o resultado é
+/// idêntico, byte a byte). Conjuntos de termos e termos da consulta são cacheados uma vez.
 #[must_use]
 pub fn propose_merges(index: &Index, thresholds: &DedupThresholds) -> Vec<MergeProposal> {
-    let allowed = live_ids(index);
+    let live: Vec<bool> = index.docs.iter().map(is_live).collect();
+    let full_sets: Vec<BTreeSet<&str>> = index.docs.iter().map(term_set).collect();
+    let stmt_sets: Vec<BTreeSet<&str>> = index
+        .docs
+        .iter()
+        .map(|doc| term_set_field(doc, Field::Statement))
+        .collect();
+    let query_terms: Vec<Vec<Cow<'_, str>>> = index
+        .docs
+        .iter()
+        .map(|doc| content_terms(&doc.statement))
+        .collect();
+    let postings = build_postings(&full_sets);
+    let mut sieve = Sieve::new(index.docs.len());
     let mut seen: BTreeSet<(String, String)> = BTreeSet::new();
     let mut proposals = Vec::new();
-    for doc in &index.docs {
-        if !allowed.contains(&doc.meta.id) {
+    for (position, doc) in index.docs.iter().enumerate() {
+        if !live.get(position).is_some_and(|live| *live) {
             continue;
         }
-        for hit in index
-            .score(&doc.statement, &allowed)
-            .into_iter()
-            .take(MAX_CANDIDATES)
-        {
-            if hit.id == doc.meta.id {
-                continue;
-            }
-            let Some(other) = index.docs.iter().find(|other| other.meta.id == hit.id) else {
+        let Some(terms) = query_terms.get(position) else {
+            continue;
+        };
+        let candidates = sieve.candidates(&postings, terms);
+        for candidate in top_candidates(index, &live, candidates, terms, position) {
+            let Some(other) = index.docs.get(candidate) else {
                 continue;
             };
             // Itens com `scope` (task/issue/grupo) comparam só o `statement`: o corpo costuma
             // ser template de import e não identifica a nota (E08/D80).
             let scoped = doc.meta.scope.is_some() || other.meta.scope.is_some();
-            let (score, basis) = if scoped {
-                (dice_statement(doc, other), "statement")
+            let similarity = if scoped {
+                dice_at(&stmt_sets, position, candidate).map(|score| (score, "statement"))
             } else {
-                (dice(doc, other), "similaridade")
+                dice_at(&full_sets, position, candidate).map(|score| (score, "similaridade"))
+            };
+            let Some((score, basis)) = similarity else {
+                continue;
             };
             if score < thresholds.merge_below {
                 continue;
@@ -93,6 +118,109 @@ pub fn propose_merges(index: &Index, thresholds: &DedupThresholds) -> Vec<MergeP
             .then_with(|| a.drop.cmp(&b.drop))
     });
     proposals
+}
+
+/// Posições dos melhores candidatos (≤ [`MAX_CANDIDATES`]) por BM25, a partir da peneira.
+fn top_candidates(
+    index: &Index,
+    live: &[bool],
+    candidates: &[u32],
+    terms: &[Cow<'_, str>],
+    position: usize,
+) -> Vec<usize> {
+    let mut ranked: Vec<(usize, f64)> = candidates
+        .iter()
+        .filter_map(|&candidate| {
+            let candidate = usize::try_from(candidate).ok()?;
+            let other = index.docs.get(candidate)?;
+            if candidate == position || !live.get(candidate).is_some_and(|live| *live) {
+                return None;
+            }
+            let base = index.score_doc(other, terms);
+            (base > 0.0).then_some((candidate, base))
+        })
+        .collect();
+    ranked.sort_by(|a, b| {
+        b.1.total_cmp(&a.1).then_with(|| {
+            let a_id = index.docs.get(a.0).map_or("", |doc| doc.meta.id.as_str());
+            let b_id = index.docs.get(b.0).map_or("", |doc| doc.meta.id.as_str());
+            a_id.cmp(b_id)
+        })
+    });
+    ranked
+        .into_iter()
+        .take(MAX_CANDIDATES)
+        .map(|(position, _score)| position)
+        .collect()
+}
+
+/// Similaridade Dice entre dois documentos de `sets` (por posição), se ambos existirem.
+fn dice_at(sets: &[BTreeSet<&str>], left: usize, right: usize) -> Option<f64> {
+    Some(dice_sets(sets.get(left)?, sets.get(right)?))
+}
+
+/// Índice invertido `termo → posições` (reconstruído a cada chamada, nunca persistido).
+fn build_postings<'a>(sets: &[BTreeSet<&'a str>]) -> BTreeMap<&'a str, Vec<u32>> {
+    let mut postings: BTreeMap<&'a str, Vec<u32>> = BTreeMap::new();
+    for (position, set) in sets.iter().enumerate() {
+        let position = u32::try_from(position).unwrap_or(u32::MAX);
+        for term in set {
+            postings.entry(*term).or_default().push(position);
+        }
+    }
+    postings
+}
+
+/// Máscara reutilizável da peneira: marca as posições alcançadas por ≥1 termo e zera depois.
+///
+/// Evita `BTreeSet` por documento (caro em vocabulário denso): cada posição é marcada/desmarcada
+/// uma vez, em tempo linear no tamanho das postings consultadas.
+struct Sieve {
+    marked: Vec<bool>,
+    positions: Vec<u32>,
+}
+
+impl Sieve {
+    fn new(len: usize) -> Self {
+        Self {
+            marked: vec![false; len],
+            positions: Vec::new(),
+        }
+    }
+
+    /// Posições de documentos que compartilham ≥1 termo (sem repetição), ordenadas por doc.
+    fn candidates<'a>(
+        &'a mut self,
+        postings: &BTreeMap<&str, Vec<u32>>,
+        terms: &[Cow<'_, str>],
+    ) -> &'a [u32] {
+        self.positions.clear();
+        for term in terms {
+            let Some(list) = postings.get(term.as_ref()) else {
+                continue;
+            };
+            for &position in list {
+                let Ok(slot) = usize::try_from(position) else {
+                    continue;
+                };
+                let Some(marked) = self.marked.get_mut(slot) else {
+                    continue;
+                };
+                if !*marked {
+                    *marked = true;
+                    self.positions.push(position);
+                }
+            }
+        }
+        for &position in &self.positions {
+            if let Ok(slot) = usize::try_from(position)
+                && let Some(marked) = self.marked.get_mut(slot)
+            {
+                *marked = false;
+            }
+        }
+        &self.positions
+    }
 }
 
 fn order_pair<'a>(a: &'a NoteDoc, b: &'a NoteDoc) -> (String, String) {

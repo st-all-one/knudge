@@ -127,7 +127,13 @@ impl Index {
         clippy::suboptimal_flops,
         reason = "multiplicação em f64 com fatores não negativos"
     )]
-    fn score_doc(&self, doc: &NoteDoc, terms: &[std::borrow::Cow<'_, str>]) -> f64 {
+    #[must_use]
+    /// Score BM25 final de um **documento** para termos já tokenizados (peso de tipo e boost de
+    /// confirmação inclusos).
+    ///
+    /// Exposto para a peneira do dedup (E15-T04/O3), que pontua só os candidatos que
+    /// compartilham ≥1 termo em vez de varrer o corpus inteiro.
+    pub fn score_doc(&self, doc: &NoteDoc, terms: &[std::borrow::Cow<'_, str>]) -> f64 {
         self.raw_score(doc, terms)
             * type_weight(doc.meta.note_type)
             * (1.0 + CONFIRMATION_STEP * doc.meta.confirmation)

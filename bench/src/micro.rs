@@ -23,7 +23,7 @@ use knudge_core::retrieval::{
 };
 use knudge_core::schema::{NoteType, body, hash, id};
 use knudge_core::toon;
-use knudge_core::write::Draft;
+use knudge_core::write::{DedupThresholds, Draft, propose_merges};
 
 use crate::fixture;
 use crate::harness::Harness;
@@ -165,10 +165,12 @@ fn fixed(harness: &mut Harness) {
 
 fn scaling(harness: &mut Harness, sizes: &[usize]) {
     let filter = Filter::new();
+    let thresholds = DedupThresholds::default();
     for &n in sizes {
         let group = format!("micro/N={n}");
         let notes = fixture::generate_notes(n);
         let index = Index::build(&notes).expect("corpus gerado é válido");
+        let sparse = sparse_index(n);
         let graph = Graph::from_notes(notes.clone()).expect("grafo gerado é válido");
         let allowed: BTreeSet<String> = index.docs.iter().map(|doc| doc.meta.id.clone()).collect();
         let query_text = "retrieval indice grafo cache embedding vetor";
@@ -190,6 +192,12 @@ fn scaling(harness: &mut Harness, sizes: &[usize]) {
         });
         harness.measure(&group, "retrieval::Index::score (BM25)", 15, 1, || {
             let _ = black_box(index.score(black_box(query_text), black_box(&allowed)));
+        });
+        harness.measure(&group, "write::propose_merges (denso)", 15, 1, || {
+            let _ = black_box(propose_merges(black_box(&index), black_box(&thresholds)));
+        });
+        harness.measure(&group, "write::propose_merges (esparso)", 15, 1, || {
+            let _ = black_box(propose_merges(black_box(&sparse), black_box(&thresholds)));
         });
         harness.measure(&group, "retrieval::recall (limit 5)", 15, 1, || {
             let _ = black_box(recall(black_box(&index), black_box(&graph), black_box(&recall_query)));
@@ -236,4 +244,17 @@ fn scaling(harness: &mut Harness, sizes: &[usize]) {
         // Guarda o serializado para evitar dead code em builds futuros.
         let _ = black_box(serialized.len());
     }
+}
+
+/// Índice com vocabulário **esparso** (cada doc tem só termos próprios): a peneira do dedup
+/// (O3) deve pular todo o corpus, mostrando o ganho sobre a varredura completa.
+fn sparse_index(n: usize) -> Index {
+    let mut notes = Vec::new();
+    for serial in 0..n {
+        let statement = format!("proprio{serial} exclusivo{serial} unico{serial}");
+        if let Ok(note) = Draft::new(NoteType::Fact, statement).to_note(1_700_000_000_000) {
+            notes.push(note);
+        }
+    }
+    Index::build(&notes).expect("corpus esparso é válido")
 }

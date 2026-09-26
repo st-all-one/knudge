@@ -93,11 +93,15 @@ Fecho: T19 (docs/goldens/matriz/CHANGELOG)
   43,6→2,5 ms (−94 %); `idle_skips_prime_and_self_verbs` novo; `idle_lazy_*`/`idle_manual_*`
   seguem verdes; `kd doctor`/`kd drain` não auto-drenam.
 
-### E15-T04 ☐ O3 — dedup sem quadrático
-- **Escopo:** `propose_merges` com lookup O(1) (`by_id`), `terms` do `statement` cacheados e a
-  peneira de postings de O2.1; `index.docs.iter().find` → mapa.
-- **Aceite:** `doctor`/`compact` com ganho expressivo no A/B (`N=1167`); proptest de proposta
-  idêntica (mesmos pares/ordem); golden de `doctor --json` inalterado.
+### E15-T04 ☑ O3 — dedup sem quadrático
+- **Escopo:** `propose_merges` com peneira de postings por posição (máscara reutilizável, sem o
+  `find` O(N) e sem `BTreeSet` por doc), conjuntos de termos e `terms` do `statement` cacheados,
+  e `Index::score_doc` exposto. A soma doc-major do BM25 fica idêntica.
+- **Aceite:** A/B (N=1167) `doctor` 4,87→4,22 s (−13 %) e `compact` 2,44→2,20 s (−10 %); micromb
+  `write::propose_merges` denso 1,46 s → esparso 1,6 ms (`bench/micro-t04.md`); proptest
+  `sieve_matches_reference` compara com a varredura completa (pares/ordem idênticos); goldens de
+  `doctor --json` inalterados. Nota: o corpus sintético é denso (vocabulário compartilhado), então
+  o ganho e2e é modesto; a micromb isola o efeito assintótico.
 
 ### E15-T05 ☐ O6.1/O6.2 — `sort_unstable` + capacidade
 - **Escopo:** `sort_unstable_by` onde o comparador é total (tiebreak por `id`); `with_capacity`/

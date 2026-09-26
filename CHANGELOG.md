@@ -15,6 +15,11 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   `Session::open` e `maybe_drain` não roda em `prime`/`self` (além de `doctor`/`drain`/
   `maintenance`); `provider=none`/`enabled=false` saem antes de varrer o corpus. A/B (N≈1 k):
   `self version` 42,9→3,5 ms (−92 %), `prime` 43,6→2,5 ms (−94 %).
+- **Dedup sem quadrático (E15-T04/O3)** — `propose_merges` usa uma peneira de postings por posição
+  (máscara reutilizável, sem o `find` O(N) e sem `BTreeSet` por doc) e conjuntos/termos cacheados;
+  `Index::score_doc` fica exposto. A soma doc-major do BM25 é preservada (proptest
+  `sieve_matches_reference`). A/B (N≈1 k): `doctor` −13 %, `compact` −10 %; no micromb,
+  `propose_merges` esparso é ~900× mais rápido que o denso (o corpus sintético é denso).
 - **Bancada de benchmark** (`bench/`, fora do workspace, zero dependências além do `knudge-core`)
   medindo componentes puros (**micromb**) e ações do binário (**ponta-a-ponta**) em corpora de
   200 e 1000 notas. Alvos `make bench`/`make bench-quick`; relatório de gargalos em

@@ -47,10 +47,18 @@
 | E15-T02 (O1) | `ask --anchor` (N=1167) | 129 ms | 96 ms | −26 % |
 | E15-T03 (O1.5) | `self version` (N=1167) | 42,9 ms | 3,5 ms | −92 % |
 | E15-T03 (O1.5) | `prime` (N=1167) | 43,6 ms | 2,5 ms | −94 % |
+| E15-T04 (O3) | `doctor` (N=1167) | 4,87 s | 4,22 s | −13 % |
+| E15-T04 (O3) | `compact` (N=1167) | 2,44 s | 2,20 s | −10 % |
 
 Baseline pré-reforma preservado em [`ULTIMO-v0.3.3.md`](ULTIMO-v0.3.3.md); a bancada passou a
-medir `kd doctor`/`kd drain` (a reforma CLI de E15 T13/T14 renomeou os verbos). O recorte de
-T03 está em [`e2e-t03.md`](e2e-t03.md).
+medir `kd doctor`/`kd drain` (a reforma CLI de E15 T13/T14 renomeou os verbos). Os recortes de
+T03/T04 estão em [`e2e-t03.md`](e2e-t03.md) e [`e2e-t04.md`](e2e-t04.md) (micro: [`micro-t04.md`](micro-t04.md)).
+
+> **O3 e a densidade do corpus.** A peneira de postings só pula documentos **sem overlap**; no
+> corpus sintético (vocabulário de 24 palavras + prefixo comum por tipo) quase todo par
+> compartilha termos, então o ganho em `doctor`/`compact` é modesto. A micromb isola o efeito:
+> `write::propose_merges` cai de **1,46 s** (denso, N=1167) para **1,6 ms** (esparso, cada nota com
+> termos próprios) — a diferença assintótica que o `compact` real de um corpus diverso vê.
 
 ## Velocidade do sistema (ponta-a-ponta)
 
