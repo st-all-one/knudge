@@ -11,7 +11,7 @@
 | CPU | AMD Ryzen 5 5500U (12 threads) |
 | RAM/disco | — / **btrfs** (Fedora Workstation 44, kernel 7.2.7) |
 | Toolchain | rustc 1.98.1 (edição 2024, perfil release com `lto="fat"`, `codegen-units=1`, `overflow-checks=true`) |
-| `kd` | v0.3.3 (`target/release/kd`) |
+| `kd` | v0.4.0 (`target/release/kd`; baseline pré-reforma em [`ULTIMO-v0.3.3.md`](ULTIMO-v0.3.3.md)) |
 | Corpus | sintético determinístico: ~70% conhecimento, ~20% itens de trabalho, ~10% épicos, com âncoras/tags/arestas |
 | Config | a que o `kd init` grava (provider `http`, mode `lazy`, sem servidor de embeddings) |
 

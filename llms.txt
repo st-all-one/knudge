@@ -1,6 +1,6 @@
 # knudge
 
-> knudge é uma CLI Rust (binário `kd`, 13 verbos) de **memória por projeto otimizada para LLM**:
+> knudge é uma CLI Rust (binário `kd`, 14 verbos) de **memória por projeto otimizada para LLM**:
 > notas em **Markdown como verdade**, um índice derivado reconstruível e busca híbrida
 > (BM25 + âncoras + embeddings opcional via RRF). Sem servidor, sem banco, sem daemon. O
 > binário `knudge-mcp` expõe os gatilhos de memória por MCP (JSON-RPC 2.0 sobre stdio).

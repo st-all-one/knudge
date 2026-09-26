@@ -1,6 +1,6 @@
 # Otimizações de performance — bateria proposta
 
-> **Status:** proposta (não implementada). Baseline medido em
+> **Status:** implementado na **v0.4.0** (E15-T01–T21; Ondas O1–O9). Baseline medido em
 > [`bench/RELATORIO.md`](../../bench/RELATORIO.md) / [`bench/ULTIMO.md`](../../bench/ULTIMO.md).
 > Alvo: reduzir o custo por comando **sem mudar bytes nem semântica** (goldens/proptest
 > idênticos), respeitando as restrições do `AGENTS.md` (dep nova **só com ganho expressivo e

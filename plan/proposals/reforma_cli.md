@@ -1,6 +1,6 @@
 # Reforma da superfície do `kd` — plano de implementação
 
-> **Status:** planejamento (nenhum código alterado ainda).
+> **Status:** implementado na **v0.4.0** (E15-T13–T19; decisões **D163–D171**).
 > Objetivo: tornar o `kd` **explícito** (diz o que quer e o que fez), dar **help embutido** a
 > cada verbo, **promover** `doctor` e `drain` a verbos de topo, `prime` compacto por padrão e
 > **remover redundância** da superfície — sobretudo em torno do `body`. Nenhuma chave TOON muda;

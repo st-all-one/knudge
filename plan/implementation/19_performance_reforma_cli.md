@@ -4,8 +4,8 @@
 > [`../proposals/otimizacoes_performance.md`](../proposals/otimizacoes_performance.md) (Ondas
 > O1–O8) e [`../proposals/reforma_cli.md`](../proposals/reforma_cli.md) (Fases 1–7).
 >
-> **Versão alvo:** **0.4.0** (o `[Não publicado]` do `CHANGELOG.md` será finalizado por
-> `make update-version VERSION=v0.4.0`; toda entrada deste épico vai para lá).
+> **Versão:** **0.4.0** — release cortada em 2026-09-26 (`CHANGELOG.md` → `[0.4.0]`); toda
+> entrada deste épico foi para lá.
 >
 > **Decisões:** D163 (doctor), D164 (help), D165 (verbosidade), D166 (prime compacto),
 > D167 (help embutido), D168 (redundância), D169 (docs), D170 (drain), D171 (`kd` = `help`).

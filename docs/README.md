@@ -21,7 +21,9 @@ para **usar** o knudge no dia a dia; a referência interna do código fica em
 | [`kd task`](06-task.md) | Planejar e executar trabalho (épico → issue → tarefa) |
 | [`kd knowledge`](07-knowledge.md) | Mapa, ranking e tags |
 | [`kd rewind`](08-rewind.md) | Estado/handoff ponto-no-tempo |
-| [`kd maintenance`](09-maintenance.md) | Saúde, propostas e worker de embeddings |
+| [`kd doctor`](09-maintenance.md) | Saúde: 13 checks + auditoria (`--fix`, `--explain`) |
+| [`kd drain`](09-maintenance.md) | Fila de embeddings: `--status` / `--digest [--force]` |
+| [`kd maintenance`](09-maintenance.md) | Propostas (`compact`/`learn`/`prune`) e worker de embeddings |
 | [`kd config`](10-config.md) | Configuração em dois níveis |
 | [`kd forget`](11-forget.md) | Soft-delete e purga |
 | [`kd sync`](12-sync.md) | Commit de `notas/` + `eventos/` |
