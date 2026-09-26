@@ -14,6 +14,10 @@ use std::time::{Duration, Instant};
 use crate::fixture;
 use crate::harness::Harness;
 
+use knudge_core::adapters::StdFs;
+use knudge_core::corpus::Corpus;
+use knudge_core::store::Store;
+
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Projeto temporário removido ao sair (a menos que `KNUDGE_BENCH_KEEP=1`).
@@ -102,6 +106,7 @@ pub fn run(harness: &mut Harness, kd: &Path, sizes: &[usize], samples: usize, no
         let suffix = if no_idle { " [no-idle]" } else { "" };
         let group = format!("e2e/N={n}{suffix}");
         measure_floor(harness, &group, &runner, samples);
+        measure_core(harness, &group, &project.root, samples);
         measure_reads(harness, &group, &runner, &ids, samples);
         measure_mutations(harness, &group, &runner, &ids, samples);
         // `sync` é medido por último (deixa o worktree limpo no fim).
@@ -111,6 +116,22 @@ pub fn run(harness: &mut Harness, kd: &Path, sizes: &[usize], samples: usize, no
 
 fn args(list: &[&str]) -> Vec<String> {
     list.iter().map(|item| (*item).to_string()).collect()
+}
+
+/// Micromb **in-process** sobre o projeto real: mede o core sem processo nem `Session::open`.
+fn measure_core(harness: &mut Harness, group: &str, root: &Path, samples: usize) {
+    let fs = StdFs::new();
+    let store = Store::new(&fs, root.join(".knudge"));
+    harness.measure_cmd(group, "core: Corpus::load_notes", samples, || {
+        let start = Instant::now();
+        let _ = Corpus::load_notes(&store);
+        start.elapsed()
+    });
+    harness.measure_cmd(group, "core: Corpus::load (notes+index+graph)", samples, || {
+        let start = Instant::now();
+        let _ = Corpus::load(&store);
+        start.elapsed()
+    });
 }
 
 /// Cria o projeto, inicializa o git e popula o corpus.

@@ -102,6 +102,7 @@
 | 91 | **Parcela do body nos canais** | achar que `channels.body` reordena o `ask` | é **informativa** (`[0,1]`), como `recent`/`stars`; a ordem segue RRF (D151) | `cli::body::ask_shows_body_of_top_hit_and_reports_match` |
 | 92 | **Corpo no `rewind`** | anexar corpo de toda nota ou furar o orçamento | só `foundational`/`decision`; o corpo entra na linha e passa pelo mesmo `budget` (D88) | `handoff::tests::rewind::scope_mode_appends_body_for_decision` |
 | 93 | **Check de corpo no `doctor`** | "sem corpo" deixar o corpus `unhealthy` | é **advisório** (`is_warning`), como `program-anchor` (D119); não bloqueia `healthy` | `health::tests::body::body_check_is_advisory_and_counts_missing_body` |
+| 94 | **Leitura paralela do corpus** | a ordem das notas variar pelo escalonamento de threads | `Corpus::load_notes` divide `list_ids` em faixas contíguas e remonta **na ordem de spawn** (nunca na de conclusão); limiar de 256 notas mantém o caminho sequencial em corpora pequenos/testes (E15-T12/O7) | `corpus::tests::load_notes_parallel_matches_sequential_order`, `corpus::tests::load_matches_separate_reads` |
 
 ## Notas
 
@@ -112,3 +113,7 @@
 - **Concorrência**: o core não tem primitivos em memória compartilhada além de `Arc<Mutex<_>>`
   nos fakes; a sincronização real é por **arquivo** (lock advisory). Por isso não há alvo de
   `loom` — o stress é feito sobre o adaptador real (`tests/stress.rs`).
+- **Paralelismo de leitura** (E15-T12/O7): `Corpus::load_notes` usa `std::thread::scope`
+  (zero-dep, sem `rayon`) sobre faixas de `list_ids`; cada thread só lê pela porta `Fs`
+  (`Send + Sync`) e devolve o próprio vetor — sem estado mutável compartilhado — e a remontagem é
+  na ordem de `list_ids`.

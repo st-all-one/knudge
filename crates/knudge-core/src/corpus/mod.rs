@@ -18,6 +18,12 @@ use std::path::Path;
 #[cfg(test)]
 mod tests;
 
+/// Abaixo deste tamanho o custo de `spawn` domina e a leitura fica sequencial (T12.5/O1).
+const PARALLEL_MIN_NOTES: usize = 256;
+
+/// Teto de threads: acima disso o ganho é marginal e o `spawn` pesa (máquinas muitos-núcleos).
+const PARALLEL_MAX: usize = 16;
+
 /// Notas + índice + grafo derivados de **uma** leitura do store.
 #[derive(Debug, Clone)]
 pub struct Corpus {
@@ -32,20 +38,43 @@ pub struct Corpus {
 impl Corpus {
     /// Lê todas as notas legíveis numa só passada, **sem** derivar índice/grafo.
     ///
+    /// Para corpora grandes, a leitura+parse é paralelizada por `std::thread::scope` (zero-dep,
+    /// T12.5): os ids são divididos em faixas contíguas e os resultados remontados **na ordem de
+    /// `list_ids`**, então a saída é idêntica à sequencial (determinismo preservado).
+    ///
     /// Use quando o comando só precisa dos frontmatters e o grafo é opcional (E15-T20/O8.1).
     ///
     /// # Errors
     /// Propaga erros de listagem/leitura (`Io`).
     pub fn load_notes(store: &Store<'_>) -> Result<Vec<Note>> {
         let ids = store.list_ids()?;
-        let mut notes = Vec::new();
-        let _reserved = notes.try_reserve(ids.len());
-        for id in &ids {
-            if let Some(note) = store.read_optional(id)? {
-                notes.push(note);
-            }
+        let width = parallel_width(ids.len());
+        if width <= 1 {
+            return load_notes_range(store, &ids, 0, ids.len());
         }
-        Ok(notes)
+        let chunk = ids.len().div_ceil(width);
+        let ids_slice: &[String] = &ids;
+        std::thread::scope(|scope| {
+            let mut handles = Vec::with_capacity(width);
+            let mut start = 0;
+            while start < ids.len() {
+                let end = start.saturating_add(chunk).min(ids.len());
+                handles.push(scope.spawn(move || load_notes_range(store, ids_slice, start, end)));
+                start = end;
+            }
+            let mut notes = Vec::with_capacity(ids.len());
+            for handle in handles {
+                match handle.join() {
+                    Ok(result) => notes.extend(result?),
+                    Err(_) => {
+                        return Err(crate::Error::internal(
+                            "thread de leitura do corpus abortou",
+                        ));
+                    }
+                }
+            }
+            Ok(notes)
+        })
     }
 
     /// Lê todas as notas legíveis e deriva índice e grafo de uma só passada.
@@ -98,4 +127,32 @@ impl Corpus {
             graph,
         })
     }
+}
+
+/// Largura da paralelização: 1 (sequencial) para corpora pequenos ou máquina de 1 núcleo.
+fn parallel_width(len: usize) -> usize {
+    if len < PARALLEL_MIN_NOTES {
+        return 1;
+    }
+    std::thread::available_parallelism()
+        .map_or(1, std::num::NonZeroUsize::get)
+        .min(PARALLEL_MAX)
+        .min(len)
+}
+
+/// Lê `ids[start..end]` (uma faixa contígua), descartando notas inválidas (`read_optional`).
+fn load_notes_range(
+    store: &Store<'_>,
+    ids: &[String],
+    start: usize,
+    end: usize,
+) -> Result<Vec<Note>> {
+    let slice = ids.get(start..end).unwrap_or_default();
+    let mut notes = Vec::with_capacity(slice.len());
+    for id in slice {
+        if let Some(note) = store.read_optional(id)? {
+            notes.push(note);
+        }
+    }
+    Ok(notes)
 }

@@ -67,6 +67,14 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   N=1167) custa mais que o rebuild (8,5 ms); fica pronto para o formato binário de T12. A bancada
   foi corrigida (`timed` exige exit 0; `task list --universe`; `config --key/--value`; `forget`
   idempotente) — antes comandos inválidos eram medidos como “ganhos”.
+- **Leitura paralela do corpus (E15-T12/O7)** — `Corpus::load_notes` divide os ids em faixas
+  contíguas e lê/parseia em `std::thread::scope` (**zero-dep**, sem `rayon`), remontando **na
+  ordem de `list_ids`** (bytes idênticos; limiar de 256 notas). É a **única adoção** da Onda 7: as
+  dependências avaliadas (`memchr`, `smallvec`, `rustc-hash`, `globset`, `rayon`, `mimalloc`) e o
+  formato binário do `.idx/` foram **rejeitados por medição** (o `mimalloc` regride; o binário
+  economiza < 20 % porque as notas ainda são lidas para o grafo). A/B (N=1167, `--no-idle`):
+  `Corpus::load_notes` −65 %, `Corpus::load` −44 %, `ask` −40 %, `task list --universe` −51 %,
+  `task graph` −31 %. Travado por `load_notes_parallel_matches_sequential_order`.
 - **Bancada de benchmark** (`bench/`, fora do workspace, zero dependências além do `knudge-core`)
   medindo componentes puros (**micromb**) e ações do binário (**ponta-a-ponta**) em corpora de
   200 e 1000 notas. Alvos `make bench`/`make bench-quick`; relatório de gargalos em

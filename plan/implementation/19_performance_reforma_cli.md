@@ -36,7 +36,9 @@ performance (Onda 8).
    completa é **aceito**; **não** espera O3. O3 (T04) segue otimizando `compact`/`learn`/`doctor`
    por conveniência, não por gate.
 3. **`.idx/` binário sem plataforma de carga.** O7 (`bincode`/`rkyv`) só faz sentido com O1.6
-   (carga persistida validada barata) — por isso T11 precede o item binário de T12.
+   (carga persistida validada barata) — por isso T11 precede o item binário de T12. (T12 mediu e
+   **rejeitou**: o decode economiza ~6 ms, mas `is_fresh` come ~3 ms e as notas ainda são lidas
+   para o grafo; líquido < 20 %.)
 4. **`prime`/docs são território compartilhado.** Goldens de `prime`, matriz, `docs/`, `SKILL.md`
    e `AGENTS.md` são consolidados em T19, mas cada tarefa de CLI atualiza a **linha da matriz** que
    tocar no mesmo commit.
@@ -177,6 +179,47 @@ Fecho: T19 (docs/goldens/matriz/CHANGELOG) → T21 (O9 revisão de coleções)
   corrigido em [`t11.md`](../../bench/t11.md) e regressão da carga em [`t11-cached.md`](../../bench/t11-cached.md).
 
 - **Aceite:** `make check` + `make ci` verdes; `cargo tree` dentro do orçamento justificado.
+
+### E15-T12 ☑ O7 — dependências com ganho expressivo (gated)
+
+**Regra de adoção (cada item exige A/B):** declarar em `[workspace.dependencies]` e consumir com
+`.workspace = true`; `default-features = false` quando der; licença na allowlist do `deny.toml`;
+`cargo deny`/`audit`/`machete` verdes; **≥ 20 %** no alvo (micro ou ponta-a-ponta) ou remover
+complexidade sem regressão; **nunca** alterar bytes de saída; determinismo (hash map nunca iterado
+para saída). Se não mover o ponteiro, **reverter**.
+
+Ordem avaliada: `memchr` → `smallvec` → `rustc-hash` → `globset` → `rayon` → `mimalloc` →
+binário do `.idx/`. Cada item foi medido um por vez, com recorte em `bench/`.
+
+**Resultado — 1 adoção (zero-dep) e 6 rejeições medidas:**
+
+- **ADOTADO (T12.5, sem dep): leitura paralela do corpus** via `std::thread::scope` em
+  `Corpus::load_notes` (faixas contíguas de `list_ids`, remontadas na ordem ⇒ bytes idênticos;
+  limiar de 256 notas; `available_parallelism`). Recorte (N=1167, `--no-idle`):
+  `Corpus::load_notes` **21,2→7,4 ms (−65 %)**, `Corpus::load` **32,2→17,9 ms (−44 %)`,
+  `ask` **71,7→43,0 ms (−40 %)**, `task list --universe` **50,3→24,4 ms (−51 %)**,
+  `task graph` **49,3→34,2 ms (−31 %)**. Com o auto-drain ligado, os ganhos são diluídos pelo
+  piso de ~30–55 ms do idle (ver T03/O1.5). Travado pelo teste
+  `load_notes_parallel_matches_sequential_order`.
+- **REJEITADO T12.1 `memchr`:** `str::lines`/`str::contains(char)` já são `memchr`-based no std;
+  não há varredura de bytes a substituir com ganho (micro `toon::parse` 1,66 µs, `Note::parse`
+  3,54 µs).
+- **REJEITADO T12.2 `smallvec` / T12.3 `rustc-hash`:** sem alvo ≥ 20 %; `rustc-hash` exigiria
+  exceção em `disallowed-types` (determinismo) sem número que a pague.
+- **REJEITADO T12.4 `globset`:** o DP de T07 já faz 138 ns/chamada; compilar o padrão custaria
+  mais que a varredura de âncoras.
+- **REJEITADO T12.6 `mimalloc`:** **regride** (`task list --universe` 24→44 ms, `task graph`
+  34→49 ms, `ask` 43→57 ms); workload é I/O-bound e o alocador adiciona overhead. Revertido.
+- **REJEITADO T12.7 binário do `.idx/`:** `Index::parse` (JSONL) 12,6 ms vs `Index::build`
+  8,9 ms; um decode binário (~2 ms) economizaria ~6 ms, mas `is_fresh` (stat de todas as notas)
+  come ~3 ms e as notas **ainda** são lidas para grafo/corpos — líquido ~3,5 ms (< 20 %), ao custo
+  de um formato proprietário. Não se paga enquanto a leitura de notas (já paralela) domina; fica
+  como gancho de um futuro *snapshot* combinado (meta+arestas+índice) que evite reler notas.
+
+- **Depende de:** T11 (O1.6 — plataforma de carga validada) para T12.7; T02/T20 para o baseline.
+- **Aceite:** `make check` verde; `cargo tree` **inalterado** (nenhuma dep nova); recortes em
+  [`t12.md`](../../bench/t12.md) (depois, `--no-idle`), [`t12-antes.md`](../../bench/t12-antes.md)
+  (antes) e [`t12-full.md`](../../bench/t12-full.md) (com idle).
 
 ### E15-T20 ☑ O8 — `kd task` ponta a ponta
 - **Escopo:** `task::impacts` (O8.2) substitui as chamadas por id em `next_tasks` e

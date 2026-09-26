@@ -118,3 +118,34 @@ fn load_fresh_rebuilds_on_corrupt_index() -> Result<()> {
     );
     Ok(())
 }
+
+#[test]
+fn load_notes_parallel_matches_sequential_order() -> Result<()> {
+    let fs = MemFs::new();
+    let store = Store::new(&fs, "/p/.knudge");
+    store.ensure_dirs()?;
+    // Acima de `PARALLEL_MIN_NOTES` (256): exercita a leitura paralela em máquina multicore.
+    for i in 0..300u32 {
+        store.write(&note(
+            NoteType::Fact,
+            &format!("afirmação sintética número {i}"),
+        )?)?;
+    }
+    let ids = store.list_ids()?;
+    assert_eq!(ids.len(), 300);
+    let loaded = Corpus::load_notes(&store)?;
+    let mut loaded_ids = Vec::with_capacity(loaded.len());
+    for item in &loaded {
+        loaded_ids.push(item.frontmatter.id()?.to_string());
+    }
+    // A ordem remontada é a de `list_ids`, idêntica à da leitura sequencial.
+    assert_eq!(loaded_ids, ids);
+    let mut sequential = Vec::with_capacity(ids.len());
+    for id in &ids {
+        if let Some(item) = store.read_optional(id)? {
+            sequential.push(item.frontmatter.id()?.to_string());
+        }
+    }
+    assert_eq!(loaded_ids, sequential);
+    Ok(())
+}

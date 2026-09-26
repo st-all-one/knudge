@@ -17,7 +17,7 @@ existem no mesmo crate, mas o domínio **nunca** as importa — só as portas.
 | `toon` | Parser/emissor TOON próprio (E02). |
 | `jsonl` | Leitura/escrita JSONL e codec JSON canônico (E03). |
 | `store` | Notas, eventos, lock, rebuild, purge e sweep (D160: só `*.tmp`/`*.stale`, nunca `*.lock`); layout por tipo (`notas/<tipo>/<id>.md`) com leitura tolerante ao layout plano legado e `read_optional` (D150) (E03). |
-| `corpus` | Leitura **única** do store: `Corpus { notes, index, graph }` derivados do mesmo vetor, sem clonar (E15-T02/O1); `load_notes` para quem só precisa dos frontmatters (E15-T20/O8.1); `load_fresh` reusa o índice de `.idx/` quando fresco (E15-T11/O1.6). |
+| `corpus` | Leitura **única** do store: `Corpus { notes, index, graph }` derivados do mesmo vetor, sem clonar (E15-T02/O1); `load_notes` para quem só precisa dos frontmatters (E15-T20/O8.1), **paralela** por `std::thread::scope` em faixas de `list_ids` (E15-T12/O7.5, ordem preservada); `load_fresh` reusa o índice de `.idx/` quando fresco (E15-T11/O1.6). |
 | `config` | Config em dois níveis, schema e codec TOML próprio (E04). |
 | `git` | Worktree principal, `info/exclude`, `AGENTS.md`, `sync`, skill do projeto (`.agents/skill/kd/SKILL.md`, D162) (E04). |
 | `graph` | Arestas explícitas, integridade, ciclos, sugestões, **item de trabalho** (`scope`/`is_work_item`, D120) e **índice reverso de pai** (`parents`, O(1) para `parent`/`has_parent`, E15-T09/O5) (E05). |

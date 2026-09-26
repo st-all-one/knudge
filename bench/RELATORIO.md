@@ -61,6 +61,11 @@
 | E15-T10 (O6) | `content_terms` (micro) | 2,13 µs | 1,91 µs | −10 % |
 | E15-T11 (O1.6) | carga do `.idx/` por `mtime` | — | — | **não habilitada** (parse 13,8 ms > rebuild 8,5 ms) |
 | E15-T11 | correção da bancada (`timed`/`--universe`/`--key`/`forget`) | mediava falhas rápidas | mede de verdade | — |
+| E15-T12 (O7) | leitura paralela do corpus (N=1167) | 21,2 ms | 7,4 ms | **−65 %** |
+| E15-T12 (O7) | `ask` (N=1167, `--no-idle`) | 71,7 ms | 43,0 ms | **−40 %** |
+| E15-T12 (O7) | `task list --universe` (N=1167, `--no-idle`) | 50,3 ms | 24,4 ms | **−51 %** |
+| E15-T12 (O7) | `task graph` (N=1167, `--no-idle`) | 49,3 ms | 34,2 ms | −31 % |
+| E15-T12 (O7) | deps O7 (`memchr`…`mimalloc`) + binário `.idx/` | — | — | **rejeitadas por medição** |
 
 Baseline pré-reforma preservado em [`ULTIMO-v0.3.3.md`](ULTIMO-v0.3.3.md); a bancada passou a
 medir `kd doctor`/`kd drain` (a reforma CLI de E15 T13/T14 renomeou os verbos). Os recortes de
@@ -70,7 +75,15 @@ o recorte de T05 está em [`t05.md`](t05.md), o de T06 em [`t06.md`](t06.md) e o
 o recorte de T09 em [`t09.md`](t09.md); o de T20 em [`t20.md`](t20.md) e a micromb em
 [`micro-t20.md`](micro-t20.md); o de T10 em [`t10.md`](t10.md) e a micromb em
 [`micro-t10.md`](micro-t10.md); o baseline corrigido e o recorte de T11 em [`t11.md`](t11.md) e
-[`t11-cached.md`](t11-cached.md).
+[`t11-cached.md`](t11-cached.md); o recorte de T12 em [`t12.md`](t12.md) (depois), [`t12-antes.md`](t12-antes.md)
+(antes) e [`t12-full.md`](t12-full.md) (com idle).
+>
+> **T12 e a leitura paralela.** `Corpus::load_notes` paraleliza a leitura+parse do corpus com
+> `std::thread::scope` (zero-dep) e remonta na ordem de `list_ids` (bytes idênticos). As
+> dependências da Onda 7 (`memchr`, `smallvec`, `rustc-hash`, `globset`, `rayon`, `mimalloc`) e o
+> formato binário do `.idx/` foram rejeitados por medição — o `mimalloc` regride (workload
+> I/O-bound) e o binário economiza < 20 % porque as notas ainda são lidas para o grafo. Ver a
+> seção T12 do épico.
 >
 > **T11 e o formato JSONL.** A validação de frescor (`mtime`) e o caminho de carga
 > (`Index::load_if_fresh`/`Corpus::load_fresh`) ficam prontos e testados, mas **não** habilitados:
