@@ -5,15 +5,6 @@ use clap::{Args, Subcommand};
 /// Subcomandos de manutenção.
 #[derive(Debug, Subcommand)]
 pub enum MaintenanceCommand {
-    /// Relatório de saúde (e reparo do reversível com `--fix`).
-    Doctor {
-        /// Corrige o que for reversível.
-        #[arg(long)]
-        fix: bool,
-        /// Foco em integridade de grafo/arestas.
-        #[arg(long)]
-        audit: bool,
-    },
     /// Propõe consolidação (merge/supersede), nunca em silêncio.
     Compact {
         /// Container/domínio de escopo.

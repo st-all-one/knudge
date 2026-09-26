@@ -377,9 +377,9 @@ fn maintenance_and_handoff() -> TestResult {
     )?;
     let task = common::task_new(&dir, "Corrigir gateway", &["--scope", "task"])?;
 
-    let doctor = ok(&dir, &["maintenance", "doctor"])?;
+    let doctor = ok(&dir, &["doctor"])?;
     assert!(doctor.contains("schema"));
-    let audit = ok(&dir, &["maintenance", "doctor", "--audit"])?;
+    let audit = ok(&dir, &["doctor"])?;
     assert!(audit.contains("audit"));
 
     // Propostas read-only exigem escopo (D144).
@@ -437,7 +437,7 @@ fn json_envelope_and_exit_codes() -> TestResult {
         vec!["knowledge", "tags"],
         vec!["task", "list", "--universe"],
         vec!["rewind"],
-        vec!["maintenance", "doctor"],
+        vec!["doctor"],
         vec!["config", "list"],
         vec!["prime"],
     ] {

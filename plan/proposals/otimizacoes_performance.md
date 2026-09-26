@@ -55,10 +55,11 @@ auto-drain. `Index::from_store` e `Graph::build` cada um faz `store.list_ids()` 
   Mesmo resultado; só evita copiar o corpus.
 - **O1.3 — `embedder::pending`/`drain` recebem `&[Note]`** já carregado em vez de `store.read`
   de novo (o auto-drain reusa o corpus carregado quando existir).
-- **O1.4 — `Session::corpus()`** e migrar `ask`/`rewind`/`doctor`/`learn`/`compact`/`prune` para
-  ele. `Session::index()`/`graph()` viram wrappers de conveniência (mantidos para testes).
+- **O1.4 — `Session::corpus()`** e migrar `ask`/`rewind`/`doctor`/`learn`/`compact`/`prune`/**`task`**
+  para ele. `Session::index()`/`graph()` viram wrappers de conveniência (mantidos para testes).
 - **O1.5 — auto-drain:** checar `KNUDGE_NO_IDLE` **antes** de `Session::open()`; não rodar em
-  `prime`/`self`; pular quando `embeddings.enabled=false` ou `provider=none` (hoje `Session::open`
+  `prime`/`self` e **nos verbos de manutenção** (`doctor`/`drain`, quando promovidos); pular
+  quando `embeddings.enabled=false` ou `provider=none` (hoje `Session::open`
   e, com `http`, uma varredura O(N) acontecem mesmo em `self version`).
 
 **Ganho esperado:** `rewind` 362 ms → ordem de 100–140 ms; `ask` −25–35 %; `prime`/`self version`
@@ -115,6 +116,10 @@ auto-drain. `Index::from_store` e `Graph::build` cada um faz `store.list_ids()` 
 ---
 
 ## Onda 3 — dedup: matar o O(N²) de `doctor`/`compact`
+
+> **Nota (revisão):** `doctor` é **raro** e o custo da validação completa é aceito
+> (consistência/garantia/resolubilidade). O3 beneficia `doctor` e, sobretudo, `compact`/`learn`
+> — mas **não é pré-requisito** de nenhum verbo; é melhoria, não gate.
 
 - **O3.1 — lookup O(1).** Em `propose_merges`, o `index.docs.iter().find(...)` por hit é O(N);
   trocar por `BTreeMap<&str, &NoteDoc>` construído uma vez. **Risco:** nulo.
@@ -248,6 +253,39 @@ Notas de implementação:
 
 ---
 
+## Onda 8 — `kd task` ponta a ponta
+
+`task` é o verbo mais composto: lê o corpus, monta grafo/views, filtra subárvores e atualiza
+progresso de ancestrais. Hoje cada subcomando refaz esse trabalho. Otimizar **tudo que o envolve**,
+sem mudar bytes:
+
+- **O8.1 — corpus único por invocação.** Todos os subcomandos usam `Session::corpus()` (O1.1);
+  `task list`/`show`/`graph`/`close`/`update` deixam de chamar `index()`+`graph()`+`load_notes()`
+  separadamente.
+- **O8.2 — views/impact uma vez.** `compute_views`/SCC e `impact` pré-computados por invocação
+  (O5.2/O5.3); `--sort impact` e `--ready`/`--blocked` reusam o mesmo cálculo.
+- **O8.3 — filtros por postings + índice reverso.** `--scope` (subárvore `results_in`), `--tag`,
+  `--anchor`, `--type`, `--status` usam a peneira de postings (O2.1) e o índice reverso de pai
+  (O5.1), não uma varredura por filtro.
+- **O8.4 — `task graph` em uma passada.** Reusa o índice reverso (O5.1) e acumula `done/total` sem
+  recompor a floresta por programa.
+- **O8.5 — `task close`.** O progresso dos ancestrais sobe pelo índice reverso (O5.1) numa única
+  caminhada; não reconstrói grafo nem recomputa views por ancestral.
+- **O8.6 — `task show --history`.** Eventos lidos uma vez (tail) e ids resolvidos por caminho
+  conhecido, sem recarregar o corpus inteiro.
+- **O8.7 — `task new`/`update`.** Reusam o corpus/índice carregado; dedup do enunciado pela peneira
+  de O3 (não O(N) por nota).
+- **O8.8 — `task plan --prompt/--submit`.** Cabeçalhos TOON com `Cow`/escrita direta (O4.3) e
+  capacidade pré-alocada no parse (O4.4).
+- **O8.9 — bancada.** Estender `bench/e2e.rs` com `task new`, `task list --universe`,
+  `task list --sort impact`, `task graph`, `task show` e `task close` em N=200/1000 — hoje só
+  `task list` é medido; `graph`/`close`/`--sort impact` podem esconder gargalos.
+
+**Ganho:** `task list --sort impact`/`task graph`/`task close` −20–50 % em N≈1 k. **Risco:** baixo
+(reusa O1/O2/O5, sem contrato novo).
+
+---
+
 ## Matriz de impacto × risco
 
 | Onda | Onde | Ganho esperado (N≈1 k) | Risco |
@@ -259,6 +297,7 @@ Notas de implementação:
 | O5 | `Graph`, `views`, `manifest` | `rewind`/`map` −20–40 % | baixo |
 | O6 | transversal | −5–15 % + consistência | baixo |
 | O7 | deps (`rayon`,`hashbrown`,`memchr`,`globset`,`mimalloc`…) | −20–60 % por alvo, conforme gate | variável |
+| O8 | `task` (list/show/graph/close/plan) | `task list --sort impact`/`graph`/`close` −20–50 % | baixo |
 
 > As ondas se **somam** onde não disputam o mesmo trecho (O1+O3+O5 atacam córregos distintos do
 > `rewind`; O2 alimenta O3).
@@ -279,7 +318,7 @@ Notas de implementação:
 1. **O6.1** (`sort_unstable`) e **O1** — baixo risco, ganho grande e imediato.
 2. **O2.2/O4** — micro-otimizações locais, isoladas.
 3. **O2.1 + O3** — o pacote algorítmico (postings + dedup), validado por benchmark e proptest.
-4. **O2.3/O5** — globs e grafo/views.
+4. **O2.3/O5/O8** — globs, grafo/views e `task` ponta a ponta.
 5. **O6 restante + O1.5** — polimento e piso fixo.
 6. **O7 por último e uma por vez** — `memchr`/`smallvec`/`rustc-hash` (baixo risco) → `globset`
    → `rayon` → `mimalloc` → `bincode`/`rkyv`; cada uma com A/B e remoção imediata se não pagar.

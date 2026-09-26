@@ -15,7 +15,10 @@ use super::embedder;
 
 /// Drena um lote pendente quando o modo efetivo é `lazy`.
 pub fn maybe_drain(cli: &Cli) {
-    if matches!(cli.command, Some(Command::Maintenance { .. })) {
+    if matches!(
+        cli.command,
+        Some(Command::Maintenance { .. } | Command::Doctor(_))
+    ) {
         return;
     }
     let Ok(session) = Session::open() else {

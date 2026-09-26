@@ -16,7 +16,7 @@ do núcleo para o **contrato de saída** (D71):
 |---|---|
 | `cli/` | Definição dos argumentos/subcomandos (`clap`) — superfície v2. |
 | `session.rs` | Resolve o projeto, carrega a config efetiva, monta store/eventos/índice/grafo e varre resíduos na inicialização (D160). |
-| `commands/` | Um módulo por verbo (`prime`, `init`, `rewind`, `ask`, `write_cmd`, `task`, `knowledge`, `maintenance`, `config_cmd`, `forget_sync`, `self_cmd`) + `hooks`/`validators`/`gate`/`embedder`/`idle`/`input`/`corpus`; `knowledge/{map,digest,rank,tags,suggest,promote}` (sugestões semânticas D158 e regras governadas D157), `maintenance/{extra,proposals,watch}` (saída/portão D156) e `task/{query,show,render,batch}` separam os subcomandos. |
+| `commands/` | Um módulo por verbo (`prime`, `init`, `rewind`, `ask`, `write_cmd`, `task`, `knowledge`, `maintenance`, `doctor`, `config_cmd`, `forget_sync`, `self_cmd`) + `hooks`/`validators`/`gate`/`embedder`/`idle`/`input`/`corpus`; `knowledge/{map,digest,rank,tags,suggest,promote}` (sugestões semânticas D158 e regras governadas D157), `maintenance/{extra,proposals,watch}` (saída/portão D156), `doctor/{render,explain}` (texto/JSON + achados esperado×encontrado×ação; D163) e `task/{query,show,render,batch}` separam os subcomandos. |
 | `envelope.rs` | Serialização do envelope JSON. |
 | `output.rs` | Escrita em stdout/stderr com tratamento de `EPIPE`. |
 | `logging.rs` | Adaptador `tracing` do port `Logger` com redação. |

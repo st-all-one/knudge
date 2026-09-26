@@ -30,7 +30,8 @@
 | `kd write` | `write`, `update`, `link` | toda escrita |
 | `kd task` | `epic`, grupos de tarefa | epic/issue/task |
 | `kd knowledge` | `clusters`, `digest` | mapa/digestão de conhecimento (D128/D145) |
-| `kd maintenance` | `doctor` (`--audit`), `compact`, `learn`, `prune`, `watch-service` | manutenção |
+| `kd doctor` | — | saúde do corpus: 13 checks + auditoria (`--fix`, `--explain`) — D163 |
+| `kd maintenance` | `compact`, `learn`, `prune`, `watch-service` | manutenção |
 | `kd config` | `config` | `.knudge/config.toml` |
 | `kd forget` | `forget`, `restore` | soft-delete |
 | `kd sync` | `sync` | commit git |
@@ -231,10 +232,11 @@ kd knowledge tags [--limit <N>]
 - Pipe: `<axis>|<key>|<count>` (container acrescenta `|<título>`); com `--members`, membros
   indentados `id|statement`. Fase 2: `semantic|<axis>|<key>|groups=N` + grupos.
 
-## 9. `kd maintenance` — manutenção
+## 9. `kd doctor` e `kd maintenance` — saúde e manutenção
 
 ```
-kd maintenance doctor [--fix] [--audit]   # relatório por padrão; --fix corrige o reversível
+kd doctor [--fix] [--explain]             # 13 checks + auditoria; --fix corrige o reversível
+                                          # --explain detalha cada achado (esperado/encontrado/ação)
 kd maintenance compact [--scope <C>] [--tag ...|--anchor ...|--type ...|--class ...|--around ...|--universe]
                                           # propõe merge/supersede (nunca em silêncio; escopo obrigatório — D144)
 kd maintenance learn [--scope <C>] [--tag ...|--anchor ...|--type ...|--class ...|--around ...|--universe]
@@ -334,7 +336,8 @@ strict = false   # true promove warnings (leitura, retrieval, embeddings) a erro
 | `prime(scope)` / `get_context` / `diff` | `kd rewind` / `kd rewind --resume` / `kd rewind --since` |
 | `learn` | `kd maintenance learn` |
 | `plan` | `kd task` |
-| `compact` / `doctor --audit` / `learn` / `prune` | `kd maintenance …` |
+| `doctor` / `doctor --audit` | `kd doctor` (auditoria é o padrão) |
+| `compact` / `learn` / `prune` | `kd maintenance …` |
 | `eval` / `index` | **removidos** — avaliação offline (`bench/`); fila é `kd knowledge digest` (D145) |
 | `onboard` | `kd init` |
 | `setup` / `completions` / `upgrade` / `version` | `kd self …` |

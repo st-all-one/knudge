@@ -45,11 +45,11 @@ fn missing_anchor_does_not_abort_doctor() -> TestResult {
     std::fs::create_dir_all(dir.join("src"))?;
     std::fs::write(dir.join("src").join("a.txt"), "x")?;
     let (_id, path) = anchored_note(&dir, "src/a.txt")?;
-    let _fixed = ok_json(&dir, &["maintenance", "doctor", "--fix"])?;
+    let _fixed = ok_json(&dir, &["doctor", "--fix"])?;
 
     std::fs::remove_file(dir.join("src").join("a.txt"))?;
 
-    let report = ok_json(&dir, &["maintenance", "doctor"])?;
+    let report = ok_json(&dir, &["doctor"])?;
     let anchors_ok = check_bool(&report, "anchors", "ok");
     assert_eq!(
         anchors_ok,
@@ -68,7 +68,7 @@ fn directory_anchor_is_dropped_by_fix() -> TestResult {
     init(&dir)?;
     std::fs::create_dir_all(dir.join("src").join("dir"))?;
     let (_id, path) = anchored_note(&dir, "src/dir")?;
-    let _fixed = ok_json(&dir, &["maintenance", "doctor", "--fix"])?;
+    let _fixed = ok_json(&dir, &["doctor", "--fix"])?;
     let body = std::fs::read_to_string(&path)?;
     assert!(
         !body.contains("anchors:"),
@@ -82,8 +82,8 @@ fn epic_derived_index_is_coherent() -> TestResult {
     let dir = temp_project();
     init(&dir)?;
     let _epic = common::task_new(&dir, "Épico E", &["--scope", "epic"])?;
-    let _fixed = ok_json(&dir, &["maintenance", "doctor", "--fix"])?;
-    let report = ok_json(&dir, &["maintenance", "doctor"])?;
+    let _fixed = ok_json(&dir, &["doctor", "--fix"])?;
+    let report = ok_json(&dir, &["doctor"])?;
     assert_eq!(report.get("healthy").and_then(Value::as_bool), Some(true));
     let derived_ok = check_bool(&report, "derived", "ok");
     assert_eq!(derived_ok, Some(true));
@@ -265,8 +265,8 @@ fn program_anchor_warn_keeps_corpus_healthy() -> TestResult {
     let dir = temp_project();
     init(&dir)?;
     let _epic = common::task_new(&dir, "Épico sem plano", &["--scope", "epic"])?;
-    let _fixed = ok_json(&dir, &["maintenance", "doctor", "--fix"])?;
-    let out = run_in(&dir, &["--json", "maintenance", "doctor"])?;
+    let _fixed = ok_json(&dir, &["doctor", "--fix"])?;
+    let out = run_in(&dir, &["--json", "doctor"])?;
     assert!(out.status.success(), "doctor: {}", stderr(&out)?);
     let report = common::data(&out)?;
     assert_eq!(report.get("healthy").and_then(Value::as_bool), Some(true));
@@ -280,11 +280,12 @@ fn audit_json_exposes_duplicate_pairs() -> TestResult {
     let dir = temp_project();
     init(&dir)?;
     let _note = write_note(&dir, "alpha beta gamma", "fact", &[])?;
-    let report = ok_json(&dir, &["maintenance", "doctor", "--audit"])?;
+    let report = ok_json(&dir, &["doctor"])?;
+    let audit = report.get("audit").ok_or("doctor sem bloco audit")?;
     assert!(
-        report.get("duplicate_pairs").is_some(),
+        audit.get("duplicate_pairs").is_some(),
         "audit --json precisa expor os pares: {report}"
     );
-    assert!(report.get("broken_anchor_details").is_some());
+    assert!(audit.get("broken_anchor_details").is_some());
     Ok(())
 }

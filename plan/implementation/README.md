@@ -71,11 +71,14 @@ Cada achado traz **estado atual, recomendação, onde aplicar e aceite** em `14_
 | **4 — Interfaces** | E12 CLI, MCP, hooks e distribuição | [`12_cli_mcp_distribuicao.md`](12_cli_mcp_distribuicao.md) | E08, E09 |
 | **Transversal** | E13 Testes e qualidade | [`13_testes_qualidade.md`](13_testes_qualidade.md) | todos |
 | **5 — MCP** | E14 Transporte JSON-RPC e tools | [`18_mcp_transporte.md`](18_mcp_transporte.md) | E12, E13 |
+| **6 — Evolução** | E15 Performance + reforma da CLI | [`19_performance_reforma_cli.md`](19_performance_reforma_cli.md) | E01–E14 |
 
 **MVP = Fase 0 + Fase 1** (+ leitura tolerante mínima de E09). O resto é incremental.
 
 **Status:** E01–E14 ✅ (`make check` verde; 458 testes). Projeto completo pelo plano; evolução
-segue as decisões `Dxx` e as políticas `Rnn`.
+segue as decisões `Dxx` e as políticas `Rnn`. **E15 ◐** (performance + reforma da CLI) em
+andamento — plano em [`../proposals/`](../proposals/) e épico em
+[`19_performance_reforma_cli.md`](19_performance_reforma_cli.md).
 
 **Superfície CLI:** o contrato dos verbos do `kd` está congelado em
 [`16_cli_surface.md`](16_cli_surface.md) (v2, inspirada no Docker; decisões D57/D69/D88/D93/D94).
@@ -96,6 +99,7 @@ E01 ── E02 ── E03 ──┬── E04
                                           └── E11
 E13 (testes) atravessa todos
 E14 (MCP stdio) depende de E12 + E13
+E15 (performance + reforma CLI) depende de E01–E14
 ```
 
 ---
@@ -148,6 +152,8 @@ Um épico só fecha quando:
 | D28, D43–D45, D47–D48, D52, D56 (shelf-life, decay, purga, ciclos, clusters) | E10 |
 | D100 (`not_before`: agendamento × expiração) | E10 |
 | D42, D79–D80, D83–D85, D89–D90, D101 (provedor HTTP, cache, fila, purge, flush, eval, lightweight) | E11 |
+| D163–D171 (doctor/help/verboso/prime/help embutido/redundância/docs/drain/`kd`=help) | E15 |
+| Ondas O1–O8 (performance: corpus único, postings, dedup, parse, grafo, deps, `task`) | E15 |
 
 ---
 

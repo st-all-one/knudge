@@ -1466,18 +1466,81 @@ fn task_graph_without_containers_warns() -> TestResult {
 }
 
 #[test]
-fn maintenance_doctor_audit_lists_integrity() -> TestResult {
+fn doctor_reports_health_and_audit() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success());
-    let out = run_in(&dir, &["maintenance", "doctor", "--audit"])?;
-    assert!(
-        out.status.success(),
-        "doctor --audit falhou: {:?}",
-        out.stderr
-    );
+    let out = run_in(&dir, &["doctor"])?;
+    assert!(out.status.success(), "doctor falhou: {:?}", out.stderr);
     let text = String::from_utf8(out.stdout)?;
-    assert!(text.contains("audit"), "saída sem audit: {text}");
+    assert!(text.contains("auditoria:"), "saída sem auditoria: {text}");
+    assert!(text.contains("próximos:"), "saída sem próximos: {text}");
+    Ok(())
+}
+
+#[test]
+fn doctor_explain_lists_expected_found_action() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let out = run_in(&dir, &["doctor", "--explain"])?;
+    assert!(out.status.success(), "doctor --explain: {:?}", out.stderr);
+    let text = String::from_utf8(out.stdout)?;
+    assert!(text.contains("esperado:"), "sem esperado:\n{text}");
+    assert!(text.contains("encontrado:"), "sem encontrado:\n{text}");
+    assert!(text.contains("ação:"), "sem ação:\n{text}");
+    Ok(())
+}
+
+#[test]
+fn doctor_status_reflects_audit_and_fix_resolves() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    std::fs::create_dir_all(dir.join("src"))?;
+    std::fs::write(dir.join("src").join("gone.rs"), "x")?;
+    let write = run_in(
+        &dir,
+        &[
+            "write",
+            "--summary",
+            "nota ancorada do doctor",
+            "--type",
+            "fact",
+            "--anchor",
+            "src/gone.rs",
+            "Por quê: smoke do doctor",
+        ],
+    )?;
+    assert!(write.status.success(), "write: {:?}", write.stderr);
+    std::fs::remove_file(dir.join("src").join("gone.rs"))?;
+
+    let envelope = json(&run_in(&dir, &["--json", "doctor"])?)?;
+    let data = envelope.get("data").ok_or("sem data")?;
+    assert_eq!(
+        data.get("healthy").and_then(serde_json::Value::as_bool),
+        Some(false),
+        "âncora quebrada não pode ficar saudável: {data}"
+    );
+    let audit = data.get("audit").ok_or("sem audit")?;
+    let broken = audit
+        .get("broken_anchor_details")
+        .and_then(serde_json::Value::as_array)
+        .ok_or("sem broken_anchor_details")?;
+    assert!(!broken.is_empty(), "auditoria não listou a âncora quebrada");
+
+    let _fixed = run_in(&dir, &["doctor", "--fix"])?;
+    let envelope = json(&run_in(&dir, &["--json", "doctor"])?)?;
+    let data = envelope.get("data").ok_or("sem data")?;
+    assert_eq!(
+        data.get("healthy").and_then(serde_json::Value::as_bool),
+        Some(true),
+        "após --fix o corpus deve ficar saudável: {data}"
+    );
+    assert_eq!(
+        data.get("status").and_then(serde_json::Value::as_str),
+        Some("healthy")
+    );
     Ok(())
 }
 

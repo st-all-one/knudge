@@ -17,8 +17,8 @@ GUIA RÁPIDO (o que usar, quando e quando NÃO usar):
                      NÃO use como busca dirigida — use kd ask.
   kd knowledge map   VISÃO de clusters (estrutural/semântico); exige escopo ou --universe.
                      NÃO use para achar 1 nota (use kd ask) nem para ranking (kd knowledge rank).
-  kd maintenance ..  SAÚDE (doctor/--audit), limpeza (compact/learn/prune).
-                     learn/compact/prune só PROPÕEM e exigem escopo (ou --universe).
+  kd doctor          SAÚDE do corpus (13 checks + auditoria; reparo com --fix, detalhe com --explain).
+  kd maintenance ..  LIMPEZA (compact/learn/prune; só PROPÕEM e exigem escopo ou --universe).
   kd forget --id <ID>  SOFT-DELETE (--restore; --purge só após retenção, [--force]).
   kd sync            COMMIT de notas/ + eventos/ (--message).
   kd init|config|self|prime — fundação, ajustes, binário e este protocolo.
@@ -30,7 +30,7 @@ GUIA RÁPIDO (o que usar, quando e quando NÃO usar):
   Repetível; aceita vírgula (`--anchor a,b --anchor c`). Glob (`src/**`) casa subárvores.
   `kd ask --anchor PATH` busca só o ancorado, mesmo sem query textual (canal de âncoras).
   Onde NÃO usar: nota de conceito global sem arquivo, ou path que ainda não existe.
-  Manutenção: `kd maintenance doctor --audit` lista âncoras quebradas (arquivo removido).
+  Manutenção: `kd doctor` lista âncoras quebradas (arquivo removido).
 
 CONHECIMENTO (kd write — fatos, decisões, erros, riscos, perguntas):
   1. kd ask "<rascunho>"                # dedup lexical (BM25) antes de criar
@@ -80,7 +80,8 @@ ESTADO / HANDOFF: kd rewind [--scope CONTAINER] [--files PATH...] [--budget N] [
 MAPA/RANK: kd knowledge map|digest|rank|tags ...  (map/rank exigem escopo ou --universe; D143/D145/D146)
   kd knowledge map [--axis anchor|type|classification|scope] [--scope C] [--semantic] [--members] [--write]
   kd knowledge digest --status|--drain  (digere o conteúdo num vetor; ex-maintenance index)
-MANUTENÇÃO: kd maintenance doctor [--audit]|compact|learn|prune|watch-service  (learn/compact/prune só propõem; exigem escopo ou --universe)
+SAÚDE: kd doctor [--fix] [--explain]  (13 checks + auditoria; reparo reversível; --explain detalha cada achado)
+MANUTENÇÃO: kd maintenance compact|learn|prune|watch-service  (learn/compact/prune só propõem; exigem escopo ou --universe)
 CICLO DE VIDA: kd forget --id <ID>  (soft; --restore; --purge [--force] após retenção)
 CONFIG: kd config get --key K | set --key K --value V | unset --key K | list [--global]  (strict é config, não flag)
 INIT/SYNC: kd init  (funda .knudge/ + AGENTS.md)  ·  kd sync  (commit de notas/ + eventos/)

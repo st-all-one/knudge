@@ -3,6 +3,7 @@
 pub mod ask;
 pub mod config_cmd;
 pub mod corpus;
+pub mod doctor;
 pub mod embedder;
 pub mod forget_sync;
 pub mod gate;
@@ -73,6 +74,7 @@ fn dispatch(session: &Session, command: &Command) -> Result<Output> {
         Command::Task { command } => task::run(session, command),
         Command::Knowledge { command } => knowledge::run(session, command),
         Command::Maintenance { command } => maintenance::run(session, command),
+        Command::Doctor(args) => doctor::run(session, args),
         Command::Config { command } => config_cmd::run(session, command),
         Command::Forget(args) => forget_sync::forget(session, args),
         Command::Sync(args) => forget_sync::sync(session, args),

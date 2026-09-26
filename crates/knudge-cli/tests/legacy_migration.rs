@@ -98,7 +98,7 @@ fn legacy_flat_corpus_is_readable_before_fix() -> TestResult {
     assert!(stdout(&rewind)?.contains("notes="));
 
     // `doctor` reporta as notas puladas (o fix ainda não rodou).
-    let doctor = run_in(&dir, &["--json", "maintenance", "doctor"])?;
+    let doctor = run_in(&dir, &["--json", "doctor"])?;
     assert!(doctor.status.success());
     let checks = data(&doctor)?;
     assert_eq!(check_ok(&checks, "schema"), Some(false));
@@ -111,7 +111,7 @@ fn doctor_fix_migrates_legacy_corpus() -> TestResult {
     init(&dir)?;
     seed_legacy(&dir)?;
 
-    let fix = run_in(&dir, &["maintenance", "doctor", "--fix"])?;
+    let fix = run_in(&dir, &["doctor", "--fix"])?;
     assert!(fix.status.success(), "doctor --fix: {}", stderr(&fix)?);
 
     // Layout migrado para `notas/<tipo>/<id>.md`.
@@ -129,7 +129,7 @@ fn doctor_fix_migrates_legacy_corpus() -> TestResult {
     assert!(!epic.contains("confidence"), "chave removida permaneceu");
 
     // Depois do fix, o corpus está saudável e a leitura segue funcionando.
-    let doctor = run_in(&dir, &["--json", "maintenance", "doctor"])?;
+    let doctor = run_in(&dir, &["--json", "doctor"])?;
     let checks = data(&doctor)?;
     assert_eq!(check_ok(&checks, "schema"), Some(true));
     assert_eq!(check_ok(&checks, "body_hash"), Some(true));
@@ -166,7 +166,7 @@ fn real_tmp_corpus_smoke() -> TestResult {
     );
     let _ignored = data(&ask)?;
 
-    let fix = run_in(&dir, &["maintenance", "doctor", "--fix"])?;
+    let fix = run_in(&dir, &["doctor", "--fix"])?;
     assert!(fix.status.success(), "doctor --fix real: {}", stderr(&fix)?);
 
     // Depois do fix: nenhuma nota legada restou e os verbos principais respondem.
@@ -185,7 +185,7 @@ fn real_tmp_corpus_smoke() -> TestResult {
         assert!(out.status.success(), "{args:?}: {}", stderr(&out)?);
     }
 
-    let doctor = run_in(&dir, &["--json", "maintenance", "doctor"])?;
+    let doctor = run_in(&dir, &["--json", "doctor"])?;
     let checks = data(&doctor)?;
     assert_eq!(check_ok(&checks, "schema"), Some(true));
     Ok(())

@@ -23,6 +23,7 @@ Temas: (1) doctor; (2) drain; (3) prime compacto; (4) verbosidade; (5) help embu
 | **D168** | revisão de **redundância** (`body`, aliases) e um só vocabulário por conceito |
 | **D169** | **documentação viva** (`prime`/`help`) e **estática** (`docs/`, `SKILL.md`, `AGENTS.md`, `llms.txt`, matriz) em sincronia |
 | **D170** | `kd drain` de topo (absorve `kd knowledge digest`); sem flag = `--help` (não executa); `--digest [--force]` = digestão com log mínimo (`--force` apaga `.idx/` e redigeri tudo, último recurso); `--status` = estado rico + recomendação |
+| **D171** | `kd` **sozinho = `kd help`** (não mais `kd prime`); intenção explícita exige verbo — `prime` passa a ser sempre explícito |
 
 ---
 
@@ -54,6 +55,12 @@ Temas: (1) doctor; (2) drain; (3) prime compacto; (4) verbosidade; (5) help embu
    supersession_cycle_details,dependency_cycle_details,broken_anchor_details,duplicate_pairs,
    missing_edge_details,stale_lock_details}, suggestions[], explain[]?}`.
 7. `warnings` do doctor no `Output`.
+8. **Garantia:** `healthy` só com **zero achados**; advisórios viram `degraded` (nunca “saudável”
+   silencioso).
+9. **Resolubilidade:** todo achado tem `esperado`/`encontrado`/`ação`; o `--fix` re-audita e lista
+   o **residual** com o comando exato para concluir.
+10. **Raro por design:** o custo da validação completa é **aceito** (consistência/garantia);
+    `doctor` **não** depende de otimização (ao contrário de `ask`/`write`/`rewind`).
 
 ### 1.3 `commands/maintenance/mod.rs`
 - Remover `DoctorMode`, `doctor_cmd`, `audit_report`, `doctor_report` e imports que só eles usam
@@ -194,6 +201,11 @@ contrato. Cada verbo abaixo ganha texto explícito e, onde couber, `próximos:`.
 - `kd ask`/`kd write` sem argumentos: passar a mostrar o **help** (hoje o `ask` devolve uso com
   exit 2 — D130). Decidir: manter exit 2 com texto de ajuda, ou exit 0. **Proposta:** manter o
   exit 2 (contrato D130) mas trocar o texto pelo help completo do verbo.
+- **`kd` sozinho = `kd help` (D171).** O parser deixa de aceitar "sem verbo": a ausência de
+  subcomando imprime o help (exit 0) e `prime` passa a ser sempre explícito. `--json` sem verbo é
+  `invalid_input` (2) — não há envelope sem comando. Ajustar `run()`/`command_name`, o teste
+  `json_prime_matches_golden` (passar a usar `--json prime`) e o texto do `prime` (a frase
+  "`kd` sem argumentos = `prime`" deixa de valer).
 
 ---
 
@@ -226,6 +238,13 @@ Checklist por arquivo (grep `maintenance doctor`, `--audit`, `knowledge digest`)
 
 ---
 
+## 7.1 Atravessamento — auto-drain × verbos novos
+
+O auto-drain ocioso (`commands/idle.rs`) hoje pula `Command::Maintenance`. Com `doctor` e `drain`
+promovidos a verbos de topo, é **obrigatório** incluí-los na exclusão (e `Command::Drain` **nunca**
+deve auto-drenar). Sem isso, `kd doctor`/`kd drain` disparam um drain O(N) indesejado. Casa com
+O1.5 de [`otimizacoes_performance.md`](otimizacoes_performance.md).
+
 ## 8. Ordem e critérios de aceite
 
 1. **Fase 1 (doctor)** — `make check` verde; `kd doctor`/`--fix`/`--explain` testados; `--audit`
@@ -234,7 +253,8 @@ Checklist por arquivo (grep `maintenance doctor`, `--audit`, `knowledge digest`)
    removido; testes migrados.
 3. **Fase 3 (prime)** — default compacto; `--long`; goldens regenerados.
 4. **Fase 4 (verboso)** — init/self/config/sync/maintenance com texto explícito.
-5. **Fase 5 (help)** — `arg_required_else_help` + `after_help` por verbo; `kd help`.
+5. **Fase 5 (help)** — `arg_required_else_help` + `after_help` por verbo; `kd help`; e `kd`
+   sozinho = `kd help` (D171).
 6. **Fase 6 (redundância)** — aliases removidos com teste de regressão.
 7. **Fase 7 (docs)** — vivos e estáticos em sincronia.
 
@@ -251,9 +271,10 @@ Checklist por arquivo (grep `maintenance doctor`, `--audit`, `knowledge digest`)
 
 | Risco | Mitigação |
 |---|---|
-| `doctor` fica lento (auditoria O(N²) de dedup) | aplicar Onda 3 de [`otimizacoes_performance.md`](otimizacoes_performance.md) antes |
+| `doctor` é caro por design | é raro; prioriza completude/garantia/resolubilidade; O3 é melhoria opcional, não gate |
 | remover `maintenance doctor` quebra scripts | sem alias (D14); documentar no `CHANGELOG` e na matriz |
 | `prime` compacto quebra cache byte-idêntico | versão em `data.version`; regenerar goldens no mesmo commit |
+| `kd` sem verbo deixa de imprimir o `prime` | D171; help explícito; `prime` sempre explícito; golden `json_prime` passa a `--json prime` |
 | verbosidade vaza para `--json` | todo texto extra JSON vive em `data`; stdout não muda no modo máquina |
 | `--digest` loop infinito | parar quando `pending == 0` ou sem progresso entre lotes |
 | `--digest --force` apaga derivado sem volta | é 100% derivado/reconstruível (D84); `warnings` listam o removido e o redigerido |
