@@ -65,3 +65,56 @@ fn from_notes_derives_same_corpus() -> Result<()> {
     assert_eq!(rebuilt.graph.ids(), loaded.graph.ids());
     Ok(())
 }
+
+#[test]
+fn load_fresh_rebuilds_and_then_reuses() -> Result<()> {
+    let fs = MemFs::new();
+    let store = Store::new(&fs, "/p/.knudge");
+    seed(&store)?;
+    let (first, warnings) = Corpus::load_fresh(&store, &fs, store.root())?;
+    assert!(
+        warnings.iter().any(|w| w.contains("reconstruído")),
+        "avisos: {warnings:?}"
+    );
+    let (again, warnings) = Corpus::load_fresh(&store, &fs, store.root())?;
+    assert_eq!(again.index, first.index);
+    assert_eq!(again.notes.len(), first.notes.len());
+    assert!(warnings.is_empty(), "avisos: {warnings:?}");
+    Ok(())
+}
+
+#[test]
+fn load_fresh_rebuilds_when_a_note_is_newer() -> Result<()> {
+    let fs = MemFs::new();
+    let store = Store::new(&fs, "/p/.knudge");
+    seed(&store)?;
+    let (first, _) = Corpus::load_fresh(&store, &fs, store.root())?;
+    // Nota nova com `mtime` posterior ao índice ⇒ o índice persistido fica obsoleto.
+    let extra = note(NoteType::Fact, "nota posterior ao indice")?;
+    let path = store.note_path(extra.id()?);
+    store.write(&extra)?;
+    let Some(data) = fs.get(&path) else {
+        return Ok(());
+    };
+    fs.insert_at(path, data, 10_000);
+    let (again, _) = Corpus::load_fresh(&store, &fs, store.root())?;
+    assert_eq!(again.notes.len(), first.notes.len().saturating_add(1));
+    assert!(again.index.docs.len() > first.index.docs.len());
+    Ok(())
+}
+
+#[test]
+fn load_fresh_rebuilds_on_corrupt_index() -> Result<()> {
+    let fs = MemFs::new();
+    let store = Store::new(&fs, "/p/.knudge");
+    seed(&store)?;
+    let (first, _) = Corpus::load_fresh(&store, &fs, store.root())?;
+    fs.insert_at(Index::path(store.root()), b"{nao eh json".to_vec(), 10_000);
+    let (again, warnings) = Corpus::load_fresh(&store, &fs, store.root())?;
+    assert_eq!(again.index, first.index);
+    assert!(
+        warnings.iter().any(|w| w.contains("ilegível")),
+        "avisos: {warnings:?}"
+    );
+    Ok(())
+}

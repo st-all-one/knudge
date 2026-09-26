@@ -57,10 +57,10 @@
 | E15-T09 (O5) | `rewind --json` (N=1167) | 309 ms | 113 ms | **−63 %** |
 | E15-T20 (O8) | `task graph` (N=1167) | 115 ms | 77 ms | −33 % |
 | E15-T20 (O8) | `task list --ready` (N=1167) | 99 ms | 76 ms | −23 % |
-| E15-T20 (O8) | `task list --full-content` (N=1167) | 22 ms | 14 ms | −36 % |
-| E15-T20 (O8) | `task list --sort impact` (N=1167) | 18 ms | 13 ms | −28 % |
 | E15-T20 (O8) | `task::impacts` (todos os ids) | 152 µs × N | 150 µs | O(N)→O(1) por id |
 | E15-T10 (O6) | `content_terms` (micro) | 2,13 µs | 1,91 µs | −10 % |
+| E15-T11 (O1.6) | carga do `.idx/` por `mtime` | — | — | **não habilitada** (parse 13,8 ms > rebuild 8,5 ms) |
+| E15-T11 | correção da bancada (`timed`/`--universe`/`--key`/`forget`) | mediava falhas rápidas | mede de verdade | — |
 
 Baseline pré-reforma preservado em [`ULTIMO-v0.3.3.md`](ULTIMO-v0.3.3.md); a bancada passou a
 medir `kd doctor`/`kd drain` (a reforma CLI de E15 T13/T14 renomeou os verbos). Os recortes de
@@ -69,7 +69,21 @@ o recorte de T05 está em [`t05.md`](t05.md), o de T06 em [`t06.md`](t06.md) e o
 [`t07.md`](t07.md); a micromb de T08 em [`micro-t08.md`](micro-t08.md) e o e2e em [`t08.md`](t08.md);
 o recorte de T09 em [`t09.md`](t09.md); o de T20 em [`t20.md`](t20.md) e a micromb em
 [`micro-t20.md`](micro-t20.md); o de T10 em [`t10.md`](t10.md) e a micromb em
-[`micro-t10.md`](micro-t10.md).
+[`micro-t10.md`](micro-t10.md); o baseline corrigido e o recorte de T11 em [`t11.md`](t11.md) e
+[`t11-cached.md`](t11-cached.md).
+>
+> **T11 e o formato JSONL.** A validação de frescor (`mtime`) e o caminho de carga
+> (`Index::load_if_fresh`/`Corpus::load_fresh`) ficam prontos e testados, mas **não** habilitados:
+> decodificar o `retrieval.jsonl` custa **13,8 ms** (N=1167) contra **8,5 ms** do rebuild, então
+> ligar regride `ask` (96→116 ms), `rewind` (110→111 ms) e `task graph` (100→90 ms com ruído) —
+> medido em [`t11-cached.md`](t11-cached.md). O ganho real depende do formato binário de T12.
+>
+> **Correção da bancada (T11).** O runner media comandos **sem checar o exit**; `task list` (sem
+> filtro), `task list --sort impact`/`--full-content`, `config get`/`set` e o aquecimento de
+> `forget` falhavam e viravam "ganhos" falsos. Agora `timed` exige exit 0, os `task list` usam
+> `--universe`, `config` usa `--key/--value` e `forget` é idempotente. Baseline corrigido em
+> [`t11.md`](t11.md): `task list --universe` 90 ms, `--sort impact` 92 ms, `--full-content`
+> 123 ms em N=1167 (os números de T20 para estes três eram falhas).
 > **O3 e a densidade do corpus.** A peneira de postings só pula documentos **sem overlap**; no
 > corpus sintético (vocabulário de 24 palavras + prefixo comum por tipo) quase todo par
 > compartilha termos, então o ganho em `doctor`/`compact` é modesto. A micromb isola o efeito:

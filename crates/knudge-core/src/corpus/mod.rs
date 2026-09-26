@@ -10,8 +10,10 @@
 
 use crate::Result;
 use crate::graph::Graph;
+use crate::ports::Fs;
 use crate::retrieval::Index;
 use crate::store::{Note, Store};
+use std::path::Path;
 
 #[cfg(test)]
 mod tests;
@@ -52,6 +54,35 @@ impl Corpus {
     /// Propaga erros de listagem/leitura (`Io`) e de extração de metadados (`Schema`).
     pub fn load(store: &Store<'_>) -> Result<Self> {
         Self::from_notes(Self::load_notes(store)?)
+    }
+
+    /// Como [`Corpus::load`], mas reusa o índice persistido em `.idx/` quando ele está **fresco**
+    /// (`mtime` ≥ o de todas as notas); caso contrário, reconstrói a partir das mesmas notas e
+    /// regrava (E15-T11/O1.6). Devolve os avisos do índice (ex.: acima do teto de tamanho).
+    ///
+    /// # Errors
+    /// Propaga erros de listagem/leitura/parse e de escrita do índice.
+    pub fn load_fresh(store: &Store<'_>, fs: &dyn Fs, root: &Path) -> Result<(Self, Vec<String>)> {
+        let notes = Self::load_notes(store)?;
+        let mut warnings = Vec::new();
+        let index = if let Some(index) = Index::load_if_fresh(fs, root, store, &mut warnings)? {
+            index
+        } else {
+            let index = Index::build(&notes)?;
+            index.save(fs, root, &mut warnings)?;
+            warnings
+                .push("índice ausente/desatualizado: reconstruído a partir de notas/".to_string());
+            index
+        };
+        let graph = Graph::from_notes_ref(&notes)?;
+        Ok((
+            Self {
+                notes,
+                index,
+                graph,
+            },
+            warnings,
+        ))
     }
 
     /// Deriva índice e grafo de um vetor de notas já carregado.

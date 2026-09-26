@@ -64,7 +64,7 @@ T01 (feito) → T02 (O1) → T03 (O1.5) → T04 (O3) → T05 (O6.1/2)
             → T09 (O5 grafo/views) → T20 (O8 task) → T10 (O6 resto)
             → T11 (O1.6) → T12 (O7 deps)
 
-Fecho: T19 (docs/goldens/matriz/CHANGELOG)
+Fecho: T19 (docs/goldens/matriz/CHANGELOG) → T21 (O9 revisão de coleções)
 ```
 
 ## Tarefas
@@ -162,10 +162,19 @@ Fecho: T19 (docs/goldens/matriz/CHANGELOG)
 - **Aceite:** testes de retrieval/logging verdes; `make check` verde; micro: `content_terms`
   2,13→1,91 µs (−10 %); piso fixo estável (dominado por startup do processo).
 
-### E15-T11 ☐ O1.6 — carga persistida do `.idx/` com validação
-- **Escopo:** carregar `retrieval.jsonl`/embeddings quando válido (invalidação barata por
-  `schema_version`/mtime), caindo para rebuild; habilita o formato binário de T12.
-- **Aceite:** leitor nunca vê índice parcial (E13-T03); `doctor` reconstrói; `rebuild` byte-idêntico.
+### E15-T11 ☑ O1.6 — carga persistida do `.idx/` com validação
+- **Escopo:** `Index::load_if_fresh`/`open` com **validação de frescor por `mtime`** (índice só é
+  servido se for ≥ todas as notas; ausente/desatualizado/ilegível → rebuild + aviso) e
+  `Corpus::load_fresh` (lê notas uma vez, reusa ou reconstrói o índice). Nunca serve índice
+  parcial (E13-T03). **Não habilitado** por padrão: medido, decodificar o `retrieval.jsonl`
+  custa **13,8 ms** (N=1167) contra **8,5 ms** do rebuild, então ligar regride `ask`/`rewind`/
+  `task graph` em ~10–15 ms. Fica pronto como gancho do formato binário de T12.
+- **Bônus (correção da bancada):** `timed` passa a exigir exit 0; `task list` medido com
+  `--universe`; `config get/set` com `--key/--value`; `forget` idempotente. Sem isso, comandos
+  inválidos viravam “ganhos” falsos.
+- **Aceite:** testes `load_fresh_*` (reusa, reconstrói por mtime, reconstrói corrompido) e
+  `open_rebuilds_when_absent` verdes; `make check` verde; rebuild byte-idêntico; baseline
+  corrigido em [`t11.md`](../../bench/t11.md) e regressão da carga em [`t11-cached.md`](../../bench/t11-cached.md).
 
 - **Aceite:** `make check` + `make ci` verdes; `cargo tree` dentro do orçamento justificado.
 
@@ -177,9 +186,10 @@ Fecho: T19 (docs/goldens/matriz/CHANGELOG)
   de O1/O5; O8.3/O8.9 ficam como refinamento incremental.
 - **Depende de:** T02 (corpus), T06 (postings) e T09 (grafo/views).
 - **Aceite:** testes de impacto/`task` verdes (proptest `impacts_matches_per_id_impact`);
-  `make check` verde; A/B (N=1167): `task graph` 115→77 ms, `task list --ready` 99→76 ms,
-  `task list --full-content` 22→14 ms, `task list --sort impact` 18→13 ms; micro: `task::impacts`
-  (todos os ids) ≈ 150 µs = custo de **um** `impact`.
+  `make check` verde; A/B (N=1167): `task graph` 115→77 ms e `task list --ready` 99→76 ms; micro:
+  `task::impacts` (todos os ids) ≈ 150 µs = custo de **um** `impact`. Nota: os números de
+  `task list`/`--sort impact`/`--full-content` desta bancada eram **falhas rápidas** (sem
+  `--universe`); corrigidos em T11 (`--universe` + `timed` com assert de exit).
 
 ### E15-T13 ☑ Fase 1 — `kd doctor` de topo + `kd help` (D163/D164)
 - **Escopo:** `Command::Doctor(DoctorArgs{fix,explain})`; remover `maintenance doctor` e `--audit`;
@@ -232,6 +242,23 @@ Fecho: T19 (docs/goldens/matriz/CHANGELOG)
 - **Aceite:** grep por `maintenance doctor`, `--audit`, `knowledge digest`, `--re-digest`, `kd`
   sem argumentos = `prime` vazio; `make check` verde.
 
+### E15-T21 ☐ O9 — revisão de coleções (fecho)
+- **Objetivo:** varrer o código pelos padrões de `.agents/skill/rust/05-collections.md` e
+  incorporar só o que dá ganho **sem mudar bytes**; registrar o que é rejeitado.
+- **Escopo (incorporar):** `entry` onde há `contains_key` + `insert`/`get_mut`
+  (`toon::flow::insert`, `config::toml::parse::insert_leaf` + auditoria em `schema`/`health`/
+  `store`); chave **emprestada** (`&str`/`Cow`) em mapas temporários que hoje fazem `to_string()`
+  só para servir de chave (extensão de O6.4); `Vec::with_capacity`/`try_reserve` residual;
+  reconferir `sort_unstable_by` (comparador total) e `#[cold]`/`#[inline]` (T05/T10).
+- **Escopo (avaliar sem aplicar cego):** `swap_remove` só onde a ordem **não** é contrato e há
+  re-sort total depois; no knudge a ordem é contrato (TOON/goldens) — documentar cada caso.
+- **Rejeitado (registrar):** `HashMap`/`HashSet` (proibidos por `clippy.toml`; determinismo exige
+  `BTreeMap`/`IndexMap`); `par_lines`/`rayon` como padrão local (contraria R43 e o determinismo;
+  só pela Onda 7, com gate de dependência).
+- **Depende de:** T05/T10 (padrões já aplicados) — é o fecho que varre o residual.
+- **Aceite:** `make check` verde; nenhum byte alterado (goldens/proptest); micro do que mudou;
+  decisão escrita (incorporado/rejeitado) por padrão neste épico.
+
 ## Definition of Done
 
 - [ ] `make check` verde em cada tarefa; `make ci` verde ao fechar.
@@ -240,6 +267,8 @@ Fecho: T19 (docs/goldens/matriz/CHANGELOG)
 - [ ] `doctor`/`drain` de topo, `--audit` e `knowledge digest` inexistentes; auto-drain não os
       dispara; `kd` sozinho = `kd help` (D171); `kd task` otimizado (O8).
 - [ ] Toda tarefa com linha na matriz de aceite e `CHANGELOG.md` atualizado.
+- [ ] O9 revisada: cada padrão da skill de coleções tem decisão (incorporado/rejeitado) e o
+      residual varrido.
 - [ ] Nenhum `src/` > 300 linhas; zero `unwrap/expect/panic/unsafe`.
 
 ## Não-objetivos
@@ -248,6 +277,7 @@ Fecho: T19 (docs/goldens/matriz/CHANGELOG)
 - `tokio full`/servidor/DB (R16/R43).
 - Aliases de retrocompatibilidade da superfície antiga (D14).
 - `target-cpu=native`/PGO no artefato distribuído (só medição local).
+- `HashMap`/`HashSet` e `par_lines`/`rayon` como padrão local (determinismo/R43).
 
 ## Riscos
 

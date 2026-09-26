@@ -60,6 +60,13 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   `String` por token já minúsculo); `logging::init` não instala subscriber em `--quiet`/`off` e
   usa `LevelFilter` para níveis simples (sem parsear `EnvFilter`); `#[cold]` nos construtores de
   `Error` e `#[inline]` em `Index::tf`/`len`. Micro: `content_terms` 2,13→1,91 µs (−10 %).
+- **Carga validada do `.idx/` (E15-T11/O1.6)** — `Index::open`/`load_if_fresh` passam a validar a
+  frescura do índice derivado por **`mtime`** (só serve se for ≥ todas as notas; ausente,
+  desatualizado ou ilegível → reconstrói + aviso) e `Corpus::load_fresh` reusa o índice a partir
+  das mesmas notas. **Não habilitado** por padrão: decodificar o `retrieval.jsonl` (13,8 ms em
+  N=1167) custa mais que o rebuild (8,5 ms); fica pronto para o formato binário de T12. A bancada
+  foi corrigida (`timed` exige exit 0; `task list --universe`; `config --key/--value`; `forget`
+  idempotente) — antes comandos inválidos eram medidos como “ganhos”.
 - **Bancada de benchmark** (`bench/`, fora do workspace, zero dependências além do `knudge-core`)
   medindo componentes puros (**micromb**) e ações do binário (**ponta-a-ponta**) em corpora de
   200 e 1000 notas. Alvos `make bench`/`make bench-quick`; relatório de gargalos em

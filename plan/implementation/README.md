@@ -153,7 +153,7 @@ Um épico só fecha quando:
 | D100 (`not_before`: agendamento × expiração) | E10 |
 | D42, D79–D80, D83–D85, D89–D90, D101 (provedor HTTP, cache, fila, purge, flush, eval, lightweight) | E11 |
 | D163–D171 (doctor/help/verboso/prime/help embutido/redundância/docs/drain/`kd`=help) | E15 |
-| Ondas O1–O8 (performance: corpus único, postings, dedup, parse, grafo, deps, `task`) | E15 |
+| Ondas O1–O9 (performance: corpus único, postings, dedup, parse, grafo, deps, `task`, coleções) | E15 |
 
 ---
 

@@ -280,6 +280,13 @@ fn scaling(harness: &mut Harness, sizes: &[usize]) {
             let text = index.serialize().expect("serializa");
             let _ = black_box(Index::parse(black_box(&text)));
         });
+        let index_text = index.serialize().expect("serializa");
+        harness.measure(&group, "Index::serialize", 15, 1, || {
+            let _ = black_box(index.serialize());
+        });
+        harness.measure(&group, "Index::parse", 15, 1, || {
+            let _ = black_box(Index::parse(black_box(&index_text)));
+        });
         harness.measure(&group, "write::Draft::to_note", 15, 200, || {
             let draft = Draft::new(NoteType::Fact, "afirmacao sintetica para medir to_note");
             let _ = black_box(draft.to_note(1_700_000_000_000));

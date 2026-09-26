@@ -65,7 +65,15 @@ impl Runner<'_> {
     fn timed(&self, args: &[String]) -> (Duration, Output) {
         let start = Instant::now();
         let output = self.raw(args);
-        (start.elapsed(), output)
+        let elapsed = start.elapsed();
+        // Nunca medir uma falha rápida: sem isto, um erro de I/O vira "ganho" de performance.
+        assert!(
+            output.status.success(),
+            "comando falhou: kd {} \nstderr: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        (elapsed, output)
     }
 
     fn ok(&self, args: &[String]) -> String {
@@ -302,20 +310,20 @@ fn measure_reads(
             .timed(&args(&["rewind", "--files", "src/core/modulo_0/arquivo_0.rs"]))
             .0
     });
-    harness.measure_cmd(group, "task list", samples, || {
-        runner.timed(&args(&["task", "list"])).0
+    harness.measure_cmd(group, "task list --universe", samples, || {
+        runner.timed(&args(&["task", "list", "--universe"])).0
     });
     harness.measure_cmd(group, "task list --ready", samples, || {
         runner.timed(&args(&["task", "list", "--ready"])).0
     });
     harness.measure_cmd(group, "task list --sort impact", samples, || {
         runner
-            .timed(&args(&["task", "list", "--sort", "impact"]))
+            .timed(&args(&["task", "list", "--universe", "--sort", "impact"]))
             .0
     });
     harness.measure_cmd(group, "task list --full-content", samples, || {
         runner
-            .timed(&args(&["task", "list", "--full-content"]))
+            .timed(&args(&["task", "list", "--universe", "--full-content"]))
             .0
     });
     harness.measure_cmd(group, "task show --id <tarefa>", samples, || {
@@ -366,7 +374,7 @@ fn measure_reads(
     });
     harness.measure_cmd(group, "config get recall.default_limit", samples, || {
         runner
-            .timed(&args(&["config", "get", "recall.default_limit"]))
+            .timed(&args(&["config", "get", "--key", "recall.default_limit"]))
             .0
     });
 }
@@ -397,13 +405,23 @@ fn measure_mutations(
     });
     harness.measure_cmd(group, "config set (projeto)", samples, || {
         runner
-            .timed(&args(&["config", "set", "recall.default_limit", "5"]))
+            .timed(&args(&[
+                "config",
+                "set",
+                "--key",
+                "recall.default_limit",
+                "--value",
+                "5",
+            ]))
             .0
     });
     harness.measure_cmd(group, "forget (soft)", samples, || {
+        // O aquecimento do harness repete a ação: restaura antes de esquecer (idempotente).
+        let _ = runner.raw(&args(&["forget", "--id", &ids.note, "--restore"]));
         runner.timed(&args(&["forget", "--id", &ids.note])).0
     });
     harness.measure_cmd(group, "forget --restore", samples, || {
+        let _ = runner.raw(&args(&["forget", "--id", &ids.note]));
         runner
             .timed(&args(&["forget", "--id", &ids.note, "--restore"]))
             .0

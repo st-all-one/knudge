@@ -286,6 +286,31 @@ sem mudar bytes:
 
 ---
 
+## Onda 9 — revisão de coleções (fecho)
+
+Varrimento final pelos padrões de [`.agents/skill/rust/05-collections.md`](../../.agents/skill/rust/05-collections.md),
+incorporando só o que **não muda bytes** e registrando o que é rejeitado por princípio.
+
+- **O9.1 — `entry` (uma busca).** Trocar `contains_key` + `insert`/`get_mut` por `entry` nos
+  pontos restantes: `toon::flow::insert`, `config::toml::parse::insert_leaf` e duplas residuais
+  em `schema`/`health`/`store`. **Ganho:** uma busca a menos por inserção; sem mudança de bytes.
+- **O9.2 — chave emprestada (`&str`/`Cow`).** Auditar mapas temporários que fazem `to_string()`
+  só para servir de chave e descartam (`retrieval`, `lifecycle`, `task`, `graph`). **Ganho:**
+  O(n) → O(k) alocações; extensão de O6.4.
+- **O9.3 — `swap_remove` (com parcimônia).** Aplicar **apenas** onde a ordem não é contrato e há
+  re-sort total depois; como a ordem é contrato no knudge (TOON/goldens), documentar caso a caso
+  ou rejeitar. **Ganho:** O(n) → O(1) por remoção.
+- **O9.4 — re-verificação.** `sort_unstable_by` só com comparador total (O6.1);
+  `with_capacity`/`try_reserve` (O6.2); `#[cold]`/`#[inline]` (O6.6).
+
+**Rejeitado por princípio (registrar):** `HashMap`/`HashSet` (proibidos por `clippy.toml`;
+`BTreeMap`/`IndexMap` garantem determinismo) e `par_lines`/`rayon` como padrão local (contraria
+R43 e o determinismo — só pela Onda 7, com gate de dependência).
+
+**Ganho:** micro/consistência; sem mudança de contrato. **Risco:** baixo.
+
+---
+
 ## Matriz de impacto × risco
 
 | Onda | Onde | Ganho esperado (N≈1 k) | Risco |
@@ -298,6 +323,7 @@ sem mudar bytes:
 | O6 | transversal | −5–15 % + consistência | baixo |
 | O7 | deps (`rayon`,`hashbrown`,`memchr`,`globset`,`mimalloc`…) | −20–60 % por alvo, conforme gate | variável |
 | O8 | `task` (list/show/graph/close/plan) | `task list --sort impact`/`graph`/`close` −20–50 % | baixo |
+| O9 | coleções (`entry`, `&str`, `swap_remove`) | micro/consistência; sem bytes | baixo |
 
 > As ondas se **somam** onde não disputam o mesmo trecho (O1+O3+O5 atacam córregos distintos do
 > `rewind`; O2 alimenta O3).
@@ -322,5 +348,7 @@ sem mudar bytes:
 5. **O6 restante + O1.5** — polimento e piso fixo.
 6. **O7 por último e uma por vez** — `memchr`/`smallvec`/`rustc-hash` (baixo risco) → `globset`
    → `rayon` → `mimalloc` → `bincode`/`rkyv`; cada uma com A/B e remoção imediata se não pagar.
+7. **O9 no fecho** — varrer os padrões de coleções, aplicando só `entry`/chave emprestada e
+   registrando `swap_remove`/`HashMap`/`rayon` como rejeitados (ou justificados).
 
 Cada passo: PR pequeno, `make bench` antes/depois, `make check` verde.

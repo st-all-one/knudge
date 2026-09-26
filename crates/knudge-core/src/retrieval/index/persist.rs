@@ -85,20 +85,81 @@ impl Index {
         Ok(Some(Self::parse(text)?))
     }
 
-    /// Abre o índice, reconstruindo e gravando se estiver ausente.
+    /// Abre o índice, reconstruindo e gravando se estiver ausente, **desatualizado** ou
+    /// ilegível.
+    ///
+    /// A frescura é decidida por `mtime` (E15-T11/O1.6): o índice só é servido se for mais novo
+    /// que todas as notas; caso contrário, reconstrói a partir de `notas/`.
     ///
     /// # Errors
     /// Propaga erros de leitura/parse/construção/escrita.
     pub fn open(fs: &dyn Fs, root: &Path, store: &Store<'_>) -> Result<(Self, Vec<String>)> {
         let mut warnings = Vec::new();
-        if let Some(index) = Self::load(fs, root, &mut warnings)? {
+        let existed = fs.exists(&Self::path(root));
+        let before = warnings.len();
+        if let Some(index) = Self::load_if_fresh(fs, root, store, &mut warnings)? {
             return Ok((index, warnings));
         }
+        let warned_illegible = warnings.len() > before;
         let index = Self::from_store(store)?;
         index.save(fs, root, &mut warnings)?;
-        warnings.push("índice ausente: reconstruído a partir de notas/".to_string());
+        if !warned_illegible {
+            warnings.push(if existed {
+                "índice desatualizado: reconstruído a partir de notas/".to_string()
+            } else {
+                "índice ausente: reconstruído a partir de notas/".to_string()
+            });
+        }
         Ok((index, warnings))
     }
+
+    /// Carrega o índice persistido **se fresco** (`mtime` ≥ o de todas as notas); `None` se
+    /// ausente, desatualizado ou ilegível (nunca serve um índice parcial/obsoleto — E13-T03).
+    ///
+    /// # Errors
+    /// Propaga erros de listagem/leitura; erro de parse vira `None` + aviso.
+    pub fn load_if_fresh(
+        fs: &dyn Fs,
+        root: &Path,
+        store: &Store<'_>,
+        warnings: &mut Vec<String>,
+    ) -> Result<Option<Self>> {
+        if !is_fresh(fs, root, store)? {
+            return Ok(None);
+        }
+        match Self::load(fs, root, warnings) {
+            Ok(index) => Ok(index),
+            Err(error) => {
+                warnings.push(format!(
+                    "índice derivado ilegível; reconstruído a partir de notas/: {error}"
+                ));
+                Ok(None)
+            }
+        }
+    }
+}
+
+/// `true` se o índice persistido é mais novo que todas as notas (invalidação por `mtime`).
+///
+/// Se o índice não existir, o `mtime` não estiver disponível (FS sem suporte) ou qualquer nota
+/// não puder ser inspecionada, devolve `false` — reconstruir é sempre seguro (D15/D84).
+fn is_fresh(fs: &dyn Fs, root: &Path, store: &Store<'_>) -> Result<bool> {
+    let path = Index::path(root);
+    if !fs.exists(&path) {
+        return Ok(false);
+    }
+    let Some(index_mtime) = fs.modified_ms(&path)? else {
+        return Ok(false);
+    };
+    let mut newest = i64::MIN;
+    for id in store.list_ids()? {
+        match fs.modified_ms(&store.resolve_path(&id)) {
+            Ok(Some(note_mtime)) => newest = newest.max(note_mtime),
+            // Nota removida entre a listagem e o `stat` (ou FS sem `mtime`): reconstrói.
+            Ok(None) | Err(_) => return Ok(false),
+        }
+    }
+    Ok(index_mtime >= newest)
 }
 fn doc_to_value(doc: &NoteDoc) -> Value {
     let mut map = IndexMap::new();
