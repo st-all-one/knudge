@@ -17,7 +17,7 @@ use crate::retrieval::contradiction::{ContradictionContext, losers};
 use crate::retrieval::filter::Meta;
 use crate::retrieval::index::{Index, NoteDoc};
 use crate::retrieval::rrf::Fused;
-use crate::retrieval::token::content_terms;
+use crate::retrieval::stem::content_terms_stemmed;
 use crate::retrieval::{HitChannels, RECENT_WINDOW_MS, RecallHit, RecallQuery, Universe, Why};
 use crate::schema::EdgeKind;
 
@@ -114,7 +114,7 @@ pub(super) fn build_hits(
     };
     let losers = losers(index, graph, &ctx);
     let semantic_ids = channels.semantic;
-    let query_terms = content_terms(&query.text);
+    let query_terms = content_terms_stemmed(&query.text);
     let max_score = channels.fused.first().map_or(0.0, |hit| hit.score);
     let by_id: BTreeMap<&str, &NoteDoc> = index
         .docs

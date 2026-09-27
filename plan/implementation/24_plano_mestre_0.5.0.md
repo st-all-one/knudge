@@ -123,7 +123,7 @@ registra a rejeição no épico.
 ### Fecho
 
 22. ✅ **E16/T10** — perf do caminho de busca e de `prune` (walk único + tokenização única);
-    **E16/T11** — stemming (condicional, medido); **E16/T12**, **E17/T08**, **E18/T07**,
+    ✅ **E16/T11** — stemming (D206, adotado por medição); **E16/T12**, **E17/T08**, **E18/T07**,
     **E19/T13** — docs/goldens/matriz/`CHANGELOG` (`[0.5.0]`) + `make update-version`.
 
 ## 5. Versionamento (0.5.0)
@@ -165,7 +165,7 @@ O `CHANGELOG.md` consolida tudo em `[0.5.0]` no fecho (E16/T12, E17/T08, E18/T07
 | 19 | E19/T09 R5 (SPO/ontologia) | — | **sim** | goldens + rebuild |
 | 20 | E19/T10/T11 R6/R7 | `--json` aditivo | — | proptest + teste |
 | 21 | E19/T12 superfície enxuta | **sim** | — | matriz |
-| 22 | ✅ E16/T10 perf + E16/T11 stemming + fechos | — | — | `make ci` + `CHANGELOG` |
+| 22 | ✅ E16/T10 perf + E16/T11 stemming + fechos | — | derivado | `make ci` + `CHANGELOG` |
 
 ## 7. Rastreabilidade (decisão → épico → tarefa → gate)
 

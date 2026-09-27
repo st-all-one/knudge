@@ -138,6 +138,23 @@ const SYNONYMS: [&str; 12] = [
     "pergunta",
 ];
 
+/// Formas plurais por tópico (E16/T11): a consulta é plural e as notas são singulares — o caso
+/// que um stemmer conservador precisa resolver. Alinhado com [`TOPICS`].
+const MORPH: [&str; 12] = [
+    "configurações",
+    "índices",
+    "âncoras",
+    "retenções",
+    "confianças",
+    "sessões",
+    "análises",
+    "árvores",
+    "memórias",
+    "depreciações",
+    "contradições",
+    "consultas",
+];
+
 /// Consulta rotulada: texto + ids relevantes (relevância binária) + família.
 struct LabeledQuery {
     query: String,
@@ -446,6 +463,14 @@ fn evaluate(ranked: &[String], relevant: &BTreeSet<String>) -> Eval {
 
 /// Gera o corpus rotulado: notas de tópico (relevantes) + distratores.
 fn dataset() -> (Vec<Note>, Vec<LabeledQuery>) {
+    dataset_with(&|text| text.to_string())
+}
+
+/// Gera o corpus rotulado aplicando `transform` a todo texto indexado/consultado.
+///
+/// `transform` permite medir um pré-processamento (ex.: [`stem_text`]) **sem** tocar o pipeline
+/// de produção. Ids/labels derivam do texto transformado, então cada variante é autoconsistente.
+fn dataset_with(transform: &dyn Fn(&str) -> String) -> (Vec<Note>, Vec<LabeledQuery>) {
     let now_ms = 1_700_000_000_000_i64;
     let mut rng = Lcg::new(SEED);
     let mut probe = Lcg::new(SEED ^ 0x00dd_1790);
@@ -459,11 +484,11 @@ fn dataset() -> (Vec<Note>, Vec<LabeledQuery>) {
         for slot in 0..PER_TOPIC {
             let first = words[rng.pick(words.len())];
             let second = words[rng.pick(words.len())];
-            let statement = format!("{topic} {first} {second} variante{slot}");
+            let statement = transform(&format!("{topic} {first} {second} variante{slot}"));
             let note_id = id::note_id(NoteType::Fact, &statement);
             let _ = relevant.insert(note_id.clone());
             let mut draft = Draft::new(NoteType::Fact, statement);
-            draft.body = topic_body(&mut rng, words);
+            draft.body = transform(&topic_body(&mut rng, words));
             draft.anchors = vec![format!("src/{folded}/modulo_{slot}.rs")];
             if let Ok(note) = draft.to_note(now_ms) {
                 topic_ids.push(note_id);
@@ -471,16 +496,25 @@ fn dataset() -> (Vec<Note>, Vec<LabeledQuery>) {
             }
         }
         queries.push(LabeledQuery {
-            query: topic.to_string(),
+            query: transform(topic),
             relevant: relevant.clone(),
             family: "com-acento",
             working_paths: Vec::new(),
             vector: None,
         });
         queries.push(LabeledQuery {
-            query: folded.to_string(),
-            relevant,
+            query: transform(folded),
+            relevant: relevant.clone(),
             family: "sem-acento",
+            working_paths: Vec::new(),
+            vector: None,
+        });
+        // Família morfológica (E16/T11): consulta plural × notas singulares.
+        let plural = MORPH.get(topic_index).copied().unwrap_or(topic);
+        queries.push(LabeledQuery {
+            query: transform(plural),
+            relevant,
+            family: "morfologia",
             working_paths: Vec::new(),
             vector: None,
         });
@@ -488,7 +522,7 @@ fn dataset() -> (Vec<Note>, Vec<LabeledQuery>) {
         if let Some(first_id) = topic_ids.first() {
             let noise = GLOBAL[probe.pick(GLOBAL.len())];
             queries.push(LabeledQuery {
-                query: noise.to_string(),
+                query: transform(noise),
                 relevant: BTreeSet::from([first_id.clone()]),
                 family: "working-set",
                 working_paths: vec![format!("src/{folded}/modulo_0.rs")],
@@ -498,7 +532,7 @@ fn dataset() -> (Vec<Note>, Vec<LabeledQuery>) {
         let synonym = SYNONYMS.get(topic_index).copied().unwrap_or(topic);
         let noise = GLOBAL[probe.pick(GLOBAL.len())];
         queries.push(LabeledQuery {
-            query: format!("{synonym} {noise}"),
+            query: transform(&format!("{synonym} {noise}")),
             relevant: topic_ids.iter().cloned().collect(),
             family: "sinonimo",
             working_paths: Vec::new(),
@@ -510,9 +544,9 @@ fn dataset() -> (Vec<Note>, Vec<LabeledQuery>) {
     for index in 0..(TOPICS.len() * PER_TOPIC) {
         let first = GLOBAL[rng.pick(GLOBAL.len())];
         let second = GLOBAL[rng.pick(GLOBAL.len())];
-        let statement = format!("{first} {second} ruido{index}");
+        let statement = transform(&format!("{first} {second} ruido{index}"));
         let mut draft = Draft::new(NoteType::Fact, statement);
-        draft.body = global_body(&mut rng);
+        draft.body = transform(&global_body(&mut rng));
         if let Ok(note) = draft.to_note(now_ms) {
             notes.push(note);
         }

@@ -237,7 +237,7 @@ T09 (fusão) → T10 (perf) → T11 (stemming, condicional) → T12 (docs/golden
   45,9 ms (−61 %)**; `ask`/`recall` inalterados. `task_confirmers` medido **não-gargalo** no
   corpus da bancada (T=0 sem `outcomes`) — **rejeitado por medição** (padrão E15-T12).
 
-### E16-T11 ☐ Stemming PT (condicional)
+### E16-T11 ☑ Stemming PT (condicional)
 - **Objetivo:** decidir, com número, se um stemmer PT conservador paga.
 - **Escopo:** implementar atrás de flag de config, medir na bancada de qualidade; adotar só se
   ganho ≥ 20 % sobre D172/D173; caso contrário, **rejeitar e registrar**.
@@ -245,6 +245,12 @@ T09 (fusão) → T10 (perf) → T11 (stemming, condicional) → T12 (docs/golden
 - **Depende de:** T03/T04/T09.
 - **Aceite:** decisão escrita (incorporado ⇒ novo `Dxx`; rejeitado ⇒ registro no épico), com o
   recorte da bancada.
+- **Feito (D206):** família `morfologia` na bancada (consulta plural × nota singular) + recorte
+  `bench/t11_stemming.md`: nDCG@5 geral **80 % → 100 % (+25 %)** e `morfologia` **0 % → 100 %**,
+  sem regressão de família. **Adotado:** `retrieval/stem.rs` (radical conservador, mín. 4 bytes,
+  plural normalizado antes do corte) no canal lexical (índice + consulta); `INDEX_FORMAT` →
+  `retrieval-v4`. `Index::build` +16 % (frio/cacheado), `propose_merges` denso −21 %; `ask`/`write`
+  quentes inalterados. Bytes de `notas/` idênticos; snippet segue com termos crus.
 
 ### E16-T12 ☐ Fecho — docs, goldens, matriz e CHANGELOG
 - **Escopo:** `docs/04-ask.md`, `docs/07-knowledge.md`, `docs/09-maintenance.md`, `SKILL.md`,

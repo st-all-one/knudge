@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 use std::collections::BTreeSet;
 
-use crate::retrieval::token::content_terms;
+use crate::retrieval::stem::content_terms_stemmed;
 use crate::retrieval::{Field, Index, NoteDoc};
 
 use super::lsh;
@@ -69,7 +69,7 @@ pub fn propose_merges(index: &Index, thresholds: &DedupThresholds) -> Vec<MergeP
     let query_terms: Vec<Vec<Cow<'_, str>>> = index
         .docs
         .iter()
-        .map(|doc| content_terms(&doc.statement))
+        .map(|doc| content_terms_stemmed(&doc.statement))
         .collect();
     let pairs = Pairs {
         index,

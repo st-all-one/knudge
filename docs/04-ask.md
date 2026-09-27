@@ -12,9 +12,10 @@ Por padrão devolve **só conhecimento** (notas sem `scope`); itens de trabalho 
 `--with-task`. A saída é um pipe de uma linha por hit: `id|statement|score|why`.
 
 A busca é **insensível a acentos** (D172): a tokenização dobra diacríticos, então `configuracao`
-acha `configuração` (e vice-versa). O casamento é por **termo inteiro** — `lat` não casa
-`latência`. Palavras funcionais PT/EN e termos muito frequentes (`recall.max_term_ratio`) ficam
-fora do canal lexical (D122/D173).
+acha `configuração` (e vice-versa). O canal lexical também **corta sufixos PT** (D206): `consultas`
+acha `consulta`, `configurações` acha `configuração` e `decoders` acha `decoder`. O casamento é
+por **radical** — `lat` não casa `latência` (não é prefixo de radical). Palavras funcionais PT/EN e
+termos muito frequentes (`recall.max_term_ratio`) ficam fora do canal lexical (D122/D173).
 
 ## Em 30 segundos
 

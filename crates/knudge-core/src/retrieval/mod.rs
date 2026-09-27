@@ -15,6 +15,7 @@ pub mod postings;
 pub mod rank;
 pub mod rrf;
 pub mod snippet;
+pub mod stem;
 pub mod tags;
 pub mod temporal;
 pub mod token;

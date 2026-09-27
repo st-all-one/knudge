@@ -15,6 +15,7 @@ use std::sync::OnceLock;
 use crate::Result;
 use crate::retrieval::filter::Meta;
 use crate::retrieval::postings::Postings;
+use crate::retrieval::stem::stem;
 use crate::retrieval::token::tokenize;
 use crate::store::{Note, Store};
 
@@ -26,7 +27,7 @@ pub use persist::size_warning;
 pub const INDEX_FILE: &str = "retrieval.jsonl";
 
 /// Cabeçalho de formato do índice (D172) — muda quando a tokenização muda.
-pub const INDEX_FORMAT: &str = "retrieval-v3";
+pub const INDEX_FORMAT: &str = "retrieval-v4";
 
 /// Acima deste tamanho (bytes) o índice emite aviso (E06-T07).
 pub const INDEX_WARN_BYTES: u64 = 8_388_608;
@@ -215,7 +216,8 @@ fn field_tf(text: &str) -> FieldTf {
     let mut len = 0_u32;
     for token in tokenize(text) {
         len = len.saturating_add(1);
-        let entry = tf.entry(token.into_owned()).or_insert(0);
+        let term = stem(token.as_ref()).into_owned();
+        let entry = tf.entry(term).or_insert(0);
         *entry = entry.saturating_add(1);
     }
     FieldTf { tf, len }

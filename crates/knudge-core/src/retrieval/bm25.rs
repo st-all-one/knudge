@@ -10,7 +10,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::retrieval::MIN_CUTOFF_CORPUS;
 use crate::retrieval::filter::Meta;
 use crate::retrieval::index::{Field, Index, NoteDoc};
-use crate::retrieval::token::content_terms;
+use crate::retrieval::stem::content_terms_stemmed;
 use crate::schema::NoteType;
 
 /// Constante de saturação de termo do BM25.
@@ -66,7 +66,7 @@ impl Index {
         max_term_ratio: f64,
         boost: F,
     ) -> Vec<Bm25Hit> {
-        let terms = content_terms(query);
+        let terms = content_terms_stemmed(query);
         if terms.is_empty() {
             return Vec::new();
         }
@@ -237,7 +237,7 @@ impl Index {
         reason = "divisão em f64 com divisor > 0"
     )]
     pub fn body_share(&self, doc: &NoteDoc, query: &str) -> f64 {
-        self.body_share_terms(doc, &content_terms(query))
+        self.body_share_terms(doc, &content_terms_stemmed(query))
     }
 
     /// Como [`Index::body_share`], mas reusa os termos já tokenizados (E16/T10).

@@ -84,6 +84,10 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   rank`/`map`, `rewind` e `maintenance` deixam de incluir `forgotten`/`superseded`.
 
 ### Adicionado
+- **Stemming PT conservador (E16-T11/D206)** — o canal lexical (índice + consulta) corta sufixos
+  flexionais/derivacionais do PT-BR (`retrieval/stem.rs`): `consultas` casa `consulta`,
+  `configurações` casa `configuração`. Adotado por medição (**+25 % de nDCG@5**,
+  `bench/t11_stemming.md`); `INDEX_FORMAT` → `retrieval-v4`. Bytes de `notas/` idênticos.
 - **Flow metrics e caminho crítico (E19-T11/D205)** — `kd task flow` deriva do log
   `cycle`/`lead`/`throughput` e o caminho crítico (PERT/CPM) do DAG `depends_on`; `rewind --json`
   ganha `data.flow` (aditivo). Tudo derivado do log — sem verdade nova.

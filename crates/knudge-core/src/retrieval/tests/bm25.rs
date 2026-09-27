@@ -6,7 +6,7 @@ use std::collections::BTreeSet;
 use proptest::prelude::*;
 
 use crate::Result;
-use crate::retrieval::token::content_terms;
+use crate::retrieval::stem::content_terms_stemmed;
 use crate::retrieval::{Index, Postings, type_weight};
 use crate::schema::NoteType;
 use crate::store::Note;
@@ -127,7 +127,7 @@ fn score_matches_manual_scan() -> Result<()> {
         note(NoteType::Fact, "assunto alheio", "outro texto")?,
     ])?;
     let allowed = allowed(&index);
-    let terms = content_terms("json decoder");
+    let terms = content_terms_stemmed("json decoder");
 
     let mut expected: Vec<(String, f64)> = index
         .docs

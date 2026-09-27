@@ -13,6 +13,7 @@ mod index;
 mod rank;
 mod recall;
 mod rrf;
+mod stem;
 mod tags;
 mod token;
 mod views;

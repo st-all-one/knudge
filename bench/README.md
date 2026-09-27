@@ -50,7 +50,8 @@ Flags: `--sizes A,B`, `--samples N`, `--kd PATH`, `--out rel.md`, `--json out.js
 A **qualidade** de retrieval (E16/T01) sai em `bench/qualidade.md`/`bench/qualidade.json`:
 Recall@k/MRR/nDCG@k sobre um corpus PT-BR sintético e rotulado (tópicos × consultas). É a régua
 para D172/D173/D179 e para a fusão — o baseline fica versionado no repositório. O recorte da
-calibração da fusão (E16/T09/D179) fica em [`t09_fusao.md`](t09_fusao.md).
+calibração da fusão (E16/T09/D179) fica em [`t09_fusao.md`](t09_fusao.md) e o do stemming
+(E16/T11/D206) em [`t11_stemming.md`](t11_stemming.md).
 
 ## Estrutura
 
