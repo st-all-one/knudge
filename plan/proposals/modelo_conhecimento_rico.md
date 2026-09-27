@@ -9,8 +9,9 @@
 > dados**, **representação de conhecimento** e **matemática pura**, **sem** quebrar os pilares
 > (notas = verdade, índice derivado, enums fechados, contrato de bytes).
 >
-> **Versão alvo:** **0.5.x** (R1/R4, byte-free) e **0.6.0** (R5+). **Absorve E16/D174**
-> (confiança) e **substitui E16/D178** (retenção) — ver [`revisao_integrada.md`](revisao_integrada.md).
+> **Versão alvo:** **0.5.0** (tudo — R1–R7; o bump de `schema_version` de R5 entrou na mesma
+> versão). **Absorve E16/D174** (confiança) e **substitui E16/D178** (retenção) — ver
+> [`revisao_integrada.md`](revisao_integrada.md).
 
 ---
 
@@ -251,7 +252,9 @@ por `doctor`/validators (D156).
 | **R7 — Tarefa** | Flow metrics + caminho crítico (R7) + superfície enxuta (§7) | médio | baixo-médio | leve |
 
 **Ordem recomendada:** R1 → R4 (maior razão ganho/risco, sem tocar bytes) → R2 → R3 → R5 → R6 → R7.
-**Versão:** R1/R4 em **0.5.x** (byte-free); **R5+ em 0.6.0** (R5 bumpa `schema_version`).
+**Versão:** tudo em **0.5.0**; R5 (T09) bumpou `schema_version` 1→2 na mesma release (aditivo).
+As únicas pendências são R2/T06 (reranking) e R3/T08 (Matryoshka/ANN), dependentes de 2º
+modelo/escala — ver [`reranking_ann.md`](reranking_ann.md).
 
 ---
 

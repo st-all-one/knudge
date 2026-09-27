@@ -55,20 +55,20 @@ conveniência, mas só `cli`/`mcp` o importam.
 | `ports` | traits + fakes | E01 |
 | `adapters` | implementações `std` | E01+ |
 | `config` | config em dois níveis, schema, codec TOML | E04 |
-| `schema` | schema canônico, tipos, IDs | E02 |
+| `schema` | schema canônico, tipos, IDs, **claims SPO** (`claims`, D207), **proveniência** (`provenance`, D207) e **slots mínimos** por espécie (`slots`, D191) | E02 |
 | `toon` | parser/emissor TOON | E02 |
 | `jsonl` | leitura/escrita JSONL + codec JSON canônico | E03 |
 | `store` | notas (`notas/<tipo>/`), eventos, lock, rebuild, purge, sweep | E03 |
 | `git` | worktree principal, `info/exclude`, `AGENTS.md`, `sync` | E04 |
-| `graph` | arestas explícitas, integridade, ciclos, sugestões | E05 |
-| `retrieval` | BM25, âncoras, filtros, views `ready`/`blocked` e RRF | E06 |
-| `write` | protocolo de escrita, dedup, update/supersede, ciclo de vida | E07 |
+| `graph` | arestas explícitas, integridade, ciclos, sugestões, **autoridade** (`rank` — PageRank/PPR, D192), **comunidades** (`communities`, Louvain, D193), **ontologia** (`ontology` — equivalência/clausura, D207) e **TMS** (`tms` — dependentes retratados, D208) | E05 |
+| `retrieval` | BM25, âncoras, filtros, views `ready`/`blocked`, RRF, **fold de diacríticos** (D172), **stemming PT** (D206), canal **PPR** (D192) e `tag_counts` (D107) | E06 |
+| `write` | protocolo de escrita, dedup (peneira exata + **MinHash/LSH**, D204), update/supersede, ciclo de vida e fusão de claims/proveniência (D207) | E07 |
 | `handoff` | `rewind` (manifest/escopo/working set), orçamento e `context_id` | E08 |
 | `maintenance` | `diff`, `learn` e `compact` (propostas) | E08 |
-| `task` | hierarquia `epic ⊃ { issue ⊃ task | task }` como view derivada | E08 |
-| `health` | validators, evidência, `audit`, `doctor`, leitura tolerante e âncoras por hash | E09 |
-| `lifecycle` | shelf-life, decay de âncoras, purga com retenção, confiança derivada e clusters | E09/E10 |
-| `embeddings` | provedor HTTP plugável, cache por `body_hash`, fila lazy e avaliação A/B | E11 |
+| `task` | hierarquia `epic ⊃ { issue ⊃ task | task }` como view derivada; progresso/impacto/papel; **flow** (cycle/lead/throughput + caminho crítico PERT/CPM, D205) | E08 |
+| `health` | validators, evidência, `audit`, `doctor` (13 checks; integridade semântica — claims/ciclo, D207), leitura tolerante e âncoras por hash | E09 |
+| `lifecycle` | shelf-life com **revisão espaçada** (FSRS-like, D190), decay de âncoras + **drift persistido** (D203), purga com retenção, **confiança Beta-Bernoulli** (D189), clusters/comunidades (D128/D193), demolição por contradição/TMS/drift (D177/D208) e **drift de termos KL/JS** (D208) | E09/E10 |
+| `embeddings` | provedor HTTP plugável, cache por `body_hash`, fila lazy, ranking de query (`rank_query`, D102) e sugestões semânticas (D158) | E11 |
 
 ## 5. Persistência (E03)
 
@@ -76,7 +76,7 @@ conveniência, mas só `cli`/`mcp` o importam.
 
 O layout é **material por tipo** (D150): `notas/<tipo>/<id>.md` (derivado do prefixo do id —
 `container_*` histórico vive em `epic/`), mais `notas/MAP.md` e as notas-hub (`meta` +
-`references`), materializados por `kd knowledge map --write` e **versionados**.
+`references`), materializados por `kd map --write` e **versionados**.
 
 | Peça | Regra |
 |---|---|
@@ -119,24 +119,26 @@ volatilidade, não CAS (D48).
 | Conceito | Regra |
 |---|---|
 | Fonte | Arestas explícitas no **frontmatter** (chave = `EdgeKind`, valor = lista de ids); a nota é a verdade (D49/D98). |
-| Vocabulário | Fechado: `references, depends_on, contradicts, supports, extends, replaces, rejects, results_in` (D51). |
-| Ordem | Bloco de 8 arestas logo após `superseded_by`, antes de `revision` (**25 chaves** — D98/D135/D142). |
+| Vocabulário | Fechado, 12 arestas: `references, depends_on, contradicts, supports, extends, replaces, rejects, results_in` (D51) + ontologia leve `same_as, broader, narrower, related` (D207). `broader`↔`narrower` são inversos e `same_as`/`related` simétricos. |
+| Ordem | Bloco de 12 arestas logo após `superseded_by`, antes de `revision` (**31 chaves** — D98/D135/D142/D207). |
 | `link()` | Adiciona sem duplicar; rejeita id inválido e auto-aresta. |
 | `expand` | BFS determinística só no **explícito**, com corte por `depth` e filtro por tipo. |
 | Supersessão | `replaces` (novo → antigo) e `superseded_by` (antigo → novo); bidirecionalidade cobrada pela integridade (D46). |
 | Ciclos | SCC (Kosaraju iterativo) sobre `replaces`/`depends_on`; membros **não demovem** (D45). |
 | Sugestões | Extração conservadora (ids, wikilinks, verbos) vai para `.idx/suggestions.jsonl` — derivado, purgável; **nunca** vira aresta (D49/D50/D84). |
+| Ontologia | `ontology` deriva classes de equivalência (`same_as`), clausura transitiva `broader`/`narrower` e detecta ciclos de hierarquia; `claim_conflicts` acusa `(sujeito, relação)` com objetos divergentes (D207). |
+| TMS | `tms` deriva, do índice reverso de `depends_on`, os dependentes transitivos de premissas retratadas (`forgotten`/`superseded`) e os derrotados por `replaces` — sem apagar nada (D208). |
 
 ## 8. Retrieval: BM25, âncoras e RRF (E06)
 
 | Conceito | Regra |
 |---|---|
 | Índice | Derivado em `.idx/retrieval.jsonl` (uma linha JSON por nota), reconstruível byte a byte; ausente → reconstrói (D15/D27). |
-| Tokenização | ASCII explícita `[a-z0-9_]`; `café` → `caf` (D36). |
-| BM25 | `k1=1.5`, `b=0.75`, **IDF por campo** (`statement` domina, peso 3) e **peso por tipo** (D35/D37). |
+| Tokenização | `[a-z0-9_]` com **fold de diacríticos** (`café` → `cafe`, D172) e **stemming PT conservador** no canal lexical (`decoders`→`decoder`, D206). |
+| BM25 | `k1=1.5`, `b=0.75`, **IDF por campo** (`statement` domina, peso 3), **peso por tipo** (D35/D37) e **corte de alta frequência** (`term_ratio`, D173). |
 | Boost | `score * (1 + 0.1 * (success + partial*0.5))` a partir de `outcomes` (D38). |
 | Âncoras | Canal determinístico por `path`/`id` com globs `?`/`*`/`**` (D81/D86). |
-| RRF | `Σ peso_canal/(k+rank+1)`, `k=60`, `semantic_weight=30` (D81/D124); desempate `(score desc, id asc)`; canal ausente só não soma. |
+| RRF | `Σ peso_canal/(k+rank+1)`, `k=60`, `anchor_weight=2.0`, `semantic_weight=30` (D81/D124/D179); desempate `(score desc, id asc)`; canal ausente só não soma. Canal **PPR** (`recall.ppr_weight`, default `0.0`, D192). |
 | Filtros | `type`/`classification`/`status`/`tags`/`anchors` antes do BM25; `scope` via `depends_on` transitivo (D41/D149). |
 | Views | `ready`/`blocked` computadas do `depends_on` transitivo; ciclo de dependência = `blocked` (D53). |
 | Contrato | `recall` em pipe `id\|statement\|score\|why`; `why` fechado (`file_match|anchor_match|tracker_match|stars|recent|universal`); corpo só via `get` (D39). |
@@ -148,7 +150,7 @@ volatilidade, não CAS (D48).
 |---|---|
 | Idempotência | `id` endereçado por `type + statement` (D01); mesmo `body_hash` → `unchanged`; mesmo id com corpo diferente → conflito (use `update`). |
 | Duas fases | `propose` (recall + score) → decisão → `write`; `< create_below` cria, `[create_below, merge_below)` merge, `≥ merge_below` rejeita (D26). |
-| Score lexical | Dice sobre o conjunto de termos (calibrado para `0.75`/`0.92`); limiares vêm de `[dedup]` (D80). |
+| Score lexical | Dice sobre o conjunto de termos (calibrado para `0.75`/`0.92`); limiares vêm de `[dedup]` (D80). Em corpus denso grande, o *blocking* `MinHash`/LSH reduz os pares candidatos **sem** mudar o limiar (D204). |
 | Merge | Funde no candidato (tags/âncoras unidas, corpo acrescido, confiança máx) e incrementa `revision`. |
 | `update` | Mesma chave de conteúdo → edita no lugar (`revision++`); chave nova → **supersede** (novo id + `replaces`/`superseded_by` — D01/D48). |
 | Ciclo de vida | `forget`/`restore` são soft (`status`), nunca apagam; transições protegidas (`superseded` só via supersede). |
@@ -180,18 +182,18 @@ volatilidade, não CAS (D48).
 | Fechamento por evidência | `close_task` grava `evidence` + `outcomes[]` e **infere** `outcome` pela severidade (D48/D55); sem evidência, não fecha. |
 | Confirmação | **Derivada** de `outcomes` (`success + partial*0.5`) — nunca armazenada (D48). |
 | `audit` | Leitura pura: integridade, ciclos, âncoras quebradas, duplicatas, arestas sugeridas faltantes e locks stale (D46). |
-| `doctor --fix` | 11 checks (inclui o tamanho do índice vetorial/cache — E11); corrige `body_hash`, âncoras quebradas, locks stale e índice divergente; **idempotente** (D19/D84). |
+| `doctor --fix` | 13 checks (inclui integridade semântica de claims/ciclo — D207 — e o tamanho do índice vetorial/cache — E11); corrige `body_hash`, âncoras quebradas, locks stale e índice divergente; **idempotente** (D19/D84). |
 | Leitura tolerante | Chave desconhecida → warning; `type` desconhecido/nota malformada → **skip + orientação**, sem derrubar o comando (D16–D18). |
 | Âncoras | `path` na nota, `content_hash` em `.idx/anchors.jsonl`; `cited` invalida, `context` não; stale **sinaliza**, não apaga (D86). |
-| Confiança derivada | `sim × drift × idade + feedback`, pisos, sempre `[0,1]`, calculada no `recall` (D87). |
+| Confiança derivada | Posterior **Beta-Bernoulli** (`sim`, evidência, `drift`, idade) com limite inferior conservador — sempre `[0,1]`, calculada no `recall`/`rank` (D87/D189/D203). |
 
 ## 12. Ciclo de vida, decay e clusters (E10)
 
 | Conceito | Regra |
 |---|---|
-| Shelf-life | `foundational` nunca expira (`0` dias); `tactical` (365) e `observational` (30) com prazos por config (D44). A expiração é **sempre derivada** de `created_at` + prazo (D135). |
+| Shelf-life | `foundational` nunca expira (`0` dias); `tactical` (365) e `observational` (30) com prazos por config (D44). A expiração é **sempre derivada** de `created_at` + prazo (D135); cada `outcome` de sucesso estende a retenção (FSRS-like, D190). |
 | Decay de âncoras | Valida literais (existe) e globs (casa); demove após grace se a fração válida < threshold (D43). Varredura do projeto limitada e off-path. |
-| Demolição | Sempre **soft** (`forget`); membros de ciclo de supersessão/dependência são **protegidos** (D45). |
+| Demolição | Sempre **soft** (`forget`); membros de ciclo de supersessão/dependência são **protegidos** (D45). Motivos: `expired`/`anchor_decay`/`contradicted`/`defeated` (TMS, D208)/`drifted` (KL/JS, D208). |
 | Purga | `retired_at` derivado de eventos (`forget`/`supersede`); conteúdo só sai após a janela de retenção e a remoção purga o derivado (D48/D84). |
 | Clusters fase 1 | Agrupamento determinístico por `anchor`/`type`/`classification`/scope — sem estatística nem embeddings (D47). |
 | Clusters fase 2 | Semântico **dentro** de um cluster estrutural, acima do volume mínimo e off-path; similaridade injetada (E11). |
@@ -207,18 +209,18 @@ volatilidade, não CAS (D48).
 | Fila | Estado `indexed\|pending\|stale` **derivado** do `body_hash`; falha do provedor marca `pending`, nunca descarta (D80/D83). `max_pending` é backpressure; acima, catch-up. |
 | Flush | *Dirty flag* + debounce `flush_ms`, com flush forçado na saída (D85). |
 | Purga | Toda remoção passa por `purge_derived`, que apaga registros com `id` do índice vetorial (D84). |
-| Avaliação | `Recall@k`/`nDCG@k`/`MRR` puras, com ranqueador injetado — alicerce do `kd maintenance eval --ab` (D90). |
+| Busca | `rank_query` (brute-force cosseno/dot, D102) alimenta o canal vetorial do `ask`; `suggest` classifica pares em `duplicate`/`contradiction`/`link` (advisory, D158). A avaliação de modelo vive na bancada externa `bench/` (o antigo `maintenance eval` foi removido — D145). |
 
 ## 14. CLI, MCP e hooks (E12)
 
 | Conceito | Regra |
 |---|---|
-| Superfície | 12 verbos (`16_cli_surface.md`): `kd`(=prime), `init`, `prime`, `rewind`, `ask`, `write`, `task`, `maintenance`, `config`, `forget`, `sync`, `self`. |
+| Superfície | **14 verbos** (`16_cli_surface.md`, superfície v3 — D209): `kd`(=prime), `init`, `prime`, `rewind`, `ask` (inclui `--rank`/`--tags`/`--suggest`), `write`, `task`, `map`, `doctor`, `drain`, `maintenance`, `config` (inclui `promote`), `forget`, `sync`, `self`. Domínio (8): `ask`/`write`/`task`/`rewind`/`map`/`doctor`/`drain`/`forget`. |
 | Sessão | `knudge-cli::session::Session` resolve o projeto, carrega a config efetiva e monta store/eventos/índice/grafo sob demanda. É a única borda que toca adaptadores reais. |
 | Saída | **stdout = dados, stderr = logs** (R20); `--json` emite o envelope `{success, command, data?, error{code,message,retryable}, warnings?}` (D71/R31). EPIPE → exit 0 (D73). |
 | `strict` | Config de projeto (`behavior.strict`, D94) promove `warnings[]` a erro; **não** existe flag `--strict`. |
 | Hooks | `HookRunner` (porta) + `ProcessHookRunner` (adaptador; timeout + kill do grupo de processos, sem shell — D59/R12). Orquestração em `commands/hooks.rs`: `pre-record` (bloqueia/muta), `post-record`, `pre-prune`, `pre-compact`; `pre-prime` é reservado (`prime` é byte-idêntico — D57). |
-| MCP | `knudge-mcp::triggers::HintEngine` — 3 gatilhos (pré-`write`, pré-edição, fim de sessão), hints **ponteiro**, cap 3, dedup por sessão e modo observação (D68). |
+| MCP | `knudge-mcp::triggers::HintEngine` — gatilhos pré-`write`/pré-edição/fim de sessão + `status`, hints **ponteiro**, cap 3, dedup por sessão e modo observação (D68). |
 | MCP (transporte) | Binário `knudge-mcp`: JSON-RPC 2.0 sobre stdio, **uma linha por mensagem**, `initialize`/`ping`/`tools/list`/`tools/call`; `knudge_pre_write`/`pre_edit`/`session_end`/`status`; `EPIPE`/EOF → exit 0 (E14, D68/D71/D73). |
 | Distribuição | `kd self completions <bash|zsh|fish>` e `kd self setup <claude|cursor|codex|pi>` gravam recipes em `.knudge/setup/` (D69). |
 
@@ -259,9 +261,10 @@ O gate local é `make check` (fmt + clippy + test + linhas); `make ci` soma os a
 ## 18. Referências
 
 - Visão: `plan/00_panorama.md`
-- Decisões: `plan/03_decisoes-fechadas.md` (D01–D101)
+- Decisões: `plan/03_decisoes-fechadas.md` (D01–D209)
 - Contrato de bytes: `TOON.md`
 - Políticas de engenharia: `plan/implementation/14_revisao_tecnica.md` (R01–R44)
 - Superfície CLI: `plan/implementation/16_cli_surface.md`
 - Matriz de aceite: `plan/implementation/17_matriz_aceitacao.md`
 - Bordas: `DIVERGENCES.md`
+- Plano das pendências (reranking/ANN): `plan/proposals/reranking_ann.md`

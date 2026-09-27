@@ -1,6 +1,9 @@
 //! Patch de `update`: campos mutáveis e leitura JSON (`--update --params`, D147).
 
-use crate::schema::{Classification, NoteType, Scope, Status, Value};
+use crate::schema::{
+    Claim, Classification, NoteType, Provenance, Scope, Status, Value, claims_from_value,
+    claims_to_value, provenance_from_value,
+};
 use crate::store::Note;
 use crate::write::status::validate_transition;
 use crate::write::{set_list, validate_anchors};
@@ -27,6 +30,10 @@ pub struct Patch {
     pub scope: Option<Scope>,
     /// Novas âncoras (vazio limpa).
     pub anchors: Option<Vec<String>>,
+    /// Novas claims (vazio limpa) — D207.
+    pub claims: Option<Vec<Claim>>,
+    /// Nova proveniência — D207.
+    pub provenance: Option<Provenance>,
 }
 
 impl Patch {
@@ -72,6 +79,20 @@ impl Patch {
             validate_anchors(anchors)?;
             set_list(&mut note.frontmatter, "anchors", anchors)?;
         }
+        if let Some(claims) = &self.claims {
+            if claims.is_empty() {
+                note.frontmatter.remove("claims");
+            } else {
+                note.frontmatter.set("claims", claims_to_value(claims))?;
+            }
+        }
+        if let Some(provenance) = &self.provenance {
+            if provenance.is_empty() {
+                note.frontmatter.remove("provenance");
+            } else {
+                note.frontmatter.set("provenance", provenance.to_value())?;
+            }
+        }
         Ok(())
     }
 
@@ -113,12 +134,18 @@ impl Patch {
         if let Some(scope) = map.get("scope").and_then(Value::as_str) {
             patch.scope = Some(scope.parse()?);
         }
+        if let Some(claims) = map.get("claims") {
+            patch.claims = Some(claims_from_value(Some(claims))?);
+        }
+        if let Some(provenance) = map.get("provenance") {
+            patch.provenance = Some(provenance_from_value(Some(provenance))?);
+        }
         Ok(patch)
     }
 }
 
 /// Chaves aceitas num patch JSON (`--update --params`, D147).
-const PATCH_KEYS: [&str; 8] = [
+const PATCH_KEYS: [&str; 10] = [
     "type",
     "statement",
     "body",
@@ -127,6 +154,8 @@ const PATCH_KEYS: [&str; 8] = [
     "classification",
     "status",
     "scope",
+    "claims",
+    "provenance",
 ];
 
 fn string_list(value: &Value) -> Result<Vec<String>> {

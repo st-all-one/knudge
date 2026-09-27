@@ -103,10 +103,14 @@ Propõe `forget` por **shelf-life/decay**. É sempre read-only; a aplicação é
 [`kd forget`](11-forget.md). Âncora literal que aponta para diretório conta como **quebrada**.
 O prazo é **elástico** (D190): cada `outcome` de sucesso estende o shelf-life em
 `retention.growth_percent` (default 50 %) e reseta o relógio; o `--json` informa a `retention`
-atual de cada candidata (`R < 0,5`). O motivo é um de `expired`/`anchor_decay`/`contradicted`:
-uma aresta `contradicts` declarada, o **lado perdedor** (menor confiança derivada) entra como
-candidato (D177). O comando também persiste o **drift** de âncoras (`.idx/drift.jsonl`, D203) do
-mesmo walk — é o derivado que o `ask`/`knowledge rank` leem para descontar a confiança.
+atual de cada candidata (`R < 0,5`). O motivo é um de
+`expired`/`anchor_decay`/`contradicted`/`defeated`/`drifted`: uma aresta `contradicts` declarada
+(o **lado perdedor**, de menor confiança derivada) entra como candidato (D177); um **dependente**
+de premissa retratada (`forgotten`/`superseded`) ou derrotada por `replaces` entra por TMS
+(`defeated`, D208); e notas de um **tópico** (âncora) cujo vocabulário mudou muito
+(`JS ≥ 0,5` entre a metade antiga e a nova, ≥ 4 notas) entram por **drift** (`drifted`, D208).
+O comando também persiste o **drift** de âncoras (`.idx/drift.jsonl`, D203) do
+mesmo walk — é o derivado que o `ask`/`ask --rank` leem para descontar a confiança.
 
 ## `drain service` (worker)
 

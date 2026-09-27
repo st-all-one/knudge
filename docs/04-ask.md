@@ -181,7 +181,7 @@ Isso evita duplicata e mostra a nota que talvez você só precise atualizar
 - **Não use** para criar/editar (é read-only) nem como histórico de sessão (use
   [`kd rewind`](08-rewind.md)).
 - **Não use** para listar trabalho ([`kd task list`](06-task.md)) nem para ranking por confiança
-  ([`kd knowledge rank`](07-knowledge.md)).
+  ([`kd ask --rank`](07-knowledge.md)).
 
 ## Próximo passo
 

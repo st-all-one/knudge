@@ -7,7 +7,8 @@ use indexmap::IndexMap;
 
 use crate::graph;
 use crate::schema::{
-    Classification, EdgeKind, Frontmatter, NoteType, SCHEMA_VERSION, Scope, Status, Value, id,
+    Claim, Classification, EdgeKind, Frontmatter, NoteType, Provenance, SCHEMA_VERSION, Scope,
+    Status, Value, claims_from_value, claims_to_value, id, provenance_from_value,
 };
 use crate::store::Note;
 use crate::time::Timestamp;
@@ -42,6 +43,10 @@ pub struct Draft {
     pub checks: Vec<String>,
     /// Evidências de fechamento (mapa).
     pub evidence: Vec<(String, Value)>,
+    /// Claims tipadas `(sujeito, relação, objeto)` (D207).
+    pub claims: Vec<Claim>,
+    /// Proveniência PROV-lite (D207).
+    pub provenance: Provenance,
 }
 
 impl Default for Draft {
@@ -59,6 +64,8 @@ impl Default for Draft {
             scope: None,
             checks: Vec::new(),
             evidence: Vec::new(),
+            claims: Vec::new(),
+            provenance: Provenance::default(),
         }
     }
 }
@@ -121,6 +128,8 @@ impl Draft {
         }
         draft.tags = string_list(map.get("tags"))?;
         draft.anchors = string_list(map.get("anchors"))?;
+        draft.claims = claims_from_value(map.get("claims"))?;
+        draft.provenance = provenance_from_value(map.get("provenance"))?;
         Ok(draft)
     }
 
@@ -187,6 +196,12 @@ impl Draft {
             }
             frontmatter.set("evidence", Value::Map(map))?;
         }
+        if !self.claims.is_empty() {
+            frontmatter.set("claims", claims_to_value(&self.claims))?;
+        }
+        if !self.provenance.is_empty() {
+            frontmatter.set("provenance", self.provenance.to_value())?;
+        }
         let mut note = Note::new(frontmatter, self.body.clone());
         note.refresh_body_hash()?;
         note.frontmatter.validate()?;
@@ -209,7 +224,7 @@ impl Draft {
 }
 
 /// Chaves aceitas num rascunho JSONL (K4/D110).
-const DRAFT_KEYS: [&str; 8] = [
+const DRAFT_KEYS: [&str; 10] = [
     "type",
     "statement",
     "body",
@@ -218,6 +233,8 @@ const DRAFT_KEYS: [&str; 8] = [
     "source",
     "classification",
     "status",
+    "claims",
+    "provenance",
 ];
 
 fn string_list(value: Option<&Value>) -> Result<Vec<String>> {

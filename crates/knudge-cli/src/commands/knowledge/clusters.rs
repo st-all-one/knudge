@@ -1,4 +1,4 @@
-//! Filtragem dos clusters estruturais do `knowledge map` (D143).
+//! Filtragem dos clusters estruturais do `kd map` (D143).
 //!
 //! Isola a montagem do `CorpusScope` e os filtros de eixo/escopo/`--around`, deixando o
 //! `map.rs` só com a orquestração e a renderização.
@@ -11,12 +11,12 @@ use knudge_core::lifecycle::{Cluster, structural_clusters_filtered};
 use knudge_core::retrieval::Index;
 use knudge_core::{Error, Result};
 
-use crate::cli::KnowledgeMapArgs;
+use crate::cli::MapArgs;
 
 use super::super::corpus::{CorpusScope, Selection};
 
-/// Monta o `CorpusScope` a partir das flags de filtro de `knowledge map`.
-pub(super) fn corpus_scope(args: &KnowledgeMapArgs) -> CorpusScope {
+/// Monta o `CorpusScope` a partir das flags de filtro de `kd map`.
+pub(super) fn corpus_scope(args: &MapArgs) -> CorpusScope {
     CorpusScope {
         types: args.types.clone(),
         classes: args.classes.clone(),

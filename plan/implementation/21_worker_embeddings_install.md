@@ -186,12 +186,14 @@ T08 (docs/goldens/matriz/CHANGELOG) — incorpora os pontos em aberto
 - **Aceite:** testes de `--every` inválido (exit 2, sem escrever unit); `--status` read-only não
   escreve staging; mensagens sem `?` cru. ✔
 
-### E17-T08 ☐ Fecho — docs, goldens, matriz e CHANGELOG
+### E17-T08 ☑ Fecho — docs, goldens, matriz e CHANGELOG
 - **Escopo:** `docs/15-embeddings.md`, `docs/09-maintenance.md`, `SKILL.md`, `llms.txt`,
   `16_cli_surface.md`, `17_matriz_aceitacao.md`, `DIVERGENCES.md` (se borda), `CHANGELOG.md`
   (`[0.5.0]`), `Cargo.toml` (via `make update-version`); incorpora os **pontos em aberto**.
 - **Depende de:** todas.
 - **Aceite:** `make check` + `make ci` verdes; grep por `--yes`/prompt obsoleto; versão em sincronia.
+- **Feito:** `docs/15-embeddings.md`/`docs/09-maintenance.md` sincronizados (D180–D183/D202);
+  nenhum `--yes`/prompt obsoleto; `CHANGELOG` `[0.5.0]`; `make update-version VERSION=v0.5.0`.
 
 ## Definition of Done
 

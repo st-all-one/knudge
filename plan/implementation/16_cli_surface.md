@@ -26,14 +26,14 @@
 | `kd init` | `onboard` | funda `.knudge/` + prompt inicial |
 | `kd prime` | — | protocolo de uso, byte-idêntico |
 | `kd rewind` | `prime(scope)`, `get_context`, `diff` | estado/handoff ponto-no-tempo |
-| `kd ask` | `recall`, `get`, `expand` | toda pesquisa |
+| `kd ask` | `recall`, `get`, `expand`, `rank`, `tags`, `suggest` | toda pesquisa (inclui os modos `--rank`/`--tags`/`--suggest`, D209) |
 | `kd write` | `write`, `update`, `link` | toda escrita |
 | `kd task` | `epic`, grupos de tarefa | epic/issue/task |
-| `kd knowledge` | `clusters` | mapa/ranking/vocabulário de conhecimento (D128/D146) |
+| `kd map` | `clusters` | mapa/ranking/vocabulário de conhecimento (D128/D146; superfície D209) |
 | `kd drain` | `service` | fila de embeddings: status/digestão; `service` = worker de auto-drain (D170/D186) |
 | `kd doctor` | — | saúde do corpus: 13 checks + auditoria (`--fix`, `--explain`) — D163 |
 | `kd maintenance` | `compact`, `learn`, `prune` | manutenção (só revisão; D186) |
-| `kd config` | `config` | `.knudge/config.toml` |
+| `kd config` | `config`, `promote` | `.knudge/config.toml` + regras governadas (D209) |
 | `kd forget` | `forget`, `restore` | soft-delete |
 | `kd sync` | `sync` | commit git |
 | `kd self` | `setup`, `completions`, `upgrade`, `version` | instalação |
@@ -60,11 +60,17 @@ kd ask [QUERY|-]
   --anchor <PATH>...      # repetível; aceita vírgula (`--anchor a,b`)
   --since <TS> / --until <TS>
   --limit <N>             # default: config recall.default_limit (5 — D121)
+  --rank                  # modo ranking (sem query); exige escopo ou --universe (D146/D209)
+  --tags                  # modo vocabulário de tags (`tag|count`) — D146/D209
+  --suggest               # modo sugestões semânticas de aresta/contradição — D158/D209
+  --universe              # varredura explícita do projeto inteiro (modo --rank)
+  --top-k <N> / --relation <R>   # modo --suggest
   --json
 ```
 
-Ranking (`--rank`) e vocabulário de tags (`--tags`) saíram do `ask` e viraram
-`kd knowledge rank`/`tags` (D146).
+`--rank`/`--tags`/`--suggest` são **modos** de `ask` (absorvidos de `kd knowledge`, D209):
+reusam os filtros de corpus acima e devolvem `ranked[]`/`tags[]`/`suggestions[]`.
+`--rank` exige escopo ou `--universe` (D146).
 
 O canal **vetorial** entra automaticamente quando `recall.semantic = true` (default) e há índice
 (`recall.semantic_top_k`); provedor fora do ar degrada para BM25 com `warnings` (D102). Um hit
@@ -97,7 +103,10 @@ kd write --summary <TXT> [<BODY>|-]
   --type <T>              # default: fact
   --tag <T>... --anchor <PATH>...
   --class <C> --status <S>
-  --edge <ARESTA:ID>      # aresta explícita na criação
+  --edge <ARESTA:ID>      # aresta explícita na criação (12 arestas; inclui ontologia)
+  --claim <S:R:O>         # claim atômica SPO (repetível; D207)
+  --agent <NOME>          # agente da proveniência PROV-lite (D207)
+  --activity <NOME>       # atividade da proveniência PROV-lite (D207)
   --update <ID>           # modo update (patch versionado); aceita [--params '<JSON>']
   --clear-anchors         # com --update, limpa as âncoras (não combina com --anchor)
   --link <ARESTA:ID>      # cria aresta (substitui o antigo `link`)
@@ -212,16 +221,20 @@ kd task plan <ID> [--prompt [--template <NOME>] | --submit --from <TXT|->]
   `task graph --program` imprime a **floresta** (ordem de `id`); `--root <ID>` rende uma árvore só;
   `programs.glob` define o que é um programa (D139).
 
-## 8. `kd knowledge` — mapa/ranking/vocabulário de conhecimento (D128/D146)
+## 8. `kd map` — mapa/ranking/vocabulário de conhecimento (D128/D146)
+
+> **Superfície v3 (D209):** `knowledge` deixou de ser verbo. `rank`/`tags`/`suggest` viraram
+> modos de `kd ask` (`--rank`/`--tags`/`--suggest`); o mapa virou `kd map`; `promote` passou a
+> `kd config promote`. `forget` permanece verbo (aplicação do `prune`, D112).
 
 ```
-kd knowledge map [--axis <anchor|type|classification|scope>] [--scope <ESCOPO>]
+kd map [--axis <anchor|type|classification|scope>] [--scope <ESCOPO>]
                 [--semantic] [--communities] [--members] [--write]
                 [--tag <T>...] [--anchor <PATH>...] [--type <T>...] [--class <C>...]
                 [--around <ID>] [--depth <N>] [--universe]
-kd knowledge rank [--tag ...] [--anchor ...] [--type ...] [--class ...]
+kd ask --rank [--tag ...] [--anchor ...] [--type ...] [--class ...]
                   [--around <ID>] [--depth <N>] [--universe] [--limit <N>]
-kd knowledge tags [--limit <N>]
+kd ask --tags [--limit <N>]
 ```
 
 - **Escopo obrigatório (D143):** `map`/`rank` sem filtro e sem `--universe` são `invalid_input`
@@ -401,8 +414,8 @@ Adições que **não** mudam os verbos existentes (só flags/subcomandos) e nenh
 | Superfície | Forma | Papel |
 |---|---|---|
 | `kd ask --as-of <TS>` | flag de `ask` | corpus ativo em `T` (D155); `--json` ganha `as_of`/`historical` |
-| `kd knowledge suggest [--top-k N] [--relation R] [--limit N]` | subcomando | sugestões semânticas `duplicate`/`contradiction`/`link` (D158) |
-| `kd knowledge promote recommend\|approve\|edit\|remove\|list` | subcomando + sub-subcomandos | regras governadas no `AGENTS.md` (D157) |
+| `kd ask --suggest [--top-k N] [--relation R] [--limit N]` | subcomando | sugestões semânticas `duplicate`/`contradiction`/`link` (D158) |
+| `kd config promote recommend\|approve\|edit\|remove\|list` | subcomando + sub-subcomandos | regras governadas no `AGENTS.md` (D157) |
 | `kd maintenance learn --verify` / `compact --verify` | flag | anexa o veredito do portão (read-only, D156) |
 | `retention.renew_on_use` | config | renovação de shelf-life por uso (D154) |
 | `proposals.gate` / `min_delta` / `enforce` | config | portão de evidência (D156) |

@@ -11,6 +11,8 @@ use crate::{Result, toon};
 use proptest::prelude::*;
 use std::str::FromStr;
 
+mod semantic;
+
 #[test]
 fn note_type_round_trips_and_prefixes() {
     for note_type in NoteType::ALL {
@@ -119,7 +121,7 @@ fn statement_limit_counts_scalars() {
 
 #[test]
 fn schema_version_is_frozen() {
-    assert_eq!(SCHEMA_VERSION, 1);
+    assert_eq!(SCHEMA_VERSION, 2);
 }
 
 #[test]
@@ -154,7 +156,7 @@ fn valid_frontmatter() -> Result<Frontmatter> {
         Value::Str("2026-01-02T03:04:05.678Z".to_string()),
     )?;
     fm.set("body_hash", Value::Str(body_hash("afirmação", "corpo")))?;
-    fm.set("schema_version", Value::Int(1))?;
+    fm.set("schema_version", Value::Int(i64::from(SCHEMA_VERSION)))?;
     Ok(fm)
 }
 
@@ -239,17 +241,6 @@ fn frontmatter_validate_checks_required_and_ranges() -> Result<()> {
     let mut long = valid_frontmatter()?;
     long.set("statement", Value::Str("x".repeat(121)))?;
     assert!(long.validate().is_err());
-    Ok(())
-}
-
-#[test]
-fn frontmatter_optional_defaults() -> Result<()> {
-    let fm = valid_frontmatter()?;
-    assert_eq!(fm.classification()?, Classification::Tactical);
-    assert_eq!(fm.status()?, Status::Active);
-    assert_eq!(fm.scope()?, None);
-    assert_eq!(fm.note_type()?, NoteType::Fact);
-    assert_eq!(fm.schema_version()?, SCHEMA_VERSION);
     Ok(())
 }
 

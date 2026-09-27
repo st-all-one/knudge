@@ -5,12 +5,14 @@
 //! `statement` (D08). A serialização concreta vive em [`crate::toon`].
 
 pub mod body;
+pub mod claims;
 pub mod edge;
 pub mod frontmatter;
 pub mod hash;
 pub mod id;
 pub mod keys;
 pub mod outcomes;
+pub mod provenance;
 pub mod slots;
 pub mod text;
 pub mod types;
@@ -19,13 +21,15 @@ pub mod value;
 #[cfg(test)]
 mod tests;
 
-/// Versão atual do schema (D15).
-pub const SCHEMA_VERSION: u32 = 1;
+/// Versão atual do schema (D15/D207).
+pub const SCHEMA_VERSION: u32 = 2;
 
+pub use claims::{Claim, claims, claims_from_value, claims_to_value};
 pub use edge::{EDGE_KEYS, Edge, EdgeKind};
 pub use frontmatter::Frontmatter;
 pub use keys::{CANONICAL_KEYS, REQUIRED_KEYS};
 pub use outcomes::{OutcomeStats, outcome_stats};
+pub use provenance::{Provenance, provenance, provenance_from_value};
 pub use slots::{Slot, expected_slots, missing_slots};
 pub use types::{Classification, NoteType, Scope, Status};
 pub use value::Value;

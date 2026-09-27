@@ -192,4 +192,4 @@ O mesmo bloco aparece em `rewind --json` (`data.flow`, aditivo).
 
 ## Próximo passo
 
-➡️ [`kd knowledge`](07-knowledge.md) · [`kd rewind`](08-rewind.md)
+➡️ [`kd map`](07-knowledge.md) · [`kd rewind`](08-rewind.md)

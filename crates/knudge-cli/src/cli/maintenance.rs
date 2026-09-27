@@ -5,6 +5,8 @@
 
 use clap::{Args, Subcommand};
 
+use super::knowledge::PromoteCommand;
+
 /// Subcomandos de manutenção.
 #[derive(Debug, Subcommand)]
 #[command(arg_required_else_help = true)]
@@ -112,6 +114,12 @@ pub enum ConfigCommand {
         /// Usa o config global.
         #[arg(long)]
         global: bool,
+    },
+    /// Promove conhecimento a regras governadas no `AGENTS.md` (D157).
+    Promote {
+        /// Subcomando de promoção.
+        #[command(subcommand)]
+        command: PromoteCommand,
     },
 }
 

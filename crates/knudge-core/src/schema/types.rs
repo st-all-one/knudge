@@ -251,7 +251,7 @@ impl Status {
 
     /// Estados **visíveis por padrão** (D43): esconde `Superseded` e `Forgotten`.
     ///
-    /// Fonte única do default de leitura: `ask` (sem `--status`), `knowledge rank`/`map`,
+    /// Fonte única do default de leitura: `ask` (sem `--status`), `kd ask --rank`/`map`,
     /// `rewind` e `maintenance` (via [`crate::retrieval::Filter`]) compartilham esta lista.
     /// Inspecionar a linhagem exige pedir o status explicitamente (ex.: `ask --status forgotten`).
     pub const VISIBLE: [Self; 4] = [Self::Active, Self::InProgress, Self::Blocked, Self::Closed];

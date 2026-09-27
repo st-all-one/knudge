@@ -65,8 +65,8 @@ GUIA RÁPIDO (o que usar, quando e quando NÃO usar):
                      NÃO use para conhecimento/observação — use kd write.
   kd rewind          RECONSTRUIR contexto no início de sessão (orçamento de tokens).
                      NÃO use como busca dirigida — use kd ask.
-  kd knowledge map   VISÃO de clusters (estrutural/semântico); exige escopo ou --universe.
-                     NÃO use para achar 1 nota (use kd ask) nem para ranking (kd knowledge rank).
+  kd map              VISÃO de clusters (estrutural/semântico); exige escopo ou --universe.
+                     NÃO use para achar 1 nota (use kd ask) nem para ranking (kd ask --rank).
   kd doctor          SAÚDE do corpus (13 checks + auditoria; reparo com --fix, detalhe com --explain).
   kd maintenance ..  LIMPEZA (compact/learn/prune; só PROPÕEM e exigem escopo ou --universe).
   kd forget --id <ID>  SOFT-DELETE (--restore; --purge só após retenção, [--force]).
@@ -112,7 +112,7 @@ PESQUISA (kd ask — só conhecimento por padrão; --with-task inclui trabalho):
               Corpo completo de todos com --full-content; --brief só id|statement.
   Busca vazia → stdout [no_results] (D152); --json traz channels por hit (D151).
   forgotten/superseded ficam fora do ask por padrão; use --status para incluí-los.
-  Rank (--rank) e vocabulário de tags (--tags) agora em kd knowledge rank|tags (D146).
+  Rank (`kd ask --rank`) e vocabulário de tags (`kd ask --tags`) — D146/D209.
 
 TAREFAS (kd task — epic ⊃ { issue ⊃ task | task }; epic é a raiz, ancore-o):
   kd task new --summary \"<...>\" [<corpo>|-] --scope <epic|issue|task> [--kind error|question|risk|decision]
@@ -127,8 +127,8 @@ TAREFAS (kd task — epic ⊃ { issue ⊃ task | task }; epic é a raiz, ancore-
 ESTADO / HANDOFF: kd rewind [--scope CONTAINER] [--files PATH...] [--budget N] [--resume ID]
   Filtros de corpus: --tag/--anchor/--type/--class/--around ID (D143).
   Orçamento ceil(len/4) tokens (default 4000); context_id retomável 1:1; next:/fresh: (D106).
-MAPA/RANK: kd knowledge map|rank|tags ...  (map/rank exigem escopo ou --universe; D143/D146)
-  kd knowledge map [--axis anchor|type|classification|scope] [--scope C] [--semantic] [--members] [--write]
+MAPA/RANK: kd map ...  ·  kd ask --rank|--tags ...  (map/rank exigem escopo ou --universe; D143/D146)
+  kd map [--axis anchor|type|classification|scope] [--scope C] [--semantic] [--members] [--write]
   kd drain --status|--digest  (fila de embeddings: estado rico e digestão; --force redigeri tudo)
   kd drain service ..  (worker de auto-drain: install/subscribe/unsubscribe/status/uninstall)
 SAÚDE: kd doctor [--fix] [--explain]  (13 checks + auditoria; reparo reversível; --explain detalha cada achado)

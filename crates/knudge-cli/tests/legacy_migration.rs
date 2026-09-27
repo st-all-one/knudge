@@ -178,8 +178,8 @@ fn real_tmp_corpus_smoke() -> TestResult {
         vec!["ask", "home"],
         vec!["task", "list", "--universe"],
         vec!["rewind", "--budget", "500"],
-        vec!["knowledge", "map", "--universe", "--axis", "type"],
-        vec!["knowledge", "rank", "--universe", "--limit", "5"],
+        vec!["map", "--universe", "--axis", "type"],
+        vec!["ask", "--rank", "--universe", "--limit", "5"],
     ] {
         let out = run_in(&dir, &args)?;
         assert!(out.status.success(), "{args:?}: {}", stderr(&out)?);

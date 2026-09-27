@@ -1,4 +1,4 @@
-//! `kd knowledge suggest` — sugestões semânticas de aresta/contradição (D158).
+//! `kd ask --suggest` — sugestões semânticas de aresta/contradição (D158).
 //!
 //! Read-only: nada vira aresta nem é gravado. Usa o índice vetorial (derivado, opcional) e o
 //! grafo para classificar pares em `duplicate`/`contradiction`/`link` (D49/D50).
@@ -12,7 +12,7 @@ use knudge_core::embeddings::{
 use knudge_core::retrieval::Index;
 use serde_json::json;
 
-use crate::cli::KnowledgeSuggestArgs;
+use crate::cli::SuggestArgs;
 use crate::commands::embedder;
 use crate::output::Output;
 use crate::session::Session;
@@ -20,11 +20,11 @@ use crate::session::Session;
 /// Sentinela de busca vazia (D152).
 const NO_RESULTS: &str = "[no_results]";
 
-/// Executa `kd knowledge suggest`.
+/// Executa `kd ask --suggest`.
 ///
 /// # Errors
 /// Propaga erros de leitura do índice/grafo; índice vetorial ausente degrada para vazio.
-pub fn run(session: &Session, args: &KnowledgeSuggestArgs) -> Result<Output> {
+pub fn run(session: &Session, args: &SuggestArgs) -> Result<Output> {
     let mut warnings = Vec::new();
     if !session
         .config()
@@ -108,7 +108,7 @@ fn policy(session: &Session) -> SuggestionPolicy {
     }
 }
 
-fn relation_filter(args: &KnowledgeSuggestArgs) -> Option<Relation> {
+fn relation_filter(args: &SuggestArgs) -> Option<Relation> {
     match args.relation.as_deref() {
         Some("duplicate") => Some(Relation::Duplicate),
         Some("contradiction") => Some(Relation::Contradiction),

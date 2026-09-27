@@ -1,4 +1,4 @@
-//! `kd knowledge promote` — regras governadas no `AGENTS.md` (D157).
+//! `kd config promote` — regras governadas no `AGENTS.md` (D157).
 //!
 //! O agente/humano decide: `recommend`/`list` são read-only; `approve`/`edit`/`remove` escrevem
 //! o bloco governado e **nunca** tocam a nota de origem. O teto (`rules.max_promoted`) é
@@ -26,7 +26,7 @@ enum ScopeFilter {
     Universe,
 }
 
-/// Executa `kd knowledge promote <subcomando>`.
+/// Executa `kd config promote <subcomando>`.
 ///
 /// # Errors
 /// Propaga erros do domínio e `invalid_input`/`not_found`/`conflict` de promoção.
@@ -135,7 +135,7 @@ fn approve(
         .cloned();
     if !is_present && candidate.is_none() {
         return Err(Error::not_found(format!(
-            "candidata ausente (rode `kd knowledge promote recommend`): {}",
+            "candidata ausente (rode `kd config promote recommend`): {}",
             args.id
         )));
     }

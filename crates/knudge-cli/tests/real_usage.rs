@@ -118,7 +118,7 @@ fn has_hit(value: &serde_json::Value, id: &str) -> bool {
         .any(|hit| hit.get("id").and_then(serde_json::Value::as_str) == Some(id))
 }
 
-/// `true` se algum item de `ranked` (`knowledge rank`) tem o id dado.
+/// `true` se algum item de `ranked` (`kd ask --rank`) tem o id dado.
 fn has_ranked(value: &serde_json::Value, id: &str) -> bool {
     value
         .get("ranked")
@@ -168,12 +168,12 @@ fn knowledge_write_and_ask() -> TestResult {
 }
 
 #[test]
-fn knowledge_map_rank_tags_digest() -> TestResult {
+fn map_rank_tags_digest() -> TestResult {
     let dir = temp_project();
     init(&dir)?;
     let _seeded = seed_knowledge(&dir)?;
 
-    let map = ok_json(&dir, &["knowledge", "map", "--universe", "--axis", "type"])?;
+    let map = ok_json(&dir, &["map", "--universe", "--axis", "type"])?;
     assert!(
         map.get("docs")
             .and_then(serde_json::Value::as_u64)
@@ -181,58 +181,44 @@ fn knowledge_map_rank_tags_digest() -> TestResult {
     );
     let _members = ok(
         &dir,
-        &[
-            "knowledge",
-            "map",
-            "--universe",
-            "--axis",
-            "anchor",
-            "--members",
-        ],
+        &["map", "--universe", "--axis", "anchor", "--members"],
     )?;
-    let _write = ok(&dir, &["knowledge", "map", "--universe", "--write"])?;
+    let _write = ok(&dir, &["map", "--universe", "--write"])?;
     assert!(dir.join(".knudge").join("notas").join("MAP.md").exists());
 
-    let ranked = ok_json(&dir, &["knowledge", "rank", "--universe", "--limit", "5"])?;
+    let ranked = ok_json(&dir, &["ask", "--rank", "--universe", "--limit", "5"])?;
     assert!(ranked.get("ranked").and_then(|v| v.as_array()).is_some());
-    let tags = ok(&dir, &["knowledge", "tags"])?;
+    let tags = ok(&dir, &["ask", "--tags"])?;
     assert!(tags.contains("cache|"), "tags: {tags}");
     let drain = ok(&dir, &["drain", "--status"])?;
     assert!(drain.contains("pending="), "drain status: {drain}");
 
     // Escopo obrigatório (D143/D144).
-    expect_code(&dir, &["knowledge", "map", "--axis", "type"], 2)?;
-    expect_code(&dir, &["knowledge", "rank"], 2)?;
+    expect_code(&dir, &["map", "--axis", "type"], 2)?;
+    expect_code(&dir, &["ask", "--rank"], 2)?;
     Ok(())
 }
 
 #[test]
-fn knowledge_rank_map_exclude_deprecated() -> TestResult {
+fn rank_map_exclude_deprecated() -> TestResult {
     let dir = temp_project();
     init(&dir)?;
     let seeded = seed_knowledge(&dir)?;
 
     // Nota ativa aparece em `rank` (D176).
-    let ranked = ok_json(&dir, &["knowledge", "rank", "--universe", "--limit", "50"])?;
+    let ranked = ok_json(&dir, &["ask", "--rank", "--universe", "--limit", "50"])?;
     assert!(has_ranked(&ranked, &seeded.fact), "ativo ausente de rank");
 
     // `forget` (soft-delete) → some de `rank` e `map` por padrão (D43/D176).
     let _forget = ok(&dir, &["forget", "--id", &seeded.fact])?;
-    let ranked = ok_json(&dir, &["knowledge", "rank", "--universe", "--limit", "50"])?;
+    let ranked = ok_json(&dir, &["ask", "--rank", "--universe", "--limit", "50"])?;
     assert!(
         !has_ranked(&ranked, &seeded.fact),
         "forgotten ainda aparece em rank"
     );
     let map = ok(
         &dir,
-        &[
-            "knowledge",
-            "map",
-            "--universe",
-            "--axis",
-            "anchor",
-            "--members",
-        ],
+        &["map", "--universe", "--axis", "anchor", "--members"],
     )?;
     assert!(
         !map.contains(&seeded.fact),
@@ -257,7 +243,7 @@ fn knowledge_rank_map_exclude_deprecated() -> TestResult {
             "Snippet de retry (revisado)",
         ],
     )?;
-    let ranked = ok_json(&dir, &["knowledge", "rank", "--universe", "--limit", "50"])?;
+    let ranked = ok_json(&dir, &["ask", "--rank", "--universe", "--limit", "50"])?;
     assert!(
         !has_ranked(&ranked, &seeded.snippet),
         "superseded ainda aparece em rank"
@@ -502,8 +488,8 @@ fn json_envelope_and_exit_codes() -> TestResult {
     for args in [
         vec!["ask", "nota"],
         vec!["ask", "--id", "fact_zzzzzzzz"],
-        vec!["knowledge", "map", "--universe", "--axis", "type"],
-        vec!["knowledge", "tags"],
+        vec!["map", "--universe", "--axis", "type"],
+        vec!["ask", "--tags"],
         vec!["task", "list", "--universe"],
         vec!["rewind"],
         vec!["doctor"],

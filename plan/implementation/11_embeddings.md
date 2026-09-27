@@ -76,7 +76,8 @@ E06, E07.
 - **Decisão (v0.3.0):** o `maintenance eval` era **stub** e o módulo puro `embeddings/eval.rs` só
   era usado em testes; ambos foram **removidos** (D145). A avaliação de modelo segue na bancada
   **externa `bench/`** (foi como o `granite` foi escolhido — D123). A fila de embeddings virou
-  `kd knowledge digest` (ex-`maintenance index`).
+  `kd knowledge digest` (ex-`maintenance index`) e hoje é o verbo de topo **`kd drain`**
+  (`--status`/`--digest`; D145/D170).
 - **Aceite:** `kd maintenance eval` → exit 2; nenhum re-export de `eval` quebrado.
 
 ### E11-T08 ☑ `lightweight` para testes/offline
@@ -106,7 +107,7 @@ E06, E07.
 
 - [x] Nenhum caminho do sistema bloqueia por embedding.
 - [x] Cache, fila, reconcile, purge e flush travados por teste.
-- [x] `kd knowledge digest` disponível para digerir a fila; avaliação de modelo é offline (`bench/`, D145).
+- [x] `kd drain` disponível para digerir a fila; avaliação de modelo é offline (`bench/`, D145).
 - [x] Runtime mínimo e backpressure demonstrados.
 
 ## Não-objetivos

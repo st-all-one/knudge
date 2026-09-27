@@ -2,7 +2,7 @@
 
 use crate::Result;
 use crate::graph::link;
-use crate::schema::{EdgeKind, Frontmatter, NoteType, Value, body, id};
+use crate::schema::{EdgeKind, Frontmatter, NoteType, SCHEMA_VERSION, Value, body, id};
 use crate::store::Note;
 
 mod communities;
@@ -10,8 +10,10 @@ mod cycles;
 mod extract;
 mod graph;
 mod integrity;
+mod ontology;
 mod rank;
 mod suggestions;
+mod tms;
 
 /// Frontmatter mínimo válido (sem corpo).
 pub(super) fn frontmatter(note_type: NoteType, statement: &str) -> Result<Frontmatter> {
@@ -24,7 +26,7 @@ pub(super) fn frontmatter(note_type: NoteType, statement: &str) -> Result<Frontm
         Value::Str("2026-01-02T03:04:05.678Z".to_string()),
     )?;
     fm.set("body_hash", Value::Str(body::body_hash(statement, "")))?;
-    fm.set("schema_version", Value::Int(1))?;
+    fm.set("schema_version", Value::Int(i64::from(SCHEMA_VERSION)))?;
     Ok(fm)
 }
 

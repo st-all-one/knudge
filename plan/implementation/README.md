@@ -96,10 +96,12 @@ scriptados: superfície mínima e cross-platform; **T01/T02/T03/T04/T05/T06 ✅*
 [`../proposals/comandos_scriptados.md`](../proposals/comandos_scriptados.md) e épico em
 [`22_comandos_scriptados.md`](22_comandos_scriptados.md). **E19 ◐** (modelo de conhecimento rico;
 **T01 ✅** Beta — D189; **T01b ✅** `drift` — D203; **T02 ✅** retenção FSRS — D190; **T03 ✅** data contract
-soft — D191; **T04 ✅** PageRank/PPR — D192; **T05 ✅** comunidades — D193; **T07 ✅** MinHash/LSH —
-D204; **T11 ✅** flow metrics — D205) — plano em
-[`../proposals/modelo_conhecimento_rico.md`](../proposals/modelo_conhecimento_rico.md) e épico
-em [`23_modelo_conhecimento_rico.md`](23_modelo_conhecimento_rico.md).
+soft — D191; **T04 ✅** PageRank/PPR — D192; **T05 ✅** comunidades — D193; **T06 ☐** reranking;
+**T07 ✅** MinHash/LSH — D204; **T08 ☐** Matryoshka/ANN; **T09 ✅** claims/ontologia — D207;
+**T10 ✅** TMS/drift — D208; **T11 ✅** flow metrics — D205; **T12 ✅** superfície enxuta — D209) — plano em
+[`../proposals/modelo_conhecimento_rico.md`](../proposals/modelo_conhecimento_rico.md), plano
+**detalhado das duas pendentes** em [`../proposals/reranking_ann.md`](../proposals/reranking_ann.md)
+e épico em [`23_modelo_conhecimento_rico.md`](23_modelo_conhecimento_rico.md).
 
 **Riscos da memória durável:** a análise crítica (deriva do curador, envenenamento, drift de
 sumarização, diluição atencional, limites de host) está em

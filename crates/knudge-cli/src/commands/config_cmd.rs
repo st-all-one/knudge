@@ -8,6 +8,7 @@ use knudge_core::config::{Config, global_config_path};
 use serde_json::json;
 
 use crate::cli::ConfigCommand;
+use crate::commands::knowledge;
 use crate::output::Output;
 use crate::session::Session;
 
@@ -72,6 +73,7 @@ pub fn run(session: &Session, command: &ConfigCommand) -> Result<Output> {
                 Scope::Project
             },
         ),
+        ConfigCommand::Promote { command } => knowledge::promote::run(session, command),
     }
 }
 

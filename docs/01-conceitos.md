@@ -56,13 +56,16 @@ as outras 20 são **omitidas** quando vazias — nunca `null`.
 
 ### Arestas explícitas
 
-São 8 e só existem via `kd write --link FROM:ARESTA:TO` (ou no lote/`--params`):
+São **12** e só existem via `kd write --link FROM:ARESTA:TO` (ou no lote/`--params`):
 
 `references`, `depends_on`, `contradicts`, `supports`, `extends`, `replaces`, `rejects`,
-`results_in`.
+`results_in` — mais a **ontologia leve** `same_as`, `broader`, `narrower`, `related` (D207).
+`broader`↔`narrower` são inversos; `same_as`/`related` são simétricos. O `doctor` deriva classes de
+equivalência, clausura `broader`/`narrower` e acusa ciclos de hierarquia.
 
-`depends_on` é a base das views `ready`/`blocked` e do impacto; `results_in` liga um épico aos
-filhos (fallback: `depends_on`). Arestas não são inferidas — o `learn` apenas **sugere**.
+`depends_on` é a base das views `ready`/`blocked`, do impacto e do **TMS** (dependentes de premissas
+retratadas — D208); `results_in` liga um épico aos filhos (fallback: `depends_on`). Arestas não são
+inferidas — o `learn` apenas **sugere**.
 
 ## 4. IDs e hashes
 
@@ -79,7 +82,7 @@ filhos (fallback: `depends_on`). Arestas não são inferidas — o `learn` apena
 .knudge/
   config.toml            # config efetiva (precedência sobre a global)
   notas/<tipo>/<id>.md   # a verdade (um diretório por tipo; D150)
-  notas/MAP.md           # índice materializado (kd knowledge map --write)
+  notas/MAP.md           # índice materializado (kd map --write)
   eventos/events.jsonl   # log append-only
   templates.toml         # seções por tipo
   validators.toml        # catálogo de checks executáveis
@@ -96,10 +99,15 @@ O `kd init` cuida do `.git/info/exclude` (nunca do `.gitignore` versionado) e do
 
 1. **Dedup no `write`.** O score do `ask` decide: `< 0.75` cria, `0.75–0.92` faz merge,
    `≥ 0.92` rejeita. `--update` versiona; mudar `type`/`statement` cria novo id e **supersede**.
+   Em corpus denso grande o *blocking* MinHash/LSH acelera a busca de quase-duplicatas (D204).
 2. **Classificação → expiração.** `foundational` não expira; `tactical` e `observational` têm
-   shelf-life. O `maintenance prune` **propõe** `forget` por shelf-life/decay (nunca age).
+   shelf-life. O `maintenance prune` **propõe** `forget` por shelf-life/decay (nunca age); cada
+   `outcome` de sucesso **estende** a retenção (revisão espaçada, D190).
 3. **`forget` → `restore` → `purge`.** Soft-delete marca `forgotten`; `--purge` remove de fato
    após a retenção. `forgotten`/`superseded` ficam **fora** do `ask` por padrão.
+4. **Demolição derivada.** Além do prazo, o `prune` propõe `forget` por âncora quebrada, por
+   contradição declarada, por **TMS** (dependente de premissa retratada) e por **drift** de
+   vocabulário (Jensen-Shannon) — sempre soft e off-path (D177/D208).
 
 ## 7. Configuração em dois níveis
 
@@ -145,7 +153,7 @@ Nunca "resolvemos" um conflito num artefato derivado: **re-derive**.
 ## 10. Decisões de projeto (Dxx)
 
 O knudge registra cada decisão fechada em
-[`plan/03_decisoes-fechadas.md`](../plan/03_decisoes-fechadas.md) (`D01`–`D153`). As que mais
+[`plan/03_decisoes-fechadas.md`](../plan/03_decisoes-fechadas.md) (`D01`–`D209`). As que mais
 aparecem no uso:
 
 - **D47** — o knudge **propõe, nunca age em silêncio**: `learn`/`compact`/`prune` são read-only.
@@ -156,6 +164,11 @@ aparecem no uso:
 - **D146** — `ask` é **conhecimento** por padrão; `--with-task` inclui trabalho.
 - **D150** — layout material `notas/<tipo>/<id>.md` + `MAP.md` + hubs.
 - **D148/D153** — cache vetorial versionado e sincronização multi-dev.
+- **D189/D190/D203** — confiança **Beta-Bernoulli**, retenção **FSRS-like** e `drift` de âncoras.
+- **D207/D208** — **claims SPO** + ontologia leve + proveniência (`schema_version` 2) e
+  **TMS/defeasible** + drift de termos (KL/JS).
+- **D209** — superfície enxuta: fim do verbo `knowledge` (`ask --rank|--tags|--suggest`, `kd map`,
+  `kd config promote`).
 
 ## 11. Convenções da CLI
 

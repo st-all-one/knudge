@@ -3,18 +3,17 @@
 > **Épico de evolução (pós-E15).** Consolida a exploração aprovada em
 > [`../proposals/modelo_conhecimento_rico.md`](../proposals/modelo_conhecimento_rico.md).
 >
-> **Versão alvo:** **0.5.0** (escopo único — R1–R7 na mesma release; ver o
-> [plano-mestre](24_plano_mestre_0.5.0.md) §5). O bump de `schema_version` de R5 (T09) é
-> ortogonal à versão do crate. Supersede o corte Q4 (0.5.x/0.6.0): a Trilha D vira a fase final
-> de 0.5.0.
+> **Versão alvo:** **0.5.0** — R1–R4 (T01–T05, T07), R2/R7 (T11) e a Trilha D (R5/R6/R7: T09/T10/T12,
+> incluindo o bump de `schema_version` 1→2 de R5). As duas únicas pendências — **E19/T06**
+> (reranking) e **E19/T08** (Matryoshka/ANN) — dependem de um 2º modelo/escala e seguem abertas,
+> com plano detalhado em [`../proposals/reranking_ann.md`](../proposals/reranking_ann.md).
 >
-> **Decisões candidatas (provisório):** ~~D189~~ ~~D190~~ ~~D191~~ ~~D192~~ ~~D193~~
-> (**registradas** — confiança Beta, retenção FSRS, data contract soft, autoridade PageRank/PPR,
-> comunidades), D194 (reranking — mesmo servidor llama.cpp), D195 (MinHash/LSH), D196
-> (Matryoshka/ANN), D197 (claims SPO + ontologia), D198 (TMS/defeasible — após E16/T07), D199
-> (drift KL/JS), D200 (flow metrics), D201 (superfície enxuta — `forget` **permanece verbo**).
-> Cada onda adotada **registra** sua
-> decisão no `plan/03_decisoes-fechadas.md`; o número definitivo sai na implementação.
+> **Decisões registradas:** **D189** (confiança Beta), **D190** (retenção FSRS), **D191** (data
+> contract soft), **D192** (autoridade PageRank/PPR), **D193** (comunidades), **D203** (drift de
+> âncoras), **D204** (MinHash/LSH), **D205** (flow metrics), **D206** (stemming PT), **D207**
+> (claims SPO + ontologia + proveniência), **D208** (TMS/defeasible + drift KL/JS), **D209**
+> (superfície enxuta — `forget` **permanece verbo**). Cada onda adotada **registra** sua decisão no
+> `plan/03_decisoes-fechadas.md`.
 >
 > **Políticas:** R15/R43 (deps/hot path), R33 (degradação graciosa), D04/D05/D13/D95 (contrato de
 > bytes), D14 (sem retrocompatibilidade), D87 (confiança derivada), D92 (determinismo), E13-T09
@@ -179,6 +178,8 @@ Fecho:        T13 (docs/goldens/matriz/CHANGELOG)
 - **Perf:** reranqueia **top-K** (20–50), opcional, degrada para RRF; A/B `ask`.
 - **Depende de:** E16/T01, T04.
 - **Aceite:** A/B com ganho em nDCG/MRR; `--json` aditivo (`rerank`/`channels`); sem modelo ⇒ RRF.
+- **Plano detalhado (pré-requisitos, porta `Reranker`, chaves, testes, A/B e a bancada difícil
+  necessária):** [`../proposals/reranking_ann.md`](../proposals/reranking_ann.md) §2.
 
 ### E19-T07 ✅ R3/D204 — MinHash/LSH + resolução de entidades
 - **Escopo:** `write/dedup` — assinaturas MinHash + *blocking* LSH (fallback lexical para corpus
@@ -198,21 +199,35 @@ Fecho:        T13 (docs/goldens/matriz/CHANGELOG)
 - **Perf:** brute-force default; ANN só com corpus grande; int8 reduz memória.
 - **Depende de:** T06.
 - **Aceite:** A/B (latência × recall); determinismo (seed fixa); `.idx/` reconstruível.
+- **Plano detalhado (MRL, quantização, ANN com fallback exato/determinismo, chaves e A/B):**
+  [`../proposals/reranking_ann.md`](../proposals/reranking_ann.md) §3.
 
-### E19-T09 ☐ R5 — claims SPO + ontologia + proveniência
+### E19-T09 ☑ R5/D207 — claims SPO + ontologia + proveniência
 - **Escopo:** `schema/` — claims `(sujeito, relação, objeto)` + arestas `same_as`/`broader`/
   `narrower`/`related` (SKOS-lite) + proveniência (`entity/activity/agent`, PROV-lite); **bump de
   `schema_version`** e rebuild.
 - **Perf:** medir `Note::parse`; chaves canônicas ordenadas; rebuild byte-idêntico.
 - **Depende de:** T03, T07.
 - **Aceite:** goldens TOON/rebuild; inferência e contradição precisas; `DIVERGENCES.md`.
+- **Feito (D207):** `EdgeKind` 8→12 (`same_as`/`broader`/`narrower`/`related`, com inversos e
+  simetria); `CANONICAL_KEYS` 25→31 (`claims`/`provenance`); `SCHEMA_VERSION` 1→2 (aditivo — notas
+  v1 seguem válidas e o rebuild é byte-idêntico). `schema/{claims,provenance}.rs`; inferência
+  derivada em `graph/ontology.rs` (classes de equivalência, clausura `broader`/`narrower`, ciclo) e
+  contradição precisa por claims (`claim_conflicts`), reportada no check `integrity` do `doctor`.
+  Escrita: `kd write --claim S:R:O` + `--agent`/`--activity`; merge/update unem claims sem duplicar.
+  `DIVERGENCES.md` #110.
 
-### E19-T10 ☐ R6 — TMS/defeasible + drift (KL/JS)
+### E19-T10 ☑ R6/D208 — TMS/defeasible + drift (KL/JS)
 - **Escopo:** rastrear suposições e invalidar dependentes (TMS/ATMS); derrota de crença
   (`replaces` + `contradicts`); detecção de drift por KL/JS sobre termos/embeddings no tempo.
 - **Perf:** TMS/drift só em `prune`/`doctor` (off-path).
 - **Depende de:** E16/T07, T09.
 - **Aceite:** teste de retratação (dependentes caem); A/B de drift em `prune`/`doctor`.
+- **Feito (D208):** `graph/tms.rs` (`retracted`, `defeated_dependents` transitivo via índice reverso
+  de `depends_on`, `defeated_by_replacement`); `lifecycle/term_drift.rs` (`term_distribution`,
+  `kl_divergence`, `js_divergence`, `topic_drift` por janela de `created_at`). Ambos viram motivos
+  de demolição (`DemotionReason::Defeated`/`Drifted`) no `maintenance prune` — off-path, só propõem.
+  `DIVERGENCES.md` #111.
 
 ### E19-T11 ✅ R7/D205 — flow metrics + caminho crítico
 - **Escopo:** derivar do log de eventos `cycle time`, `lead time`, `throughput` e o **caminho
@@ -223,31 +238,42 @@ Fecho:        T13 (docs/goldens/matriz/CHANGELOG)
 - **Feito (D205):** `task/flow.rs` (`TaskFlow`/`throughput`/`critical_path`, puros); `kd task flow`
   (`resumo|`/`throughput|`/`critico|` + `--json`) e `rewind --json` (`data.flow`). Sem verdade nova.
 
-### E19-T12 ☐ R7 — superfície enxuta
+### E19-T12 ☑ R7/D209 — superfície enxuta
 - **Escopo:** consolidar verbos (≤10), um vocabulário por conceito (`knowledge`→`ask`/`map`,
   `self` enxuto — E18); **`forget` permanece verbo** (é a aplicação do `prune`, D112);
   `--help`/matriz/`prime` atualizados. Depende de E18 (worker/`drain service`).
 - **Perf:** enxugar verbos não muda o custo dos verbos mantidos.
 - **Depende de:** E18.
 - **Aceite:** contagem de verbos; testes de remoção (exit 2); docs em sincronia.
+- **Feito (D209):** o verbo `knowledge` deixou de existir. `rank`/`tags`/`suggest` viraram modos de
+  `kd ask` (`--rank`/`--tags`/`--suggest`); o mapa virou o verbo de topo `kd map`; `promote`
+  passou a `kd config promote`. Verbos de domínio caem para **8** (`ask`/`write`/`task`/`rewind`/
+  `map`/`doctor`/`drain`/`forget`); `init`/`prime`/`sync`/`config`/`self` são fundação/meta.
+  `prime --long`/`--help`/matriz/goldens atualizados; `DIVERGENCES.md` #112.
 
-### E19-T13 ☐ Fecho — docs, goldens, matriz e CHANGELOG
+### E19-T13 ☑ Fecho — docs, goldens, matriz e CHANGELOG
 - **Escopo:** `docs/01-conceitos.md`, `docs/04-ask.md`, `docs/05-write.md`, `docs/06-task.md`,
   `docs/07-knowledge.md`, `SKILL.md`, `llms.txt`, `16_cli_surface.md`, `17_matriz_aceitacao.md`,
-  `DIVERGENCES.md`, `CHANGELOG.md` (`[0.6.0]`), `Cargo.toml`; incorpora os **pontos em aberto**.
+  `DIVERGENCES.md`, `CHANGELOG.md` (`[0.5.0]`), `Cargo.toml`; incorpora os **pontos em aberto**.
 - **Aceite:** `make check` + `make ci` verdes; versão em sincronia.
+- **Feito (0.5.0):** docs/DIVERGENCES/MODULE/matriz sincronizados (D189–D209); `CHANGELOG`
+  `[0.5.0]` unificado (a Trilha D entrou na mesma versão); `make update-version VERSION=v0.5.0`.
+  As pendências T06/T08 têm plano detalhado em [`../proposals/reranking_ann.md`](../proposals/reranking_ann.md).
 
 ## Definition of Done
 
-- [ ] `make check` verde em cada tarefa; `make ci` verde ao fechar.
-- [ ] Toda onda com **A/B de qualidade** (E16/T01); bytes de `notas/` intactos fora de R5.
-- [ ] Confiança bayesiana (R1, absorve E16/D174) e retenção por uso (R2, substitui E16/D178)
-      substituem as heurísticas; obrigatoriedades por tipo (R3) **soft/via corpo** verificadas
-      por `doctor`.
-- [ ] Grafo usado para autoridade/propagação/comunidade (R4); busca com reranking (R2).
-- [ ] Dedup escalável (R3); ontologia/claims com `schema_version` (R5); TMS/drift (R6);
-      flow metrics (R7); superfície ≤10 verbos.
-- [ ] Nenhum `src/` > 300 linhas; zero `unwrap/expect/panic/unsafe`; stdout = dados (R20).
+- [x] `make check` verde em cada tarefa; `make ci` verde ao fechar.
+- [x] Toda onda com **A/B de qualidade** (E16/T01); bytes de `notas/` intactos (R5 é aditivo).
+- [x] Confiança bayesiana (R1/D189), retenção FSRS (R2/D190) e data contract soft (R3/D191)
+      substituem as heurísticas.
+- [x] Grafo usado para autoridade/propagação/comunidade (R4/D192/D193).
+- [ ] Busca com reranking (R2/T06) — **pendente** (2º modelo); plano em
+      [`../proposals/reranking_ann.md`](../proposals/reranking_ann.md) §2.
+- [x] Dedup escalável (R3/D204); ontologia/claims com `schema_version` (R5/D207); TMS/drift
+      (R6/D208); flow metrics (R7/D205); superfície ≤10 verbos (R7/D209 — 8 de domínio).
+- [ ] Matryoshka/ANN (R3/T08) — **pendente** (escala/2º modelo); plano em
+      [`../proposals/reranking_ann.md`](../proposals/reranking_ann.md) §3.
+- [x] Nenhum `src/` > 300 linhas; zero `unwrap/expect/panic/unsafe`; stdout = dados (R20).
 
 ## Não-objetivos
 
@@ -269,6 +295,12 @@ Fecho:        T13 (docs/goldens/matriz/CHANGELOG)
 
 > O usuário indicou que ainda tem pontos a acrescentar **antes** do início do código. Cada ponto
 > vira uma tarefa `E19-Txx` (ou nota) aqui.
+>
+> **Resolvido para T12 (Q5 da `revisao_integrada.md`):** a superfície final é confirmada —
+> `knowledge` dobra em `ask`/`map` (rank/tags/suggest viram modos de `ask`; o mapa vira `kd map`;
+> `promote` passa para `config`), `self` enxuto (E18), `forget` permanece verbo. A implementação
+> de E19-T12 fica para a próxima onda (mudança de superfície incompatível, exige atualizar
+> `--help`/matriz/goldens/testes num só commit).
 
 - _(a preencher)_
 - **Candidato (análise de riscos):** `kd rewind --digest` — ponteiros das notas omitidas pelo

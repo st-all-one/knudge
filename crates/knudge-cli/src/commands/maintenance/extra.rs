@@ -275,7 +275,7 @@ fn validity_map(session: &Session, notes: &[Note]) -> Result<BTreeMap<String, An
         let _ignored = map.insert(note.id()?.to_string(), validity);
     }
     // Persiste o drift derivado (`.idx/drift.jsonl`, D203) do mesmo walk: alimenta a confiança
-    // derivada de `ask`/`knowledge rank` sem custo no caminho quente.
+    // derivada de `kd ask --rank` sem custo no caminho quente.
     DriftStore::new(session.fs_dyn(), session.knowledge_dir())
         .persist(&entries_from_validity(&map))?;
     Ok(map)

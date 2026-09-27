@@ -74,7 +74,7 @@ fn dispatch(session: &Session, command: &Command) -> Result<Output> {
         Command::Ask(args) => ask::run(session, args),
         Command::Write(args) => write_cmd::run(session, args),
         Command::Task { command } => task::run(session, command),
-        Command::Knowledge { command } => knowledge::run(session, command),
+        Command::Map(args) => knowledge::map::run(session, args),
         Command::Maintenance { command } => maintenance::run(session, command),
         Command::Doctor(args) => doctor::run(session, args),
         Command::Drain(args) => drain::run(session, args),

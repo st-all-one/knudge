@@ -116,15 +116,16 @@ registra a rejeição no épico.
 
 ### Trilha D — Ontologia, razão e tarefa (E19 R5+)
 
-19. **E19/T09** — claims SPO + ontologia (**schema bump** + rebuild).
-20. **E19/T10** — TMS/drift; ✅ **E19/T11** — flow metrics/caminho crítico (D205).
-21. **E19/T12** — superfície enxuta (≤10 verbos).
+19. ✅ **E19/T09** — claims SPO + ontologia + proveniência (**D207**, schema bump 1→2 + rebuild).
+20. ✅ **E19/T10** — TMS/defeasible + drift KL/JS (**D208**); ✅ **E19/T11** — flow metrics/caminho crítico (D205).
+21. ✅ **E19/T12** — superfície enxuta (≤10 verbos; **D209**: fim do verbo `knowledge`).
 
 ### Fecho
 
 22. ✅ **E16/T10** — perf do caminho de busca e de `prune` (walk único + tokenização única);
-    ✅ **E16/T11** — stemming (D206, adotado por medição); **E16/T12**, **E17/T08**, **E18/T07**,
-    **E19/T13** — docs/goldens/matriz/`CHANGELOG` (`[0.5.0]`) + `make update-version`.
+    ✅ **E16/T11** — stemming (D206, adotado por medição); ✅ **E16/T12**, ✅ **E17/T08**,
+    ✅ **E18/T07**, ✅ **E19/T13** — docs/goldens/matriz/`CHANGELOG` (`[0.5.0]`) +
+    `make update-version VERSION=v0.5.0`. **0.5.0 fechado.**
 
 ## 5. Versionamento (0.5.0)
 
@@ -136,6 +137,13 @@ internas** da mesma release; a Trilha D é a fase final. O bump de `schema_versi
 > **Fallback documentado:** se o custo da Trilha D for grande demais, ela pode ser destacada para
 > 0.6.0 **sem mudar a ordem** (basta mover os itens 19–21 para o próximo ciclo). Nesse caso,
 > atualizar o cabeçalho de E19 e o `CHANGELOG` no fecho.
+>
+> **Resultado (0.5.0):** a Trilha D foi **executada na própria 0.5.0** — **E19/T09** claims SPO +
+> ontologia + proveniência (**D207**, `schema_version` 1→2), **E19/T10** TMS/defeasible + drift
+> KL/JS (**D208**) e **E19/T12** superfície enxuta (**D209**). Os itens 1–22 entraram na mesma
+> versão; o `CHANGELOG` foi unificado em `[0.5.0]`. Restam apenas **E19/T06** (reranking) e
+> **E19/T08** (Matryoshka/ANN), dependentes de 2º modelo/escala, com plano em
+> [`../proposals/reranking_ann.md`](../proposals/reranking_ann.md).
 
 O `CHANGELOG.md` consolida tudo em `[0.5.0]` no fecho (E16/T12, E17/T08, E18/T07, E19/T13);
 `make update-version VERSION=v0.5.0` sincroniza `Cargo.toml`/lock/goldens/`install.sh`/README.
@@ -182,14 +190,22 @@ As decisões **definitivas** são registradas em [`../03_decisoes-fechadas.md`](
 
 ## 8. Checklist de release 0.5.0
 
-- [ ] `make check` + `make ci` verdes; `cargo tree` dentro do orçamento (R43).
-- [ ] `bench/ULTIMO.md` + `bench/qualidade.md` atualizados; `ULTIMO-v0.4.0.*` congelado.
-- [ ] Nenhum `src/` > 300 linhas; zero `unwrap/expect/panic/unsafe`.
-- [ ] Bytes de `notas/` idênticos fora de E19/T09 (schema bump documentado + rebuild).
-- [ ] Superfície: `16_cli_surface.md` + `17_matriz_aceitacao.md` + `prime` em sincronia.
-- [ ] `DIVERGENCES.md` com 1 linha + teste por borda nova.
-- [ ] `CHANGELOG.md` `[0.5.0]`; `make update-version VERSION=v0.5.0`.
-- [ ] `MODULE.md`/`docs/`/`SKILL.md`/`llms.txt`/`README.md` atualizados.
+- [x] `make check` + `make ci` verdes; `cargo tree` dentro do orçamento (R43).
+- [x] `bench/ULTIMO.md` + `bench/qualidade.md` atualizados; baseline 0.5.0 congelado em
+      `bench/ULTIMO-v0.5.0.*` (o 0.3.3 fica em `ULTIMO-v0.3.3.*`).
+- [x] Nenhum `src/` > 300 linhas; zero `unwrap/expect/panic/unsafe`.
+- [x] Bytes de `notas/` **idênticos** para as notas v1 (D207 é aditivo); `schema_version` 1→2 e o
+      rebuild de notas antigas é byte-idêntico.
+- [x] Superfície: `16_cli_surface.md` + `17_matriz_aceitacao.md` + `prime` em sincronia.
+- [x] `DIVERGENCES.md` com 1 linha + teste por borda nova (até #112).
+- [x] `CHANGELOG.md` `[0.5.0]` (unificado, inclui a Trilha D); `make update-version VERSION=v0.5.0`.
+- [x] `MODULE.md`/`docs/`/`SKILL.md`/`llms.txt`/`README.md`/`ARCHITECTURE.md` atualizados.
+
+> **Trilha D em 0.5.0:** E19/T09 (claims SPO + ontologia + proveniência — **D207**), E19/T10
+> (TMS/defeasible + drift KL/JS — **D208**) e E19/T12 (superfície enxuta — **D209**) foram
+> **fechados na própria 0.5.0**. As duas pendências restantes — **E19/T06** (reranking) e
+> **E19/T08** (Matryoshka/ANN) — dependem de um 2º modelo/escala e têm plano de execução detalhado
+> em [`../proposals/reranking_ann.md`](../proposals/reranking_ann.md).
 
 ## 9. Riscos globais
 

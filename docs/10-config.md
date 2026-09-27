@@ -128,10 +128,10 @@ A lista completa (com tipos e defaults) está em
 | `proposals.gate` | `""` | Nomes de gates (vírgula) do `validators.toml` (D156). |
 | `proposals.min_delta` | `0.0` | Ganho mínimo de placar para o gate aprovar. |
 | `proposals.enforce` | `false` | Bloqueia o `write` quando o gate reprova. |
-| `suggestions.enabled` | `true` | Liga `kd knowledge suggest` (D158). |
+| `suggestions.enabled` | `true` | Liga `kd ask --suggest` (D158). |
 | `suggestions.contradiction_low` | `0.4` | Piso da banda advisory. |
 | `suggestions.contradiction_high` | `0.75` | Teto da banda advisory. |
-| `rules.enabled` | `false` | Liga `kd knowledge promote` (D157). |
+| `rules.enabled` | `false` | Liga `kd config promote` (D157). |
 | `rules.max_promoted` | `15` | Teto de regras no bloco governado. |
 | `rules.min_confidence` | `0.7` | Confiança derivada mínima para promover. |
 

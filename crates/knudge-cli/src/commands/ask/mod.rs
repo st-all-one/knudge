@@ -11,10 +11,13 @@ use knudge_core::store::Note;
 use knudge_core::{Error, Result};
 use serde_json::json;
 
-use crate::cli::{AskArgs, subcommand_help};
-use crate::commands::input;
+use crate::cli::{AskArgs, RankArgs, SuggestArgs, TagsArgs, subcommand_help};
+use crate::commands::{input, knowledge};
 use crate::output::Output;
 use crate::session::Session;
+
+/// Default de `--top-k` no modo `--suggest` (espelha o `default_value_t` do clap).
+const DEFAULT_TOP_K: usize = 5;
 
 mod query;
 mod render;
@@ -27,6 +30,22 @@ use query::recall_query;
 /// Propaga erros de índice/grafo e `strict` (D94). Sem modo selecionado (query e âncora
 /// vazias), devolve o uso do comando em vez de sair silenciosamente.
 pub fn run(session: &Session, args: &AskArgs) -> Result<Output> {
+    if args.rank {
+        return knowledge::rank::run(session, &rank_args(args));
+    }
+    if args.tags_vocab {
+        return knowledge::tags::run(session, &TagsArgs { limit: args.limit });
+    }
+    if args.suggest {
+        return knowledge::suggest::run(
+            session,
+            &SuggestArgs {
+                top_k: args.top_k,
+                relation: args.relation.clone(),
+                limit: args.limit,
+            },
+        );
+    }
     if let Some(params) = &args.params {
         let text = if params == "-" {
             input::read_stdin()?
@@ -121,7 +140,50 @@ fn parse_ask_params(value: &Value) -> Result<AskArgs> {
             usize::try_from(limit).map_err(|_| Error::invalid_input("`limit` fora do range"))?,
         );
     }
+    parse_modes(value, &mut args)?;
     Ok(args)
+}
+
+/// Lê as flags de modo (`--rank`/`--tags`/`--suggest`/`--universe`/`--top-k`/`--relation`).
+fn parse_modes(value: &Value, args: &mut AskArgs) -> Result<()> {
+    let map = value
+        .as_map()
+        .ok_or_else(|| Error::schema("`--params` deve ser um objeto JSON"))?;
+    args.rank = map.get("rank").and_then(Value::as_bool).unwrap_or(false);
+    args.tags_vocab = map
+        .get("tags_vocab")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    args.suggest = map.get("suggest").and_then(Value::as_bool).unwrap_or(false);
+    args.universe = map
+        .get("universe")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    args.top_k = match map.get("top_k").and_then(Value::as_int) {
+        Some(top_k) => {
+            usize::try_from(top_k).map_err(|_| Error::invalid_input("`top_k` fora do range"))?
+        }
+        None => DEFAULT_TOP_K,
+    };
+    args.relation = map
+        .get("relation")
+        .and_then(Value::as_str)
+        .map(str::to_string);
+    Ok(())
+}
+
+/// Monta os argumentos do modo `--rank` a partir dos filtros do `ask`.
+fn rank_args(args: &AskArgs) -> RankArgs {
+    RankArgs {
+        types: args.types.clone(),
+        classes: args.classes.clone(),
+        tags: args.tags.clone(),
+        anchor: args.anchor.clone(),
+        around: args.around.clone(),
+        depth: args.depth,
+        universe: args.universe,
+        limit: args.limit,
+    }
 }
 
 /// Lista de strings de um campo opcional.

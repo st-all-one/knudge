@@ -11,6 +11,7 @@ use crate::lifecycle::shelf_life::{DAY_MS, ShelfLife};
 use crate::lifecycle::supersession::demote;
 use crate::ports::fakes::MemFs;
 use crate::schema::{Classification, EdgeKind, NoteType, Status, id};
+use crate::store::Note;
 use crate::write::Draft;
 
 use super::{NOW, PROJECT, anchored, built, classified, note_created, seeded, with_outcomes_at};
@@ -164,6 +165,82 @@ fn end_to_end_decay_demotes_note() -> Result<()> {
     assert_eq!(
         ctx.store().read(&id)?.frontmatter.status()?,
         Status::Forgotten
+    );
+    Ok(())
+}
+
+/// Nota fundacional ancorada, criada em `created_ms` (sem shelf-life).
+fn drift_note(statement: &str, created_ms: i64) -> Result<Note> {
+    let mut draft = Draft::new(NoteType::Fact, statement);
+    draft.classification = Some(Classification::Foundational);
+    draft.anchors = vec!["src/x.rs".to_string()];
+    draft.to_note(created_ms)
+}
+
+#[test]
+fn a_dependent_of_a_retracted_premise_is_proposed() -> Result<()> {
+    // TMS (D208): dependente de premissa esquecida cai no plano.
+    let premise_id = id::note_id(NoteType::Fact, "premissa retratada");
+    let mut dependent = Draft::new(NoteType::Fact, "dependente da premissa");
+    dependent.edges = vec![(EdgeKind::DependsOn, premise_id)];
+    let dependent = dependent.to_note(NOW)?;
+    let dependent_id = dependent.id()?.to_string();
+    let mut premise = Draft::new(NoteType::Fact, "premissa retratada");
+    premise.status = Some(Status::Forgotten);
+    let premise = premise.to_note(NOW)?;
+
+    let notes = vec![dependent, premise];
+    let graph = Graph::from_notes(notes.clone())?;
+    let shelf_life = ShelfLife::default();
+    let decay = DecayPolicy::default();
+    let validity = BTreeMap::new();
+    let input = DemotionInput {
+        now_ms: NOW,
+        shelf_life: &shelf_life,
+        decay: &decay,
+        validity: &validity,
+        usage: None,
+    };
+    let candidates = demotion_candidates(&notes, &input, &graph)?;
+    assert_eq!(candidates.len(), 1);
+    assert_eq!(
+        candidates.first().map(|c| c.id.as_str()),
+        Some(dependent_id.as_str())
+    );
+    assert_eq!(
+        candidates.first().map(|c| c.reason),
+        Some(DemotionReason::Defeated)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_topic_whose_vocabulary_changed_is_proposed_as_drifted() -> Result<()> {
+    // Drift KL/JS (D208): mesma âncora, vocabulário antigo × novo divergente.
+    let notes = vec![
+        drift_note("cache lru", NOW.saturating_sub(days(4)))?,
+        drift_note("cache lru expira", NOW.saturating_sub(days(3)))?,
+        drift_note("vetor hnsw", NOW.saturating_sub(days(2)))?,
+        drift_note("vetor hnsw recall", NOW.saturating_sub(days(1)))?,
+    ];
+    let graph = Graph::from_notes(notes.clone())?;
+    let shelf_life = ShelfLife::default();
+    let decay = DecayPolicy::default();
+    let validity = BTreeMap::new();
+    let input = DemotionInput {
+        now_ms: NOW,
+        shelf_life: &shelf_life,
+        decay: &decay,
+        validity: &validity,
+        usage: None,
+    };
+    let candidates = demotion_candidates(&notes, &input, &graph)?;
+    assert_eq!(candidates.len(), 4);
+    assert!(
+        candidates
+            .iter()
+            .all(|candidate| candidate.reason == DemotionReason::Drifted),
+        "todos deviam ser drifted: {candidates:?}"
     );
     Ok(())
 }

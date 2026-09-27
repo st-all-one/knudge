@@ -8,8 +8,12 @@ pub mod communities;
 pub mod cycles;
 pub mod extract;
 pub mod integrity;
+pub mod ontology;
 pub mod rank;
 pub mod suggestions;
+pub mod tms;
+
+mod link;
 
 #[cfg(test)]
 mod tests;
@@ -18,16 +22,24 @@ pub use communities::{MAX_LEVELS, MAX_PASSES, WeightedGraph, louvain};
 pub use cycles::{cyclic_components, strongly_connected};
 pub use extract::{Suggestion, extract};
 pub use integrity::{Issue, IssueKind};
+pub use link::link;
+pub use ontology::{
+    ClaimConflict, broader_ancestors, claim_conflicts, equivalence_classes, has_hierarchy_cycle,
+    narrower_descendants,
+};
 pub use rank::{
     AUTHORITY_EDGES, DAMPING, MAX_ITERATIONS, TOLERANCE, pagerank, personalized_pagerank,
 };
 pub use suggestions::{SuggestionRecord, SuggestionStore};
+pub use tms::{defeated_by_replacement, defeated_dependents, retracted};
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::schema::{EdgeKind, Frontmatter, NoteType, Scope, Status, Value, id};
+use crate::Result;
+use crate::schema::{EdgeKind, NoteType, Scope, Status};
 use crate::store::{Note, Store};
-use crate::{Error, Result};
+
+use link::insert_note;
 
 /// Nó do grafo — projeção do frontmatter.
 #[derive(Debug, Clone)]
@@ -232,69 +244,4 @@ impl Graph {
         }
         hits
     }
-}
-
-/// Insere um nó no mapa do grafo a partir de uma nota (compartilhado por
-/// [`Graph::from_notes`]/[`Graph::from_notes_ref`]).
-fn insert_note(by_id: &mut BTreeMap<String, Node>, note: &Note) -> Result<()> {
-    let frontmatter = &note.frontmatter;
-    let id = note.id()?.to_string();
-    let note_type = frontmatter.note_type()?;
-    let scope = frontmatter.scope()?;
-    let status = frontmatter.status()?;
-    let superseded_by = match frontmatter.get("superseded_by") {
-        Some(Value::Str(target)) => Some(target.clone()),
-        _ => None,
-    };
-    let mut edges = BTreeMap::new();
-    for kind in EdgeKind::ALL {
-        let targets: Vec<String> = frontmatter
-            .string_list(kind.key())?
-            .into_iter()
-            .map(str::to_string)
-            .collect();
-        if !targets.is_empty() {
-            edges.insert(kind, targets);
-        }
-    }
-    by_id.insert(
-        id.clone(),
-        Node {
-            id,
-            note_type,
-            scope,
-            status,
-            superseded_by,
-            edges,
-        },
-    );
-    Ok(())
-}
-
-/// Adiciona uma aresta explícita ao frontmatter, sem duplicar (D49).
-///
-/// Retorna `true` se o frontmatter mudou. A fonte da verdade continua sendo a nota; o
-/// [`Graph`] é reconstruído a partir dela.
-///
-/// # Errors
-/// Retorna `ErrorKind::Schema` para destino inválido ou auto-aresta.
-pub fn link(frontmatter: &mut Frontmatter, kind: EdgeKind, to: &str) -> Result<bool> {
-    if !id::is_valid_note_id(to) {
-        return Err(Error::schema(format!("destino de aresta inválido: {to:?}")));
-    }
-    if frontmatter.id().is_ok_and(|from| from == to) {
-        return Err(Error::schema("auto-aresta não é permitida"));
-    }
-    let mut targets: Vec<String> = frontmatter
-        .string_list(kind.key())?
-        .into_iter()
-        .map(str::to_string)
-        .collect();
-    if targets.iter().any(|target| target == to) {
-        return Ok(false);
-    }
-    targets.push(to.to_string());
-    let value = Value::List(targets.into_iter().map(Value::Str).collect());
-    frontmatter.set(kind.key(), value)?;
-    Ok(true)
 }

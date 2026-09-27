@@ -2,7 +2,7 @@
 
 use knudge_core::Error;
 use knudge_core::Result;
-use knudge_core::schema::{Classification, EdgeKind, NoteType, Status};
+use knudge_core::schema::{Claim, Classification, EdgeKind, NoteType, Status};
 use knudge_core::time::Timestamp;
 
 /// Converte uma lista de tipos fechados.
@@ -78,4 +78,29 @@ pub fn triple(spec: &str) -> Result<(String, EdgeKind, String)> {
         .filter(|part| !part.is_empty())
         .ok_or_else(|| Error::invalid_input("link esperado como FROM:ARESTA:TO"))?;
     Ok((from.to_string(), kind.parse()?, to.to_string()))
+}
+
+/// Interpreta `SUJEITO:RELAÇÃO:OBJETO` em uma [`Claim`] (D207).
+///
+/// Divide no primeiro e no segundo `:` — o **objeto** pode conter `:` (ex.: URL).
+///
+/// # Errors
+/// Retorna `ErrorKind::InvalidInput` se faltar campo.
+pub fn claim(spec: &str) -> Result<Claim> {
+    let mut parts = spec.splitn(3, ':');
+    let subject = parts
+        .next()
+        .filter(|part| !part.trim().is_empty())
+        .ok_or_else(|| Error::invalid_input("claim esperada como SUJEITO:RELAÇÃO:OBJETO"))?;
+    let relation = parts
+        .next()
+        .filter(|part| !part.trim().is_empty())
+        .ok_or_else(|| Error::invalid_input("claim esperada como SUJEITO:RELAÇÃO:OBJETO"))?;
+    let object = parts
+        .next()
+        .filter(|part| !part.trim().is_empty())
+        .ok_or_else(|| Error::invalid_input("claim esperada como SUJEITO:RELAÇÃO:OBJETO"))?;
+    let claim = Claim::new(subject, relation, object);
+    claim.validate()?;
+    Ok(claim)
 }

@@ -11,7 +11,8 @@ use std::str::FromStr;
 use indexmap::IndexMap;
 
 use crate::schema::{
-    Classification, EDGE_KEYS, Edge, EdgeKind, NoteType, Scope, Status, Value, id, text,
+    Classification, EDGE_KEYS, Edge, EdgeKind, NoteType, Scope, Status, Value, claims, id,
+    provenance, text,
 };
 use crate::time::Timestamp;
 use crate::{Error, Result, toon};
@@ -112,6 +113,8 @@ impl Frontmatter {
             return Err(Error::schema(format!("id inválido: {:?}", self.id()?)));
         }
         self.validate_edges()?;
+        claims(self)?;
+        provenance(self)?;
         Ok(())
     }
 

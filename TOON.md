@@ -82,11 +82,28 @@ Formato do arquivo de nota:
 id, type, statement, created_at, body_hash, schema_version,
 tags, source, superseded_by,
 references, depends_on, contradicts, supports, extends, replaces, rejects, results_in,
-revision, outcomes, classification, anchors, status, scope, checks, evidence
+same_as, broader, narrower, related,
+revision, outcomes, classification, anchors, status, scope, checks, evidence, claims, provenance
 ```
 
-As 8 chaves de aresta ficam entre `superseded_by` e `revision` (D98) — **25 chaves** ao todo
-(D135 removeu `expires_at`/`not_before`; D142 removeu `confidence`).
+As **12 chaves de aresta** ficam entre `superseded_by` e `revision` (D98/D207) — **31 chaves** ao
+todo (D135 removeu `expires_at`/`not_before`; D142 removeu `confidence`; D207 acrescentou a
+ontologia leve e as chaves semânticas `claims`/`provenance`).
+
+- **Ontologia leve (D207):** `same_as` (identidade), `broader`/`narrower` (hierarquia, inversos) e
+  `related` (associação) são listas de ids como as demais arestas.
+- **`claims` (D207):** lista de mapas `{ subject, relation, object }` (SPO). Campos são strings
+  trimadas, ≤ 120 escalares; a relação é de mundo aberto. Ex.:
+
+  ```toon
+  claims:
+    - subject: embeddings
+      relation: porta
+      object: "8889"
+  ```
+
+- **`provenance` (D207):** mapa opcional `{ entity, activity, agent }` (PROV-lite); campos vazios
+  são omitidos.
 
 `type` é enum fechado de 10 espécies (o `epic` é derivado de `scope=epic` — D149) (ver `00_panorama.md` §4); `scope`, `classification` e
 `status` também são fechados. Chave fora dessa lista é **rejeitada no write** e **ignorada com
@@ -94,7 +111,9 @@ warning no read** (D16).
 
 ## 6. Versionamento e rebuild (D15)
 
-- `schema_version` (atual `1`) é lido **on-read com defaults**; sem aliases (D14).
+- `schema_version` (atual `2`) é lido **on-read com defaults**; sem aliases (D14). O bump de 1→2
+  (D207) acrescentou a ontologia leve e `claims`/`provenance`; notas antigas (v1) continuam
+  válidas e **byte-idênticas** no rebuild (os campos novos só aparecem quando usados).
 - Tipo desconhecido: **rejeita a nota** com erro explícito, sem derrubar a leitura (D17/D18).
 - O **índice derivado** (`.idx/`) é reconstruível a partir das notas canônicas. Rebuild é
   disparado quando o **formato do índice** muda, nunca quando o frontmatter muda.

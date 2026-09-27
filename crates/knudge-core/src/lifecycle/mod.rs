@@ -15,6 +15,7 @@ pub mod retire;
 pub mod semantic;
 pub mod shelf_life;
 pub mod supersession;
+pub mod term_drift;
 pub mod usage;
 
 #[cfg(test)]
@@ -53,4 +54,5 @@ pub use shelf_life::{
     expiry_for_with, freshness, freshness_with, is_expired, is_expired_with,
 };
 pub use supersession::{cycle_members, demote, filter_protected, protected};
+pub use term_drift::{js_divergence, kl_divergence, term_distribution, topic_drift};
 pub use usage::{Usage, UsageIndex, UsageStore, record_usage};

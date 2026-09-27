@@ -1,4 +1,4 @@
-//! Seção de comunidades do `knowledge map` (`GraphRAG` — D193).
+//! Seção de comunidades do `kd map` (`GraphRAG` — D193).
 //!
 //! A detecção vive no core (`lifecycle::communities`); aqui só formatamos as linhas de texto e
 //! os nós JSON, e restringimos à vizinhança de `--around`.

@@ -56,9 +56,9 @@ fn default_reads_leave_notes_and_derived_untouched() -> TestResult {
 
     ok(&dir, &["ask", "nota"])?;
     ok(&dir, &["rewind"])?;
-    ok(&dir, &["knowledge", "rank", "--universe"])?;
-    ok(&dir, &["knowledge", "tags"])?;
-    ok(&dir, &["knowledge", "suggest"])?;
+    ok(&dir, &["ask", "--rank", "--universe"])?;
+    ok(&dir, &["ask", "--tags"])?;
+    ok(&dir, &["ask", "--suggest"])?;
 
     assert_eq!(notas_fingerprint(&dir)?, before, "leitura alterou notas/");
     assert!(

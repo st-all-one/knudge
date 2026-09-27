@@ -1,21 +1,25 @@
 //! Argumentos e subcomandos do `kd` (superfície v2, ver `plan/implementation/16_cli_surface.md`).
 
+mod ask;
 mod health;
 mod help;
 mod knowledge;
 mod maintenance;
 mod rewind;
 mod task;
+mod write;
 
+pub use ask::AskArgs;
 pub use health::{DoctorArgs, DrainArgs, DrainCommand, WatchServiceArgs};
 pub use help::{render_help, subcommand_help};
 pub use knowledge::{
-    KnowledgeCommand, KnowledgeMapArgs, KnowledgeRankArgs, KnowledgeSuggestArgs, KnowledgeTagsArgs,
-    PromoteCommand, PromoteEditArgs, PromoteRecommendArgs, PromoteTargetArgs,
+    MapArgs, PromoteCommand, PromoteEditArgs, PromoteRecommendArgs, PromoteTargetArgs, RankArgs,
+    SuggestArgs, TagsArgs,
 };
 pub use maintenance::{ConfigCommand, CorpusArgs, MaintenanceCommand, SelfCommand, UpgradeArgs};
 pub use rewind::RewindArgs;
 pub use task::{TaskCommand, TaskFlowArgs, TaskListArgs, TaskNewArgs, TaskPlanArgs, TaskSort};
+pub use write::{ForgetArgs, SyncArgs, WriteArgs};
 
 use clap::{Args, Parser, Subcommand};
 
@@ -66,11 +70,7 @@ pub enum Command {
         command: TaskCommand,
     },
     /// Mapa de conhecimento (clusters estruturais e semânticos).
-    Knowledge {
-        /// Subcomando de conhecimento.
-        #[command(subcommand)]
-        command: KnowledgeCommand,
-    },
+    Map(MapArgs),
     /// Manutenção (compact, learn, prune; só propõem, nunca agem).
     Maintenance {
         /// Subcomando de manutenção.
@@ -111,7 +111,7 @@ impl Command {
             Self::Ask(_) => "ask",
             Self::Write(_) => "write",
             Self::Task { .. } => "task",
-            Self::Knowledge { .. } => "knowledge",
+            Self::Map(_) => "map",
             Self::Maintenance { .. } => "maintenance",
             Self::Doctor(_) => "doctor",
             Self::Drain(_) => "drain",
@@ -141,150 +141,4 @@ pub struct PrimeArgs {
     /// Inclui a gramática TOON e o schema completo.
     #[arg(long)]
     pub long: bool,
-}
-
-/// Argumentos de `kd ask`.
-#[allow(clippy::struct_excessive_bools, reason = "flags de CLI")]
-#[derive(Debug, Clone, Default, Args)]
-pub struct AskArgs {
-    /// Consulta textual (recall completo).
-    #[arg(value_name = "QUERY")]
-    pub query: Vec<String>,
-    /// Objeto JSON com a consulta e os filtros (`-` lê stdin) — D147.
-    #[arg(long, value_name = "JSON")]
-    pub params: Option<String>,
-    /// Recupera os corpos dos ids.
-    #[arg(long = "id", value_name = "ID")]
-    pub ids: Vec<String>,
-    /// Expande o grafo a partir do id.
-    #[arg(long, value_name = "ID")]
-    pub around: Option<String>,
-    /// Aresta do expand.
-    #[arg(long, value_name = "ARESTA")]
-    pub via: Option<String>,
-    /// Profundidade do expand.
-    #[arg(long, value_name = "N", default_value_t = 1)]
-    pub depth: u8,
-    /// Saída mínima (`id|statement`).
-    #[arg(long)]
-    pub brief: bool,
-    /// Inclui itens de trabalho (notas com `scope`) — D146.
-    #[arg(long)]
-    pub with_task: bool,
-    /// Inclui o corpo completo dos hits (ex-`--with-body`, D146).
-    #[arg(long)]
-    pub full_content: bool,
-    /// Filtro por tipo.
-    #[arg(long = "type", value_name = "TIPO")]
-    pub types: Vec<String>,
-    /// Filtro por classificação.
-    #[arg(long = "class", value_name = "CLASSE")]
-    pub classes: Vec<String>,
-    /// Filtro por tag.
-    #[arg(long = "tag", value_name = "TAG")]
-    pub tags: Vec<String>,
-    /// Filtro por status.
-    #[arg(long, value_name = "STATUS")]
-    pub status: Option<String>,
-    /// Filtro por escopo (épico).
-    #[arg(long = "scope", value_name = "ID")]
-    pub scope: Option<String>,
-    /// Filtro por âncora (repetível; aceita lista com vírgula: `--anchor a,b`).
-    #[arg(long, value_name = "PATH", value_delimiter = ',')]
-    pub anchor: Vec<String>,
-    /// Início do intervalo.
-    #[arg(long, value_name = "TS")]
-    pub since: Option<String>,
-    /// Fim do intervalo.
-    #[arg(long, value_name = "TS")]
-    pub until: Option<String>,
-    /// Reconstrói o corpus ativo num instante (RFC3339 ou data) — D155.
-    #[arg(long = "as-of", value_name = "TS")]
-    pub as_of: Option<String>,
-    /// Limite de resultados.
-    #[arg(long, value_name = "N")]
-    pub limit: Option<usize>,
-}
-
-/// Argumentos de `kd write`.
-#[allow(clippy::struct_excessive_bools, reason = "flags de CLI")]
-#[derive(Debug, Args)]
-pub struct WriteArgs {
-    /// Corpo (Markdown); `-` lê stdin; vazio + pipe também lê stdin.
-    #[arg(value_name = "BODY")]
-    pub body: Vec<String>,
-    /// Afirmação (chave TOON `statement`).
-    #[arg(long, value_name = "TXT")]
-    pub summary: Option<String>,
-    /// Tipo da nota (default: `fact`).
-    #[arg(long = "type", value_name = "TIPO")]
-    pub note_type: Option<String>,
-    /// Tags.
-    #[arg(long = "tag", value_name = "TAG")]
-    pub tags: Vec<String>,
-    /// Âncoras (repetível; aceita lista com vírgula: `--anchor a,b`).
-    #[arg(long = "anchor", value_name = "PATH", value_delimiter = ',')]
-    pub anchors: Vec<String>,
-    /// Limpa todas as âncoras (com `--update`).
-    #[arg(long, conflicts_with = "anchors")]
-    pub clear_anchors: bool,
-    /// Classificação.
-    #[arg(long = "class", value_name = "CLASSE")]
-    pub class: Option<String>,
-    /// Status inicial.
-    #[arg(long, value_name = "STATUS")]
-    pub status: Option<String>,
-    /// Aresta explícita `ARESTA:ID` a partir da nota.
-    #[arg(long, value_name = "ARESTA:ID")]
-    pub edge: Vec<String>,
-    /// Id da nota (usado com `--outcome`).
-    #[arg(long, value_name = "ID")]
-    pub id: Option<String>,
-    /// Atualiza a nota existente.
-    #[arg(long, value_name = "ID")]
-    pub update: Option<String>,
-    /// Cria aresta `FROM:ARESTA:TO`.
-    #[arg(long, value_name = "FROM:ARESTA:TO")]
-    pub link: Option<String>,
-    /// Simula sem gravar.
-    #[arg(long)]
-    pub dry_run: bool,
-    /// Aplica um lote de rascunhos JSONL (`-` lê stdin).
-    #[arg(long, value_name = "FONTE")]
-    pub batch: Option<String>,
-    /// Objeto JSON de um rascunho (`-` lê stdin) — D147.
-    #[arg(long, value_name = "JSON")]
-    pub params: Option<String>,
-    /// Anexa um resultado (`success|partial|failure|abandoned`) a uma nota existente.
-    #[arg(long, value_name = "OUTCOME")]
-    pub outcome: Option<String>,
-    /// Texto do resultado (usado com `--outcome`).
-    #[arg(long, value_name = "TXT")]
-    pub note: Option<String>,
-}
-
-/// Argumentos de `kd forget`.
-#[allow(clippy::struct_excessive_bools, reason = "flags de CLI")]
-#[derive(Debug, Args)]
-pub struct ForgetArgs {
-    /// Id da nota.
-    #[arg(long = "id", value_name = "ID")]
-    pub id: String,
-    /// Restaura em vez de esquecer.
-    #[arg(long)]
-    pub restore: bool,
-    /// Remove fisicamente após a retenção.
-    #[arg(long)]
-    pub purge: bool,
-    /// Com `--purge`, ignora a retenção e purga uma nota já aposentada (`forgotten`/`superseded`).
-    #[arg(long)]
-    pub force: bool,
-}
-
-/// Argumentos de `kd sync`.
-#[derive(Debug, Args)]
-pub struct SyncArgs {
-    /// Mensagem de commit.
-    #[arg(long)]
-    pub message: Option<String>,
 }

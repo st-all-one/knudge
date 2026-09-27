@@ -13,6 +13,7 @@ mod retire;
 mod semantic;
 mod shelf_life;
 mod supersession;
+mod term_drift;
 
 use crate::Result;
 use crate::graph::Graph;

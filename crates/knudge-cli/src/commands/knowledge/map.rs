@@ -1,4 +1,4 @@
-//! `kd knowledge map` — visualiza o mapa de conhecimento: clusters estruturais (fase 1) e, com
+//! `kd map` — visualiza o mapa de conhecimento: clusters estruturais (fase 1) e, com
 //! `--semantic`, semânticos (fase 2) — D128.
 //!
 //! Fase 1 é determinística e sem embeddings (agrega por `anchor`/`type`/`classification`/
@@ -12,7 +12,7 @@ use knudge_core::lifecycle::{
 use knudge_core::store::Store;
 use serde_json::json;
 
-use crate::cli::KnowledgeMapArgs;
+use crate::cli::MapArgs;
 use crate::output::Output;
 use crate::session::Session;
 
@@ -24,18 +24,18 @@ use super::hub;
 /// Linhas de texto + nós JSON de uma seção.
 type Section = (Vec<String>, Vec<serde_json::Value>);
 
-/// `kd knowledge map [--axis A] [--scope C] [--semantic] [--members] [--write]` + filtros de
+/// `kd map [--axis A] [--scope C] [--semantic] [--members] [--write]` + filtros de
 /// corpus (`--tag`/`--anchor`/`--type`/`--class`/`--around`/`--universe`) — D128/D143.
 ///
 /// # Errors
 /// Propaga erros de leitura do índice/store/config; `invalid_input` para eixo desconhecido e
 /// quando não há escopo nem `--universe` (D143).
-pub fn run(session: &Session, args: &KnowledgeMapArgs) -> Result<Output> {
+pub fn run(session: &Session, args: &MapArgs) -> Result<Output> {
     if let Some(axis) = args.axis.as_deref() {
         validate_axis(axis)?;
     }
     let scope = corpus_scope(args);
-    scope.require("knowledge map")?;
+    scope.require("map")?;
     let index = session.index()?;
     let graph = session.graph()?;
     let selection = scope.select(&index, &graph)?;

@@ -9,6 +9,7 @@
 mod body_check;
 mod checks;
 mod fix;
+mod semantic;
 
 pub use fix::doctor_fix;
 
@@ -26,10 +27,10 @@ use crate::write::dedup::DedupThresholds;
 use super::tolerant::read_tolerant;
 use body_check::body_check;
 use checks::{
-    anchors_check, body_hash_check, config_check, cycles_check, derived_check, duplicates_check,
-    embeddings_check, events_check, integrity_check, locks_check, program_anchor_check,
-    schema_check,
+    anchors_check, body_hash_check, config_check, derived_check, duplicates_check,
+    embeddings_check, events_check, locks_check, program_anchor_check, schema_check,
 };
+use semantic::{cycles_check, integrity_check};
 
 /// Identificador estável de um check do `doctor`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -190,7 +191,7 @@ pub fn doctor(input: &DoctorInput<'_>) -> Result<DoctorReport> {
     let mut warnings = read.warnings.clone();
     let checks = vec![
         schema_check(&read.skipped),
-        integrity_check(input),
+        integrity_check(input, &read.notes)?,
         cycles_check(input),
         anchors_check(input)?,
         program_anchor_check(input, &read.notes)?,

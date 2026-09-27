@@ -160,13 +160,15 @@ T07 (docs/goldens/matriz/CHANGELOG) — incorpora os pontos em aberto
 - **Depende de:** T01–T05.
 - **Aceite:** decisão escrita por verbo (script/nativo + motivo); o que migrar tem teste de smoke. ✔
 
-### E18-T07 ☐ Fecho — docs, goldens, matriz e CHANGELOG
+### E18-T07 ☑ Fecho — docs, goldens, matriz e CHANGELOG
 - **Escopo:** `docs/09-maintenance.md`, `docs/15-embeddings.md`, `docs/13-self.md`, `SKILL.md`,
   `llms.txt`, `16_cli_surface.md`, `17_matriz_aceitacao.md`, `README.md`, `CHANGELOG.md`
   (`[0.5.0]`), `Cargo.toml` (via `make update-version`); incorpora os **pontos em aberto**.
 - **Depende de:** todas.
 - **Aceite:** `make check` + `make ci` verdes; grep por `maintenance watch-service` obsoleto;
   versão em sincronia.
+- **Feito:** docs/`README` sincronizados (D184–D188); nenhum `maintenance watch-service`
+  obsoleto; `CHANGELOG` `[0.5.0]`; `make update-version VERSION=v0.5.0`.
 
 ## Definition of Done
 

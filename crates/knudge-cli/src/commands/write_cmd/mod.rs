@@ -3,7 +3,7 @@
 use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::jsonl;
-use knudge_core::schema::NoteType;
+use knudge_core::schema::{NoteType, Provenance};
 use knudge_core::write::{
     BatchMode, DedupDecision, Draft, OutcomeStatus, Patch, UpdateOutcome, WriteAction,
     WriteProposal, link, outcome, update, write,
@@ -228,6 +228,16 @@ fn draft_of(args: &WriteArgs) -> Result<Draft> {
         .iter()
         .map(|spec| parse::edge(spec))
         .collect::<Result<Vec<_>>>()?;
+    draft.claims = args
+        .claim
+        .iter()
+        .map(|spec| parse::claim(spec))
+        .collect::<Result<Vec<_>>>()?;
+    draft.provenance = Provenance {
+        entity: None,
+        activity: args.activity.clone(),
+        agent: args.agent.clone(),
+    };
     Ok(draft)
 }
 

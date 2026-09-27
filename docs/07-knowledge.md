@@ -1,4 +1,4 @@
-# `kd knowledge` — mapa, ranking e tags
+# `kd map` / `kd ask --rank` — mapa, ranking e tags
 
 ## O que faz
 
@@ -6,29 +6,29 @@ Reúne as visões **agregadas** do corpus de conhecimento:
 
 | Subcomando | O que dá |
 |---|---|
-| `map` | Clusters por eixo (âncora, tipo, classificação, escopo) e, opcionalmente, semânticos |
-| `rank` | As notas mais **confiáveis**, sem pergunta textual (ex-`ask --rank`, D146) |
-| `tags` | O vocabulário de tags (`tag\|count`) |
+| `kd map` | Clusters por eixo (âncora, tipo, classificação, escopo) e, opcionalmente, semânticos |
+| `kd ask --rank` | As notas mais **confiáveis**, sem pergunta textual (ex-`ask --rank`, D146) |
+| `kd ask --tags` | O vocabulário de tags (`tag\|count`) |
 
-`map` e `rank` **exigem escopo** (`--tag`/`--anchor`/`--type`/`--class`/`--around`) ou
-`--universe` (D143). `tags` não é varredura de corpus; a **fila de embeddings** é `kd drain`
+`kd map` e `kd ask --rank` **exigem escopo** (`--tag`/`--anchor`/`--type`/`--class`/`--around`) ou
+`--universe` (D143). `kd ask --tags` não é varredura de corpus; a **fila de embeddings** é `kd drain`
 (top-level, D170).
 
 ## Em 30 segundos
 
 ```bash
-kd knowledge map --universe --axis type     # panorama por tipo
-kd knowledge rank --universe --limit 10     # mais confiáveis
-kd knowledge tags                           # vocabulário de tags
+kd map --universe --axis type     # panorama por tipo
+kd ask --rank --universe --limit 10     # mais confiáveis
+kd ask --tags                           # vocabulário de tags
 kd drain --status                # fila de embeddings
 ```
 
-## `knowledge map`
+## `kd map`
 
 ### Nível 1 — visão por eixo
 
 ```bash
-kd knowledge map --universe --axis type
+kd map --universe --axis type
 ```
 
 ```
@@ -45,9 +45,9 @@ Eixos: `anchor` (arquivo), `type`, `classification`, `scope`. O pipe é
 ### Nível 2 — escopar o mapa
 
 ```bash
-kd knowledge map --tag retry --axis anchor
-kd knowledge map --around fact_01abc --depth 2
-kd knowledge map --scope epic_01abc
+kd map --tag retry --axis anchor
+kd map --around fact_01abc --depth 2
+kd map --scope epic_01abc
 ```
 
 Os filtros são aplicados **antes** de clusterizar. Sem filtro nem `--universe`, o comando é exit 2
@@ -56,7 +56,7 @@ Os filtros são aplicados **antes** de clusterizar. Sem filtro nem `--universe`,
 ### Nível 3 — fase semântica
 
 ```bash
-kd knowledge map --universe --semantic
+kd map --universe --semantic
 ```
 
 Roda o agrupamento semântico (complete-link) **dentro** de cada cluster estrutural. Requer
@@ -65,7 +65,7 @@ embeddings ([`kd drain`](15-embeddings.md)); sem índice, degrada com `warnings[
 ### Nível 3.5 — comunidades (`GraphRAG`)
 
 ```bash
-kd knowledge map --universe --communities
+kd map --universe --communities
 ```
 
 Detecta **comunidades** por Louvain determinístico (D193) sobre as arestas explícitas + âncoras
@@ -73,21 +73,30 @@ compartilhadas. Cada comunidade traz um **resumo local** (termos mais frequentes
 (só roda no `map`) e aditivo no `--json` (`data.communities`). Com `--write`, cada comunidade
 vira uma nota-hub (`## Comunidades` no `MAP.md`).
 
+### Nível 3.6 — ontologia leve e claims (D207)
+
+O frontmatter aceita arestas de **ontologia** (`same_as`, `broader`/`narrower`, `related`) e
+**claims** SPO (`kd write --claim "sujeito:relação:objeto"`). O `ask --around --via broader`
+percorre a hierarquia; a inferência derivada (classes de equivalência por `same_as`, clausura
+transitiva de `broader`/`narrower`) é calculada em `graph/ontology.rs`, sem gravar nada. Duas
+notas com a mesma `(sujeito, relação)` e objetos divergentes são uma **contradição precisa** e
+aparecem no check `integrity` do [`kd doctor`](09-maintenance.md).
+
 ### Nível 4 — materializar o mapa (D150)
 
 ```bash
-kd knowledge map --universe --write
+kd map --universe --write
 ```
 
 Materializa `notas/MAP.md` (árvore de grupos + clusters) e uma **nota-hub** (`meta` +
 `references`) por cluster — tudo versionado e buscável pelo `ask`. Dá ponto de entrada humano ao
 corpus.
 
-## `knowledge rank`
+## `kd ask --rank`
 
 ```bash
-kd knowledge rank --universe --limit 10
-kd knowledge rank --tag retry --limit 5
+kd ask --rank --universe --limit 10
+kd ask --rank --tag retry --limit 5
 ```
 
 Ranqueia por **confiança derivada** (evidência, uso, idade, confirmação por tarefas) — bom para
@@ -105,10 +114,10 @@ para nunca superar a evidência.
 o score por `drift_factor` (`0,5` no pior caso). Assim, uma nota cuja proveniência se perdeu cai
 mesmo sem query.
 
-## `knowledge tags`
+## `kd ask --tags`
 
 ```bash
-kd knowledge tags --limit 20
+kd ask --tags --limit 20
 ```
 
 Lista `tag|count` (count desc) — ajuda a escolher tags consistentes.
@@ -164,7 +173,7 @@ resto. Ver [Embeddings](15-embeddings.md).
 
 ➡️ [`kd rewind`](08-rewind.md) · [Embeddings](15-embeddings.md)
 
-## `knowledge suggest` (D158)
+## `kd ask --suggest` (D158)
 
 Sugestões semânticas **advisory** a partir do índice vetorial: classifica pares em
 `duplicate` (quase-duplicata → merge), `contradiction` (mesmo tópico, banda
@@ -172,23 +181,23 @@ Sugestões semânticas **advisory** a partir do índice vetorial: classifica par
 sozinha (D49) — é entrada para `kd write --link` ou `kd maintenance compact`.
 
 ```
-kd knowledge suggest
-kd knowledge suggest --relation contradiction --limit 10
+kd ask --suggest
+kd ask --suggest --relation contradiction --limit 10
 ```
 
 Pipe: `relação|from|to|score`; sem índice vetorial → `[no_results]`.
 
-## `knowledge promote` (D157)
+## `kd config promote` (D157)
 
 Promove conhecimento a **regras governadas** no bloco `knudge:rules` do `AGENTS.md` (irmão do
 bloco de protocolo, intocado pelo `init`). Desligado por default (`rules.enabled=false`).
 
 ```
-kd knowledge promote recommend --universe   # read-only
-kd knowledge promote approve <ID> --universe
-kd knowledge promote edit <ID> --summary "regra revisada"
-kd knowledge promote remove <ID> --universe
-kd knowledge promote list
+kd config promote recommend --universe   # read-only
+kd config promote approve <ID> --universe
+kd config promote edit <ID> --summary "regra revisada"
+kd config promote remove <ID> --universe
+kd config promote list
 ```
 
 Elegíveis: `type=meta|decision`, `classification=foundational`, confiança derivada (D87) ≥

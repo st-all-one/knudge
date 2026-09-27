@@ -103,14 +103,7 @@ fn json_without_verb_is_invalid_input() -> TestResult {
 
 #[test]
 fn verb_without_args_shows_help() -> TestResult {
-    for verb in [
-        "task",
-        "knowledge",
-        "maintenance",
-        "config",
-        "self",
-        "drain",
-    ] {
+    for verb in ["task", "maintenance", "config", "self", "drain"] {
         let out = run(&[verb])?;
         assert!(out.status.success(), "`kd {verb}` deve ter exit 0");
         let text = String::from_utf8(out.stdout)?;
@@ -519,7 +512,7 @@ fn ask_rank_orders_by_confidence() -> TestResult {
     let out = run_in(&dir, &["write", "--outcome", "success", "--id", &confirmed])?;
     assert!(out.status.success(), "outcome falhou: {:?}", out.stderr);
 
-    let ranked = run_in(&dir, &["knowledge", "rank", "--universe"])?;
+    let ranked = run_in(&dir, &["ask", "--rank", "--universe"])?;
     assert!(ranked.status.success(), "rank falhou: {:?}", ranked.stderr);
     let text = String::from_utf8(ranked.stdout)?;
     let first = text.lines().next().ok_or("sem linhas")?;
@@ -529,10 +522,7 @@ fn ask_rank_orders_by_confidence() -> TestResult {
     );
     assert!(first.contains("stars"), "why esperado stars: {first}");
 
-    let envelope = json(&run_in(
-        &dir,
-        &["--json", "knowledge", "rank", "--universe"],
-    )?)?;
+    let envelope = json(&run_in(&dir, &["--json", "ask", "--rank", "--universe"])?)?;
     let ranked_json = envelope
         .get("data")
         .and_then(|data| data.get("ranked"))
@@ -1416,7 +1406,7 @@ fn task_close_reports_epic_progress() -> TestResult {
     clippy::too_many_lines,
     reason = "teste de integração encadeia setup e asserts"
 )]
-fn knowledge_map_reports_container_axis() -> TestResult {
+fn map_reports_container_axis() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
@@ -1452,17 +1442,7 @@ fn knowledge_map_reports_container_axis() -> TestResult {
         ],
     )?;
 
-    let out = run_in(
-        &dir,
-        &[
-            "knowledge",
-            "map",
-            "--axis",
-            "scope",
-            "--members",
-            "--universe",
-        ],
-    )?;
+    let out = run_in(&dir, &["map", "--axis", "scope", "--members", "--universe"])?;
     assert!(out.status.success(), "map falhou: {:?}", out.stderr);
     let text = String::from_utf8(out.stdout)?;
     assert!(
@@ -1471,17 +1451,7 @@ fn knowledge_map_reports_container_axis() -> TestResult {
     );
     assert!(text.contains(&format!("{a}|A")), "membro A ausente: {text}");
 
-    let out = run_in(
-        &dir,
-        &[
-            "--json",
-            "knowledge",
-            "map",
-            "--axis",
-            "scope",
-            "--universe",
-        ],
-    )?;
+    let out = run_in(&dir, &["--json", "map", "--axis", "scope", "--universe"])?;
     let json = String::from_utf8(out.stdout)?;
     assert!(json.contains("\"axis\":\"scope\""), "json sem eixo: {json}");
     assert!(
@@ -1489,7 +1459,7 @@ fn knowledge_map_reports_container_axis() -> TestResult {
         "json sem o épico: {json}"
     );
 
-    let bad = run_in(&dir, &["knowledge", "map", "--axis", "foo"])?;
+    let bad = run_in(&dir, &["map", "--axis", "foo"])?;
     assert_eq!(bad.status.code(), Some(2), "eixo inválido deve ser 2");
     Ok(())
 }
@@ -1499,7 +1469,7 @@ fn knowledge_map_reports_container_axis() -> TestResult {
     clippy::too_many_lines,
     reason = "teste de integração encadeia setup e asserts"
 )]
-fn knowledge_map_write_materializes_map_and_hubs() -> TestResult {
+fn map_write_materializes_map_and_hubs() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
@@ -1535,17 +1505,7 @@ fn knowledge_map_write_materializes_map_and_hubs() -> TestResult {
         ],
     )?;
 
-    let out = run_in(
-        &dir,
-        &[
-            "knowledge",
-            "map",
-            "--axis",
-            "scope",
-            "--write",
-            "--universe",
-        ],
-    )?;
+    let out = run_in(&dir, &["map", "--axis", "scope", "--write", "--universe"])?;
     assert!(out.status.success(), "map --write falhou: {:?}", out.stderr);
 
     let map = dir.join(".knudge").join("notas").join("MAP.md");
@@ -1575,7 +1535,7 @@ fn knowledge_map_write_materializes_map_and_hubs() -> TestResult {
 }
 
 #[test]
-fn knowledge_map_communities_lists_and_materializes() -> TestResult {
+fn map_communities_lists_and_materializes() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success());
@@ -1585,10 +1545,7 @@ fn knowledge_map_communities_lists_and_materializes() -> TestResult {
     let link = run_in(&dir, &["write", "--link", &format!("{c}:references:{a}")])?;
     assert!(link.status.success(), "link: {:?}", link.stderr);
 
-    let out = run_in(
-        &dir,
-        &["--json", "knowledge", "map", "--universe", "--communities"],
-    )?;
+    let out = run_in(&dir, &["--json", "map", "--universe", "--communities"])?;
     assert!(out.status.success(), "map: {:?}", out.stderr);
     let communities = json(&out)?
         .get("data")
@@ -1613,10 +1570,7 @@ fn knowledge_map_communities_lists_and_materializes() -> TestResult {
         "comunidade sem membros: {first}"
     );
 
-    let write = run_in(
-        &dir,
-        &["knowledge", "map", "--universe", "--communities", "--write"],
-    )?;
+    let write = run_in(&dir, &["map", "--universe", "--communities", "--write"])?;
     assert!(write.status.success(), "write: {:?}", write.stderr);
     let map = dir.join(".knudge").join("notas").join("MAP.md");
     let text = std::fs::read_to_string(&map)?;
@@ -2720,18 +2674,14 @@ fn ask_tags_lists_vocabulary() -> TestResult {
         assert!(out.status.success(), "write falhou: {:?}", out.stderr);
     }
 
-    let out = run_in(&dir, &["knowledge", "tags"])?;
-    assert!(
-        out.status.success(),
-        "knowledge tags falhou: {:?}",
-        out.stderr
-    );
+    let out = run_in(&dir, &["ask", "--tags"])?;
+    assert!(out.status.success(), "ask --tags falhou: {:?}", out.stderr);
     let text = String::from_utf8(out.stdout)?;
     let mut lines = text.lines();
     assert_eq!(lines.next(), Some("retry|2"));
     assert_eq!(lines.next(), Some("queue|1"));
 
-    let json_out = run_in(&dir, &["--json", "knowledge", "tags"])?;
+    let json_out = run_in(&dir, &["--json", "ask", "--tags"])?;
     let tags = json(&json_out)?
         .get("data")
         .and_then(|data| data.get("tags"))
@@ -3767,7 +3717,7 @@ fn map_docs(value: &serde_json::Value) -> Option<u64> {
 }
 
 #[test]
-fn d143_knowledge_map_scope_and_filters() -> TestResult {
+fn d143_map_scope_and_filters() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success());
@@ -3781,7 +3731,7 @@ fn d143_knowledge_map_scope_and_filters() -> TestResult {
         "src/queue.rs",
     )?;
 
-    let bare = run_in(&dir, &["knowledge", "map"])?;
+    let bare = run_in(&dir, &["map"])?;
     assert_eq!(bare.status.code(), Some(2), "map sem escopo devia ser 2");
 
     for filter in [
@@ -3790,7 +3740,7 @@ fn d143_knowledge_map_scope_and_filters() -> TestResult {
         vec!["--tag", "retry"],
         vec!["--class", "foundational"],
     ] {
-        let mut args = vec!["--json", "knowledge", "map"];
+        let mut args = vec!["--json", "map"];
         args.extend(filter.iter().copied());
         let out = run_in(&dir, &args)?;
         assert!(out.status.success(), "map {filter:?}: {:?}", out.stderr);
@@ -3801,13 +3751,10 @@ fn d143_knowledge_map_scope_and_filters() -> TestResult {
         );
     }
 
-    let around = run_in(
-        &dir,
-        &["knowledge", "map", "--around", &cache, "--depth", "1"],
-    )?;
+    let around = run_in(&dir, &["map", "--around", &cache, "--depth", "1"])?;
     assert!(around.status.success(), "map --around: {:?}", around.stderr);
 
-    let all = run_in(&dir, &["--json", "knowledge", "map", "--universe"])?;
+    let all = run_in(&dir, &["--json", "map", "--universe"])?;
     assert_eq!(map_docs(&json(&all)?), Some(2), "--universe devia ver tudo");
     Ok(())
 }
@@ -3943,7 +3890,7 @@ fn d146_ask_knowledge_only_and_with_task() -> TestResult {
 }
 
 #[test]
-fn d146_knowledge_rank_and_tags() -> TestResult {
+fn d146_ask_rank_and_tags() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success());
@@ -3955,10 +3902,10 @@ fn d146_knowledge_rank_and_tags() -> TestResult {
         "src/queue.rs",
     )?;
 
-    let bare = run_in(&dir, &["knowledge", "rank"])?;
+    let bare = run_in(&dir, &["ask", "--rank"])?;
     assert_eq!(bare.status.code(), Some(2), "rank sem escopo devia ser 2");
 
-    let ranked = run_in(&dir, &["--json", "knowledge", "rank", "--universe"])?;
+    let ranked = run_in(&dir, &["--json", "ask", "--rank", "--universe"])?;
     assert!(
         ranked.status.success(),
         "rank --universe: {:?}",
@@ -3972,8 +3919,8 @@ fn d146_knowledge_rank_and_tags() -> TestResult {
         "sem ranked"
     );
 
-    let tags = run_in(&dir, &["knowledge", "tags"])?;
-    assert!(tags.status.success(), "knowledge tags: {:?}", tags.stderr);
+    let tags = run_in(&dir, &["ask", "--tags"])?;
+    assert!(tags.status.success(), "ask --tags: {:?}", tags.stderr);
     assert!(String::from_utf8(tags.stdout)?.contains("retry|1"));
     Ok(())
 }
@@ -4109,5 +4056,43 @@ fn d145_maintenance_eval_and_index_removed() -> TestResult {
     }
     let digest = run_in(&dir, &["drain", "--status"])?;
     assert!(digest.status.success(), "drain: {:?}", digest.stderr);
+    Ok(())
+}
+
+#[test]
+fn claim_conflict_is_reported_by_doctor_integrity() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+
+    for (statement, object) in [
+        ("servidor de embeddings escuta na porta 8889", "8889"),
+        ("cache de vetores desativado por padrão", "9999"),
+    ] {
+        let spec = format!("embeddings:porta:{object}");
+        let out = run_in(
+            &dir,
+            &["--json", "write", "--summary", statement, "--claim", &spec],
+        )?;
+        assert!(out.status.success(), "write --claim: {:?}", out.stderr);
+    }
+
+    let doctor = run_in(&dir, &["--json", "doctor"])?;
+    assert!(doctor.status.success(), "doctor: {:?}", doctor.stderr);
+    let checks = json(&doctor)?
+        .get("data")
+        .and_then(|data| data.get("checks"))
+        .and_then(|checks| checks.as_array())
+        .cloned()
+        .ok_or("doctor sem checks")?;
+    let integrity = checks
+        .iter()
+        .find(|check| check.get("id").and_then(|id| id.as_str()) == Some("integrity"))
+        .ok_or("doctor sem check integrity")?;
+    assert_eq!(
+        integrity.get("ok").and_then(serde_json::Value::as_bool),
+        Some(false),
+        "conflito de claims devia deixar integrity ok=false: {integrity:?}"
+    );
     Ok(())
 }

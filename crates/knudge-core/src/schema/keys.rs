@@ -1,10 +1,10 @@
-//! Chaves canônicas do frontmatter (D04/D13/D98/D100/D135/D142).
+//! Chaves canônicas do frontmatter (D04/D13/D98/D100/D135/D142/D207).
 //!
 //! A **ordem** é contrato: [`Frontmatter::to_value`](super::frontmatter::Frontmatter::to_value)
 //! sempre emite nesta ordem, independentemente da ordem de inserção.
 
-/// Ordem canônica das chaves do frontmatter (D04/D13/D100/D135/D142) — 25 chaves.
-pub const CANONICAL_KEYS: [&str; 25] = [
+/// Ordem canônica das chaves do frontmatter (D04/D13/D100/D135/D142/D207) — 31 chaves.
+pub const CANONICAL_KEYS: [&str; 31] = [
     "id",
     "type",
     "statement",
@@ -22,6 +22,10 @@ pub const CANONICAL_KEYS: [&str; 25] = [
     "replaces",
     "rejects",
     "results_in",
+    "same_as",
+    "broader",
+    "narrower",
+    "related",
     "revision",
     "outcomes",
     "classification",
@@ -30,6 +34,8 @@ pub const CANONICAL_KEYS: [&str; 25] = [
     "scope",
     "checks",
     "evidence",
+    "claims",
+    "provenance",
 ];
 
 /// Chaves obrigatórias: ou a nota é válida, ou não existe (D05).

@@ -252,12 +252,16 @@ T09 (fusão) → T10 (perf) → T11 (stemming, condicional) → T12 (docs/golden
   `retrieval-v4`. `Index::build` +16 % (frio/cacheado), `propose_merges` denso −21 %; `ask`/`write`
   quentes inalterados. Bytes de `notas/` idênticos; snippet segue com termos crus.
 
-### E16-T12 ☐ Fecho — docs, goldens, matriz e CHANGELOG
+### E16-T12 ☑ Fecho — docs, goldens, matriz e CHANGELOG
 - **Escopo:** `docs/04-ask.md`, `docs/07-knowledge.md`, `docs/09-maintenance.md`, `SKILL.md`,
   `llms.txt`, `AGENTS.md` (se preciso), `MODULE.md` de `retrieval`/`lifecycle`, `DIVERGENCES.md`,
   `17_matriz_aceitacao.md`, `CHANGELOG.md` (`[0.5.0]`) e `Cargo.toml` (via `make update-version`).
 - **Depende de:** todas.
 - **Aceite:** `make check` + `make ci` verdes; grep por termos obsoletos; versão em sincronia.
+- **Feito:** docs/DIVERGENCES/MODULE/matriz sincronizados (D172/D173/D175/D177/D179/D206);
+  `CHANGELOG` consolidado e fechado em `[0.5.0]`; `make update-version VERSION=v0.5.0` (goldens
+  `json_prime`/`json_version`, `install.sh`, `README`). A Trilha D (E19/T09/T10/T12) foi executada
+  na mesma 0.5.0 (D207–D209).
 
 ## Definition of Done
 

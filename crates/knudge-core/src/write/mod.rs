@@ -13,6 +13,10 @@ pub mod outcome;
 pub mod status;
 pub mod update;
 
+mod merge;
+
+use merge::{merge_claims, merge_provenance};
+
 #[cfg(test)]
 mod tests;
 
@@ -205,6 +209,16 @@ fn existing(ctx: &WriteContext<'_>, id: &str, incoming: &Note) -> Result<WriteOu
     })
 }
 
+pub(crate) fn event(op: &str, id: &str, at: i64, action: WriteAction, score: Option<f64>) -> Event {
+    let mut record = Event::new(op, at)
+        .with_note_id(id)
+        .with_data("action", Value::Str(action.as_str().to_string()));
+    if let Some(score) = score {
+        record = record.with_data("score", Value::Float(score));
+    }
+    record
+}
+
 pub(crate) fn merge_into(ctx: &WriteContext<'_>, target_id: &str, incoming: &Note) -> Result<u32> {
     let mut target = ctx.store().read(target_id)?;
     let mut tags: Vec<String> = target
@@ -231,6 +245,8 @@ pub(crate) fn merge_into(ctx: &WriteContext<'_>, target_id: &str, incoming: &Not
         }
     }
     set_list(&mut target.frontmatter, "anchors", &anchors)?;
+    merge_claims(&mut target.frontmatter, &incoming.frontmatter)?;
+    merge_provenance(&mut target.frontmatter, &incoming.frontmatter)?;
     if !incoming.body.is_empty() && !target.body.contains(incoming.body.as_str()) {
         if !target.body.is_empty() {
             target.body.push_str("\n\n");
@@ -245,16 +261,6 @@ pub(crate) fn merge_into(ctx: &WriteContext<'_>, target_id: &str, incoming: &Not
     let record = event("update", target_id, ctx.now_ms(), WriteAction::Merged, None);
     ctx.events().append(&record)?;
     Ok(revision)
-}
-
-pub(crate) fn event(op: &str, id: &str, at: i64, action: WriteAction, score: Option<f64>) -> Event {
-    let mut record = Event::new(op, at)
-        .with_note_id(id)
-        .with_data("action", Value::Str(action.as_str().to_string()));
-    if let Some(score) = score {
-        record = record.with_data("score", Value::Float(score));
-    }
-    record
 }
 
 fn set_list(frontmatter: &mut Frontmatter, key: &str, items: &[String]) -> Result<()> {

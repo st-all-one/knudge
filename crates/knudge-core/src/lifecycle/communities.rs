@@ -2,8 +2,8 @@
 //!
 //! A detecção roda sobre um grafo ponderado não-dirigido: cada aresta explícita pesa `1,0` e
 //! cada âncora compartilhada liga os membros (clique; estrela acima de [`MAX_ANCHOR_CLIQUE`]).
-//! Cada comunidade ganha um **resumo local** (termos mais frequentes) para o `knowledge map`.
-//! Off-path: só roda no `knowledge map` (nunca no `ask`).
+//! Cada comunidade ganha um **resumo local** (termos mais frequentes) para o `kd map`.
+//! Off-path: só roda no `kd map` (nunca no `ask`).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -14,7 +14,7 @@ use crate::retrieval::{Filter, Index, NoteDoc};
 use crate::schema::EdgeKind;
 
 /// Arestas que entram na comunidade (todas as relações explícitas).
-pub const COMMUNITY_EDGES: [EdgeKind; 8] = EdgeKind::ALL;
+pub const COMMUNITY_EDGES: [EdgeKind; 12] = EdgeKind::ALL;
 /// Acima deste nº de membros, uma âncora vira estrela em vez de clique (perf O(k²) → O(k)).
 pub const MAX_ANCHOR_CLIQUE: usize = 64;
 /// Nº de termos do resumo de uma comunidade.

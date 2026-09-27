@@ -374,14 +374,14 @@ fn measure_reads(
     harness.measure_cmd(group, "task graph", samples, || {
         runner.timed(&args(&["task", "graph"])).0
     });
-    harness.measure_cmd(group, "knowledge map --universe", samples, || {
-        runner.timed(&args(&["knowledge", "map", "--universe"])).0
+    harness.measure_cmd(group, "map --universe", samples, || {
+        runner.timed(&args(&["map", "--universe"])).0
     });
-    harness.measure_cmd(group, "knowledge rank --universe", samples, || {
-        runner.timed(&args(&["knowledge", "rank", "--universe"])).0
+    harness.measure_cmd(group, "ask --rank --universe", samples, || {
+        runner.timed(&args(&["ask", "--rank", "--universe"])).0
     });
-    harness.measure_cmd(group, "knowledge tags", samples, || {
-        runner.timed(&args(&["knowledge", "tags"])).0
+    harness.measure_cmd(group, "ask --tags", samples, || {
+        runner.timed(&args(&["ask", "--tags"])).0
     });
     harness.measure_cmd(group, "drain --status", samples, || {
         runner.timed(&args(&["drain", "--status"])).0

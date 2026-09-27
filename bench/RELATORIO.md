@@ -2,8 +2,13 @@
 
 > Gerado pela bancada [`bench/`](README.md). Números são **medianas de latência** salvo
 > indicação; reproduza com `make bench`. Snapshot bruto em [`ULTIMO.md`](ULTIMO.md) e
-> [`ULTIMO.json`](ULTIMO.json). A **qualidade** de retrieval (Recall@k/MRR/nDCG@k, E16/T01) tem
-> baseline próprio em [`qualidade.md`](qualidade.md).
+> [`ULTIMO.json`](ULTIMO.json); **baseline 0.5.0 congelado** em
+> [`ULTIMO-v0.5.0.md`](ULTIMO-v0.5.0.md)/[`ULTIMO-v0.5.0.json`](ULTIMO-v0.5.0.json). A
+> **qualidade** de retrieval (Recall@k/MRR/nDCG@k, E16/T01) tem baseline próprio em
+> [`qualidade.md`](qualidade.md).
+>
+> O corpo abaixo documenta a **análise do E15 (v0.3.3 → v0.4.0)** — os gargalos quadráticos que
+> foram atacados depois (o `ULTIMO-v0.5.0.*` mostra o estado final).
 
 ## Ambiente
 
@@ -12,7 +17,7 @@
 | CPU | AMD Ryzen 5 5500U (12 threads) |
 | RAM/disco | — / **btrfs** (Fedora Workstation 44, kernel 7.2.7) |
 | Toolchain | rustc 1.98.1 (edição 2024, perfil release com `lto="fat"`, `codegen-units=1`, `overflow-checks=true`) |
-| `kd` | v0.4.0 (`target/release/kd`; baseline pré-reforma em [`ULTIMO-v0.3.3.md`](ULTIMO-v0.3.3.md)) |
+| `kd` | v0.5.0 (`target/release/kd`; análise do E15 com baseline em [`ULTIMO-v0.3.3.md`](ULTIMO-v0.3.3.md)) |
 | Corpus | sintético determinístico: ~70% conhecimento, ~20% itens de trabalho, ~10% épicos, com âncoras/tags/arestas |
 | Config | a que o `kd init` grava (provider `http`, mode `lazy`, sem servidor de embeddings) |
 
@@ -38,6 +43,11 @@
 5. O **piso fixo** de uma invocação é ~4 ms (`--help`, só clap) a ~13 ms (clap + `logging::init` +
    `Session::open`). Processo + `git` (resolução de projeto) + subscriber de log explicam boa
    parte do custo das ações baratas.
+
+> **Estado final (0.5.0):** os itens 1–4 foram atacados em E15/E16/E19 — `doctor`/`compact`
+> densos caíram **−94 %** (MinHash/LSH, D204), `maintenance prune` **−61 %** (varredura única,
+> E16/T10) e `rewind`/`prime`/`ask` caíram dezenas de %. Números finais no
+> [`ULTIMO-v0.5.0.md`](ULTIMO-v0.5.0.md).
 
 ## Progresso (A/B por tarefa)
 
@@ -128,13 +138,13 @@ Medianas, corpus de 235 notas (`N=200`) e 1167 notas (`N=1000`):
 | `task show --id` | 47,7 ms | 82,5 ms | 1,7 |
 | `task graph` | 59,5 ms | 122,4 ms | 2,1 |
 | `ask` (query comum) | 43,9 ms | 112,8 ms | 2,6 |
-| `knowledge rank --universe` | 59,8 ms | 112,7 ms | 1,9 |
-| `knowledge tags` | 54,7 ms | 88,9 ms | 1,6 |
+| `ask --rank --universe` | 59,8 ms | 112,7 ms | 1,9 |
+| `ask --tags` | 54,7 ms | 88,9 ms | 1,6 |
 | `write (nova)` | 38,5 ms | 100,8 ms | 2,6 |
 | `forget (soft)` | 20,7 ms | 54,9 ms | 2,7 |
 | `sync` | 39,1 ms | 69,7 ms | 1,8 |
 | `rewind --files` | 79,6 ms | 164,5 ms | 2,1 |
-| `knowledge map --universe` | 85,8 ms | 191,2 ms | 2,2 |
+| `map --universe` | 85,8 ms | 191,2 ms | 2,2 |
 | `task list --ready` | 64,3 ms | 104,0 ms | 1,6 |
 | `maintenance prune --universe` | 52,8 ms | 178,1 ms | 3,4 |
 | `maintenance learn --universe` | 51,1 ms | 88,1 ms | 1,7 |

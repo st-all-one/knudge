@@ -2,11 +2,11 @@
 
 Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
-## [Não publicado]
+## [0.5.0] - 2026-09-27
 
 ### Adicionado
 - **Bancada de qualidade de busca (E16-T01)** — `bench/src/quality.rs` mede Recall@k/MRR/nDCG@k
-  num corpus PT-BR rotulado (192 notas, 24 consultas); baselines versionados em
+  num corpus PT-BR rotulado (192 notas, 60 consultas); baselines versionados em
   `bench/qualidade.md`/`.json` (régua para D172/D173/D179).
 - **Wrapper fino de scripts acionáveis (E18-T01/T03/D184)** — `commands/script.rs` resolve
   (embutido/local; `--url` remoto exige `--sha256`), faz stream do stderr, captura o stdout e
@@ -66,9 +66,9 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   no `--json` do `ask`.
 - **Comunidades + `GraphRAG` (E19-T05/D193)** — `graph/communities.rs` (Louvain determinístico) +
   `lifecycle/communities.rs` (arestas + âncoras, resumo local por termos). Exposto em
-  `knowledge map --communities` (JSON aditivo) e materializado em `--write` (`## Comunidades` no
+  `map --communities` (JSON aditivo) e materializado em `--write` (`## Comunidades` no
   `MAP.md` + hub `meta`).
-- **Idade no ranking sem query (E16-T06/D175)** — em `knowledge rank` (sem `similarity`) a idade
+- **Idade no ranking sem query (E16-T06/D175)** — em `ask --rank` (sem `similarity`) a idade
   entra **aditiva** (`AGE_WEIGHT = 0,05`) e desempata a favor da nota recente; a evidência Beta
   continua dominando.
 - **`contradicts` no ranking e no `prune` (E16-T07/D177)** — o lado perdedor de uma contradição
@@ -78,12 +78,6 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   exato de âncora contra o working set passa a pesar mais que um único casamento lexical ruidoso
   (bancada de qualidade, família `working-set`: nDCG@5 87,7 % → 100 %). `rrf_k` foi medido
   **inerte** no corpus rotulado e fica em `60`; `semantic_weight` fica em `30`.
-
-### Corrigido
-- **Status consistente na leitura (E16-T02/D176)** — `Status::VISIBLE` é a fonte única; `knowledge
-  rank`/`map`, `rewind` e `maintenance` deixam de incluir `forgotten`/`superseded`.
-
-### Adicionado
 - **Stemming PT conservador (E16-T11/D206)** — o canal lexical (índice + consulta) corta sufixos
   flexionais/derivacionais do PT-BR (`retrieval/stem.rs`): `consultas` casa `consulta`,
   `configurações` casa `configuração`. Adotado por medição (**+25 % de nDCG@5**,
@@ -96,15 +90,37 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   candidatos; o Dice exato e o limiar de merge são preservados. Corpus pequeno/esparso mantém a
   peneira exata (byte-idêntica). `compact`/`doctor` denso N=1000 **−94 %**.
 - **Drift de âncoras na confiança (E19-T01b/D203)** — a validade de âncoras vira o derivado
-  `.idx/drift.jsonl` (`prune` persiste do mesmo walk off-path); `ask`/`knowledge rank` carregam o
+  `.idx/drift.jsonl` (`prune` persiste do mesmo walk off-path); `ask`/`ask --rank` carregam o
   índice e `confidence_score` desconta o score inteiro por `drift_factor`. Arquivo ausente ⇒
   `drift = 0`. Sem chave nova e sem bump de `schema_version`.
+- **Claims SPO + ontologia leve + proveniência (E19-T09/D207)** — o frontmatter ganha três
+  blocos aditivos (`schema_version` 1→2): arestas de ontologia SKOS-lite
+  (`same_as`/`broader`/`narrower`/`related`, `EdgeKind` 8→12), `claims`
+  (`{subject, relation, object}`) e `provenance` (`{entity, activity, agent}`, PROV-lite).
+  `kd write --claim S:R:O` + `--agent`/`--activity`; inferência derivada em `graph/ontology.rs`
+  (classes de equivalência, clausura `broader`/`narrower`, ciclo) e contradição precisa por claims
+  no check `integrity` do `doctor`. Notas v1 seguem válidas e o rebuild é byte-idêntico.
+- **TMS/defeasible + drift KL/JS (E19-T10/D208)** — `graph/tms.rs` deriva os dependentes
+  transitivos de premissas retratadas (`forgotten`/`superseded`) e os derrotados por `replaces`;
+  `lifecycle/term_drift.rs` mede a divergência **Jensen-Shannon** entre o vocabulário antigo e o
+  novo de cada tópico (âncora). Ambos entram como motivos de demolição (`defeated`/`drifted`) no
+  `kd maintenance prune` — off-path, só propõem.
+
+### Corrigido
+- **Status consistente na leitura (E16-T02/D176)** — `Status::VISIBLE` é a fonte única; `ask
+  --rank`/`map`, `rewind` e `maintenance` deixam de incluir `forgotten`/`superseded`.
 
 ### Alterado
 - **Porta do provedor de embeddings unificada em `8889` (D202)** — o default de
   `embeddings.endpoint`, o `--port` de `kd drain service` e o `DEFAULT_PORT` do worker passam a
   ser `8889` (antes: config `8080` × worker `8999`). Instalações antigas mantêm a porta do
   `idle.conf`; `kd drain service --install --port 8889` migra.
+- **Superfície v3: fim do verbo `knowledge` (E19-T12/D209)** — um vocabulário por conceito, sem
+  retrocompatibilidade (D14): `kd knowledge rank|tags|suggest` → `kd ask --rank|--tags|--suggest`;
+  `kd knowledge map` → `kd map`; `kd knowledge promote` → `kd config promote`. Os verbos de
+  domínio caem para **8** (`ask`/`write`/`task`/`rewind`/`map`/`doctor`/`drain`/`forget`), com
+  `init`/`prime`/`sync`/`config`/`self` como fundação/meta. `prime`/`--help`/matriz/goldens
+  atualizados.
 
 ### Desempenho
 - **`maintenance prune` com varredura única (E16-T10)** — `validity_map` caminha o projeto **uma

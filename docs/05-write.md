@@ -90,9 +90,22 @@ kd write --link "decision_01abc:extends:fact_01xyz"
 kd write --link "task_01def:depends_on:task_01ghi"
 ```
 
-A aresta é a **única** via de vínculo explícito (D126) e usa o vocabulário fechado de 8 arestas:
-`references`, `depends_on`, `contradicts`, `supports`, `extends`, `replaces`, `rejects`,
-`results_in`.
+A aresta é a **única** via de vínculo explícito (D126) e usa o vocabulário fechado de **12
+arestas**: as 8 de grafo — `references`, `depends_on`, `contradicts`, `supports`, `extends`,
+`replaces`, `rejects`, `results_in` — mais as 4 de **ontologia leve** (D207): `same_as`
+(identidade), `broader`/`narrower` (hierarquia, inversos) e `related`.
+
+### Nível 4.5 — claims SPO e proveniência (D207)
+
+Além da aresta, uma nota pode declarar **claims** atômicas `sujeito:relação:objeto` e a
+**proveniência** (`--agent` = quem, `--activity` = como). Claims habilitam contradição precisa:
+duas notas com a mesma `(sujeito, relação)` e objetos divergentes aparecem no check `integrity`
+do `kd doctor`.
+
+```bash
+kd write --summary "embeddings escuta na 8889" --claim "embeddings:porta:8889" \
+  --agent "claude" --activity "write"
+```
 
 ### Nível 5 — evidência
 
@@ -102,7 +115,7 @@ kd write --outcome failure --id fact_01xyz --note "medição refutou a hipótese
 ```
 
 Evidência confirma (`success`) ou enfraquece a nota e entra no cálculo da **confiança derivada**
-(vista em [`kd knowledge rank`](07-knowledge.md)).
+(vista em [`kd ask --rank`](07-knowledge.md)).
 
 ### Nível 6 — lote e objeto
 
@@ -118,8 +131,8 @@ EOF
 ```
 
 O schema do lote é o **canônico** (`statement`, `body`, `type`, `tags`, `anchors`,
-`classification`, `status`) — não os nomes das flags. `--dry-run` só avalia. O teto é
-`write.batch_max` (default 100).
+`classification`, `status`, `claims`, `provenance`) — não os nomes das flags. `--dry-run` só avalia.
+O teto é `write.batch_max` (default 100).
 
 ## Referência de flags
 
@@ -130,6 +143,9 @@ O schema do lote é o **canônico** (`statement`, `body`, `type`, `tags`, `ancho
 | `--type <TIPO>` | Espécie (default `fact`; `task` é rejeitado) |
 | `--tag <T>` | Tag (repetível) |
 | `--anchor <PATH>` | Âncora (repetível; aceita vírgula) |
+| `--claim <S:R:O>` | Claim atômica sujeito:relação:objeto (repetível; D207) |
+| `--agent <NOME>` | Agente da proveniência (D207) |
+| `--activity <NOME>` | Atividade da proveniência (D207) |
 | `--clear-anchors` | Com `--update`, limpa todas as âncoras (conflita com `--anchor`) |
 | `--class <CLASSE>` | `foundational`/`tactical`/`observational` |
 | `--status <STATUS>` | Status inicial |
@@ -171,4 +187,4 @@ sem caixa e sem acento, em PT-BR ou inglês.
 
 ## Próximo passo
 
-➡️ [`kd task`](06-task.md) · [`kd knowledge`](07-knowledge.md)
+➡️ [`kd task`](06-task.md) · [`kd map`](07-knowledge.md)

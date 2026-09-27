@@ -1,18 +1,18 @@
-//! `kd knowledge tags` — vocabulário de tags (`tag|count`, `count` desc — ex-`ask --tags`, D107/D146).
+//! `kd ask --tags` — vocabulário de tags (`tag|count`, `count` desc — ex-`kd ask --tags`, D107/D146).
 
 use knudge_core::Result;
 use knudge_core::retrieval::tag_counts;
 use serde_json::json;
 
-use crate::cli::KnowledgeTagsArgs;
+use crate::cli::TagsArgs;
 use crate::output::Output;
 use crate::session::Session;
 
-/// `kd knowledge tags` — vocabulário de tags do corpus.
+/// `kd ask --tags` — vocabulário de tags do corpus.
 ///
 /// # Errors
 /// Propaga erros de leitura do índice.
-pub fn run(session: &Session, args: &KnowledgeTagsArgs) -> Result<Output> {
+pub fn run(session: &Session, args: &TagsArgs) -> Result<Output> {
     let index = session.index()?;
     let mut counts = tag_counts(&index);
     if let Some(limit) = args.limit {

@@ -1,29 +1,8 @@
-//! Subcomandos de `kd knowledge` — mapa/ranking/vocabulário de conhecimento (D128/D146).
+//! Modos de `kd ask` (rank/tags/suggest), `kd map` e `kd config promote` — mapa/ranking/vocabulário de conhecimento (D128/D146).
 
 use clap::{Args, Subcommand};
 
-/// Subcomandos de conhecimento.
-#[derive(Debug, Subcommand)]
-#[command(arg_required_else_help = true)]
-pub enum KnowledgeCommand {
-    /// Mapa de conhecimento: clusters por eixo estrutural (fase 1) e, com `--semantic`,
-    /// semântico (fase 2).
-    Map(KnowledgeMapArgs),
-    /// Notas mais confiáveis, sem pergunta textual (ex-`ask --rank`, D146).
-    Rank(KnowledgeRankArgs),
-    /// Vocabulário de tags (`tag|count`, `count` desc — ex-`ask --tags`, D146).
-    Tags(KnowledgeTagsArgs),
-    /// Sugestões semânticas de aresta/contradição entre notas (read-only; D158).
-    Suggest(KnowledgeSuggestArgs),
-    /// Promove conhecimento a regras governadas no `AGENTS.md` (D157).
-    Promote {
-        /// Subcomando de promoção.
-        #[command(subcommand)]
-        command: PromoteCommand,
-    },
-}
-
-/// Subcomandos de `kd knowledge promote` (D157).
+/// Subcomandos de `kd config promote` (D157).
 #[derive(Debug, Subcommand)]
 #[command(arg_required_else_help = true)]
 pub enum PromoteCommand {
@@ -39,7 +18,7 @@ pub enum PromoteCommand {
     List,
 }
 
-/// Argumentos de `kd knowledge promote recommend`.
+/// Argumentos de `kd config promote recommend`.
 #[derive(Debug, Args)]
 pub struct PromoteRecommendArgs {
     /// Varredura do projeto inteiro (sem filtro de trabalho).
@@ -50,7 +29,7 @@ pub struct PromoteRecommendArgs {
     pub limit: Option<usize>,
 }
 
-/// Argumentos de `kd knowledge promote approve|remove`.
+/// Argumentos de `kd config promote approve|remove`.
 #[derive(Debug, Args)]
 pub struct PromoteTargetArgs {
     /// Id da nota.
@@ -61,7 +40,7 @@ pub struct PromoteTargetArgs {
     pub universe: bool,
 }
 
-/// Argumentos de `kd knowledge promote edit`.
+/// Argumentos de `kd config promote edit`.
 #[derive(Debug, Args)]
 pub struct PromoteEditArgs {
     /// Id da nota.
@@ -75,10 +54,10 @@ pub struct PromoteEditArgs {
     pub universe: bool,
 }
 
-/// Argumentos de `kd knowledge map`.
+/// Argumentos de `kd map`.
 #[allow(clippy::struct_excessive_bools, reason = "flags de CLI")]
 #[derive(Debug, Args)]
-pub struct KnowledgeMapArgs {
+pub struct MapArgs {
     /// Restringe a um eixo: `anchor`/`type`/`classification`/`scope`.
     #[arg(long, value_name = "EIXO")]
     pub axis: Option<String>,
@@ -120,9 +99,9 @@ pub struct KnowledgeMapArgs {
     pub universe: bool,
 }
 
-/// Argumentos de `kd knowledge rank`.
+/// Argumentos de `kd ask --rank`.
 #[derive(Debug, Args)]
-pub struct KnowledgeRankArgs {
+pub struct RankArgs {
     /// Filtro por tipo (repetível).
     #[arg(long = "type", value_name = "TIPO")]
     pub types: Vec<String>,
@@ -149,17 +128,17 @@ pub struct KnowledgeRankArgs {
     pub limit: Option<usize>,
 }
 
-/// Argumentos de `kd knowledge tags`.
+/// Argumentos de `kd ask --tags`.
 #[derive(Debug, Args)]
-pub struct KnowledgeTagsArgs {
+pub struct TagsArgs {
     /// Limite de tags.
     #[arg(long, value_name = "N")]
     pub limit: Option<usize>,
 }
 
-/// Argumentos de `kd knowledge suggest` (D158).
+/// Argumentos de `kd ask --suggest` (D158).
 #[derive(Debug, Args)]
-pub struct KnowledgeSuggestArgs {
+pub struct SuggestArgs {
     /// Nº máximo de vizinhos por nota.
     #[arg(long = "top-k", value_name = "N", default_value_t = 5)]
     pub top_k: usize,

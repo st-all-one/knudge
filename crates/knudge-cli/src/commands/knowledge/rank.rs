@@ -1,20 +1,20 @@
-//! `kd knowledge rank` — notas mais confiáveis, sem pergunta textual (ex-`ask --rank`, D107/D146).
+//! `kd ask --rank` — notas mais confiáveis, sem pergunta textual (ex-`kd ask --rank`, D107/D146).
 
 use knudge_core::Result;
 use knudge_core::lifecycle::{DEFAULT_TASK_CONFIRMATION, DriftStore};
 use knudge_core::retrieval::{DEFAULT_LIMIT, RankQuery, Universe, format_hit, rank};
 use serde_json::json;
 
-use crate::cli::KnowledgeRankArgs;
+use crate::cli::RankArgs;
 use crate::commands::corpus::CorpusScope;
 use crate::output::Output;
 use crate::session::Session;
 
-/// `kd knowledge rank` — exige escopo ou `--universe` (D146 B).
+/// `kd ask --rank` — exige escopo ou `--universe` (D146 B).
 ///
 /// # Errors
 /// Propaga erros de índice/grafo; `invalid_input` (2) sem escopo.
-pub fn run(session: &Session, args: &KnowledgeRankArgs) -> Result<Output> {
+pub fn run(session: &Session, args: &RankArgs) -> Result<Output> {
     let scope = CorpusScope {
         types: args.types.clone(),
         classes: args.classes.clone(),
@@ -24,7 +24,7 @@ pub fn run(session: &Session, args: &KnowledgeRankArgs) -> Result<Output> {
         depth: args.depth,
         universe: args.universe,
     };
-    scope.require("knowledge rank")?;
+    scope.require("ask --rank")?;
     let index = session.index()?;
     let graph = session.graph()?;
     let selection = scope.select(&index, &graph)?;

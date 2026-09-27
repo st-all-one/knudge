@@ -50,7 +50,7 @@ GUIA RÁPIDO (o que usar, quando e quando NÃO usar):
 kd prime --long
 ```
 
-Inclui a gramática TOON, a ordem canônica das 25 chaves e o significado de cada campo. Use quando
+Inclui a gramática TOON, a ordem canônica das 31 chaves e o significado de cada campo. Use quando
 o agente precisa **escrever** notas corretamente ou depurar um frontmatter.
 
 ### Nível 3 — consumo programático

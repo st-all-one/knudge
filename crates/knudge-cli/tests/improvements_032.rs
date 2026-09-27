@@ -1,4 +1,4 @@
-//! Integração v0.3.2: `ask --as-of`, `knowledge suggest`/`promote` e o portão de evidência
+//! Integração v0.3.2: `ask --as-of`, `kd ask --suggest`/`promote` e o portão de evidência
 //! (D154–D159).
 
 mod common;
@@ -62,20 +62,20 @@ fn ask_as_of_finds_note_at_creation_and_rejects_future() -> TestResult {
 }
 
 #[test]
-fn knowledge_suggest_without_embeddings_is_no_results() -> TestResult {
+fn ask_suggest_without_embeddings_is_no_results() -> TestResult {
     let dir = temp_project();
     init(&dir)?;
-    let out = run_in(&dir, &["knowledge", "suggest"])?;
+    let out = run_in(&dir, &["ask", "--suggest"])?;
     assert!(out.status.success(), "suggest falhou: {:?}", out.stderr);
     assert_eq!(stdout(&out)?.trim(), "[no_results]");
     Ok(())
 }
 
 #[test]
-fn knowledge_promote_is_disabled_by_default() -> TestResult {
+fn config_promote_is_disabled_by_default() -> TestResult {
     let dir = temp_project();
     init(&dir)?;
-    expect_code(&dir, &["knowledge", "promote", "recommend"], 2)?;
+    expect_code(&dir, &["config", "promote", "recommend"], 2)?;
     Ok(())
 }
 
@@ -114,12 +114,12 @@ fn promoted_candidate(dir: &Path) -> Result<String, Box<dyn std::error::Error>> 
 }
 
 #[test]
-fn knowledge_promote_approve_writes_governed_block() -> TestResult {
+fn config_promote_approve_writes_governed_block() -> TestResult {
     let dir = temp_project();
     init(&dir)?;
     let id = promoted_candidate(&dir)?;
 
-    let recommend = run_in(&dir, &["knowledge", "promote", "recommend", "--universe"])?;
+    let recommend = run_in(&dir, &["config", "promote", "recommend", "--universe"])?;
     assert!(
         recommend.status.success(),
         "recommend falhou: {:?}",
@@ -129,7 +129,7 @@ fn knowledge_promote_approve_writes_governed_block() -> TestResult {
 
     let approve = run_in(
         &dir,
-        &["knowledge", "promote", "approve", id.as_str(), "--universe"],
+        &["config", "promote", "approve", id.as_str(), "--universe"],
     )?;
     assert!(
         approve.status.success(),
@@ -140,7 +140,7 @@ fn knowledge_promote_approve_writes_governed_block() -> TestResult {
     assert!(agents.contains("knudge:rules:start"), "bloco ausente");
     assert!(agents.contains(&id), "proveniência ausente");
 
-    let list = ok_json(&dir, &["knowledge", "promote", "list"])?;
+    let list = ok_json(&dir, &["config", "promote", "list"])?;
     assert_eq!(
         list.get("count").and_then(serde_json::Value::as_u64),
         Some(1)
@@ -148,7 +148,7 @@ fn knowledge_promote_approve_writes_governed_block() -> TestResult {
 
     let remove = run_in(
         &dir,
-        &["knowledge", "promote", "remove", id.as_str(), "--universe"],
+        &["config", "promote", "remove", id.as_str(), "--universe"],
     )?;
     assert!(
         remove.status.success(),

@@ -1,9 +1,10 @@
-//! Vocabulário fechado de arestas (D49/D51).
+//! Vocabulário fechado de arestas (D49/D51/D207).
 //!
 //! Arestas explícitas são a **fonte primária** do grafo; a extração por regex é apenas
 //! sugestão (D49/D50). Cada [`EdgeKind`] tem uma chave de frontmatter de mesmo nome cujo valor
 //! é uma **lista de ids** (omitida quando vazia — D05). `superseded_by` é o ponteiro reverso de
-//! [`EdgeKind::Replaces`] (D46).
+//! [`EdgeKind::Replaces`] (D46). `same_as`/`broader`/`narrower`/`related` formam a **ontologia
+//! leve** (SKOS-lite, D207): identidade e hierarquia de conceitos.
 
 use std::fmt;
 use std::str::FromStr;
@@ -11,7 +12,7 @@ use std::str::FromStr;
 use crate::{Error, Result};
 
 /// Chaves canônicas das arestas no frontmatter, na ordem de [`EdgeKind::ALL`].
-pub const EDGE_KEYS: [&str; 8] = [
+pub const EDGE_KEYS: [&str; 12] = [
     "references",
     "depends_on",
     "contradicts",
@@ -20,9 +21,13 @@ pub const EDGE_KEYS: [&str; 8] = [
     "replaces",
     "rejects",
     "results_in",
+    "same_as",
+    "broader",
+    "narrower",
+    "related",
 ];
 
-/// Tipo de aresta — enum fechado de 8 valores (D51).
+/// Tipo de aresta — enum fechado de 12 valores (D51/D207).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum EdgeKind {
     /// Menção simples.
@@ -41,11 +46,19 @@ pub enum EdgeKind {
     Rejects,
     /// Resultado de uma decisão.
     ResultsIn,
+    /// Identidade de entidade (entity resolution — SKOS-lite, D207).
+    SameAs,
+    /// Conceito mais amplo (SKOS `broader`, D207).
+    Broader,
+    /// Conceito mais estreito (SKOS `narrower`, D207).
+    Narrower,
+    /// Associação livre (SKOS `related`, D207).
+    Related,
 }
 
 impl EdgeKind {
     /// Todos os tipos, na ordem canônica.
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 12] = [
         Self::References,
         Self::DependsOn,
         Self::Contradicts,
@@ -54,6 +67,10 @@ impl EdgeKind {
         Self::Replaces,
         Self::Rejects,
         Self::ResultsIn,
+        Self::SameAs,
+        Self::Broader,
+        Self::Narrower,
+        Self::Related,
     ];
 
     /// Rótulo canônico em `snake_case` (também a chave do frontmatter).
@@ -68,6 +85,10 @@ impl EdgeKind {
             Self::Replaces => "replaces",
             Self::Rejects => "rejects",
             Self::ResultsIn => "results_in",
+            Self::SameAs => "same_as",
+            Self::Broader => "broader",
+            Self::Narrower => "narrower",
+            Self::Related => "related",
         }
     }
 
@@ -81,6 +102,31 @@ impl EdgeKind {
     #[must_use]
     pub const fn is_supersession(self) -> bool {
         matches!(self, Self::Replaces)
+    }
+
+    /// `true` para arestas da **ontologia leve** (SKOS-lite, D207).
+    #[must_use]
+    pub const fn is_ontology(self) -> bool {
+        matches!(
+            self,
+            Self::SameAs | Self::Broader | Self::Narrower | Self::Related
+        )
+    }
+
+    /// `true` para arestas **simétricas** (mesma semântica nos dois sentidos).
+    #[must_use]
+    pub const fn is_symmetric(self) -> bool {
+        matches!(self, Self::SameAs | Self::Related)
+    }
+
+    /// Aresta **inversa** (`broader`↔`narrower`); as demais são a própria.
+    #[must_use]
+    pub const fn inverse(self) -> Self {
+        match self {
+            Self::Broader => Self::Narrower,
+            Self::Narrower => Self::Broader,
+            other => other,
+        }
     }
 }
 

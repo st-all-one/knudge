@@ -1,7 +1,7 @@
 //! Escopo de corpus compartilhado (D143/D144/D146): filtros estruturais + vizinhança.
 //!
 //! O princípio "nada de operação sem escopo" (D143 §2.1) vale para todo verbo que varre o
-//! corpus: `knowledge map`/`rank`, `rewind` e `learn`/`compact`/`prune`/`task list`. Aqui vive
+//! corpus: `kd map`/`kd ask --rank`, `rewind` e `learn`/`compact`/`prune`/`task list`. Aqui vive
 //! a fonte de verdade do predicado (`--tag`/`--anchor`/`--type`/`--class`/`--around`/`--universe`).
 
 use std::collections::{BTreeMap, BTreeSet};

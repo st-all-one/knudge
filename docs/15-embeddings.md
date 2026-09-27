@@ -183,4 +183,4 @@ emite **um** warning.
 
 ## Próximo passo
 
-➡️ [`kd knowledge`](07-knowledge.md) · [`kd maintenance`](09-maintenance.md)
+➡️ [`kd map`](07-knowledge.md) · [`kd maintenance`](09-maintenance.md)

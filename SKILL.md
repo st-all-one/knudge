@@ -56,11 +56,12 @@ estático (byte-idêntico): `kd` sozinho = `kd help`; o protocolo é `kd prime`.
 | Buscar conhecimento | `kd ask "<query>" --brief` |
 | Corpo de ids | `kd ask --id <ID>...` |
 | Expandir o grafo | `kd ask --around <ID> [--via ARESTA] [--depth N]` |
-| Mais confiáveis (sem query) | `kd knowledge rank --universe` |
-| Vocabulário de tags | `kd knowledge tags` |
+| Mais confiáveis (sem query) | `kd ask --rank --universe` |
+| Vocabulário de tags | `kd ask --tags` |
 | Gravar fato/decisão/erro/risco/pergunta | `kd write --summary "<...>" [<corpo>|-] [--type T] [--tag T] [--anchor PATH]` |
 | Versionar | `kd write --update <ID> --summary "<...>"` (ou `--params '<json>'`; `--clear-anchors` limpa) |
-| Aresta explícita | `kd write --link <FROM:ARESTA:TO>` |
+| Aresta explícita | `kd write --link <FROM:ARESTA:TO>` (12 arestas; inclui `same_as`/`broader`/`narrower`/`related`) |
+| Claim SPO / proveniência | `kd write --claim <S:R:O> [--agent NOME] [--activity NOME]` (D207) |
 | Evidência numa nota | `kd write --outcome <success\|partial\|failure\|abandoned> --id <ID> [--note TXT]` |
 | Nova tarefa | `kd task new --summary "<...>" [<corpo>\|-] --scope <epic\|issue\|task> [--parent ID]` |
 | Listar prontas/bloqueadas | `kd task list --ready` / `--blocked [--explain]` |
@@ -68,8 +69,9 @@ estático (byte-idêntico): `kd` sozinho = `kd help`; o protocolo é `kd prime`.
 | Editar tarefa | `kd task update --id <ID> [--status S] [--anchor P...] [--clear-anchors]` |
 | Fechar com evidência | `kd task close --id <ID> --outcome success --note "..."` |
 | WBS | `kd task graph [--program plan/<slug>.md\|--root ID]` |
+| Fluxo/caminho crítico | `kd task flow [--window-days N]` (cycle/lead/throughput, D205) |
 | Handoff | `kd rewind [--scope C] [--files PATH...] [--budget N]` |
-| Mapa de conhecimento | `kd knowledge map --universe [--axis A] [--semantic] [--members] [--write]` |
+| Mapa de conhecimento | `kd map --universe [--axis A] [--semantic] [--members] [--write]` |
 | Manutenção | `kd doctor [--fix] [--explain]` |
 | Esquecer (soft) | `kd forget --id <ID>` (`--restore`, `--purge [--force]`) |
 | Commit | `kd sync` |
@@ -169,7 +171,7 @@ kd rewind --resume <context_id>         # retoma 1:1
 ```bash
 kd doctor           # integridade + arestas sugeridas
 kd maintenance learn --universe         # o que deveria virar nota? (exige escopo)
-kd knowledge map --axis scope --semantic --universe
+kd map --axis scope --semantic --universe
 kd maintenance prune --universe         # propõe forget por shelf-life (exige escopo)
 kd drain --status           # fila de embeddings (pending) por projeto
 kd drain service --status   # saúde do worker de auto-drain (systemd/launchd)
