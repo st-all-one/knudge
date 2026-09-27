@@ -79,8 +79,18 @@ pub enum TaskCommand {
         #[arg(long, value_name = "ID")]
         root: Option<String>,
     },
+    /// Métricas de fluxo (`cycle`/`lead`/`throughput`) e caminho crítico — D205.
+    Flow(TaskFlowArgs),
     /// Plano: `--prompt` (read-only) ou `--submit` (`--step`/`--from`) — D105/D138.
     Plan(TaskPlanArgs),
+}
+
+/// Argumentos de `kd task flow`.
+#[derive(Debug, Args)]
+pub struct TaskFlowArgs {
+    /// Janela de throughput em dias (default 7).
+    #[arg(long = "window-days", value_name = "N", default_value_t = 7)]
+    pub window_days: u32,
 }
 
 /// Argumentos de `kd task plan`.

@@ -172,9 +172,10 @@ T09 (fusão) → T10 (perf) → T11 (stemming, condicional) → T12 (docs/golden
 - **Depende de:** —
 - **Aceite:** coberto por **E19/T01** (a persistência de `drift` entra como insumo do Beta).
 - **Feito (D189):** `feedback` de `outcomes` negativos absorvido como `failures` do Beta.
-  **Pendente:** `drift` → **E19/T01b** (derivado `.idx/drift.jsonl`, walk único off-path).
+  **Feito (D203):** `drift` persistido em `.idx/drift.jsonl` (walk único off-path) e aplicado à
+  confiança (`rank`/`ask`) — ver **E19/T01b**.
 
-### E16-T06 ☐ D175 — idade no ranking sem query
+### E16-T06 ☑ D175 — idade no ranking sem query
 - **Escopo:** `retrieval/rank.rs` — a idade entra de forma **aditiva** quando `similarity = 0`
   (hoje o `age_factor` é anulado).
 - **Perf:** idade O(1) por nota a partir do `mtime`/`created_at` já lido no `Corpus`; sem
@@ -182,8 +183,11 @@ T09 (fusão) → T10 (perf) → T11 (stemming, condicional) → T12 (docs/golden
 - **Depende de:** E19/T01 (o Beta é a base da confiança).
 - **Aceite:** teste de que nota antiga e não confirmada rankeia abaixo de recente equivalente;
   golden de `knowledge rank`; A/B na bancada.
+- **Feito (D175):** `AGE_WEIGHT = 0,05`; `recency = AGE_WEIGHT · age_factor · (1 − similarity)`
+  em `confidence_score` (vale também no `recall`, mas lá não muda a ordem — o `score` é o RRF).
+  Bancada de qualidade **sem regressão**; `knowledge rank` não tem golden numérico.
 
-### E16-T07 ☐ D177 — `contradicts` no ranking e na depreciação
+### E16-T07 ☑ D177 — `contradicts` no ranking e na depreciação
 - **Escopo:** `recall`/`rank` rebaixam (ou avisam) o lado perdedor de uma aresta `contradicts`
   declarada, com a confiança derivada como desempate; `demotion_candidates` passa a considerar
   contradição como motivo (novo `DemotionReason`), mantendo D45 (ciclos protegidos) e D112
@@ -192,6 +196,10 @@ T09 (fusão) → T10 (perf) → T11 (stemming, condicional) → T12 (docs/golden
   `demotion_candidates` roda só no `prune` (raro).
 - **Depende de:** E19/T01 (confiança), T06.
 - **Aceite:** testes de ranking e de `prune` (proposta, não aplicação); goldens de `prune`/`rank`.
+- **Feito (D177):** `retrieval/contradiction.rs` (lado perdedor por confiança, empate sem
+  perdedor); `CONTRADICTION_PENALTY` no `rank`/`recall`; `rank` passa a receber `&Graph`;
+  `DemotionReason::Contradicted` no `prune` (só propõe). **Follow-up:** check read-only do
+  `doctor` (`CheckId::Contradictions`).
 - **Candidato (análise de riscos):** check **read-only** do `doctor` (`CheckId::Contradictions`)
   que lista pares `X ⊣ Y` com ambos visíveis — fecha o ciclo propor→ranquear→**auditar**. Ver
   [`../proposals/riscos_memoria_duravel.md`](../proposals/riscos_memoria_duravel.md) §2.2.
@@ -203,7 +211,7 @@ T09 (fusão) → T10 (perf) → T11 (stemming, condicional) → T12 (docs/golden
 - **Depende de:** —
 - **Aceite:** coberto por **E19/T02**.
 
-### E16-T09 ☐ D179 — recalibração da fusão
+### E16-T09 ☑ D179 — recalibração da fusão
 - **Escopo:** varrer `rrf_k` e pesos (`lexical`/`anchor`/`semantic`) na bancada de qualidade;
   ajustar os **defaults** (e documentar a calibração). Opcional: avaliar **normalização de score
   por canal** contra o RRF atual.
@@ -212,8 +220,11 @@ T09 (fusão) → T10 (perf) → T11 (stemming, condicional) → T12 (docs/golden
 - **Depende de:** T01 (medição), T03/T04 (canal lexical estável).
 - **Aceite:** A/B com ganho demonstrado (nDCG/MRR); defaults justificados no plano; goldens
   atualizados com intenção.
+- **Feito (D179):** famílias multi-canal (`working-set`/`sinonimo`) + `make bench-sweep`
+  (`bench/t09_fusao.md`). `rrf_k` medido **inerte** (rejeitado); `anchor_weight` `1.0 → 2.0`
+  (working-set nDCG@5 87,7 % → 100 %). `DIVERGENCES.md` #105.
 
-### E16-T10 ☐ Perf do caminho de busca e de `prune`
+### E16-T10 ☑ Perf do caminho de busca e de `prune`
 - **Escopo:** `body_share` tokeniza a consulta **uma vez** por `build_hits`; `validity_map` faz
   **um** walk do projeto e valida todas as âncoras; `task_confirmers` é pré-indexado por âncora
   (evita `O(N × T × A²)` em `rank`).
@@ -221,6 +232,10 @@ T09 (fusão) → T10 (perf) → T11 (stemming, condicional) → T12 (docs/golden
   byte-idêntica (goldens) — só o custo muda.
 - **Depende de:** E19/T01 (drift), T01 (baseline de latência).
 - **Aceite:** micro/A-B na bancada; saída byte-idêntica (goldens).
+- **Feito:** `compute_anchor_validity_cached` (walk único; `validity_map` reusa) e
+  `body_share_terms` (tokenização única em `build_hits`). **`prune --universe` N=1000: 118,6 ms →
+  45,9 ms (−61 %)**; `ask`/`recall` inalterados. `task_confirmers` medido **não-gargalo** no
+  corpus da bancada (T=0 sem `outcomes`) — **rejeitado por medição** (padrão E15-T12).
 
 ### E16-T11 ☐ Stemming PT (condicional)
 - **Objetivo:** decidir, com número, se um stemmer PT conservador paga.

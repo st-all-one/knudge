@@ -4,6 +4,7 @@ mod batch;
 mod dedup;
 mod idempotent;
 mod lifecycle;
+mod lsh;
 mod outcome;
 mod reconcile;
 mod strict;

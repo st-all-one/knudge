@@ -38,7 +38,7 @@ fn main() {
             args.get(*index).cloned().unwrap_or_default()
         };
         match arg {
-            "micro" | "e2e" | "all" | "quality" => mode = arg.to_string(),
+            "micro" | "e2e" | "all" | "quality" | "sweep" => mode = arg.to_string(),
             "--sizes" => sizes = next(&mut index),
             "--samples" => samples = next(&mut index).parse().unwrap_or(samples),
             "--kd" => kd = next(&mut index),
@@ -52,7 +52,9 @@ fn main() {
                 samples = 5;
             }
             "--help" | "-h" => {
-                println!("uso: knudge-bench [micro|e2e|quality|all] [--sizes 200,1000] [--samples 8] [--kd PATH] [--json out.json] [--out report.md] [--quality-out bench/qualidade.md] [--quality-json bench/qualidade.json] [--quick]");
+                println!(
+                    "uso: knudge-bench [micro|e2e|quality|sweep|all] [--sizes 200,1000] [--samples 8] [--kd PATH] [--json out.json] [--out report.md] [--quality-out bench/qualidade.md] [--quality-json bench/qualidade.json] [--quick]"
+                );
                 return;
             }
             other => {
@@ -67,7 +69,11 @@ fn main() {
         .split(',')
         .filter_map(|part| part.trim().parse().ok())
         .collect();
-    let sizes = if sizes.is_empty() { vec![200, 1000] } else { sizes };
+    let sizes = if sizes.is_empty() {
+        vec![200, 1000]
+    } else {
+        sizes
+    };
 
     let mut harness = Harness::new();
     if mode == "micro" || mode == "all" {
@@ -81,7 +87,10 @@ fn main() {
         } else {
             std::env::current_dir().unwrap_or_default().join(kd)
         };
-        eprintln!("== ponta-a-ponta (kd={}, sizes={sizes:?}) ==", absolute.display());
+        eprintln!(
+            "== ponta-a-ponta (kd={}, sizes={sizes:?}) ==",
+            absolute.display()
+        );
         e2e::run(&mut harness, &absolute, &sizes, samples, no_idle);
     }
     if mode == "quality" || mode == "all" {
@@ -89,6 +98,10 @@ fn main() {
         let md = quality_md.unwrap_or_else(|| PathBuf::from("bench/qualidade.md"));
         let json = quality_json.unwrap_or_else(|| PathBuf::from("bench/qualidade.json"));
         quality::run(&md, &json);
+    }
+    if mode == "sweep" {
+        eprintln!("== sweep da fusão (E16/T09) ==");
+        quality::sweep();
     }
 
     if mode == "micro" || mode == "e2e" || mode == "all" {

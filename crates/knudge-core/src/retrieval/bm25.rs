@@ -237,15 +237,27 @@ impl Index {
         reason = "divisão em f64 com divisor > 0"
     )]
     pub fn body_share(&self, doc: &NoteDoc, query: &str) -> f64 {
-        let terms = content_terms(query);
+        self.body_share_terms(doc, &content_terms(query))
+    }
+
+    /// Como [`Index::body_share`], mas reusa os termos já tokenizados (E16/T10).
+    ///
+    /// O `build_hits` monta os hits de uma mesma consulta: tokenizar uma vez e reusar troca
+    /// `O(hits × termos)` por `O(termos)` sem mudar o resultado.
+    #[must_use]
+    #[allow(
+        clippy::arithmetic_side_effects,
+        reason = "divisão em f64 com divisor > 0"
+    )]
+    pub fn body_share_terms(&self, doc: &NoteDoc, terms: &[Cow<'_, str>]) -> f64 {
         if terms.is_empty() {
             return 0.0;
         }
-        let raw = self.raw_score(doc, &terms);
+        let raw = self.raw_score(doc, terms);
         if raw <= 0.0 {
             return 0.0;
         }
-        (self.field_sum(doc, &terms, Field::Body) / raw).clamp(0.0, 1.0)
+        (self.field_sum(doc, terms, Field::Body) / raw).clamp(0.0, 1.0)
     }
 
     /// IDF de um termo no campo (via document frequency do campo).

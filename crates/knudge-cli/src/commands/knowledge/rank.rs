@@ -1,7 +1,7 @@
 //! `kd knowledge rank` — notas mais confiáveis, sem pergunta textual (ex-`ask --rank`, D107/D146).
 
 use knudge_core::Result;
-use knudge_core::lifecycle::DEFAULT_TASK_CONFIRMATION;
+use knudge_core::lifecycle::{DEFAULT_TASK_CONFIRMATION, DriftStore};
 use knudge_core::retrieval::{DEFAULT_LIMIT, RankQuery, Universe, format_hit, rank};
 use serde_json::json;
 
@@ -35,8 +35,10 @@ pub fn run(session: &Session, args: &KnowledgeRankArgs) -> Result<Output> {
     let weight = config
         .get_float("recall.confirmation_from_tasks")
         .unwrap_or(DEFAULT_TASK_CONFIRMATION);
+    let drift = DriftStore::new(session.fs_dyn(), session.knowledge_dir()).index()?;
     let hits: Vec<_> = rank(
         &index,
+        &graph,
         selection.filter(),
         &RankQuery {
             universe: if args.universe {
@@ -47,6 +49,7 @@ pub fn run(session: &Session, args: &KnowledgeRankArgs) -> Result<Output> {
             now_ms: Some(session.now_ms()),
             limit: 0,
             task_weight: weight,
+            drift,
         },
     )
     .into_iter()

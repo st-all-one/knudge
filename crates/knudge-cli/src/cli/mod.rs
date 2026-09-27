@@ -15,7 +15,7 @@ pub use knowledge::{
 };
 pub use maintenance::{ConfigCommand, CorpusArgs, MaintenanceCommand, SelfCommand, UpgradeArgs};
 pub use rewind::RewindArgs;
-pub use task::{TaskCommand, TaskListArgs, TaskNewArgs, TaskPlanArgs, TaskSort};
+pub use task::{TaskCommand, TaskFlowArgs, TaskListArgs, TaskNewArgs, TaskPlanArgs, TaskSort};
 
 use clap::{Args, Parser, Subcommand};
 

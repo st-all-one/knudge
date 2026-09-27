@@ -88,6 +88,9 @@ pub struct KnowledgeMapArgs {
     /// Roda a fase 2 semântica dentro dos clusters (requer embeddings).
     #[arg(long)]
     pub semantic: bool,
+    /// Detecta **comunidades** (`GraphRAG`) sobre arestas + âncoras, com resumo local (D193).
+    #[arg(long)]
+    pub communities: bool,
     /// Inclui os membros de cada cluster.
     #[arg(long)]
     pub members: bool,

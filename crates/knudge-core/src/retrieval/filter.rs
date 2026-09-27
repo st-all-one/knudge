@@ -5,7 +5,7 @@
 
 use crate::Result;
 use crate::retrieval::anchor::glob_match;
-use crate::schema::{Classification, Frontmatter, NoteType, Scope, Status, Value};
+use crate::schema::{Classification, Frontmatter, NoteType, Scope, Status, Value, outcome_stats};
 use crate::time::Timestamp;
 
 /// Metadados de uma nota usados por filtros, `why` e boost.
@@ -39,6 +39,7 @@ impl Meta {
     /// # Errors
     /// Retorna `ErrorKind::Schema` se os campos tipados estiverem malformados.
     pub fn from_frontmatter(frontmatter: &Frontmatter) -> Result<Self> {
+        let outcomes = outcome_stats(frontmatter);
         Ok(Self {
             id: frontmatter.id()?.to_string(),
             note_type: frontmatter.note_type()?,
@@ -48,8 +49,8 @@ impl Meta {
             tags: string_list(frontmatter, "tags"),
             anchors: string_list(frontmatter, "anchors"),
             created_ms: created_ms(frontmatter),
-            confirmation: confirmation(frontmatter),
-            failures: failures(frontmatter),
+            confirmation: outcomes.successes,
+            failures: outcomes.failures,
         })
     }
 }
@@ -126,41 +127,4 @@ fn created_ms(frontmatter: &Frontmatter) -> i64 {
         Some(Value::Str(text)) => text.parse::<Timestamp>().map_or(0, Timestamp::as_millis),
         _ => 0,
     }
-}
-
-fn confirmation(frontmatter: &Frontmatter) -> f64 {
-    let Some(Value::List(items)) = frontmatter.get("outcomes") else {
-        return 0.0;
-    };
-    let mut score = 0.0;
-    for item in items {
-        let Some(map) = item.as_map() else {
-            continue;
-        };
-        match map.get("status").and_then(Value::as_str) {
-            Some("success") => score += 1.0,
-            Some("partial") => score += 0.5,
-            _ => {}
-        }
-    }
-    score
-}
-
-/// Falhas derivadas de `outcomes` (D189): `failure`/`abandoned` valem 1, `partial` vale 0,5.
-fn failures(frontmatter: &Frontmatter) -> f64 {
-    let Some(Value::List(items)) = frontmatter.get("outcomes") else {
-        return 0.0;
-    };
-    let mut score = 0.0;
-    for item in items {
-        let Some(map) = item.as_map() else {
-            continue;
-        };
-        match map.get("status").and_then(Value::as_str) {
-            Some("failure" | "abandoned") => score += 1.0,
-            Some("partial") => score += 0.5,
-            _ => {}
-        }
-    }
-    score
 }

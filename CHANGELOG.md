@@ -51,16 +51,62 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   de 95 % (Wilson) é a confiança conservadora (1 sucesso ≈0,21 × 20 ≈0,84). `Meta` ganha
   `failures`; o índice derivado passa a `retrieval-v3`. Absorve o `feedback` de `outcomes`
   negativos de E16/D174.
+- **Retenção por curva de esquecimento (E19-T02/D190)** — o shelf-life deixa de ser prazo fixo:
+  cada `outcome` de sucesso estende o prazo em `retention.growth_percent` (default 50 %) e
+  **reseta o relógio** (`origin = max(created, último ensaio, último uso)`). `prune --json` passa
+  a informar a `retention` atual. Substitui E16/D178.
+- **Data contract por tipo (E19-T03/D191)** — o `write` confere **slots mínimos de corpo** por
+  espécie (`decision`→Alternativas/Por quê/Consequência; `error`→Causa/Correção; `risk`→
+  Probabilidade/Impacto; `def`→Significado; `snippet`→Linguagem+âncora; `question`→âncora/`depends_on`),
+  sem chave nova. **Soft**: aviso em `write`, `invalid_input` só sob `behavior.strict`; `--dry-run`
+  expõe `missing_slots`; o check `body` do `doctor` passa a contar slots ausentes.
+- **Autoridade no grafo (E19-T04/D192)** — `graph/rank.rs` calcula `PageRank` e **PPR** (semeado
+  pelo working set) sobre as arestas de autoridade, por iteração de potência determinística. Vira
+  o canal `ppr` da fusão RRF (`recall.ppr_weight`, default **0,0** = desligado) e `channels.ppr`
+  no `--json` do `ask`.
+- **Comunidades + `GraphRAG` (E19-T05/D193)** — `graph/communities.rs` (Louvain determinístico) +
+  `lifecycle/communities.rs` (arestas + âncoras, resumo local por termos). Exposto em
+  `knowledge map --communities` (JSON aditivo) e materializado em `--write` (`## Comunidades` no
+  `MAP.md` + hub `meta`).
+- **Idade no ranking sem query (E16-T06/D175)** — em `knowledge rank` (sem `similarity`) a idade
+  entra **aditiva** (`AGE_WEIGHT = 0,05`) e desempata a favor da nota recente; a evidência Beta
+  continua dominando.
+- **`contradicts` no ranking e no `prune` (E16-T07/D177)** — o lado perdedor de uma contradição
+  declarada (menor confiança derivada) é rebaixado no `rank`/`recall` (`CONTRADICTION_PENALTY`) e
+  proposto no `prune` (`DemotionReason::Contradicted`, só propõe — D112).
+- **Fusão recalibrada (E16-T09/D179)** — `recall.anchor_weight` default `1.0 → 2.0`: um match
+  exato de âncora contra o working set passa a pesar mais que um único casamento lexical ruidoso
+  (bancada de qualidade, família `working-set`: nDCG@5 87,7 % → 100 %). `rrf_k` foi medido
+  **inerte** no corpus rotulado e fica em `60`; `semantic_weight` fica em `30`.
 
 ### Corrigido
 - **Status consistente na leitura (E16-T02/D176)** — `Status::VISIBLE` é a fonte única; `knowledge
   rank`/`map`, `rewind` e `maintenance` deixam de incluir `forgotten`/`superseded`.
+
+### Adicionado
+- **Flow metrics e caminho crítico (E19-T11/D205)** — `kd task flow` deriva do log
+  `cycle`/`lead`/`throughput` e o caminho crítico (PERT/CPM) do DAG `depends_on`; `rewind --json`
+  ganha `data.flow` (aditivo). Tudo derivado do log — sem verdade nova.
+- **Blocking MinHash/LSH no dedup (E19-T07/D204)** — acima de 256 notas densas, `propose_merges`
+  usa assinaturas `MinHash` + *banding* LSH (`write/dedup/lsh.rs`) para reduzir os pares
+  candidatos; o Dice exato e o limiar de merge são preservados. Corpus pequeno/esparso mantém a
+  peneira exata (byte-idêntica). `compact`/`doctor` denso N=1000 **−94 %**.
+- **Drift de âncoras na confiança (E19-T01b/D203)** — a validade de âncoras vira o derivado
+  `.idx/drift.jsonl` (`prune` persiste do mesmo walk off-path); `ask`/`knowledge rank` carregam o
+  índice e `confidence_score` desconta o score inteiro por `drift_factor`. Arquivo ausente ⇒
+  `drift = 0`. Sem chave nova e sem bump de `schema_version`.
 
 ### Alterado
 - **Porta do provedor de embeddings unificada em `8889` (D202)** — o default de
   `embeddings.endpoint`, o `--port` de `kd drain service` e o `DEFAULT_PORT` do worker passam a
   ser `8889` (antes: config `8080` × worker `8999`). Instalações antigas mantêm a porta do
   `idle.conf`; `kd drain service --install --port 8889` migra.
+
+### Desempenho
+- **`maintenance prune` com varredura única (E16-T10)** — `validity_map` caminha o projeto **uma
+  vez** (`compute_anchor_validity_cached`) em vez de uma vez por nota; `body_share` tokeniza a
+  consulta uma vez por `build_hits` (`body_share_terms`). Saída byte-idêntica.
+  **`prune --universe` N=1000: 118,6 ms → 45,9 ms (−61 %)**; N=200: 29,7 → 19,6 ms (−34 %).
 
 ## [0.4.0] - 2026-09-26
 

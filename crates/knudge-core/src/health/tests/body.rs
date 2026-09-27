@@ -42,5 +42,7 @@ fn body_check_is_advisory_and_counts_missing_body() -> Result<()> {
     let detail = body.map(|check| check.detail.as_str()).unwrap_or_default();
     assert!(detail.contains("2 sem corpo"), "detalhe: {detail}");
     assert!(detail.contains("1 sem lastro"), "detalhe: {detail}");
+    assert!(detail.contains("1 com slots ausentes"), "detalhe: {detail}");
+    assert!(detail.contains("slot mais ausente"), "detalhe: {detail}");
     Ok(())
 }

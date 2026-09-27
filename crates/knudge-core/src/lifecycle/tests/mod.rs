@@ -2,10 +2,13 @@
 
 mod beta;
 mod clusters;
+mod communities;
 mod confidence;
 mod decay;
+mod drift;
 mod from_tasks;
 mod plan;
+mod retention;
 mod retire;
 mod semantic;
 mod shelf_life;
@@ -15,8 +18,9 @@ use crate::Result;
 use crate::graph::Graph;
 use crate::ports::fakes::MemFs;
 use crate::retrieval::Index;
-use crate::schema::{Classification, NoteType};
+use crate::schema::{Classification, NoteType, Value};
 use crate::store::{EventLog, Note, Store};
+use crate::time::Timestamp;
 use crate::write::{Draft, WriteContext};
 
 /// Instante fixo dos testes.
@@ -56,6 +60,24 @@ pub(super) fn anchored(statement: &str, anchors: &[&str], created_ms: i64) -> Re
     let mut draft = Draft::new(NoteType::Fact, statement);
     draft.anchors = anchors.iter().map(|anchor| (*anchor).to_string()).collect();
     draft.to_note(created_ms)
+}
+
+/// Nota com `outcomes` datados (`recorded_at` em ms) — revisão espaçada (D190).
+pub(super) fn with_outcomes_at(mut note: Note, statuses: &[(&str, i64)]) -> Result<Note> {
+    let items = statuses
+        .iter()
+        .map(|(status, at)| {
+            Value::map([
+                ("status".to_string(), Value::Str((*status).to_string())),
+                (
+                    "recorded_at".to_string(),
+                    Value::Str(Timestamp::from_millis(*at).to_rfc3339()),
+                ),
+            ])
+        })
+        .collect();
+    note.frontmatter.set("outcomes", Value::List(items))?;
+    Ok(note)
 }
 
 /// Contexto de escrita sobre as notas semeadas em `ROOT`.

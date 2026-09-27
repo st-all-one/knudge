@@ -7,6 +7,9 @@ pub mod rank;
 pub mod suggest;
 pub mod tags;
 
+mod clusters;
+mod community;
+
 use knudge_core::Result;
 
 use crate::cli::KnowledgeCommand;

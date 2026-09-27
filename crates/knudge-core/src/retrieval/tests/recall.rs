@@ -1,13 +1,52 @@
 //! Contratos `recall`/`get` e degradação graciosa (E06-T06/T07).
 
 use crate::Result;
-use crate::graph::Graph;
+use crate::graph::{Graph, link};
 use crate::ports::fakes::MemFs;
 use crate::retrieval::{Index, RecallQuery, Why, format_hit, get, recall};
-use crate::schema::{NoteType, Scope, id};
+use crate::schema::{EdgeKind, NoteType, Scope, id};
 use crate::store::{Note, Store};
 
 use super::{anchored, base, note, with_anchors, with_outcomes, with_scope};
+
+#[test]
+fn ppr_channel_boosts_the_authority_hub() -> Result<()> {
+    // O hub é referenciado pela folha; ambos compartilham o termo "comum".
+    let hub = note(NoteType::Fact, "comum hub", "")?;
+    let hub_id = hub.id()?.to_string();
+    let mut leaf_fm = base(NoteType::Fact, "comum folha")?;
+    link(&mut leaf_fm, EdgeKind::References, &hub_id)?;
+    let leaf = Note::new(leaf_fm, "");
+    let notes = vec![hub, leaf];
+    let index = Index::build(&notes)?;
+    let graph = Graph::from_notes(notes)?;
+
+    // Com o canal desligado (default), o `ppr` fica zerado.
+    let off = recall(&index, &graph, &RecallQuery::new("comum"))?;
+    assert!(off.hits.iter().all(|hit| hit.channels.ppr == 0.0));
+
+    // Com o canal ligado, o hub (autoridade) sobe ao topo.
+    let mut query = RecallQuery::new("comum");
+    query.weights.ppr = 5.0;
+    let output = recall(&index, &graph, &query)?;
+    assert_eq!(
+        output.hits.first().map(|hit| hit.id.as_str()),
+        Some(hub_id.as_str()),
+        "hits: {:?}",
+        output
+            .hits
+            .iter()
+            .map(|hit| hit.id.as_str())
+            .collect::<Vec<_>>()
+    );
+    assert!(
+        output
+            .hits
+            .first()
+            .is_some_and(|hit| hit.channels.ppr > 0.0)
+    );
+    Ok(())
+}
 
 #[test]
 fn pipe_format_golden() -> Result<()> {
@@ -64,6 +103,27 @@ fn anchor_channel_recalls_with_empty_text() -> Result<()> {
     let hit = output.hits.first();
     assert_eq!(hit.map(|hit| hit.id.as_str()), Some(anchored_id.as_str()));
     assert_eq!(hit.map(|hit| hit.why), Some(Why::FileMatch));
+    Ok(())
+}
+
+#[test]
+fn working_set_anchor_outweighs_a_lexical_rank_one() -> Result<()> {
+    // `noise` casa a consulta no canal lexical (rank 1); `anchored` não casa, mas está no
+    // working set. Com `anchor_weight = 2.0` (D179) o match exato de âncora vence o lexical.
+    let noise = note(NoteType::Fact, "alpha beta", "")?;
+    let anchored = anchored(NoteType::Fact, "gamma delta", &["src/**"])?;
+    let anchored_id = anchored.id()?.to_string();
+    let index = Index::build(&[noise, anchored])?;
+    let graph = Graph::from_notes(Vec::new())?;
+
+    let mut query = RecallQuery::new("alpha");
+    query.working_paths = vec!["src/retry.ts".to_string()];
+    let output = recall(&index, &graph, &query)?;
+
+    assert_eq!(
+        output.hits.first().map(|hit| hit.id.as_str()),
+        Some(anchored_id.as_str())
+    );
     Ok(())
 }
 

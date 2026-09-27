@@ -581,6 +581,81 @@ fn maintenance_prune_proposes_forget_for_expired() -> TestResult {
 }
 
 #[test]
+fn maintenance_prune_persists_anchor_drift() -> TestResult {
+    // E19/T01b/D203: o `prune` grava o derivado `.idx/drift.jsonl` do mesmo walk.
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let _id = write_anchored(&dir, "nota com âncora quebrada", "src/nao_existe.rs")?;
+    let out = run_in(&dir, &["maintenance", "prune", "--universe"])?;
+    assert!(out.status.success(), "prune falhou: {:?}", out.stderr);
+
+    let drift = std::fs::read_to_string(dir.join(".knudge/.idx/drift.jsonl"))?;
+    assert!(
+        drift.contains("\"drift\""),
+        "drift.jsonl sem drift: {drift}"
+    );
+    Ok(())
+}
+
+#[test]
+fn maintenance_prune_skips_reviewed_note_and_reports_retention() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let reviewed = write_aged_observational(&dir, "nota revisada")?;
+    let outcome = run_in(&dir, &["write", "--outcome", "success", "--id", &reviewed])?;
+    assert!(
+        outcome.status.success(),
+        "outcome falhou: {:?}",
+        outcome.stderr
+    );
+
+    let out = run_in(&dir, &["--json", "maintenance", "prune", "--universe"])?;
+    assert!(out.status.success(), "prune falhou: {:?}", out.stderr);
+    let envelope = json(&out)?;
+    let proposals = envelope
+        .get("data")
+        .and_then(|data| data.get("proposals"))
+        .and_then(|proposals| proposals.as_array())
+        .ok_or("sem proposals")?;
+    let ids: Vec<&str> = proposals
+        .iter()
+        .filter_map(|proposal| proposal.get("id").and_then(|id| id.as_str()))
+        .collect();
+    // D190: o sucesso estende o prazo e reseta o relógio ⇒ não é proposta.
+    assert!(
+        !ids.contains(&reviewed.as_str()),
+        "revisada proposta: {ids:?}"
+    );
+
+    let expired = write_aged_observational(&dir, "nota vencida")?;
+    let out = run_in(&dir, &["--json", "maintenance", "prune", "--universe"])?;
+    assert!(out.status.success(), "prune falhou: {:?}", out.stderr);
+    let envelope = json(&out)?;
+    let proposal = envelope
+        .get("data")
+        .and_then(|data| data.get("proposals"))
+        .and_then(|proposals| proposals.as_array())
+        .and_then(|proposals| {
+            proposals
+                .iter()
+                .find(|p| p.get("id").and_then(|id| id.as_str()) == Some(expired.as_str()))
+        })
+        .ok_or("vencida ausente")?;
+    assert!(
+        proposal
+            .get("retention")
+            .and_then(serde_json::Value::as_f64)
+            .is_some(),
+        "retention ausente: {proposal:?}"
+    );
+    Ok(())
+}
+
+#[test]
 fn write_outcome_on_note_returns_outcome_action() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
@@ -613,6 +688,123 @@ fn write_outcome_on_note_returns_outcome_action() -> TestResult {
         data.get("revision").and_then(serde_json::Value::as_i64),
         Some(2)
     );
+    Ok(())
+}
+
+#[test]
+fn write_warns_about_missing_data_contract_slots() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let out = run_in(
+        &dir,
+        &[
+            "--json",
+            "write",
+            "--summary",
+            "escolhemos X",
+            "--type",
+            "decision",
+            "## Por quê\nporque sim",
+        ],
+    )?;
+    assert!(out.status.success(), "write falhou: {:?}", out.stderr);
+    let envelope = json(&out)?;
+    let warnings = envelope
+        .get("warnings")
+        .and_then(|warnings| warnings.as_array())
+        .ok_or("sem warnings")?;
+    assert_eq!(warnings.len(), 1, "warnings: {warnings:?}");
+    let text = warnings
+        .first()
+        .and_then(|w| w.as_str())
+        .unwrap_or_default();
+    assert!(text.contains("alternativas"), "aviso: {text}");
+    assert!(text.contains("consequência"), "aviso: {text}");
+    Ok(())
+}
+
+#[test]
+fn write_rejects_missing_slots_under_strict() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    let strict = config_set(&dir, "behavior.strict", "true")?;
+    assert!(
+        strict.status.success(),
+        "config falhou: {:?}",
+        strict.stderr
+    );
+
+    let out = run_in(
+        &dir,
+        &[
+            "--json",
+            "write",
+            "--summary",
+            "escolhemos X",
+            "--type",
+            "decision",
+            "## Por quê\nporque sim",
+        ],
+    )?;
+    assert_eq!(out.status.code(), Some(2), "strict devia ser exit 2");
+    Ok(())
+}
+
+#[test]
+fn write_dry_run_lists_missing_slots() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let out = run_in(
+        &dir,
+        &[
+            "--json",
+            "write",
+            "--summary",
+            "escolhemos X",
+            "--type",
+            "decision",
+            "--dry-run",
+            "## Por quê\nporque sim",
+        ],
+    )?;
+    assert!(out.status.success(), "dry-run falhou: {:?}", out.stderr);
+    let envelope = json(&out)?;
+    let missing = envelope
+        .get("data")
+        .and_then(|data| data.get("missing_slots"))
+        .and_then(|missing| missing.as_array())
+        .ok_or("sem missing_slots")?;
+    assert!(
+        missing
+            .iter()
+            .any(|slot| slot.as_str() == Some("alternativas")),
+        "missing: {missing:?}"
+    );
+
+    let text_out = run_in(
+        &dir,
+        &[
+            "write",
+            "--summary",
+            "escolhemos X",
+            "--type",
+            "decision",
+            "--dry-run",
+            "## Por quê\nporque sim",
+        ],
+    )?;
+    assert!(
+        text_out.status.success(),
+        "dry-run falhou: {:?}",
+        text_out.stderr
+    );
+    let text = String::from_utf8(text_out.stdout)?;
+    assert!(text.contains("slots ausentes"), "stdout: {text}");
     Ok(())
 }
 
@@ -714,6 +906,40 @@ fn task_list_sort_impact_orders_critical_path() -> TestResult {
     assert_eq!(
         first.get("impact").and_then(serde_json::Value::as_u64),
         Some(2)
+    );
+    Ok(())
+}
+
+#[test]
+fn task_flow_reports_critical_path() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let base = task_new(
+        &dir,
+        &["task", "new", "--summary", "Base", "--scope", "task"],
+    )?;
+    let middle = task_dep(&dir, "Depende da base", &base)?;
+    let leaf = task_dep(&dir, "Depende do meio", &middle)?;
+
+    let out = run_in(&dir, &["--json", "task", "flow"])?;
+    assert!(out.status.success(), "flow falhou: {:?}", out.stderr);
+    let value = json(&out)?;
+    let path = value
+        .get("data")
+        .and_then(|data| data.get("critical_path"))
+        .ok_or("sem critical_path")?;
+    let ids: Vec<&str> = path
+        .get("ids")
+        .and_then(|ids| ids.as_array())
+        .map(|ids| ids.iter().filter_map(|id| id.as_str()).collect())
+        .unwrap_or_default();
+    assert_eq!(ids, vec![leaf.as_str(), middle.as_str(), base.as_str()]);
+    assert!(
+        path.get("total_ms")
+            .and_then(serde_json::Value::as_i64)
+            .is_some()
     );
     Ok(())
 }
@@ -1345,6 +1571,61 @@ fn knowledge_map_write_materializes_map_and_hubs() -> TestResult {
     let out = run_in(&dir, &["--json", "ask", "Mapa de conhecimento"])?;
     let json = String::from_utf8(out.stdout)?;
     assert!(json.contains("meta_"), "ask não achou o hub: {json}");
+    Ok(())
+}
+
+#[test]
+fn knowledge_map_communities_lists_and_materializes() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let a = write_anchored(&dir, "cache lru", "src/a.rs")?;
+    let _ignored = write_anchored(&dir, "cache lfu", "src/a.rs")?;
+    let c = write_anchored(&dir, "fila fifo", "src/b.rs")?;
+    let link = run_in(&dir, &["write", "--link", &format!("{c}:references:{a}")])?;
+    assert!(link.status.success(), "link: {:?}", link.stderr);
+
+    let out = run_in(
+        &dir,
+        &["--json", "knowledge", "map", "--universe", "--communities"],
+    )?;
+    assert!(out.status.success(), "map: {:?}", out.stderr);
+    let communities = json(&out)?
+        .get("data")
+        .and_then(|data| data.get("communities"))
+        .and_then(|value| value.as_array())
+        .cloned()
+        .ok_or("sem communities")?;
+    assert!(!communities.is_empty(), "sem comunidades");
+    let first = communities.first().cloned().ok_or("sem comunidade")?;
+    assert!(
+        first
+            .get("terms")
+            .and_then(|terms| terms.as_array())
+            .is_some_and(|terms| !terms.is_empty()),
+        "comunidade sem resumo: {first}"
+    );
+    assert!(
+        first
+            .get("members")
+            .and_then(|members| members.as_array())
+            .is_some(),
+        "comunidade sem membros: {first}"
+    );
+
+    let write = run_in(
+        &dir,
+        &["knowledge", "map", "--universe", "--communities", "--write"],
+    )?;
+    assert!(write.status.success(), "write: {:?}", write.stderr);
+    let map = dir.join(".knudge").join("notas").join("MAP.md");
+    let text = std::fs::read_to_string(&map)?;
+    assert!(
+        text.contains("## Comunidades"),
+        "MAP.md sem comunidades: {text}"
+    );
+    assert!(text.contains("`community` #1"), "MAP.md sem o hub: {text}");
+    assert!(!a.is_empty());
     Ok(())
 }
 
@@ -3715,7 +3996,7 @@ fn d151_ask_json_exposes_channel_contributions() -> TestResult {
         .ok_or("sem hit")?;
     assert_eq!(hit.get("id").and_then(|v| v.as_str()), Some(id.as_str()));
     let channels = hit.get("channels").ok_or("sem channels")?;
-    for key in ["lexical", "anchor", "semantic", "recent", "stars"] {
+    for key in ["lexical", "anchor", "semantic", "ppr", "recent", "stars"] {
         assert!(
             channels
                 .get(key)
@@ -3731,6 +4012,65 @@ fn d151_ask_json_exposes_channel_contributions() -> TestResult {
     let text = String::from_utf8(pipe.stdout)?;
     let first = text.lines().next().unwrap_or_default();
     assert_eq!(first.split('|').count(), 4, "pipe mudou: {first}");
+    Ok(())
+}
+
+#[test]
+fn ppr_weight_surfaces_the_graph_hub() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    let hub = write_anchored(&dir, "comum hub", "src/hub.rs")?;
+    let leaf = write_anchored(&dir, "comum folha", "src/leaf.rs")?;
+    let link = run_in(
+        &dir,
+        &["write", "--link", &format!("{leaf}:references:{hub}")],
+    )?;
+    assert!(link.status.success(), "link: {:?}", link.stderr);
+
+    // Desligado (default): o canal `ppr` fica zerado.
+    let off = run_in(&dir, &["--json", "ask", "comum"])?;
+    assert!(off.status.success(), "ask: {:?}", off.stderr);
+    let off_hits = json(&off)?;
+    assert!(
+        off_hits
+            .get("data")
+            .and_then(|data| data.get("hits"))
+            .and_then(|hits| hits.as_array())
+            .is_some_and(|hits| hits.iter().all(|hit| {
+                hit.get("channels")
+                    .and_then(|channels| channels.get("ppr"))
+                    .and_then(serde_json::Value::as_f64)
+                    == Some(0.0)
+            })),
+        "ppr deveria estar zerado sem peso"
+    );
+
+    // Ligado: o hub referenciado sobe ao topo e o canal `ppr` contribui.
+    let set = config_set(&dir, "recall.ppr_weight", "5")?;
+    assert!(set.status.success(), "config: {:?}", set.stderr);
+    let on = run_in(&dir, &["--json", "ask", "comum"])?;
+    assert!(on.status.success(), "ask: {:?}", on.stderr);
+    let first = json(&on)?
+        .get("data")
+        .and_then(|data| data.get("hits"))
+        .and_then(|hits| hits.as_array())
+        .and_then(|hits| hits.first())
+        .cloned()
+        .ok_or("sem hit")?;
+    assert_eq!(
+        first.get("id").and_then(|id| id.as_str()),
+        Some(hub.as_str()),
+        "hub deveria liderar com PPR: {first}"
+    );
+    assert!(
+        first
+            .get("channels")
+            .and_then(|channels| channels.get("ppr"))
+            .and_then(serde_json::Value::as_f64)
+            .is_some_and(|value| value > 0.0),
+        "canal ppr deveria contribuir: {first}"
+    );
     Ok(())
 }
 

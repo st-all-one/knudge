@@ -5,8 +5,8 @@ use std::path::Path;
 use crate::Result;
 use crate::config::Config;
 use crate::lifecycle::decay::{
-    AnchorValidity, DecayPolicy, compute_anchor_validity, compute_anchor_validity_with,
-    should_demote, walk_paths,
+    AnchorValidity, DecayPolicy, compute_anchor_validity, compute_anchor_validity_cached,
+    compute_anchor_validity_with, should_demote, walk_paths,
 };
 use crate::ports::Fs;
 use crate::ports::fakes::MemFs;
@@ -43,6 +43,23 @@ fn walk_paths_finds_files_and_skips_ignored_dirs() {
     assert!(paths.contains(&"README.md".to_string()));
     assert!(!paths.iter().any(|path| path.starts_with(".git/")));
     assert!(!paths.iter().any(|path| path.starts_with("target/")));
+}
+
+#[test]
+fn cached_validity_matches_full_walk() {
+    // E16/T10: `prune` reusa uma única varredura; o resultado tem de ser idêntico.
+    let fs = MemFs::new();
+    fs.insert("/p/src/lib.rs", "fn a() {}");
+    fs.insert("/p/src/other.rs", "fn b() {}");
+    let anchors = vec![
+        "src/lib.rs".to_string(),
+        "src/*.rs".to_string(),
+        "gone.rs".to_string(),
+    ];
+    let paths = walk_paths(&fs, Path::new(PROJECT));
+    let cached = compute_anchor_validity_cached(&fs, Path::new(PROJECT), &paths, &anchors);
+    let full = compute_anchor_validity(&fs, Path::new(PROJECT), &anchors);
+    assert_eq!(cached, full);
 }
 
 #[test]

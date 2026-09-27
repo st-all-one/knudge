@@ -90,6 +90,20 @@ pub fn compute_anchor_validity(
     anchors: &[String],
 ) -> AnchorValidity {
     let paths = walk_paths(fs, project_root);
+    compute_anchor_validity_cached(fs, project_root, &paths, anchors)
+}
+
+/// Como [`compute_anchor_validity`], mas reusa os caminhos já coletados (E16/T10).
+///
+/// O `prune` valida as âncoras de **todas** as notas: caminhar o projeto uma vez e reusar a lista
+/// troca `O(notas × projeto)` por `O(projeto + notas)` sem mudar o resultado.
+#[must_use]
+pub fn compute_anchor_validity_cached(
+    fs: &dyn Fs,
+    project_root: &Path,
+    paths: &[String],
+    anchors: &[String],
+) -> AnchorValidity {
     compute_anchor_validity_with(anchors, |anchor| {
         if has_glob(anchor) {
             paths.iter().any(|path| glob_match(anchor, path))

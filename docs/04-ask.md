@@ -152,11 +152,13 @@ Sem `--with-task`, o `ask` é **só conhecimento**. Para listar/ordenar trabalho
   **`channels`** com as parcelas de cada sinal:
 
 ```json
-{ "lexical": 0.016, "anchor": 0.0, "semantic": 0.032, "recent": 1.0, "stars": 0.0 }
+{ "lexical": 0.016, "anchor": 0.0, "semantic": 0.032, "ppr": 0.0, "recent": 1.0, "stars": 0.0 }
 ```
 
-`lexical`/`anchor`/`semantic` são as **parcelas RRF** (somam o `score`); `recent`/`stars` são
-boosts informativos em `[0,1]`. O pipe `id|statement|score|why` **não muda**.
+`lexical`/`anchor`/`semantic`/`ppr` são as **parcelas RRF** (somam o `score`); `recent`/`stars`
+são boosts informativos em `[0,1]`. O canal **`ppr`** é a autoridade do grafo (`PageRank`/PPR,
+D192) e só contribui com `recall.ppr_weight > 0` (default `0`); ele sobe notas muito
+referenciadas/suportadas. O pipe `id|statement|score|why` **não muda**.
 - **`--id` de nota ausente** degrada para `warnings[]` (exit 0); **`--around` de nota ausente** é
   `not_found` (exit 3).
 - Sem nenhum modo (query e âncora vazias, sem `--id`/`--around`) → imprime o **uso** com exit 2.

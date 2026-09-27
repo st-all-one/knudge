@@ -6,7 +6,7 @@ use knudge_core::jsonl;
 use knudge_core::schema::NoteType;
 use knudge_core::write::{
     BatchMode, DedupDecision, Draft, OutcomeStatus, Patch, UpdateOutcome, WriteAction,
-    WriteProposal, link, outcome, propose, update, write,
+    WriteProposal, link, outcome, update, write,
 };
 use serde_json::json;
 
@@ -18,6 +18,9 @@ use crate::session::Session;
 use super::gate;
 use super::hooks::{self, HookEvent};
 use super::input;
+
+mod contract;
+use contract::{draft_missing, dry_run_note, with_slot_warnings};
 
 /// Executa `kd write` no modo adequado (link > update > create).
 ///
@@ -115,20 +118,16 @@ fn create_note(session: &Session, args: &WriteArgs) -> Result<Output> {
         )));
     }
     hooks::apply_to_draft(&mut draft, &hook.payload);
+    let missing = draft_missing(&draft);
     if args.dry_run {
-        let ctx = session.write_context()?;
-        let proposal = propose(ctx.index(), &draft, &session.thresholds()?)?;
-        let note = draft.to_note(session.now_ms())?;
-        let id = note.frontmatter.id().unwrap_or_default().to_string();
-        let data = json!({
-            "action": "dry_run",
-            "id": id,
-            "decision": decision_label(&proposal),
-            "candidates": proposal.candidates.iter().map(|c| json!({
-                "id": c.id, "score": c.score,
-            })).collect::<Vec<_>>(),
-        });
-        return Ok(Output::new(format!("dry-run: {id}"), data));
+        return dry_run_note(session, &draft, &missing);
+    }
+    if !missing.is_empty() && session.config().strict() {
+        return Err(Error::invalid_input(format!(
+            "data contract de `{}`: slots ausentes: {}",
+            draft.note_type,
+            missing.join(", ")
+        )));
     }
     if gate::enforced(session) {
         let after = json!({
@@ -154,10 +153,10 @@ fn create_note(session: &Session, args: &WriteArgs) -> Result<Output> {
         "revision": outcome.revision,
     });
     let _post = hooks::run(session, HookEvent::PostRecord, &post)?;
-    Ok(outcome_output(
-        outcome.action,
-        &outcome.id,
-        outcome.revision,
+    Ok(with_slot_warnings(
+        outcome_output(outcome.action, &outcome.id, outcome.revision),
+        draft.note_type,
+        &missing,
     ))
 }
 
@@ -260,7 +259,7 @@ fn patch_of(args: &WriteArgs) -> Result<Patch> {
     Ok(patch)
 }
 
-fn decision_label(proposal: &WriteProposal) -> &'static str {
+pub(super) fn decision_label(proposal: &WriteProposal) -> &'static str {
     match proposal.decision {
         DedupDecision::Create => "create",
         DedupDecision::Merge { .. } => "merge",

@@ -91,7 +91,8 @@ Cada execução gera um `context_id` retomável; `--resume` reabre **exatamente*
 ## Resultados
 
 - Texto: manifest + `next:`/`fresh:`.
-- `--json`: `{context_id, items[], dropped, embeddings_pending}`.
+- `--json`: `{context_id, items[], dropped, embeddings_pending, flow}` (`flow` = throughput +
+  caminho crítico, aditivo — D205).
 - O excedente do orçamento vira `dropped`; `K` de `next:` deriva do orçamento.
 - Escreve `.idx/contexts/<context_id>.json` (derivado, fora do git).
 

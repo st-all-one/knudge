@@ -6,14 +6,18 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::graph::Graph;
+use crate::graph::personalized_pagerank;
 use crate::lifecycle::beta::posterior_mean;
 use crate::lifecycle::confidence::{
-    ConfidenceInput, age_factor, confidence_score, from_tasks_with, is_success_task,
+    CONTRADICTION_PENALTY, ConfidenceInput, age_factor, confidence_score, from_tasks_with,
+    is_success_task,
 };
 use crate::retrieval::anchor;
+use crate::retrieval::contradiction::{ContradictionContext, losers};
 use crate::retrieval::filter::Meta;
 use crate::retrieval::index::{Index, NoteDoc};
 use crate::retrieval::rrf::Fused;
+use crate::retrieval::token::content_terms;
 use crate::retrieval::{HitChannels, RECENT_WINDOW_MS, RecallHit, RecallQuery, Universe, Why};
 use crate::schema::EdgeKind;
 
@@ -88,6 +92,8 @@ pub(super) enum ChannelLabel {
     Anchor,
     /// Canal vetorial.
     Semantic,
+    /// Canal de autoridade (`PageRank` personalizado — D192).
+    Ppr,
 }
 
 /// Monta os hits finais (com confiança derivada, canais e `why`) a partir da fusão RRF.
@@ -100,7 +106,15 @@ pub(super) fn build_hits(
 ) -> Vec<RecallHit> {
     let confirmers = task_confirmers(index);
     let weight = query.task_confirmation_weight;
+    let ctx = ContradictionContext {
+        now_ms: query.now_ms,
+        confirmers: &confirmers,
+        weight,
+        drift: &query.drift,
+    };
+    let losers = losers(index, graph, &ctx);
     let semantic_ids = channels.semantic;
+    let query_terms = content_terms(&query.text);
     let max_score = channels.fused.first().map_or(0.0, |hit| hit.score);
     let by_id: BTreeMap<&str, &NoteDoc> = index
         .docs
@@ -122,13 +136,19 @@ pub(super) fn build_hits(
             similarity,
             successes: doc.meta.confirmation,
             failures: doc.meta.failures,
+            drift: query.drift.get(&doc.meta.id),
             age_days: age_days(doc, query.now_ms),
             task_confirmation,
             ..ConfidenceInput::default()
         });
+        let confidence = if losers.contains(&doc.meta.id) {
+            (confidence - CONTRADICTION_PENALTY).max(0.0)
+        } else {
+            confidence
+        };
         let mut channel_values =
             hit_channels(fused_hit, channels.labels, doc, query, task_confirmation);
-        channel_values.body = index.body_share(doc, &query.text);
+        channel_values.body = index.body_share_terms(doc, &query_terms);
         hits.push(RecallHit {
             id: fused_hit.id.clone(),
             statement: doc.statement.clone(),
@@ -160,9 +180,33 @@ fn hit_channels(
             ChannelLabel::Lexical => channels.lexical += value,
             ChannelLabel::Anchor => channels.anchor += value,
             ChannelLabel::Semantic => channels.semantic += value,
+            ChannelLabel::Ppr => channels.ppr += value,
         }
     }
     channels
+}
+
+/// Canal de autoridade: `PageRank` **personalizado** pelas âncoras do working set (D192).
+///
+/// `weight <= 0` desliga. Sem sementes, degenera no `PageRank` global. Filtra por `allowed`
+/// (views/filtros determinísticos não podem ser furados por autoridade).
+pub(super) fn ppr_channel(
+    graph: &Graph,
+    allowed: &BTreeSet<String>,
+    seeds: &[String],
+    weight: f64,
+) -> Vec<String> {
+    if weight <= 0.0 {
+        return Vec::new();
+    }
+    let seed_set: BTreeSet<String> = seeds.iter().cloned().collect();
+    let ranks = personalized_pagerank(graph, &seed_set);
+    let mut hits: Vec<(String, f64)> = ranks
+        .into_iter()
+        .filter(|(id, _)| allowed.contains(id))
+        .collect();
+    hits.sort_unstable_by(|a, b| b.1.total_cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    hits.into_iter().map(|(id, _)| id).collect()
 }
 
 /// Canal vetorial **filtrado** por `allowed` (D102).

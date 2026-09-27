@@ -10,18 +10,21 @@ use knudge_core::Graph;
 use knudge_core::config::Config;
 use knudge_core::embeddings::lightweight::embed;
 use knudge_core::embeddings::vector::cosine;
+use knudge_core::graph::pagerank;
 use knudge_core::handoff::budget::apply;
 use knudge_core::handoff::estimate_tokens;
 use knudge_core::handoff::{RewindMode, rank as handoff_rank};
 use knudge_core::jsonl;
 use knudge_core::lifecycle::clusters::structural_clusters;
+use knudge_core::lifecycle::communities::communities;
 use knudge_core::lifecycle::confidence::{ConfidenceInput, confidence_score};
 use knudge_core::retrieval::anchor::{GlobPattern, glob_match};
 use knudge_core::retrieval::filter::Filter;
 use knudge_core::retrieval::rrf::{Channel, fuse};
 use knudge_core::retrieval::token;
 use knudge_core::retrieval::{
-    Index, Postings, RankQuery, RecallQuery, Universe, compute_views, rank as composite_rank, recall,
+    FusionWeights, Index, Postings, RankQuery, RecallQuery, Universe, compute_views,
+    rank as composite_rank, recall,
 };
 use knudge_core::schema::{NoteType, body, hash, id};
 use knudge_core::task::{impact, impacts};
@@ -31,8 +34,7 @@ use knudge_core::write::{DedupThresholds, Draft, propose_merges};
 use crate::fixture;
 use crate::harness::Harness;
 
-const SMALL_JSON: &str =
-    "{\"id\":\"fact_00000001\",\"statement\":\"o indice e derivado\",\"tags\":[\"retrieval\"],\"metrics\":{\"n\":42,\"ok\":true}}";
+const SMALL_JSON: &str = "{\"id\":\"fact_00000001\",\"statement\":\"o indice e derivado\",\"tags\":[\"retrieval\"],\"metrics\":{\"n\":42,\"ok\":true}}";
 
 /// Corpo PT-BR acentuado (exercita o caminho de fold não-ASCII — D172).
 const ACCENTED_BODY: &str = "configuração de índice com âncoras e retenção; revisão da confiança \
@@ -49,7 +51,11 @@ pub fn run(harness: &mut Harness, sizes: &[usize]) {
 fn fixed(harness: &mut Harness) {
     let notes = fixture::generate_notes(1);
     let sample = notes.first().expect("fixture gera ao menos uma nota");
-    let statement = sample.frontmatter.statement().unwrap_or_default().to_string();
+    let statement = sample
+        .frontmatter
+        .statement()
+        .unwrap_or_default()
+        .to_string();
     let note_body = sample.body.clone();
     let rendered = sample.render();
     let front = sample.frontmatter.to_string();
@@ -60,17 +66,35 @@ fn fixed(harness: &mut Harness) {
     let statement2 = format!("{statement} (derivada)");
 
     // --- Schema: normalização, hash e id ---
-    harness.measure("micro/fixo", "schema::body::normalize (curto ~200B)", 25, 2000, || {
-        let _ = black_box(body::normalize(black_box(&note_body)));
-    });
-    harness.measure("micro/fixo", "schema::body::normalize (longo ~1.6KB)", 25, 500, || {
-        let _ = black_box(body::normalize(black_box(&long_text)));
-    });
+    harness.measure(
+        "micro/fixo",
+        "schema::body::normalize (curto ~200B)",
+        25,
+        2000,
+        || {
+            let _ = black_box(body::normalize(black_box(&note_body)));
+        },
+    );
+    harness.measure(
+        "micro/fixo",
+        "schema::body::normalize (longo ~1.6KB)",
+        25,
+        500,
+        || {
+            let _ = black_box(body::normalize(black_box(&long_text)));
+        },
+    );
     harness.measure("micro/fixo", "schema::body::body_hash", 25, 2000, || {
-        let _ = black_box(body::body_hash(black_box(&statement), black_box(&note_body)));
+        let _ = black_box(body::body_hash(
+            black_box(&statement),
+            black_box(&note_body),
+        ));
     });
     harness.measure("micro/fixo", "schema::id::note_id", 25, 2000, || {
-        let _ = black_box(id::note_id(black_box(NoteType::Fact), black_box(&statement2)));
+        let _ = black_box(id::note_id(
+            black_box(NoteType::Fact),
+            black_box(&statement2),
+        ));
     });
     harness.measure("micro/fixo", "schema::hash::short_hash", 25, 5000, || {
         let _ = black_box(hash::short_hash(black_box(long_text.as_bytes())));
@@ -86,9 +110,17 @@ fn fixed(harness: &mut Harness) {
     harness.measure("micro/fixo", "toon::emit (frontmatter)", 25, 1000, || {
         let _ = black_box(toon::emit(black_box(&parsed_value)));
     });
-    harness.measure("micro/fixo", "Note::parse (render completo)", 25, 1000, || {
-        let _ = black_box(knudge_core::store::Note::parse(black_box(rendered.as_bytes())));
-    });
+    harness.measure(
+        "micro/fixo",
+        "Note::parse (render completo)",
+        25,
+        1000,
+        || {
+            let _ = black_box(knudge_core::store::Note::parse(black_box(
+                rendered.as_bytes(),
+            )));
+        },
+    );
     harness.measure("micro/fixo", "Note::render", 25, 2000, || {
         let _ = black_box(sample.render());
     });
@@ -102,9 +134,15 @@ fn fixed(harness: &mut Harness) {
     });
 
     // --- Tokenização ---
-    harness.measure("micro/fixo", "retrieval::token::tokenize (corpo)", 25, 1000, || {
-        let _ = black_box(token::tokenize(black_box(&note_body)));
-    });
+    harness.measure(
+        "micro/fixo",
+        "retrieval::token::tokenize (corpo)",
+        25,
+        1000,
+        || {
+            let _ = black_box(token::tokenize(black_box(&note_body)));
+        },
+    );
     harness.measure(
         "micro/fixo",
         "retrieval::token::tokenize (acentuado)",
@@ -114,9 +152,15 @@ fn fixed(harness: &mut Harness) {
             let _ = black_box(token::tokenize(black_box(ACCENTED_BODY)));
         },
     );
-    harness.measure("micro/fixo", "retrieval::token::content_terms", 25, 1000, || {
-        let _ = black_box(token::content_terms(black_box(&query)));
-    });
+    harness.measure(
+        "micro/fixo",
+        "retrieval::token::content_terms",
+        25,
+        1000,
+        || {
+            let _ = black_box(token::content_terms(black_box(&query)));
+        },
+    );
 
     // --- RRF ---
     let lists: Vec<Vec<String>> = (0..3)
@@ -138,9 +182,15 @@ fn fixed(harness: &mut Harness) {
             Channel::new(list, weight)
         })
         .collect();
-    harness.measure("micro/fixo", "retrieval::rrf::fuse (3x200)", 25, 200, || {
-        let _ = black_box(fuse(black_box(&channels), 60));
-    });
+    harness.measure(
+        "micro/fixo",
+        "retrieval::rrf::fuse (3x200)",
+        25,
+        200,
+        || {
+            let _ = black_box(fuse(black_box(&channels), 60));
+        },
+    );
 
     // --- Confiança e orçamento ---
     let confidence_input = ConfidenceInput {
@@ -150,9 +200,15 @@ fn fixed(harness: &mut Harness) {
         task_confirmation: 0.1,
         ..ConfidenceInput::default()
     };
-    harness.measure("micro/fixo", "lifecycle::confidence_score", 25, 100000, || {
-        let _ = black_box(confidence_score(black_box(&confidence_input)));
-    });
+    harness.measure(
+        "micro/fixo",
+        "lifecycle::confidence_score",
+        25,
+        100000,
+        || {
+            let _ = black_box(confidence_score(black_box(&confidence_input)));
+        },
+    );
     // Caminho comum: a maioria das notas não tem `outcomes` (evita a raiz do intervalo).
     let confidence_empty = ConfidenceInput {
         similarity: 0.7,
@@ -160,18 +216,36 @@ fn fixed(harness: &mut Harness) {
         task_confirmation: 0.1,
         ..ConfidenceInput::default()
     };
-    harness.measure("micro/fixo", "lifecycle::confidence_score (sem evidência)", 25, 100000, || {
-        let _ = black_box(confidence_score(black_box(&confidence_empty)));
-    });
+    harness.measure(
+        "micro/fixo",
+        "lifecycle::confidence_score (sem evidência)",
+        25,
+        100000,
+        || {
+            let _ = black_box(confidence_score(black_box(&confidence_empty)));
+        },
+    );
     let lines: Vec<String> = (0..1000)
         .map(|index| format!("item {index}|statement sintetica de teste com cerca de 60 chars"))
         .collect();
-    harness.measure("micro/fixo", "handoff::budget::estimate_tokens", 25, 2000, || {
-        let _ = black_box(estimate_tokens(black_box(&long_text)));
-    });
-    harness.measure("micro/fixo", "handoff::budget::apply (1000 linhas)", 25, 200, || {
-        let _ = black_box(apply(black_box(&lines), 4000));
-    });
+    harness.measure(
+        "micro/fixo",
+        "handoff::budget::estimate_tokens",
+        25,
+        2000,
+        || {
+            let _ = black_box(estimate_tokens(black_box(&long_text)));
+        },
+    );
+    harness.measure(
+        "micro/fixo",
+        "handoff::budget::apply (1000 linhas)",
+        25,
+        200,
+        || {
+            let _ = black_box(apply(black_box(&lines), 4000));
+        },
+    );
 
     // --- Config ---
     harness.measure("micro/fixo", "config::Config::parse", 25, 2000, || {
@@ -180,12 +254,18 @@ fn fixed(harness: &mut Harness) {
 
     // --- Globs (E15-T07/O2.3) ---
     let pattern = GlobPattern::new("src/**/*.rs");
-    harness.measure("micro/fixo", "retrieval::anchor::glob_match", 25, 20000, || {
-        let _ = black_box(glob_match(
-            black_box("src/**/*.rs"),
-            black_box("src/a/b/main.rs"),
-        ));
-    });
+    harness.measure(
+        "micro/fixo",
+        "retrieval::anchor::glob_match",
+        25,
+        20000,
+        || {
+            let _ = black_box(glob_match(
+                black_box("src/**/*.rs"),
+                black_box("src/a/b/main.rs"),
+            ));
+        },
+    );
     harness.measure(
         "micro/fixo",
         "retrieval::anchor::GlobPattern::matches",
@@ -199,12 +279,24 @@ fn fixed(harness: &mut Harness) {
     // --- Embeddings lightweight (384d) ---
     let vector_a = embed(&note_body, 384);
     let vector_b = embed(&long_text, 384);
-    harness.measure("micro/fixo", "embeddings::lightweight::embed (384d)", 25, 1000, || {
-        let _ = black_box(embed(black_box(&note_body), 384));
-    });
-    harness.measure("micro/fixo", "embeddings::vector::cosine (384d)", 25, 100000, || {
-        let _ = black_box(cosine(black_box(&vector_a), black_box(&vector_b)));
-    });
+    harness.measure(
+        "micro/fixo",
+        "embeddings::lightweight::embed (384d)",
+        25,
+        1000,
+        || {
+            let _ = black_box(embed(black_box(&note_body), 384));
+        },
+    );
+    harness.measure(
+        "micro/fixo",
+        "embeddings::vector::cosine (384d)",
+        25,
+        100000,
+        || {
+            let _ = black_box(cosine(black_box(&vector_a), black_box(&vector_b)));
+        },
+    );
 }
 
 fn scaling(harness: &mut Harness, sizes: &[usize]) {
@@ -247,7 +339,11 @@ fn scaling(harness: &mut Harness, sizes: &[usize]) {
             let _ = black_box(propose_merges(black_box(&sparse), black_box(&thresholds)));
         });
         harness.measure(&group, "retrieval::recall (limit 5)", 15, 1, || {
-            let _ = black_box(recall(black_box(&index), black_box(&graph), black_box(&recall_query)));
+            let _ = black_box(recall(
+                black_box(&index),
+                black_box(&graph),
+                black_box(&recall_query),
+            ));
         });
         let big_query = RecallQuery {
             text: query_text.to_string(),
@@ -256,11 +352,16 @@ fn scaling(harness: &mut Harness, sizes: &[usize]) {
             ..RecallQuery::default()
         };
         harness.measure(&group, "retrieval::recall (sem limite)", 15, 1, || {
-            let _ = black_box(recall(black_box(&index), black_box(&graph), black_box(&big_query)));
+            let _ = black_box(recall(
+                black_box(&index),
+                black_box(&graph),
+                black_box(&big_query),
+            ));
         });
         harness.measure(&group, "retrieval::rank (confiança)", 15, 1, || {
             let _ = black_box(composite_rank(
                 black_box(&index),
+                black_box(&graph),
                 black_box(&filter),
                 black_box(&rank_query),
             ));
@@ -268,8 +369,31 @@ fn scaling(harness: &mut Harness, sizes: &[usize]) {
         harness.measure(&group, "lifecycle::structural_clusters", 15, 1, || {
             let _ = black_box(structural_clusters(black_box(&index), black_box(&graph)));
         });
+        harness.measure(&group, "lifecycle::communities", 15, 1, || {
+            let _ = black_box(communities(black_box(&index), black_box(&graph)));
+        });
         harness.measure(&group, "Graph::from_notes", 15, 1, || {
             let _ = black_box(Graph::from_notes(black_box(notes.clone())));
+        });
+        harness.measure(&group, "graph::pagerank", 15, 1, || {
+            let _ = black_box(pagerank(black_box(&graph)));
+        });
+        let ppr_query = RecallQuery {
+            text: query_text.to_string(),
+            limit: 5,
+            universe: Universe::All,
+            weights: FusionWeights {
+                ppr: 5.0,
+                ..FusionWeights::default()
+            },
+            ..RecallQuery::default()
+        };
+        harness.measure(&group, "retrieval::recall (ppr)", 15, 1, || {
+            let _ = black_box(recall(
+                black_box(&index),
+                black_box(&graph),
+                black_box(&ppr_query),
+            ));
         });
         harness.measure(&group, "Graph::integrity", 15, 1, || {
             let _ = black_box(graph.integrity());

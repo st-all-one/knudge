@@ -143,6 +143,18 @@ O schema do lote é o **canônico** (`statement`, `body`, `type`, `tags`, `ancho
 | `--params <JSON>` | Objeto de um rascunho (`-` lê stdin) |
 | `--dry-run` | Simula sem gravar |
 
+## Data contract por tipo (soft)
+
+O `write` confere **slots mínimos** de corpo por espécie (D191): `decision` →
+`Alternativas`/`Por quê`/`Consequência`; `error` → `Causa`/`Correção`; `risk` →
+`Probabilidade`/`Impacto`; `def` → `Significado`; `snippet` → `Linguagem` + âncora; `question` →
+âncora/`depends_on`. O casamento é por cabeçalho (`## Alternativas`) ou rótulo (`Alternativas:`),
+sem caixa e sem acento, em PT-BR ou inglês.
+
+- **Soft:** falta vira **aviso** (`warnings[]`) e a nota é gravada.
+- **`behavior.strict=true`:** vira `invalid_input` (exit 2).
+- **`--dry-run`:** lista `data.missing_slots` e explica no texto.
+
 ## Resultados
 
 - **Texto:** `acao|id|rN` (ex.: `created|fact_01abc|r1`).

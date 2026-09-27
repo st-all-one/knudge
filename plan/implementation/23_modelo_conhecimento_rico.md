@@ -8,12 +8,12 @@
 > ortogonal à versão do crate. Supersede o corte Q4 (0.5.x/0.6.0): a Trilha D vira a fase final
 > de 0.5.0.
 >
-> **Decisões candidatas (provisório):** ~~D189~~ (**registrada** — confiança Beta; absorve E16/D174),
-> D190 (retenção/FSRS — **substitui E16/D178**), D191 (obrigatoriedades por tipo — **soft/corpo**),
-> D192 (PageRank/PPR — **soma** ao canal de âncoras), D193 (comunidades), D194 (reranking —
-> mesmo servidor llama.cpp), D195 (MinHash/LSH), D196 (Matryoshka/ANN), D197 (claims SPO +
-> ontologia), D198 (TMS/defeasible — após E16/T07), D199 (drift KL/JS), D200 (flow metrics),
-> D201 (superfície enxuta — `forget` **permanece verbo**). Cada onda adotada **registra** sua
+> **Decisões candidatas (provisório):** ~~D189~~ ~~D190~~ ~~D191~~ ~~D192~~ ~~D193~~
+> (**registradas** — confiança Beta, retenção FSRS, data contract soft, autoridade PageRank/PPR,
+> comunidades), D194 (reranking — mesmo servidor llama.cpp), D195 (MinHash/LSH), D196
+> (Matryoshka/ANN), D197 (claims SPO + ontologia), D198 (TMS/defeasible — após E16/T07), D199
+> (drift KL/JS), D200 (flow metrics), D201 (superfície enxuta — `forget` **permanece verbo**).
+> Cada onda adotada **registra** sua
 > decisão no `plan/03_decisoes-fechadas.md`; o número definitivo sai na implementação.
 >
 > **Políticas:** R15/R43 (deps/hot path), R33 (degradação graciosa), D04/D05/D13/D95 (contrato de
@@ -104,15 +104,20 @@ Fecho:        T13 (docs/goldens/matriz/CHANGELOG)
   `stars` usa a média posterior. **`feedback` de `outcomes` negativos absorvido** (as falhas).
 - **Pendente:** persistência de `drift` (validade de âncoras off-path, `.idx/`, D84) → **T01b**.
 
-### E19-T01b ☐ R1/D174 — persistir `drift` de âncoras (absorção de E16/T05)
+### E19-T01b ☑ R1/D174 — persistir `drift` de âncoras (absorção de E16/T05)
 - **Escopo:** derivado `.idx/drift.jsonl` (como `usage.jsonl`, purgável por D84); computar num
   **único walk** do projeto (off-path: `rebuild`/`doctor`/`maintenance proposals`); carregar em
   `RecallQuery`/`RankQuery` e alimentar `ConfidenceInput.drift` (`pipeline.rs`/`rank.rs`).
 - **Perf:** walk único reusado; arquivo pequeno; ausente ⇒ `drift = 0` (degradação graciosa).
 - **Aceite:** teste de que âncora quebrada reduz a confiança do `rank`; arquivo ausente é no-op;
   A/B na bancada.
+- **Feito (D203):** `lifecycle/drift.rs` (`DriftEntry`/`DriftIndex`/`DriftStore`,
+  `entries_from_validity`); `prune` persiste o drift do **mesmo** walk de `validity_map` (E16/T10);
+  `ask`/`knowledge rank` carregam o índice; `confidence_score` desconta o score inteiro por
+  `drift_factor`. Testes: `lifecycle::tests::drift`, `retrieval::tests::rank::drift_reduces_*`.
+  A/B na bancada: fixture sem arquivo (drift ausente) ⇒ `ask`/`rank` inalterados.
 
-### E19-T02 ☐ R2 — retenção por curva de esquecimento + revisão espaçada — **substitui E16/D178**
+### E19-T02 ☑ R2 — retenção por curva de esquecimento + revisão espaçada — **substitui E16/D178**
 - **Escopo:** `lifecycle/shelf_life.rs` — retenção `R(t)=exp(-t/S)` com estabilidade `S` que
   cresce a cada `outcome` de sucesso (FSRS-like); `prune` propõe revisão quando `R < limiar`.
   Substitui `age_factor`/TTL **e E16/D178** por uma função única e configurável.
@@ -120,8 +125,13 @@ Fecho:        T13 (docs/goldens/matriz/CHANGELOG)
 - **Depende de:** T01.
 - **Aceite:** proptest (retenção decrescente no tempo, crescente em revisões); A/B em
   `prune`/`freshness`; `prune` só propõe (D112).
+- **Feito (D190):** `lifecycle/retention.rs` (`retention`/`stability_days`/`retention_for`, puro);
+  `ShelfLife.effective_ttl_days` = `base + base·growth%·reviews/100` (inteiro, saturante);
+  `origin` = `max(created, último ensaio, último uso se `renew_on_use`)`; config
+  `retention.growth_percent` (default 50); `schema::outcome_stats` centraliza os `outcomes`;
+  `prune --json` ganha `retention` (aditivo). `age_factor` do `confidence` segue separado.
 
-### E19-T03 ☐ R3 — obrigatoriedades por tipo (data contract) — **soft, via corpo**
+### E19-T03 ☑ R3 — obrigatoriedades por tipo (data contract) — **soft, via corpo**
 - **Escopo:** slots mínimos por espécie (`decision`→alternativas, `error`→causa/correção,
   `risk`→probabilidade/impacto, `def`→termo, `snippet`→linguagem, `fact`→lastro…) validados como
   **seções de corpo** e reportados por `doctor` (D162/D156) — **sem chave nova** (R1 não bumpa
@@ -130,8 +140,13 @@ Fecho:        T13 (docs/goldens/matriz/CHANGELOG)
 - **Perf:** checagem de corpo O(body), só em `write`/`doctor`.
 - **Aceite:** teste por tipo (ausência ⇒ warning/`doctor`, e `invalid_input` só sob `strict`);
   `doctor` lista o que falta; `--dry-run` explica; nenhuma chave nova.
+- **Feito (D191):** `schema/slots/` (`Slot`, `expected_slots`, `missing_slots`; fold D172,
+  PT/EN, limite de palavra); `write` avisa (`warnings[]`) e sob `strict` dá `invalid_input`;
+  `--dry-run` expõe `missing_slots`; check `body` do `doctor` (D162) conta slots ausentes (status
+  `degraded`, `healthy` intacto). `fact` sem lastro fica com D162; `snippet`/`question` exigem
+  âncora/`depends_on`.
 
-### E19-T04 ☐ R4 — PageRank / Personalized PageRank
+### E19-T04 ☑ R4 — PageRank / Personalized PageRank
 - **Escopo:** `graph/` — autoridade por PageRank (arestas `references`/`supports`/`extends`/
   `replaces`) e **PPR** semeado pelo *working set* para a busca; iteração de potência com
   tolerância fixa (determinístico). **Soma** ao canal de âncoras (canal novo; âncoras mantidas) —
@@ -139,14 +154,22 @@ Fecho:        T13 (docs/goldens/matriz/CHANGELOG)
 - **Perf:** PPR com nº fixo de iterações/tolerância; grafo já em memória; A/B `ask`.
 - **Depende de:** E16/T01.
 - **Aceite:** proptest (convergência, simetria sob permutação); A/B em `ask`/`knowledge rank`.
+- **Feito (D192):** `graph/rank.rs` (`pagerank`/`personalized_pagerank`/`power_iteration`, puro;
+  damping 0,85, ≤32 iterações, L1 1e-8, *dangling* redistribuído pela personalização); canal
+  `ppr` na fusão RRF (`recall.ppr_weight`, default **0,0** = desligado); `channels.ppr` no
+  `--json` do `ask`. `knowledge rank` não usa a fusão, então o A/B é em `ask`.
 
-### E19-T05 ☐ R4 — comunidades + GraphRAG
+### E19-T05 ☑ R4 — comunidades + GraphRAG
 - **Escopo:** `lifecycle/clusters.rs` — comunidades (Louvain/Leiden) sobre o grafo (arestas +
   âncoras + vizinhança vetorial), variante determinística; resumos locais/globais para
   `knowledge map` materializado (D150).
 - **Perf:** só em `knowledge map` (raro); variante determinística.
 - **Depende de:** T04.
 - **Aceite:** teste de comunidade estável; A/B em `knowledge map`; doc.
+- **Feito (D193):** algoritmo em `graph/communities.rs` (Louvain *local moving* + agregação,
+  determinístico); montagem + resumo em `lifecycle/communities.rs` (arestas + âncoras);
+  `knowledge map --communities` (JSON aditivo + `--write` com `## Comunidades`). A vizinhança
+  vetorial ficou de fora (entra com E19/T08/ANN).
 
 ### E19-T06 ☐ R2 — reranking + expansão de consulta + fusão calibrada
 - **Escopo:** recuperar top-K e **reranquear** com cross-encoder local no **mesmo servidor
@@ -157,12 +180,17 @@ Fecho:        T13 (docs/goldens/matriz/CHANGELOG)
 - **Depende de:** E16/T01, T04.
 - **Aceite:** A/B com ganho em nDCG/MRR; `--json` aditivo (`rerank`/`channels`); sem modelo ⇒ RRF.
 
-### E19-T07 ☐ R3 — MinHash/LSH + resolução de entidades
+### E19-T07 ✅ R3/D204 — MinHash/LSH + resolução de entidades
 - **Escopo:** `write/dedup` — assinaturas MinHash + *blocking* LSH (fallback lexical para corpus
   pequeno); casamento por identidade (`same_as` em R5).
 - **Perf:** MinHash/LSH com assinaturas cacheadas; A/B `write`/`compact`.
 - **Depende de:** T01.
 - **Aceite:** proptest (MinHash aproxima Jaccard; recall ≥ Dice no corpus); A/B em `write`/`compact`.
+- **Feito (D204):** `write/dedup/lsh.rs` (MinHash 64 + banding 16×4, determinístico, sem dep) e
+  `write/dedup/sieve.rs` (peneira exata extraída). Acima de `MIN_LSH_CORPUS` (256) **e** denso
+  (termo em ≥ `DENSE_MIN_DF` docs), `propose_merges` usa LSH; senão a peneira exata (byte-idêntica).
+  Dice exato + limiar preservados (recall ≥). **A/B:** denso N=1000 1,42 s → 46 ms (−97 %);
+  `compact`/`doctor` N=1000 −94 %; esparso inalterado. `same_as` fica para R5/T09.
 
 ### E19-T08 ☐ R3 — Matryoshka + ANN
 - **Escopo:** `embeddings/` — truncar dimensões (MRL) e quantizar (int8/binário); ANN
@@ -186,12 +214,14 @@ Fecho:        T13 (docs/goldens/matriz/CHANGELOG)
 - **Depende de:** E16/T07, T09.
 - **Aceite:** teste de retratação (dependentes caem); A/B de drift em `prune`/`doctor`.
 
-### E19-T11 ☐ R7 — flow metrics + caminho crítico
+### E19-T11 ✅ R7/D205 — flow metrics + caminho crítico
 - **Escopo:** derivar do log de eventos `cycle time`, `lead time`, `throughput` e o **caminho
   crítico** do DAG `depends_on` (PERT/CPM); expor em `task`/`rewind`.
 - **Perf:** derivar do log em **um** pass; cachear em `rewind`/`task`.
 - **Depende de:** E16/T01.
 - **Aceite:** proptest (caminho crítico = maior caminho ponderado); `--json` aditivo.
+- **Feito (D205):** `task/flow.rs` (`TaskFlow`/`throughput`/`critical_path`, puros); `kd task flow`
+  (`resumo|`/`throughput|`/`critico|` + `--json`) e `rewind --json` (`data.flow`). Sem verdade nova.
 
 ### E19-T12 ☐ R7 — superfície enxuta
 - **Escopo:** consolidar verbos (≤10), um vocabulário por conceito (`knowledge`→`ask`/`map`,

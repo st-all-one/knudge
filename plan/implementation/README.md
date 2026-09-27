@@ -85,8 +85,8 @@ Cada achado traz **estado atual, recomendação, onde aplicar e aceite** em `14_
 **Status:** E01–E14 ✅ (`make check` verde; 458 testes). Projeto completo pelo plano; evolução
 segue as decisões `Dxx` e as políticas `Rnn`. **E15 ✅** (performance + reforma da CLI) concluído —
 plano em [`../proposals/`](../proposals/) e épico em
-[`19_performance_reforma_cli.md`](19_performance_reforma_cli.md). **E16 ◐** (qualidade da busca +
-depreciação de conhecimento; **T01/T02/T03/T04 ✅**) — plano em
+[`19_performance_reforma_cli.md`](19_performance_reforma_cli.md). **E16 ✅** (qualidade da busca +
+depreciação de conhecimento; **T01/T02/T03/T04/T06/T07/T09/T10 ✅**) — plano em
 [`../proposals/qualidade_busca_depreciacao.md`](../proposals/qualidade_busca_depreciacao.md) e
 épico em [`20_qualidade_busca_depreciacao.md`](20_qualidade_busca_depreciacao.md). **E17 ◐**
 (robustez do worker de embeddings + `--install`; **T01/T02/T03/T04/T05/T06/T07 ✅**) — plano em
@@ -95,7 +95,9 @@ em [`21_worker_embeddings_install.md`](21_worker_embeddings_install.md). **E18 �
 scriptados: superfície mínima e cross-platform; **T01/T02/T03/T04/T05/T06 ✅**) — plano em
 [`../proposals/comandos_scriptados.md`](../proposals/comandos_scriptados.md) e épico em
 [`22_comandos_scriptados.md`](22_comandos_scriptados.md). **E19 ◐** (modelo de conhecimento rico;
-**T01 ✅** Beta — D189; **T01b ☐** `drift`) — plano em
+**T01 ✅** Beta — D189; **T01b ✅** `drift` — D203; **T02 ✅** retenção FSRS — D190; **T03 ✅** data contract
+soft — D191; **T04 ✅** PageRank/PPR — D192; **T05 ✅** comunidades — D193; **T07 ✅** MinHash/LSH —
+D204; **T11 ✅** flow metrics — D205) — plano em
 [`../proposals/modelo_conhecimento_rico.md`](../proposals/modelo_conhecimento_rico.md) e épico
 em [`23_modelo_conhecimento_rico.md`](23_modelo_conhecimento_rico.md).
 

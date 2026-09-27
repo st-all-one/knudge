@@ -81,6 +81,10 @@ catálogo de `checks` executáveis fica em `.knudge/validators.toml`.
 | `recall.preview_chars` | `280` | Corpo exibido nos hits 2–5 do `ask` (D161) |
 | `recall.semantic` | `true` | Liga/desliga o canal vetorial |
 | `recall.semantic_weight` | `30.0` | Peso do canal vetorial no RRF |
+| `recall.lexical_weight` | `1.0` | Peso do canal lexical (BM25) no RRF |
+| `recall.anchor_weight` | `2.0` | Peso do canal de âncoras (working set) no RRF (D179: match exato de âncora pesa mais que um lexical ruidoso) |
+| `recall.rrf_k` | `60` | Constante `k` da fusão RRF (D179: medido inerte no corpus da bancada; mantido) |
+| `recall.ppr_weight` | `0.0` | Peso do canal de autoridade (`PageRank`/PPR) no RRF (D192; `0` desliga; só compensa com arestas) |
 | `recall.confirmation_from_tasks` | `0.1` | Boost de tarefas que confirmam |
 | `recall.max_term_ratio` | `0.9` | Descarta termos presentes em ≥ esta fração do corpus (D173; `0` desliga; só vale para ≥ 64 notas) |
 | `dedup.create_below` / `dedup.merge_below` | `0.75` / `0.92` | Limiares do `write` |
@@ -120,6 +124,7 @@ A lista completa (com tipos e defaults) está em
 | Chave | Default | Efeito |
 |---|---|---|
 | `retention.renew_on_use` | `false` | Renova a expiração a partir do último uso (D154). |
+| `retention.growth_percent` | `50` | Cada `outcome` de sucesso estende o prazo em % da base (D190; `0` desliga). |
 | `proposals.gate` | `""` | Nomes de gates (vírgula) do `validators.toml` (D156). |
 | `proposals.min_delta` | `0.0` | Ganho mínimo de placar para o gate aprovar. |
 | `proposals.enforce` | `false` | Bloqueia o `write` quando o gate reprova. |

@@ -5,15 +5,17 @@
 //! `outcomes`, o feedback de tarefas (X1/D108) e a idade; `similarity` é `0` porque não
 //! há texto. Ordem determinística: `(confidence desc, id asc)`.
 
+use crate::graph::Graph;
+use crate::lifecycle::DriftIndex;
 use crate::lifecycle::beta::posterior_mean;
 use crate::lifecycle::confidence::{
-    ConfidenceInput, age_factor, confidence_score, from_tasks_with,
+    CONTRADICTION_PENALTY, ConfidenceInput, age_factor, confidence_score, from_tasks_with,
 };
-use crate::retrieval::DEFAULT_LIMIT;
+use crate::retrieval::contradiction::{ContradictionContext, losers};
 use crate::retrieval::filter::Filter;
 use crate::retrieval::index::Index;
 use crate::retrieval::pipeline::{age_days, task_confirmers};
-use crate::retrieval::{HitChannels, RecallHit, Why};
+use crate::retrieval::{DEFAULT_LIMIT, HitChannels, RecallHit, Why};
 
 /// Universo do ranking (K2/D107).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -37,6 +39,8 @@ pub struct RankQuery {
     pub limit: usize,
     /// Peso da confirmação derivada de tarefas (X1/D108).
     pub task_weight: f64,
+    /// Drift de âncoras por id (`0` = em dia; ausente = `0`) — derivado `.idx/drift.jsonl` (D203).
+    pub drift: DriftIndex,
 }
 
 impl Default for RankQuery {
@@ -46,6 +50,7 @@ impl Default for RankQuery {
             now_ms: None,
             limit: DEFAULT_LIMIT,
             task_weight: 0.0,
+            drift: DriftIndex::default(),
         }
     }
 }
@@ -54,8 +59,15 @@ impl Default for RankQuery {
 ///
 /// Ordem determinística: `(confidence desc, id asc)`.
 #[must_use]
-pub fn rank(index: &Index, filter: &Filter, query: &RankQuery) -> Vec<RecallHit> {
+pub fn rank(index: &Index, graph: &Graph, filter: &Filter, query: &RankQuery) -> Vec<RecallHit> {
     let confirmers = task_confirmers(index);
+    let ctx = ContradictionContext {
+        now_ms: query.now_ms,
+        confirmers: &confirmers,
+        weight: query.task_weight,
+        drift: &query.drift,
+    };
+    let losers = losers(index, graph, &ctx);
     let mut hits: Vec<RecallHit> = index
         .docs
         .iter()
@@ -66,10 +78,16 @@ pub fn rank(index: &Index, filter: &Filter, query: &RankQuery) -> Vec<RecallHit>
             let confidence = confidence_score(&ConfidenceInput {
                 successes: doc.meta.confirmation,
                 failures: doc.meta.failures,
+                drift: query.drift.get(&doc.meta.id),
                 age_days: age_days(doc, query.now_ms),
                 task_confirmation,
                 ..ConfidenceInput::default()
             });
+            let confidence = if losers.contains(&doc.meta.id) {
+                (confidence - CONTRADICTION_PENALTY).max(0.0)
+            } else {
+                confidence
+            };
             RecallHit {
                 id: doc.meta.id.clone(),
                 statement: doc.statement.clone(),

@@ -2,6 +2,7 @@
 
 mod batch;
 mod context;
+mod flow;
 mod hierarchy;
 mod impact;
 mod kind;

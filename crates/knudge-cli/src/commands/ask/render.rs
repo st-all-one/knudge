@@ -123,6 +123,7 @@ pub(super) fn hit_json(
                 "lexical": hit.channels.lexical,
                 "anchor": hit.channels.anchor,
                 "semantic": hit.channels.semantic,
+                "ppr": hit.channels.ppr,
                 "recent": hit.channels.recent,
                 "stars": hit.channels.stars,
                 "body": hit.channels.body,

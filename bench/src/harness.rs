@@ -92,7 +92,14 @@ impl Harness {
     }
 
     /// Mede `samples` amostras de `ops_per_sample` execuções de `f`.
-    pub fn measure<F: FnMut()>(&mut self, group: &str, name: &str, samples: usize, ops_per_sample: u64, mut f: F) {
+    pub fn measure<F: FnMut()>(
+        &mut self,
+        group: &str,
+        name: &str,
+        samples: usize,
+        ops_per_sample: u64,
+        mut f: F,
+    ) {
         // Aquecimento: deixa caches/allocator/jit-de-página assentarem.
         for _ in 0..3 {
             for _ in 0..ops_per_sample {
@@ -189,7 +196,11 @@ impl Harness {
     pub fn render_json(&self) -> String {
         let mut out = String::from("[\n");
         for (index, cell) in self.cells.iter().enumerate() {
-            let comma = if index + 1 == self.cells.len() { "" } else { "," };
+            let comma = if index + 1 == self.cells.len() {
+                ""
+            } else {
+                ","
+            };
             let _ = writeln!(
                 out,
                 "  {{\"group\":{},\"name\":{},\"n\":{},\"min_ns\":{:.1},\"median_ns\":{:.1},\"mean_ns\":{:.1},\"p95_ns\":{:.1},\"max_ns\":{:.1},\"stddev_ns\":{:.1}}}{comma}",

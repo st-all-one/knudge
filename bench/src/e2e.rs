@@ -127,11 +127,16 @@ fn measure_core(harness: &mut Harness, group: &str, root: &Path, samples: usize)
         let _ = Corpus::load_notes(&store);
         start.elapsed()
     });
-    harness.measure_cmd(group, "core: Corpus::load (notes+index+graph)", samples, || {
-        let start = Instant::now();
-        let _ = Corpus::load(&store);
-        start.elapsed()
-    });
+    harness.measure_cmd(
+        group,
+        "core: Corpus::load (notes+index+graph)",
+        samples,
+        || {
+            let start = Instant::now();
+            let _ = Corpus::load(&store);
+            start.elapsed()
+        },
+    );
 }
 
 /// Cria o projeto, inicializa o git e popula o corpus.
@@ -184,7 +189,12 @@ fn build_project(kd: &Path, knowledge: usize) -> TempProject {
     let tasks = (knowledge / 8).max(1);
     let task_lines = fixture::task_jsonl(epics, tasks);
     // `task.batch_max` default = 100: divide o lote em arquivos de 100 linhas.
-    for (chunk, lines) in task_lines.lines().collect::<Vec<_>>().chunks(100).enumerate() {
+    for (chunk, lines) in task_lines
+        .lines()
+        .collect::<Vec<_>>()
+        .chunks(100)
+        .enumerate()
+    {
         let path = gen_dir.join(format!("tasks_{chunk}.jsonl"));
         let mut text = String::new();
         for line in lines {
@@ -293,24 +303,31 @@ fn measure_reads(
         runner.timed(&args(&["ask", "shelf life decay ancora"])).0
     });
     harness.measure_cmd(group, "ask --json", samples, || {
-        runner.timed(&args(&["ask", "cache embedding vetor", "--json"])).0
+        runner
+            .timed(&args(&["ask", "cache embedding vetor", "--json"]))
+            .0
     });
     harness.measure_cmd(group, "ask --limit 50", samples, || {
-        runner.timed(&args(&["ask", "retrieval indice grafo", "--limit", "50"])).0
+        runner
+            .timed(&args(&["ask", "retrieval indice grafo", "--limit", "50"]))
+            .0
     });
     harness.measure_cmd(group, "ask --brief", samples, || {
-        runner.timed(&args(&["ask", "retrieval indice grafo", "--brief"])).0
+        runner
+            .timed(&args(&["ask", "retrieval indice grafo", "--brief"]))
+            .0
     });
     harness.measure_cmd(group, "ask --type fact --anchor src/**", samples, || {
-        runner.timed(&args(&[
-            "ask",
-            "retrieval indice grafo",
-            "--type",
-            "fact",
-            "--anchor",
-            "src/**",
-        ]))
-        .0
+        runner
+            .timed(&args(&[
+                "ask",
+                "retrieval indice grafo",
+                "--type",
+                "fact",
+                "--anchor",
+                "src/**",
+            ]))
+            .0
     });
     harness.measure_cmd(group, "ask --around <nota>", samples, || {
         runner
@@ -328,7 +345,11 @@ fn measure_reads(
     });
     harness.measure_cmd(group, "rewind --files src/core/**", samples, || {
         runner
-            .timed(&args(&["rewind", "--files", "src/core/modulo_0/arquivo_0.rs"]))
+            .timed(&args(&[
+                "rewind",
+                "--files",
+                "src/core/modulo_0/arquivo_0.rs",
+            ]))
             .0
     });
     harness.measure_cmd(group, "task list --universe", samples, || {
@@ -354,14 +375,10 @@ fn measure_reads(
         runner.timed(&args(&["task", "graph"])).0
     });
     harness.measure_cmd(group, "knowledge map --universe", samples, || {
-        runner
-            .timed(&args(&["knowledge", "map", "--universe"]))
-            .0
+        runner.timed(&args(&["knowledge", "map", "--universe"])).0
     });
     harness.measure_cmd(group, "knowledge rank --universe", samples, || {
-        runner
-            .timed(&args(&["knowledge", "rank", "--universe"]))
-            .0
+        runner.timed(&args(&["knowledge", "rank", "--universe"])).0
     });
     harness.measure_cmd(group, "knowledge tags", samples, || {
         runner.timed(&args(&["knowledge", "tags"])).0
@@ -412,16 +429,18 @@ fn measure_mutations(
     let mut write_once = || {
         serial += 1;
         let statement = format!("medicao de escrita numero {serial} com termo unico{serial}");
-        let duration = runner
-            .timed(&args(&["write", "--summary", &statement]))
-            .0;
+        let duration = runner.timed(&args(&["write", "--summary", &statement])).0;
         duration
     };
     harness.measure_cmd(group, "write (nova)", samples, || write_once());
     // Escrita idempotente: mesma afirmação → `unchanged`.
     harness.measure_cmd(group, "write (idempotente)", samples, || {
         runner
-            .timed(&args(&["write", "--summary", "afirmacao idempotente da bancada"]))
+            .timed(&args(&[
+                "write",
+                "--summary",
+                "afirmacao idempotente da bancada",
+            ]))
             .0
     });
     harness.measure_cmd(group, "config set (projeto)", samples, || {

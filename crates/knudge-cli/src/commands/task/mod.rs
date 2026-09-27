@@ -2,6 +2,7 @@
 
 mod batch;
 mod create;
+mod flow;
 mod graph;
 mod mutate;
 mod plan;
@@ -64,6 +65,7 @@ pub fn run(session: &Session, command: &TaskCommand) -> Result<Output> {
         TaskCommand::Graph { program, root } => {
             graph::graph_tree(session, program.as_deref(), root.as_deref())
         }
+        TaskCommand::Flow(args) => flow::run(session, args),
         TaskCommand::Plan(args) => plan::run(session, args),
     }
 }

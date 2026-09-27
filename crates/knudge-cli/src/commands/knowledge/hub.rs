@@ -5,7 +5,7 @@
 //! **versionado** (não derivado): o churn é aceito em troca de ponto de entrada humano.
 
 use knudge_core::Result;
-use knudge_core::lifecycle::{Cluster, ClusterAxis, SemanticCluster};
+use knudge_core::lifecycle::{Cluster, ClusterAxis, Community, SemanticCluster};
 use knudge_core::schema::{EdgeKind, NoteType, id};
 use knudge_core::store::Store;
 use knudge_core::write::Draft;
@@ -20,6 +20,7 @@ pub fn materialize(
     session: &Session,
     clusters: &[Cluster],
     semantic: &[SemanticCluster],
+    communities: &[Community],
 ) -> Result<Vec<String>> {
     let store = session.store();
     let mut hubs = Vec::new();
@@ -57,6 +58,20 @@ pub fn materialize(
             }
         }
     }
+    if !communities.is_empty() {
+        map_lines.push(String::new());
+        map_lines.push("## Comunidades".to_string());
+        for (position, community) in communities.iter().enumerate() {
+            let statement = community_statement(position, &community.terms);
+            let hub = write_hub(session, &store, &statement, &community.members)?;
+            map_lines.push(format!(
+                "- `community` #{} — {} nota(s) → `{hub}`",
+                position.saturating_add(1),
+                community.members.len()
+            ));
+            hubs.push(hub);
+        }
+    }
     map_lines.push(String::new());
     let path = store.notes_dir().join("MAP.md");
     session
@@ -78,6 +93,16 @@ fn semantic_statement(axis: &ClusterAxis, index: usize) -> String {
         axis.key(),
         index.saturating_add(1)
     )
+}
+
+/// Afirmação canônica do hub de uma comunidade (`GraphRAG` — D193).
+fn community_statement(position: usize, terms: &[String]) -> String {
+    let summary = terms.join(", ");
+    if summary.is_empty() {
+        format!("Comunidade {}", position.saturating_add(1))
+    } else {
+        format!("Comunidade {}: {summary}", position.saturating_add(1))
+    }
 }
 
 /// Cria/atualiza a nota-hub; idempotente (não reescreve se os membros não mudaram).

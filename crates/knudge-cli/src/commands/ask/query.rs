@@ -4,11 +4,11 @@ use std::collections::BTreeMap;
 
 use knudge_core::Result;
 use knudge_core::embeddings::{EmbeddingIndex, rank_query};
-use knudge_core::lifecycle::DEFAULT_TASK_CONFIRMATION;
+use knudge_core::lifecycle::{DEFAULT_TASK_CONFIRMATION, DriftStore};
 use knudge_core::retrieval::{
     DEFAULT_ANCHOR_WEIGHT, DEFAULT_LEXICAL_WEIGHT, DEFAULT_LIMIT, DEFAULT_MAX_TERM_RATIO,
-    DEFAULT_RRF_K, DEFAULT_SEMANTIC_WEIGHT, Filter, FusionWeights, Index, RecallQuery, Universe,
-    active_ids, recall,
+    DEFAULT_PPR_WEIGHT, DEFAULT_RRF_K, DEFAULT_SEMANTIC_WEIGHT, Filter, FusionWeights, Index,
+    RecallQuery, Universe, active_ids, recall,
 };
 use knudge_core::schema::Status;
 use serde_json::json;
@@ -102,6 +102,9 @@ fn build_recall_query(
         semantic: config
             .get_float("recall.semantic_weight")
             .unwrap_or(DEFAULT_SEMANTIC_WEIGHT),
+        ppr: config
+            .get_float("recall.ppr_weight")
+            .unwrap_or(DEFAULT_PPR_WEIGHT),
     };
     query.filter = Filter {
         types: parse::types(&args.types)?,
@@ -122,6 +125,7 @@ fn build_recall_query(
     query.scope.clone_from(&args.scope);
     query.now_ms = Some(session.now_ms());
     query.strict = config.strict();
+    query.drift = DriftStore::new(session.fs_dyn(), session.knowledge_dir()).index()?;
     if let Some(raw) = &args.as_of {
         let as_of_ms = parse::timestamp(raw)?;
         if as_of_ms > session.now_ms() {

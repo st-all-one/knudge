@@ -5,10 +5,12 @@ use crate::graph::link;
 use crate::schema::{EdgeKind, Frontmatter, NoteType, Value, body, id};
 use crate::store::Note;
 
+mod communities;
 mod cycles;
 mod extract;
 mod graph;
 mod integrity;
+mod rank;
 mod suggestions;
 
 /// Frontmatter mínimo válido (sem corpo).

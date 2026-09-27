@@ -26,6 +26,7 @@ kd task show --id <ID>... [--history]
 kd task update --id <ID> [--statement TXT] [--status S] [--parent ID] [--checks NOME]...
 kd task close --id <ID> [--outcome S] [--note TXT]
 kd task graph [--program <PATH> | --root <ID>]
+kd task flow [--window-days N]
 kd task plan <ID> --prompt [--template T] | --submit [--step TXT] [--from FONTE]
 ```
 
@@ -159,12 +160,26 @@ kd task plan epic_01abc --submit --from -                # lê o plano do stdin
 `--prompt` é read-only e imprime o template (`feature`/`bug`/`refactor`); `--submit` valida tudo
 antes de gravar e cria N filhos. Nada é aplicado parcialmente em caso de erro.
 
+## `task flow` — fluxo e caminho crítico
+
+```bash
+kd task flow                    # resumo + throughput (janela de 7 dias) + caminho crítico
+kd task flow --window-days 1    # janela de throughput de 1 dia
+```
+
+Deriva tudo do **log de eventos** (nada é gravado): `cycle time` (`review − criação`), `lead time`
+(fechadas: `cycle`; abertas: tempo em voo) e `throughput` (fechamentos por janela). O **caminho
+crítico** (PERT/CPM) é o maior caminho ponderado do DAG `depends_on`, com peso = `lead time`.
+O mesmo bloco aparece em `rewind --json` (`data.flow`, aditivo).
+
 ## Resultados
 
 - **`task new`** — `data.id` (ou `data.items[]` no lote); texto `key|id|scope|status|statement`.
 - **`task list`** — pipe `id|scope|status|statement`; `data.tasks[]`.
 - **`task close`** — `data.outcome`, `data.evidence[]`, `data.epic{done,total}`.
 - **`task graph`** — `data.program`, `data.roots[]`, `data.nodes[]`.
+- **`task flow`** — pipe `resumo|…`/`throughput|…`/`critico|…`; `data.summary`, `data.throughput[]`,
+  `data.critical_path{ids,total_ms}`, `data.tasks{}` (D205).
 - **Exit codes** — `2` sem escopo em `list` ou `scope` inválido; `3` raiz/programa ausente;
   `4` colisão de id no `--submit`; `8` `--kind` incoerente.
 

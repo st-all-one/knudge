@@ -62,6 +62,17 @@ kd knowledge map --universe --semantic
 Roda o agrupamento semântico (complete-link) **dentro** de cada cluster estrutural. Requer
 embeddings ([`kd drain`](15-embeddings.md)); sem índice, degrada com `warnings[]`.
 
+### Nível 3.5 — comunidades (`GraphRAG`)
+
+```bash
+kd knowledge map --universe --communities
+```
+
+Detecta **comunidades** por Louvain determinístico (D193) sobre as arestas explícitas + âncoras
+compartilhadas. Cada comunidade traz um **resumo local** (termos mais frequentes). É off-path
+(só roda no `map`) e aditivo no `--json` (`data.communities`). Com `--write`, cada comunidade
+vira uma nota-hub (`## Comunidades` no `MAP.md`).
+
 ### Nível 4 — materializar o mapa (D150)
 
 ```bash
@@ -84,6 +95,15 @@ revisar o que merece atenção. A evidência é **bayesiana** (D189): `outcomes`
 Bernoulli e a confiança usa o **limite inferior** de 95 % do posterior `Beta(1+s, 1+f)` — uma
 nota com 1 sucesso não empata com uma com 20 (o canal `stars` usa a média). Saída
 `id|statement|score|why`. Exige escopo ou `--universe`.
+
+Quando a evidência empata, a **recência** desempata a favor da nota mais nova (D175): sem
+similaridade textual, a idade entra de forma aditiva (`AGE_WEIGHT = 0,05`) — pequena o bastante
+para nunca superar a evidência.
+
+Âncoras quebradas também **descontam** a confiança (D203): o `drift` de cada nota (fração de
+âncoras quebradas, derivado `.idx/drift.jsonl` e atualizado pelo `maintenance prune`) multiplica
+o score por `drift_factor` (`0,5` no pior caso). Assim, uma nota cuja proveniência se perdeu cai
+mesmo sem query.
 
 ## `knowledge tags`
 
@@ -115,6 +135,7 @@ resto. Ver [Embeddings](15-embeddings.md).
 | `--axis <EIXO>` | `anchor`/`type`/`classification`/`scope` |
 | `--scope <ESCOPO>` | Restringe aos membros de um épico |
 | `--semantic` | Fase 2 semântica dentro dos clusters |
+| `--communities` | Detecta comunidades (`GraphRAG`) + resumo local (D193) |
 | `--members` | Inclui os membros de cada cluster |
 | `--write` | Materializa `notas/MAP.md` + hubs |
 | `--type`/`--class`/`--tag`/`--anchor` | Filtros de corpus (repetíveis) |

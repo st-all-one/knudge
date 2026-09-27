@@ -5,9 +5,12 @@
 
 pub mod beta;
 pub mod clusters;
+pub mod communities;
 pub mod confidence;
 pub mod decay;
+pub mod drift;
 pub mod plan;
+pub mod retention;
 pub mod retire;
 pub mod semantic;
 pub mod shelf_life;
@@ -21,15 +24,23 @@ pub use beta::{Z_95, lower_bound, posterior_mean};
 pub use clusters::{
     Cluster, ClusterAxis, scope_of, structural_clusters, structural_clusters_filtered,
 };
+pub use communities::{
+    COMMUNITY_EDGES, Community, MAX_ANCHOR_CLIQUE, SUMMARY_TERMS, communities,
+    communities_filtered, global_terms,
+};
 pub use confidence::{
-    ConfidenceInput, DEFAULT_TASK_CONFIRMATION, age_factor, confidence_score, drift_factor,
-    from_tasks, from_tasks_with, is_success_task,
+    AGE_WEIGHT, ConfidenceInput, DEFAULT_TASK_CONFIRMATION, age_factor, confidence_score,
+    drift_factor, from_tasks, from_tasks_with, is_success_task,
 };
 pub use decay::{
-    AnchorValidity, DecayPolicy, compute_anchor_validity, compute_anchor_validity_with, has_glob,
-    should_demote, walk_paths,
+    AnchorValidity, DecayPolicy, compute_anchor_validity, compute_anchor_validity_cached,
+    compute_anchor_validity_with, has_glob, should_demote, walk_paths,
 };
+pub use drift::{DriftEntry, DriftIndex, DriftStore, entries_from_validity};
 pub use plan::{DemotionCandidate, DemotionInput, DemotionReason, demotion_candidates};
+pub use retention::{
+    DEFAULT_GROWTH_PERCENT, DEFAULT_REVIEW_THRESHOLD, retention, retention_for, stability_days,
+};
 pub use retire::{
     DEFAULT_RETIRED_DAYS, Retention, Retirement, due_for_purge, purge_due, retirements,
 };

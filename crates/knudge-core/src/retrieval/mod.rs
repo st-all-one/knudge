@@ -6,6 +6,7 @@
 
 pub mod anchor;
 pub mod bm25;
+mod contradiction;
 pub mod filter;
 pub mod format;
 pub mod index;
@@ -18,6 +19,7 @@ pub mod tags;
 pub mod temporal;
 pub mod token;
 pub mod views;
+pub mod weights;
 pub mod why;
 
 #[cfg(test)]
@@ -36,58 +38,27 @@ pub use snippet::{body_matches, body_snippet};
 pub use tags::tag_counts;
 pub use temporal::{State, active_ids, state_at};
 pub use views::{BlockReason, Views, block_reason, compute_views};
+pub use weights::{
+    DEFAULT_ANCHOR_WEIGHT, DEFAULT_LEXICAL_WEIGHT, DEFAULT_PPR_WEIGHT, DEFAULT_SEMANTIC_WEIGHT,
+    FusionWeights,
+};
 pub use why::Why;
 
 use std::collections::BTreeSet;
 
 use crate::graph::Graph;
+use crate::lifecycle::DriftIndex;
 use crate::lifecycle::confidence::DEFAULT_TASK_CONFIRMATION;
 use crate::store::{Note, Store};
 use crate::{Error, Result};
 
 use pipeline::{
-    ChannelLabel, FusedChannels, build_hits, candidates, lexical_channel, semantic_channel,
-    task_confirmers,
+    ChannelLabel, FusedChannels, build_hits, candidates, lexical_channel, ppr_channel,
+    semantic_channel, task_confirmers,
 };
 
 /// `k` padrão da fusão RRF (config `recall.rrf_k`).
 pub const DEFAULT_RRF_K: u32 = 60;
-
-/// Peso default do canal lexical na fusão (config `recall.lexical_weight`, D123).
-pub const DEFAULT_LEXICAL_WEIGHT: f64 = 1.0;
-/// Peso default do canal de âncoras (config `recall.anchor_weight`, D123).
-pub const DEFAULT_ANCHOR_WEIGHT: f64 = 1.0;
-/// Peso default do canal vetorial (config `recall.semantic_weight`, D123).
-///
-/// Alto de propósito: com `rrf_k=60` num corpus pequeno os ranks ficam comprimidos e o canal
-/// lexical continua competitivo, então um peso modesto (1–20) deixa a fusão **pior** que o
-/// neutro. Medido no corpus PT-BR da bancada, `30` já Pareto-domina o neutro (R@1, R@5, MRR e
-/// nDCG@5 ≥ neutro) e `≥80` converge para o ranking vetorial puro. Ajuste por config.
-pub const DEFAULT_SEMANTIC_WEIGHT: f64 = 30.0;
-
-/// Pesos dos canais na fusão RRF (D123).
-///
-/// Um peso maior deixa o canal “vencer” o outro em RRF: o default dá ao canal vetorial o
-/// dobro do peso do lexical, porque em PT-BR o lexical sozinho quase não distingue sinônimos.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct FusionWeights {
-    /// Canal lexical (BM25).
-    pub lexical: f64,
-    /// Canal de âncoras (working set).
-    pub anchor: f64,
-    /// Canal vetorial.
-    pub semantic: f64,
-}
-
-impl Default for FusionWeights {
-    fn default() -> Self {
-        Self {
-            lexical: DEFAULT_LEXICAL_WEIGHT,
-            anchor: DEFAULT_ANCHOR_WEIGHT,
-            semantic: DEFAULT_SEMANTIC_WEIGHT,
-        }
-    }
-}
 
 /// Limite padrão de hits (config `recall.default_limit`).
 ///
@@ -139,6 +110,8 @@ pub struct RecallQuery {
     /// Peso da confirmação derivada de tarefas (X1/D108; config
     /// `recall.confirmation_from_tasks`).
     pub task_confirmation_weight: f64,
+    /// Drift de âncoras por id (`0` = em dia; ausente = `0`) — derivado `.idx/drift.jsonl` (D203).
+    pub drift: DriftIndex,
     /// Corte de termos de alta frequência no canal lexical (D173; config
     /// `recall.max_term_ratio`); `0` desliga.
     pub max_term_ratio: f64,
@@ -194,6 +167,8 @@ pub struct HitChannels {
     pub anchor: f64,
     /// Parcela do canal vetorial na fusão RRF (0 sem embeddings).
     pub semantic: f64,
+    /// Parcela do canal de autoridade (`PageRank` personalizado — D192); 0 se desligado.
+    pub ppr: f64,
     /// Fator de recência `(0,1]` (1 = recém-criada) — boost informativo.
     pub recent: f64,
     /// Confirmação derivada (`outcomes` + tarefas, X1/D108) em `[0,1]` — boost informativo.
@@ -223,16 +198,21 @@ pub fn recall(index: &Index, graph: &Graph, query: &RecallQuery) -> Result<Recal
 
     let lexical = lexical_channel(index, &allowed, query, &confirmers, weight);
     let anchored = anchor::rank(index, &allowed, &query.working_paths, &query.working_ids);
+    let semantic = semantic_channel(query, &allowed);
+    let ppr = ppr_channel(graph, &allowed, &anchored, query.weights.ppr);
 
     let mut channels: Vec<Channel<'_>> = vec![
         Channel::new(&lexical, query.weights.lexical),
         Channel::new(&anchored, query.weights.anchor),
     ];
     let mut labels = vec![ChannelLabel::Lexical, ChannelLabel::Anchor];
-    let semantic = semantic_channel(query, &allowed);
     if !semantic.is_empty() {
         channels.push(Channel::new(&semantic, query.weights.semantic));
         labels.push(ChannelLabel::Semantic);
+    }
+    if !ppr.is_empty() {
+        channels.push(Channel::new(&ppr, query.weights.ppr));
+        labels.push(ChannelLabel::Ppr);
     }
     let fused = fuse(&channels, query.rrf_k);
 

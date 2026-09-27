@@ -21,6 +21,15 @@ pub const DRIFT_FLOOR: f64 = 0.5;
 /// Meia-vida da idade (dias): o fator cai à metade a cada `AGE_HALF_LIFE_DAYS`.
 pub const AGE_HALF_LIFE_DAYS: f64 = 90.0;
 
+/// Peso do bônus de recência quando não há similaridade textual (D175).
+///
+/// Em `rank` (`similarity = 0`) o `age_factor` era anulado; este termo aditivo desempata notas
+/// de evidência equivalente a favor da recente, sem competir com a evidência (D189).
+pub const AGE_WEIGHT: f64 = 0.05;
+
+/// Penalidade aplicada ao **lado perdedor** de uma contradição declarada (D177).
+pub const CONTRADICTION_PENALTY: f64 = 0.1;
+
 /// Entradas da confiança derivada.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ConfidenceInput {
@@ -73,13 +82,19 @@ pub fn age_factor(age_days: f64) -> f64 {
 /// decrescente em `failures`/`drift`/`age_days`).
 ///
 /// A evidência entra como o **limite inferior** do intervalo de credibilidade de 95 %
-/// (D189): conservadora por construção, sem saturar com muitos sucessos.
+/// (D189): conservadora por construção, sem saturar com muitos sucessos. O `drift` de âncoras
+/// (D203) desconta o score **inteiro** por [`drift_factor`]: uma nota com âncoras quebradas
+/// perde confiança mesmo sem query (`rank`), onde `similarity = 0`.
 #[must_use]
 pub fn confidence_score(input: &ConfidenceInput) -> f64 {
-    let base = clamp01(input.similarity) * drift_factor(input.drift) * age_factor(input.age_days);
+    let similarity = clamp01(input.similarity);
+    let age = age_factor(input.age_days);
+    let base = similarity * age;
     let evidence = beta::lower_bound(input.successes, input.failures);
     let feedback = FEEDBACK_WEIGHT * input.feedback.max(0.0);
-    clamp01(base + evidence + feedback + input.task_confirmation.max(0.0))
+    let recency = AGE_WEIGHT * age * (1.0 - similarity);
+    let raw = base + evidence + feedback + input.task_confirmation.max(0.0) + recency;
+    clamp01(raw * drift_factor(input.drift))
 }
 
 /// `true` se a nota é uma **tarefa** (tem `scope`) com `outcomes` de sucesso (D108).

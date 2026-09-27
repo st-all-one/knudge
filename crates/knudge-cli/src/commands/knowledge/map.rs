@@ -4,14 +4,10 @@
 //! Fase 1 é determinística e sem embeddings (agrega por `anchor`/`type`/`classification`/
 //! `container`); fase 2 só roda **dentro** de um cluster estrutural acima de `clusters.min_volume`.
 
-use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::embeddings::{EmbeddingIndex, similarity};
-use knudge_core::graph::Graph;
-use knudge_core::handoff::manifest::belongs_to;
 use knudge_core::lifecycle::{
     Cluster, ClusterAxis, MIN_SEMANTIC_VOLUME, SemanticCluster, semantic_clusters,
-    structural_clusters_filtered,
 };
 use knudge_core::store::Store;
 use serde_json::json;
@@ -20,8 +16,9 @@ use crate::cli::KnowledgeMapArgs;
 use crate::output::Output;
 use crate::session::Session;
 
-use super::super::corpus::CorpusScope;
 use super::super::embedder;
+use super::clusters::{corpus_scope, selected_clusters, validate_axis};
+use super::community::community_section;
 use super::hub;
 
 /// Linhas de texto + nós JSON de uma seção.
@@ -37,38 +34,37 @@ pub fn run(session: &Session, args: &KnowledgeMapArgs) -> Result<Output> {
     if let Some(axis) = args.axis.as_deref() {
         validate_axis(axis)?;
     }
-    let scope = CorpusScope {
-        types: args.types.clone(),
-        classes: args.classes.clone(),
-        tags: args.tags.clone(),
-        anchors: args.anchor.clone(),
-        around: args.around.clone(),
-        depth: args.depth,
-        universe: args.universe,
-    };
+    let scope = corpus_scope(args);
     scope.require("knowledge map")?;
     let index = session.index()?;
     let graph = session.graph()?;
     let selection = scope.select(&index, &graph)?;
-    let mut clusters = structural_clusters_filtered(&index, &graph, selection.filter());
-    if let Some(allowed) = selection.allowed() {
-        clusters = restrict(clusters, allowed);
-    }
-    if let Some(axis) = args.axis.as_deref() {
-        clusters.retain(|cluster| cluster.axis.axis() == axis);
-    }
-    if let Some(scope) = args.scope.as_deref() {
-        clusters = scope_clusters(clusters, &graph, scope);
-    }
+    let clusters = selected_clusters(
+        &index,
+        &graph,
+        &selection,
+        args.axis.as_deref(),
+        args.scope.as_deref(),
+    );
     let store = session.store();
     let docs = selection.docs();
-    let mut lines = vec![format!("docs={docs} clusters={}", clusters.len())];
+    let (community_lines, community_data, community_entries) = if args.communities {
+        community_section(&index, &graph, selection.filter(), selection.allowed())
+    } else {
+        (Vec::new(), Vec::new(), Vec::new())
+    };
+    let mut lines = vec![format!(
+        "docs={docs} clusters={} communities={}",
+        clusters.len(),
+        community_entries.len()
+    )];
     let mut data = Vec::new();
     for cluster in &clusters {
         let (line, value) = render_cluster(&store, cluster, args.members);
         lines.push(line);
         data.push(value);
     }
+    lines.extend(community_lines);
     let mut warnings = Vec::new();
     let mut semantic_entries = Vec::new();
     let semantic_data = if args.semantic {
@@ -81,7 +77,7 @@ pub fn run(session: &Session, args: &KnowledgeMapArgs) -> Result<Output> {
         Vec::new()
     };
     if args.write {
-        let hubs = hub::materialize(session, &clusters, &semantic_entries)?;
+        let hubs = hub::materialize(session, &clusters, &semantic_entries, &community_entries)?;
         warnings.push(format!(
             "mapa materializado: {n} hub(s) + notas/MAP.md",
             n = hubs.len()
@@ -90,57 +86,10 @@ pub fn run(session: &Session, args: &KnowledgeMapArgs) -> Result<Output> {
     let value = json!({
         "docs": docs,
         "clusters": data,
+        "communities": community_data,
         "semantic": semantic_data,
     });
     Ok(Output::new(lines.join("\n"), value).with_warnings(warnings))
-}
-
-/// Restringe os membros dos clusters à vizinhança (`--around`) e descarta clusters vazios.
-fn restrict(clusters: Vec<Cluster>, allowed: &std::collections::BTreeSet<String>) -> Vec<Cluster> {
-    clusters
-        .into_iter()
-        .filter_map(|cluster| {
-            let members: Vec<String> = cluster
-                .members
-                .into_iter()
-                .filter(|member| allowed.contains(member))
-                .collect();
-            (!members.is_empty()).then_some(Cluster {
-                axis: cluster.axis,
-                members,
-            })
-        })
-        .collect()
-}
-
-/// Valida o nome do eixo.
-fn validate_axis(axis: &str) -> Result<()> {
-    const AXES: [&str; 4] = ["anchor", "type", "classification", "scope"];
-    if AXES.contains(&axis) {
-        Ok(())
-    } else {
-        Err(Error::invalid_input(format!(
-            "eixo desconhecido: {axis:?} (use anchor|type|classification|scope)"
-        )))
-    }
-}
-
-/// Restringe os membros aos que pertencem ao container dado (`belongs_to`).
-fn scope_clusters(clusters: Vec<Cluster>, graph: &Graph, scope: &str) -> Vec<Cluster> {
-    clusters
-        .into_iter()
-        .filter_map(|cluster| {
-            let members: Vec<String> = cluster
-                .members
-                .into_iter()
-                .filter(|member| belongs_to(graph, member, scope))
-                .collect();
-            (!members.is_empty()).then_some(Cluster {
-                axis: cluster.axis,
-                members,
-            })
-        })
-        .collect()
 }
 
 /// Renderiza um cluster (texto + JSON).

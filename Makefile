@@ -5,7 +5,7 @@ PREFIX ?= $(HOME)/.local
 BINDIR ?= $(PREFIX)/bin
 
 .PHONY: check fmt clippy test build file-length clean install uninstall \
-        update-version nextest doc deny audit machete typos miri fuzz coverage ci dist bench bench-quick
+        update-version nextest doc deny audit machete typos miri fuzz coverage ci dist bench bench-quick bench-quality bench-sweep
 
 ## Portão completo local: formatação, lints, testes e gate de tamanho de arquivo.
 check: fmt clippy test file-length
@@ -122,6 +122,10 @@ bench:
 bench-quality:
 	$(CARGO) run --release --manifest-path bench/Cargo.toml -- quality \
 		--quality-out bench/qualidade.md --quality-json bench/qualidade.json
+
+## Varre `rrf_k` × pesos da fusão na bancada de qualidade (E16/T09/D179) — observação.
+bench-sweep:
+	$(CARGO) run --release --manifest-path bench/Cargo.toml -- sweep
 
 ## Versão rápida (1 corpus, 5 amostras).
 bench-quick:

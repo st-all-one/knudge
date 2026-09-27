@@ -47,6 +47,12 @@ pub struct Issue {
 }
 
 impl Graph {
+    /// `true` se alguma nota declara `contradicts` (D177).
+    #[must_use]
+    pub fn has_contradictions(&self) -> bool {
+        self.has_contradictions
+    }
+
     /// Diagnóstico de integridade, ordenado e determinístico.
     #[must_use]
     pub fn integrity(&self) -> Vec<Issue> {

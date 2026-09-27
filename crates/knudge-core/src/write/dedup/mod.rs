@@ -210,6 +210,8 @@ pub fn decide(thresholds: &DedupThresholds, best: Option<&Candidate>) -> DedupDe
     }
 }
 
+pub mod lsh;
 mod merges;
+mod sieve;
 
 pub use merges::{dice, dice_statement, propose_merges};

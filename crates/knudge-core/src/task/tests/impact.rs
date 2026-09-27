@@ -94,14 +94,14 @@ fn actionable_excludes_terminal_statuses() {
 }
 
 /// Id determinístico da tarefa `t<index>` (a afirmação define o id).
-fn task_id(index: usize) -> Result<String> {
+pub(super) fn task_id(index: usize) -> Result<String> {
     let note = TaskSpec::new(Scope::Task, format!("t{index}")).to_note(NOW)?;
     Ok(note.id()?.to_string())
 }
 
 /// Grafo de 4 tarefas `t0..t3` com as arestas `(from depende de to)`. `to_note` não toca o
 /// store, então o id pode ser recalculado com a mesma afirmação.
-fn graph_with(edges: &[(usize, usize)]) -> Result<Graph> {
+pub(super) fn graph_with(edges: &[(usize, usize)]) -> Result<Graph> {
     let ids: Vec<String> = (0..4).map(task_id).collect::<Result<Vec<_>>>()?;
     let mut notes: Vec<Note> = (0..4)
         .map(|index| TaskSpec::new(Scope::Task, format!("t{index}")).to_note(NOW))

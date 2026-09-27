@@ -138,7 +138,7 @@ fn mcp_observation_defaults() {
 fn recall_weights_defaults() {
     let config = Config::defaults();
     assert_eq!(config.get_float("recall.lexical_weight"), Some(1.0));
-    assert_eq!(config.get_float("recall.anchor_weight"), Some(1.0));
+    assert_eq!(config.get_float("recall.anchor_weight"), Some(2.0));
     assert_eq!(config.get_float("recall.semantic_weight"), Some(30.0));
 }
 

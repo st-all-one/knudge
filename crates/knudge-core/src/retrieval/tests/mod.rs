@@ -1,7 +1,9 @@
 //! Testes do retrieval (E06).
 
 use crate::Result;
-use crate::schema::{Frontmatter, NoteType, Scope, Status, Value, body, id};
+use crate::graph::{Graph, link};
+use crate::retrieval::Index;
+use crate::schema::{EdgeKind, Frontmatter, NoteType, Scope, Status, Value, body, id};
 use crate::store::Note;
 
 mod anchor;
@@ -86,6 +88,23 @@ pub(super) fn with_scope(mut frontmatter: Frontmatter, scope: Scope) -> Result<F
     Ok(frontmatter)
 }
 
+/// Aplica arestas explícitas.
+pub(super) fn with_edges(
+    mut frontmatter: Frontmatter,
+    edges: &[(EdgeKind, &str)],
+) -> Result<Frontmatter> {
+    for (kind, target) in edges {
+        link(&mut frontmatter, *kind, target)?;
+    }
+    Ok(frontmatter)
+}
+
+/// Aplica `created_at` em milissegundos (para testes de idade — D175).
+pub(super) fn with_created(mut frontmatter: Frontmatter, ms: i64) -> Result<Frontmatter> {
+    frontmatter.set("created_at", Value::Int(ms))?;
+    Ok(frontmatter)
+}
+
 /// Aplica `outcomes` com os status dados.
 pub(super) fn with_outcomes(
     mut frontmatter: Frontmatter,
@@ -106,4 +125,11 @@ fn string_list(items: &[&str]) -> Value {
             .map(|item| Value::Str((*item).to_string()))
             .collect(),
     )
+}
+
+/// Índice + grafo das notas (o `rank` consulta o grafo por contradições — D177).
+pub(super) fn built(notes: Vec<Note>) -> Result<(Index, Graph)> {
+    let index = Index::build(&notes)?;
+    let graph = Graph::from_notes(notes)?;
+    Ok((index, graph))
 }

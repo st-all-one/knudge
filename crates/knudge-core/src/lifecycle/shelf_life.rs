@@ -6,7 +6,7 @@
 
 use crate::Result;
 use crate::config::Config;
-use crate::schema::Classification;
+use crate::schema::{Classification, outcome_stats};
 use crate::store::Note;
 
 use super::usage::UsageIndex;
@@ -29,6 +29,8 @@ pub struct ShelfLife {
     pub observational_days: i64,
     /// Renova a expiração a partir do último uso (D154).
     pub renew_on_use: bool,
+    /// Crescimento do prazo por revisão de sucesso, em % (D190; `0` desliga).
+    pub growth_percent: i64,
 }
 
 impl Default for ShelfLife {
@@ -38,6 +40,7 @@ impl Default for ShelfLife {
             tactical_days: 365,
             observational_days: 30,
             renew_on_use: false,
+            growth_percent: super::retention::DEFAULT_GROWTH_PERCENT,
         }
     }
 }
@@ -60,10 +63,13 @@ impl ShelfLife {
             renew_on_use: config
                 .get_bool("retention.renew_on_use")
                 .unwrap_or(defaults.renew_on_use),
+            growth_percent: config
+                .get_int("retention.growth_percent")
+                .unwrap_or(defaults.growth_percent),
         }
     }
 
-    /// Prazo em dias de uma classificação (`None` = nunca expira).
+    /// Prazo base em dias de uma classificação (`None` = nunca expira).
     #[must_use]
     pub const fn ttl_days(&self, classification: Classification) -> Option<i64> {
         let days = match classification {
@@ -74,29 +80,28 @@ impl ShelfLife {
         if days > 0 { Some(days) } else { None }
     }
 
-    /// Expiração derivada (`created_ms` + prazo) — `None` se nunca expira.
+    /// Prazo efetivo (dias) após `reviews` sucessos: `base + base·growth%·reviews/100` (D190).
     #[must_use]
-    pub fn derived_expiry(&self, classification: Classification, created_ms: i64) -> Option<i64> {
-        self.effective_expiry(classification, created_ms, None)
+    pub fn effective_ttl_days(&self, classification: Classification, reviews: u32) -> Option<i64> {
+        let base = self.ttl_days(classification)?;
+        let growth = self.growth_percent.max(0);
+        let extra = base
+            .saturating_mul(growth)
+            .saturating_mul(i64::from(reviews))
+            .saturating_div(100);
+        Some(base.saturating_add(extra))
     }
 
-    /// Expiração efetiva, renovável pelo último uso quando `renew_on_use` (D154).
-    ///
-    /// O uso **só estende**: `max(created_ms, last_seen_ms)` — nunca antecipa a expiração.
+    /// Expiração derivada (`origin_ms` + prazo efetivo) — `None` se nunca expira.
     #[must_use]
     pub fn effective_expiry(
         &self,
         classification: Classification,
-        created_ms: i64,
-        last_seen_ms: Option<i64>,
+        origin_ms: i64,
+        reviews: u32,
     ) -> Option<i64> {
-        let origin = if self.renew_on_use {
-            last_seen_ms.map_or(created_ms, |seen| created_ms.max(seen))
-        } else {
-            created_ms
-        };
-        self.ttl_days(classification)
-            .map(|days| origin.saturating_add(days.saturating_mul(DAY_MS)))
+        self.effective_ttl_days(classification, reviews)
+            .map(|days| origin_ms.saturating_add(days.saturating_mul(DAY_MS)))
     }
 }
 
@@ -117,8 +122,28 @@ pub fn expiry_for_with(
     policy: &ShelfLife,
     last_seen_ms: Option<i64>,
 ) -> Result<Option<i64>> {
-    let created_ms = created_ms(note);
-    Ok(policy.effective_expiry(note.frontmatter.classification()?, created_ms, last_seen_ms))
+    let stats = outcome_stats(&note.frontmatter);
+    let origin = origin_ms(note, policy, stats.last_ms, last_seen_ms);
+    Ok(policy.effective_expiry(note.frontmatter.classification()?, origin, stats.reviews))
+}
+
+/// Origem do relógio de retenção: `max(created, último ensaio, último uso se renew)` (D190).
+pub(super) fn origin_ms(
+    note: &Note,
+    policy: &ShelfLife,
+    last_review_ms: Option<i64>,
+    last_seen_ms: Option<i64>,
+) -> i64 {
+    let mut origin = created_ms(note);
+    if let Some(review) = last_review_ms {
+        origin = origin.max(review);
+    }
+    if policy.renew_on_use
+        && let Some(seen) = last_seen_ms
+    {
+        origin = origin.max(seen);
+    }
+    origin
 }
 
 /// `true` se a nota expirou em `now_ms`.

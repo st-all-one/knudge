@@ -6,6 +6,7 @@
 
 pub mod batch;
 pub mod context;
+pub mod flow;
 pub mod hierarchy;
 pub mod impact;
 pub mod lifecycle;
@@ -23,6 +24,10 @@ mod tests;
 
 pub use batch::{TaskBatchItem, TaskBatchMode, TaskBatchOutput, TaskOp, batch_jsonl};
 pub use context::{TaskContext, TaskRef, context_of};
+pub use flow::{
+    CriticalPath, TaskFlow, ThroughputBucket, critical_path, durations_from_flows, task_flows,
+    throughput,
+};
 pub use hierarchy::{child, children, validate_blocks, validate_parent};
 pub use impact::{impact, impacts, is_actionable};
 pub use lifecycle::{OutcomeStatus, TaskAction, apply, outcome, validate_transition};

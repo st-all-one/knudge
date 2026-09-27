@@ -166,6 +166,7 @@ kd task list <filtro> [--sort impact] [--full-content]
   [--full-content]
 kd task show --id <ID> [<ID>...] [--history]   # + corpo/checks/âncoras/tags/outcomes (D137)
 kd task graph [--program <PATH>|--root <ID>]   # escopos com progresso (D127)
+kd task flow [--window-days <N>]               # cycle/lead/throughput + caminho crítico (D205)
 kd task update --id <ID> [--statement <S>] [--status <S>] [--parent <ID>] [--checks ...]
   [--anchor <PATH>...] [--clear-anchors]       # substitui/limpa âncoras
 kd task close --id <ID> [--outcome success|partial|failure|abandoned] [--note <TXT>]
@@ -215,7 +216,7 @@ kd task plan <ID> [--prompt [--template <NOME>] | --submit --from <TXT|->]
 
 ```
 kd knowledge map [--axis <anchor|type|classification|scope>] [--scope <ESCOPO>]
-                [--semantic] [--members] [--write]
+                [--semantic] [--communities] [--members] [--write]
                 [--tag <T>...] [--anchor <PATH>...] [--type <T>...] [--class <C>...]
                 [--around <ID>] [--depth <N>] [--universe]
 kd knowledge rank [--tag ...] [--anchor ...] [--type ...] [--class ...]

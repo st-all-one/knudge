@@ -81,12 +81,17 @@ const BASE: &[KeySpec] = &[
     KeySpec {
         key: "recall.anchor_weight",
         kind: Kind::Float,
-        default: Default::Float(1.0),
+        default: Default::Float(2.0),
     },
     KeySpec {
         key: "recall.semantic_weight",
         kind: Kind::Float,
         default: Default::Float(30.0),
+    },
+    KeySpec {
+        key: "recall.ppr_weight",
+        kind: Kind::Float,
+        default: Default::Float(0.0),
     },
     KeySpec {
         key: "recall.semantic",
@@ -182,6 +187,11 @@ const BASE: &[KeySpec] = &[
         key: "retention.renew_on_use",
         kind: Kind::Bool,
         default: Default::Bool(false),
+    },
+    KeySpec {
+        key: "retention.growth_percent",
+        kind: Kind::Int,
+        default: Default::Int(50),
     },
     KeySpec {
         key: "retention.retired_days",

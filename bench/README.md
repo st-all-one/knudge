@@ -17,6 +17,7 @@ Bancada **isolada do workspace** e **sem dependências externas** (zero crates a
 ```sh
 make bench          # micro + e2e + qualidade, corpora 200 e 1000, 8 amostras → bench/ULTIMO.md
 make bench-quality  # só a qualidade de retrieval (E16/T01) → bench/qualidade.md
+make bench-sweep    # varre rrf_k × pesos da fusão (E16/T09/D179) → stdout
 make bench-quick    # 1 corpus, 5 amostras
 
 # direto, sem Makefile:
@@ -29,6 +30,7 @@ cargo run --release --manifest-path bench/Cargo.toml -- all \
 cargo run --release --manifest-path bench/Cargo.toml -- micro --sizes 1000
 cargo run --release --manifest-path bench/Cargo.toml -- e2e --sizes 1000 --samples 10
 cargo run --release --manifest-path bench/Cargo.toml -- quality
+cargo run --release --manifest-path bench/Cargo.toml -- sweep
 
 # A/B do auto-drain ocioso (KNUDGE_NO_IDLE=1) — ver RELATORIO.md
 cargo run --release --manifest-path bench/Cargo.toml -- e2e --sizes 1000 --no-idle
@@ -47,13 +49,14 @@ Flags: `--sizes A,B`, `--samples N`, `--kd PATH`, `--out rel.md`, `--json out.js
 
 A **qualidade** de retrieval (E16/T01) sai em `bench/qualidade.md`/`bench/qualidade.json`:
 Recall@k/MRR/nDCG@k sobre um corpus PT-BR sintético e rotulado (tópicos × consultas). É a régua
-para D172/D173/D179 e para a fusão — o baseline fica versionado no repositório.
+para D172/D173/D179 e para a fusão — o baseline fica versionado no repositório. O recorte da
+calibração da fusão (E16/T09/D179) fica em [`t09_fusao.md`](t09_fusao.md).
 
 ## Estrutura
 
 | Arquivo | Papel |
 |---|---|
-| `src/main.rs` | CLI da bancada (modos `micro`/`e2e`/`quality`/`all`) |
+| `src/main.rs` | CLI da bancada (modos `micro`/`e2e`/`quality`/`sweep`/`all`) |
 | `src/harness.rs` | medição, percentis, tabela Markdown e JSON |
 | `src/fixture.rs` | geração determinística de notas e lotes JSONL |
 | `src/micro.rs` | micromb dos componentes puros e escala por `N` |

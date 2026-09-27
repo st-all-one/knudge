@@ -108,21 +108,22 @@ registra a rejeição no épico.
 ### Trilha C — Léxico, confiança e ranking (E16 + E19 R1/R4)
 
 13. ✅ **E16/T03** — acentos; **E16/T04** — alta frequência.
-14. ✅ **E19/T01** — Beta (absorve E16/D174); ☐ **E19/T01b** — `drift` persistido; ☐ **E19/T02** — FSRS; ☐ **E19/T03** — obrigatoriedades-soft.
-15. **E19/T04** — PageRank/PPR; **E19/T05** — comunidades.
-16. **E16/T06** — idade; **E16/T07** — `contradicts`; **E16/T09** — fusão recalibrada.
+14. ✅ **E19/T01** — Beta (absorve E16/D174); ✅ **E19/T01b** — `drift` persistido (D203); ✅ **E19/T02** — FSRS; ✅ **E19/T03** — obrigatoriedades-soft.
+15. ✅ **E19/T04** — PageRank/PPR (D192); ✅ **E19/T05** — comunidades (D193).
+16. ✅ **E16/T06** idade (D175); **E16/T07** `contradicts` (D177); **E16/T09** fusão (D179).
 17. **E19/T06** — reranking/expansão/fusão.
-18. **E19/T07** — MinHash/LSH; **E19/T08** — Matryoshka/ANN.
+18. ✅ **E19/T07** — MinHash/LSH (D204); ☐ **E19/T08** — Matryoshka/ANN.
 
 ### Trilha D — Ontologia, razão e tarefa (E19 R5+)
 
 19. **E19/T09** — claims SPO + ontologia (**schema bump** + rebuild).
-20. **E19/T10** — TMS/drift; **E19/T11** — flow metrics/caminho crítico.
+20. **E19/T10** — TMS/drift; ✅ **E19/T11** — flow metrics/caminho crítico (D205).
 21. **E19/T12** — superfície enxuta (≤10 verbos).
 
 ### Fecho
 
-22. **E16/T11** — stemming (condicional, medido); **E16/T12**, **E17/T08**, **E18/T07**,
+22. ✅ **E16/T10** — perf do caminho de busca e de `prune` (walk único + tokenização única);
+    **E16/T11** — stemming (condicional, medido); **E16/T12**, **E17/T08**, **E18/T07**,
     **E19/T13** — docs/goldens/matriz/`CHANGELOG` (`[0.5.0]`) + `make update-version`.
 
 ## 5. Versionamento (0.5.0)
@@ -156,15 +157,15 @@ O `CHANGELOG.md` consolida tudo em `[0.5.0]` no fecho (E16/T12, E17/T08, E18/T07
 | 11 | ✅ E17/T05–T07 supply/polish | — | — | testes de checksum/`--every` |
 | 12 | ✅ E18/T05–T06 `self upgrade`/auditoria | **sim** | — | teste + decisão escrita |
 | 13 | ✅ E16/T03/T04 acentos/alta freq. | — | derivado | qualidade + goldens |
-| 14 | ◐ E19/T01–T03 R1 (Beta/FSRS/obrig.) | — | — | proptest + A/B |
-| 15 | E19/T04/T05 R4 (PPR/comunidades) | — | — | proptest + A/B |
-| 16 | E16/T06/T07/T09 ranking | — | — | qualidade + goldens |
+| 14 | ✅ E19/T01–T03 R1 (Beta/FSRS/obrig.) | — | — | proptest + A/B |
+| 15 | ✅ E19/T04/T05 R4 (PPR/comunidades) | — | — | proptest + A/B |
+| 16 | ✅ E16/T06 idade/T07 `contradicts`/T09 fusão | — | — | qualidade + goldens |
 | 17 | E19/T06 reranking | `--json` aditivo | — | A/B qualidade |
 | 18 | E19/T07/T08 R3 (MinHash/ANN) | — | `.idx/` | proptest + A/B |
 | 19 | E19/T09 R5 (SPO/ontologia) | — | **sim** | goldens + rebuild |
 | 20 | E19/T10/T11 R6/R7 | `--json` aditivo | — | proptest + teste |
 | 21 | E19/T12 superfície enxuta | **sim** | — | matriz |
-| 22 | E16/T11 stemming + fechos | — | — | `make ci` + `CHANGELOG` |
+| 22 | ✅ E16/T10 perf + E16/T11 stemming + fechos | — | — | `make ci` + `CHANGELOG` |
 
 ## 7. Rastreabilidade (decisão → épico → tarefa → gate)
 

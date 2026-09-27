@@ -4,17 +4,23 @@
 //! `notas/<id>.md` (D49). Arestas explícitas vêm do frontmatter; a extração textual é
 //! sugestão revisável em `.idx/suggestions.jsonl` e **nunca** entra no grafo (D49/D50).
 
+pub mod communities;
 pub mod cycles;
 pub mod extract;
 pub mod integrity;
+pub mod rank;
 pub mod suggestions;
 
 #[cfg(test)]
 mod tests;
 
+pub use communities::{MAX_LEVELS, MAX_PASSES, WeightedGraph, louvain};
 pub use cycles::{cyclic_components, strongly_connected};
 pub use extract::{Suggestion, extract};
 pub use integrity::{Issue, IssueKind};
+pub use rank::{
+    AUTHORITY_EDGES, DAMPING, MAX_ITERATIONS, TOLERANCE, pagerank, personalized_pagerank,
+};
 pub use suggestions::{SuggestionRecord, SuggestionStore};
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -41,6 +47,7 @@ pub struct Graph {
     nodes: BTreeMap<String, Node>,
     /// Índice reverso filho→pai (aresta `results_in`), 1º vencedor na ordem do `BTreeMap` (O5.1).
     parents: BTreeMap<String, String>,
+    has_contradictions: bool,
 }
 
 /// Hit de expansão BFS determinística.
@@ -85,16 +92,22 @@ impl Graph {
     /// Monta o grafo a partir dos nós, derivando o índice reverso de pais.
     fn from_nodes(by_id: BTreeMap<String, Node>) -> Self {
         let mut parents: BTreeMap<String, String> = BTreeMap::new();
+        let mut has_contradictions = false;
         for (id, node) in &by_id {
             if let Some(targets) = node.edges.get(&EdgeKind::ResultsIn) {
                 for target in targets {
                     parents.entry(target.clone()).or_insert_with(|| id.clone());
                 }
             }
+            has_contradictions |= node
+                .edges
+                .get(&EdgeKind::Contradicts)
+                .is_some_and(|targets| !targets.is_empty());
         }
         Self {
             nodes: by_id,
             parents,
+            has_contradictions,
         }
     }
 

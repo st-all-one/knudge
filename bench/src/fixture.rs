@@ -27,13 +27,41 @@ impl Lcg {
 }
 
 const WORDS: [&str; 24] = [
-    "cache", "indice", "grafo", "nota", "ancora", "fila", "evento", "retrieval", "token", "schema",
-    "embedding", "cluster", "decay", "shelf", "tarefa", "epico", "sequencia", "lock", "commit",
-    "rebuild", "consulta", "escrita", "leitura", "vetor",
+    "cache",
+    "indice",
+    "grafo",
+    "nota",
+    "ancora",
+    "fila",
+    "evento",
+    "retrieval",
+    "token",
+    "schema",
+    "embedding",
+    "cluster",
+    "decay",
+    "shelf",
+    "tarefa",
+    "epico",
+    "sequencia",
+    "lock",
+    "commit",
+    "rebuild",
+    "consulta",
+    "escrita",
+    "leitura",
+    "vetor",
 ];
 
 const MODULES: [&str; 8] = [
-    "core", "cli", "store", "retrieval", "graph", "lifecycle", "health", "embeddings",
+    "core",
+    "cli",
+    "store",
+    "retrieval",
+    "graph",
+    "lifecycle",
+    "health",
+    "embeddings",
 ];
 
 fn phrase(rng: &mut Lcg, count: usize) -> String {
@@ -48,7 +76,11 @@ fn phrase(rng: &mut Lcg, count: usize) -> String {
 }
 
 fn knowledge_statement(rng: &mut Lcg, serial: usize) -> String {
-    format!("nota {serial} descreve {} e {}", phrase(rng, 3), phrase(rng, 3))
+    format!(
+        "nota {serial} descreve {} e {}",
+        phrase(rng, 3),
+        phrase(rng, 3)
+    )
 }
 
 /// Corpo com 3 tokens únicos do serial e janela comum curta: mantém a similaridade

@@ -3,12 +3,15 @@
 use std::collections::BTreeMap;
 
 use knudge_core::Result;
+use knudge_core::graph::Graph;
 use knudge_core::handoff::{
     ContextStore, CorpusScope as HandoffScope, DEFAULT_BUDGET, RewindInput, RewindMode,
     RewindRequest, rewind,
 };
 use knudge_core::lifecycle::{DEFAULT_TASK_CONFIRMATION, ShelfLife, UsageStore, freshness_with};
-use knudge_core::store::Note;
+use knudge_core::store::{Event, Note};
+use knudge_core::task::{critical_path, durations_from_flows, task_flows, throughput};
+use knudge_core::time::Timestamp;
 use serde_json::json;
 
 use crate::cli::RewindArgs;
@@ -18,6 +21,9 @@ use crate::output::Output;
 use crate::session::Session;
 
 use super::embedder;
+
+/// Milissegundos em um dia (janela de throughput do `flow`).
+const DAY_MS: i64 = 86_400_000;
 
 /// Executa `kd rewind`.
 ///
@@ -78,8 +84,27 @@ pub fn run(session: &Session, args: &RewindArgs) -> Result<Output> {
         "truncated": out.truncated,
         "dropped": out.dropped,
         "embeddings_pending": out.embeddings_pending,
+        "flow": flow_json(&events, graph, session.now_ms()),
     });
     Ok(Output::new(out.text, data).with_warnings(warnings))
+}
+
+/// Bloco `flow` aditivo do `rewind --json` (E19/T11/D205): throughput + caminho crítico.
+fn flow_json(events: &[Event], graph: &Graph, now_ms: i64) -> serde_json::Value {
+    let flows = task_flows(events);
+    let durations = durations_from_flows(&flows, now_ms);
+    let path = critical_path(graph, &durations);
+    let buckets = throughput(events, 7_i64.saturating_mul(DAY_MS));
+    json!({
+        "throughput": buckets.iter().map(|bucket| json!({
+            "start": Timestamp::from_millis(bucket.start_ms).to_rfc3339(),
+            "closed": bucket.closed,
+        })).collect::<Vec<_>>(),
+        "critical_path": {
+            "ids": path.ids,
+            "total_ms": path.total_ms,
+        },
+    })
 }
 
 /// Credita o uso dos itens devolvidos (D154), se `renew_on_use` estiver ligado.

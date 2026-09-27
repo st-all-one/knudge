@@ -7,8 +7,9 @@ use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::handoff::manifest::belongs_to;
 use knudge_core::lifecycle::{
-    AnchorValidity, DecayPolicy, DemotionInput, ShelfLife, UsageStore, compute_anchor_validity,
-    demotion_candidates,
+    AnchorValidity, DecayPolicy, DemotionCandidate, DemotionInput, DriftStore, ShelfLife,
+    UsageIndex, UsageStore, compute_anchor_validity_cached, demotion_candidates,
+    entries_from_validity, retention_for, walk_paths,
 };
 use knudge_core::maintenance::{LearnInput, learn, propose_compact};
 use knudge_core::store::Note;
@@ -209,18 +210,51 @@ pub fn prune(session: &Session, scope: Option<&str>, corpus: &CorpusArgs) -> Res
         "propostas: forget={}\npróximos: kd forget --id <ID>",
         candidates.len()
     );
+    let retentions = retention_map(session, &shelf_life, notes, &usage, &candidates)?;
     let data = json!({
         "proposals": candidates.iter().map(|candidate| json!({
             "action": "forget",
             "id": candidate.id,
             "reason": candidate.reason.as_str(),
+            "retention": retentions.get(&candidate.id),
         })).collect::<Vec<_>>(),
     });
     Ok(Output::new(text, data))
 }
 
+/// Retenção atual (D190) das notas candidatas, por id — campo aditivo do `--json`.
+fn retention_map(
+    session: &Session,
+    shelf_life: &ShelfLife,
+    notes: &[Note],
+    usage: &UsageIndex,
+    candidates: &[DemotionCandidate],
+) -> Result<BTreeMap<String, f64>> {
+    let by_id: BTreeMap<&str, &Note> = notes
+        .iter()
+        .filter_map(|note| note.id().ok().map(|id| (id, note)))
+        .collect();
+    let mut retentions = BTreeMap::new();
+    for candidate in candidates {
+        if let Some(note) = by_id.get(candidate.id.as_str()) {
+            let value = retention_for(
+                note,
+                session.now_ms(),
+                shelf_life,
+                usage.last_seen(&candidate.id),
+            )?;
+            let _ignored = retentions.insert(candidate.id.clone(), value);
+        }
+    }
+    Ok(retentions)
+}
+
 /// Validade de âncoras por id (varredura off-path) para o plano de demolição.
+///
+/// Caminha o projeto **uma vez** e reusa os caminhos para todas as notas (E16/T10): antes era um
+/// walk por nota, `O(notas × projeto)`.
 fn validity_map(session: &Session, notes: &[Note]) -> Result<BTreeMap<String, AnchorValidity>> {
+    let paths = walk_paths(session.fs_dyn(), session.project_root());
     let mut map = BTreeMap::new();
     for note in notes {
         let anchors: Vec<String> = note
@@ -232,8 +266,17 @@ fn validity_map(session: &Session, notes: &[Note]) -> Result<BTreeMap<String, An
         if anchors.is_empty() {
             continue;
         }
-        let validity = compute_anchor_validity(session.fs_dyn(), session.project_root(), &anchors);
+        let validity = compute_anchor_validity_cached(
+            session.fs_dyn(),
+            session.project_root(),
+            &paths,
+            &anchors,
+        );
         let _ignored = map.insert(note.id()?.to_string(), validity);
     }
+    // Persiste o drift derivado (`.idx/drift.jsonl`, D203) do mesmo walk: alimenta a confiança
+    // derivada de `ask`/`knowledge rank` sem custo no caminho quente.
+    DriftStore::new(session.fs_dyn(), session.knowledge_dir())
+        .persist(&entries_from_validity(&map))?;
     Ok(map)
 }

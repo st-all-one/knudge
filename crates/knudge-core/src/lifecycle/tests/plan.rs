@@ -13,7 +13,7 @@ use crate::ports::fakes::MemFs;
 use crate::schema::{Classification, EdgeKind, NoteType, Status, id};
 use crate::write::Draft;
 
-use super::{NOW, PROJECT, anchored, built, classified, note_created, seeded};
+use super::{NOW, PROJECT, anchored, built, classified, note_created, seeded, with_outcomes_at};
 
 fn days(n: i64) -> i64 {
     DAY_MS.saturating_mul(n)
@@ -58,6 +58,40 @@ fn plans_expired_and_decayed_but_not_healthy() -> Result<()> {
     assert!(reasons.contains(&DemotionReason::Expired));
     assert!(reasons.contains(&DemotionReason::AnchorDecay));
     assert!(candidates.iter().all(|c| c.id != healthy_id));
+    Ok(())
+}
+
+#[test]
+fn contradiction_proposes_the_losing_side() -> Result<()> {
+    // D177: a aresta `contradicts` elege o lado de menor confiança como candidato.
+    let strong_id = id::note_id(NoteType::Decision, "forte");
+    let strong = with_outcomes_at(
+        note_created(NoteType::Decision, "forte", "", NOW)?,
+        &[("success", NOW), ("success", NOW), ("success", NOW)],
+    )?;
+    let mut weak_draft = Draft::new(NoteType::Fact, "fraca");
+    weak_draft.edges = vec![(EdgeKind::Contradicts, strong_id)];
+    let weak = weak_draft.to_note(NOW)?;
+    let weak_id = weak.id()?.to_string();
+    let notes = vec![strong, weak];
+
+    let graph = Graph::from_notes(notes.clone())?;
+    let shelf_life = ShelfLife::default();
+    let decay = DecayPolicy::default();
+    let input = DemotionInput {
+        now_ms: NOW,
+        shelf_life: &shelf_life,
+        decay: &decay,
+        validity: &BTreeMap::new(),
+        usage: None,
+    };
+    let candidates = demotion_candidates(&notes, &input, &graph)?;
+    let contradicted: Vec<&str> = candidates
+        .iter()
+        .filter(|candidate| candidate.reason == DemotionReason::Contradicted)
+        .map(|candidate| candidate.id.as_str())
+        .collect();
+    assert_eq!(contradicted, vec![weak_id.as_str()]);
     Ok(())
 }
 
