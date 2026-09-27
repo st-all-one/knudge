@@ -7,6 +7,9 @@
 >
 > Cada arquivo desta pasta é um **épico**; cada épico tem **tarefas** com aceite verificável.
 > A ordem dos arquivos é a ordem de dependência.
+>
+> **Plano-mestre da evolução 0.5.0 (E16–E19):** [`24_plano_mestre_0.5.0.md`](24_plano_mestre_0.5.0.md)
+> — referências (autoridade única), ordem integrada e gates (teste + bancada).
 
 ---
 
@@ -72,13 +75,34 @@ Cada achado traz **estado atual, recomendação, onde aplicar e aceite** em `14_
 | **Transversal** | E13 Testes e qualidade | [`13_testes_qualidade.md`](13_testes_qualidade.md) | todos |
 | **5 — MCP** | E14 Transporte JSON-RPC e tools | [`18_mcp_transporte.md`](18_mcp_transporte.md) | E12, E13 |
 | **6 — Evolução** | E15 Performance + reforma da CLI | [`19_performance_reforma_cli.md`](19_performance_reforma_cli.md) | E01–E14 |
+| **7 — Qualidade** | E16 Qualidade da busca + depreciação | [`20_qualidade_busca_depreciacao.md`](20_qualidade_busca_depreciacao.md) | E01–E15 |
+| **8 — Robustez** | E17 Worker de embeddings + `--install` | [`21_worker_embeddings_install.md`](21_worker_embeddings_install.md) | E11, E15 |
+| **9 — Scripts** | E18 Comandos scriptados (superfície mínima) | [`22_comandos_scriptados.md`](22_comandos_scriptados.md) | E11, E15 |
+| **10 — Conhecimento** | E19 Modelo de conhecimento rico | [`23_modelo_conhecimento_rico.md`](23_modelo_conhecimento_rico.md) | E06, E07, E09, E10, E11, E16 |
 
 **MVP = Fase 0 + Fase 1** (+ leitura tolerante mínima de E09). O resto é incremental.
 
 **Status:** E01–E14 ✅ (`make check` verde; 458 testes). Projeto completo pelo plano; evolução
 segue as decisões `Dxx` e as políticas `Rnn`. **E15 ✅** (performance + reforma da CLI) concluído —
 plano em [`../proposals/`](../proposals/) e épico em
-[`19_performance_reforma_cli.md`](19_performance_reforma_cli.md).
+[`19_performance_reforma_cli.md`](19_performance_reforma_cli.md). **E16 ☐** (qualidade da busca +
+depreciação de conhecimento) **proposto** — plano em
+[`../proposals/qualidade_busca_depreciacao.md`](../proposals/qualidade_busca_depreciacao.md) e
+épico em [`20_qualidade_busca_depreciacao.md`](20_qualidade_busca_depreciacao.md). **E17 ☐**
+(robustez do worker de embeddings + `--install`) **proposto** — plano em
+[`../proposals/worker_embeddings_install.md`](../proposals/worker_embeddings_install.md) e épico
+em [`21_worker_embeddings_install.md`](21_worker_embeddings_install.md). **E18 ☐** (comandos
+scriptados: superfície mínima e cross-platform) **proposto** — plano em
+[`../proposals/comandos_scriptados.md`](../proposals/comandos_scriptados.md) e épico em
+[`22_comandos_scriptados.md`](22_comandos_scriptados.md). **E19 ☐** (modelo de conhecimento rico)
+**proposto** — plano em
+[`../proposals/modelo_conhecimento_rico.md`](../proposals/modelo_conhecimento_rico.md) e épico
+em [`23_modelo_conhecimento_rico.md`](23_modelo_conhecimento_rico.md).
+
+**Evolução 0.5.0 (E16–E19):** a ordem integrada, o orçamento de performance (herança de E15) e
+os gates de teste/bancada estão no [plano-mestre](24_plano_mestre_0.5.0.md). E19 (R1–R7) entra
+inteiro em **0.5.0** (escopo único; supersede o corte 0.5.x/0.6.0). Cada épico tem uma seção
+**"Performance e orçamento (herança de E15)"** com notas `**Perf:**` por tarefa.
 
 **Superfície CLI:** o contrato dos verbos do `kd` está congelado em
 [`16_cli_surface.md`](16_cli_surface.md) (v2, inspirada no Docker; decisões D57/D69/D88/D93/D94).
@@ -100,6 +124,10 @@ E01 ── E02 ── E03 ──┬── E04
 E13 (testes) atravessa todos
 E14 (MCP stdio) depende de E12 + E13
 E15 (performance + reforma CLI) depende de E01–E14
+E16 (qualidade da busca + depreciação) depende de E06/E07/E09/E10/E11/E15
+E17 (robustez do worker de embeddings + `--install`) depende de E11 + E15
+E18 (comandos scriptados: superfície mínima) depende de E11 + E15
+E19 (modelo de conhecimento rico) depende de E06/E07/E09/E10/E11 + E16
 ```
 
 ---
@@ -154,6 +182,10 @@ Um épico só fecha quando:
 | D42, D79–D80, D83–D85, D89–D90, D101 (provedor HTTP, cache, fila, purge, flush, eval, lightweight) | E11 |
 | D163–D171 (doctor/help/verboso/prime/help embutido/redundância/docs/drain/`kd`=help) | E15 |
 | Ondas O1–O9 (performance: corpus único, postings, dedup, parse, grafo, deps, `task`, coleções) | E15 |
+| D172–D179 (qualidade da busca, depreciação, `contradicts`, fusão) | E16 |
+| D180–D183 (worker de embeddings, verbosidade, reconciliação, supply-chain) | E17 |
+| D184–D188 (comandos scriptados, `drain service`, `self upgrade`) | E18 |
+| D189–D201 (confiança Beta, retenção FSRS, PPR, reranking, ontologia, TMS) | E19 |
 
 ---
 
