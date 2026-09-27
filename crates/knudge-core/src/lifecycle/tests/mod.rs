@@ -1,5 +1,6 @@
 //! Testes do escopo `lifecycle` (E09/E10).
 
+mod beta;
 mod clusters;
 mod confidence;
 mod decay;

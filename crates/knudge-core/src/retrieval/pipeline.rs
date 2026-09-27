@@ -6,6 +6,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::graph::Graph;
+use crate::lifecycle::beta::posterior_mean;
 use crate::lifecycle::confidence::{
     ConfidenceInput, age_factor, confidence_score, from_tasks_with, is_success_task,
 };
@@ -119,7 +120,8 @@ pub(super) fn build_hits(
         let task_confirmation = from_tasks_with(&doc.meta, &confirmers, weight);
         let confidence = confidence_score(&ConfidenceInput {
             similarity,
-            confirmation: doc.meta.confirmation,
+            successes: doc.meta.confirmation,
+            failures: doc.meta.failures,
             age_days: age_days(doc, query.now_ms),
             task_confirmation,
             ..ConfidenceInput::default()
@@ -149,7 +151,8 @@ fn hit_channels(
 ) -> HitChannels {
     let mut channels = HitChannels {
         recent: age_factor(age_days(doc, query.now_ms)),
-        stars: (doc.meta.confirmation + task_confirmation).clamp(0.0, 1.0),
+        stars: (posterior_mean(doc.meta.confirmation, doc.meta.failures) + task_confirmation)
+            .clamp(0.0, 1.0),
         ..HitChannels::default()
     };
     for (label, value) in labels.iter().zip(fused.contribs.iter()) {

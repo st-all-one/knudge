@@ -34,6 +34,7 @@ pub(super) fn doc_to_value(doc: &NoteDoc) -> Value {
         "confirmation".to_string(),
         Value::Float(doc.meta.confirmation),
     );
+    map.insert("failures".to_string(), Value::Float(doc.meta.failures));
     map.insert("statement".to_string(), Value::Str(doc.statement.clone()));
     let mut fields = IndexMap::new();
     for field in Field::ALL {
@@ -75,6 +76,7 @@ pub(super) fn doc_from_value(value: &Value) -> Result<NoteDoc> {
             .get("confirmation")
             .and_then(Value::as_f64)
             .unwrap_or(0.0),
+        failures: map.get("failures").and_then(Value::as_f64).unwrap_or(0.0),
     };
     let mut fields = BTreeMap::new();
     if let Some(Value::Map(fields_map)) = map.get("fields") {

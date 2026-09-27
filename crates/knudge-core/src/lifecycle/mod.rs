@@ -3,6 +3,7 @@
 //! Retenção previsível e consolidação barata: nada de conhecimento válido é demolido por ciclo
 //! (D45) e nenhum conteúdo é removido antes da janela de retenção (E10-T03).
 
+pub mod beta;
 pub mod clusters;
 pub mod confidence;
 pub mod decay;
@@ -16,6 +17,7 @@ pub mod usage;
 #[cfg(test)]
 mod tests;
 
+pub use beta::{Z_95, lower_bound, posterior_mean};
 pub use clusters::{
     Cluster, ClusterAxis, scope_of, structural_clusters, structural_clusters_filtered,
 };

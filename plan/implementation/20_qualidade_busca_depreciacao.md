@@ -164,13 +164,15 @@ T09 (fusão) → T10 (perf) → T11 (stemming, condicional) → T12 (docs/golden
 - **Aceite:** medição (qualidade + latência) na bancada; goldens de retrieval; teste de que o
   corte é estável e ordenado. ✔
 
-### E16-T05 ☐ D174 — confiança derivada completa (`drift` + `feedback`) → **absorvida por E19/T01**
+### E16-T05 ◐ D174 — confiança derivada completa (`drift` + `feedback`) → **absorvida por E19/T01**
 - **Escopo:** persistir a validade de âncoras como derivado (`.idx/`, off-path, purgável por
   D84); alimentar `ConfidenceInput.drift` em `recall`/`rank`; derivar `feedback` dos `outcomes`
   negativos. **Movida para E19/T01**, onde a fórmula vira o posterior Beta (D189) — evita editar
   `confidence.rs` duas vezes.
 - **Depende de:** —
 - **Aceite:** coberto por **E19/T01** (a persistência de `drift` entra como insumo do Beta).
+- **Feito (D189):** `feedback` de `outcomes` negativos absorvido como `failures` do Beta.
+  **Pendente:** `drift` → **E19/T01b** (derivado `.idx/drift.jsonl`, walk único off-path).
 
 ### E16-T06 ☐ D175 — idade no ranking sem query
 - **Escopo:** `retrieval/rank.rs` — a idade entra de forma **aditiva** quando `similarity = 0`

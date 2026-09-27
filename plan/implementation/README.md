@@ -94,8 +94,8 @@ depreciação de conhecimento; **T01/T02/T03/T04 ✅**) — plano em
 em [`21_worker_embeddings_install.md`](21_worker_embeddings_install.md). **E18 ◐** (comandos
 scriptados: superfície mínima e cross-platform; **T01/T02/T03/T04/T05/T06 ✅**) — plano em
 [`../proposals/comandos_scriptados.md`](../proposals/comandos_scriptados.md) e épico em
-[`22_comandos_scriptados.md`](22_comandos_scriptados.md). **E19 ☐** (modelo de conhecimento rico)
-**proposto** — plano em
+[`22_comandos_scriptados.md`](22_comandos_scriptados.md). **E19 ◐** (modelo de conhecimento rico;
+**T01 ✅** Beta — D189; **T01b ☐** `drift`) — plano em
 [`../proposals/modelo_conhecimento_rico.md`](../proposals/modelo_conhecimento_rico.md) e épico
 em [`23_modelo_conhecimento_rico.md`](23_modelo_conhecimento_rico.md).
 

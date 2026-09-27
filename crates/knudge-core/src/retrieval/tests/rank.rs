@@ -44,6 +44,68 @@ fn rank_orders_confirmed_before_plain() -> Result<()> {
 }
 
 #[test]
+fn rank_prefers_more_successes_over_fewer() -> Result<()> {
+    // D189: a confiança é o limite inferior do posterior Beta — 20 sucessos > 1 sucesso.
+    let many = Note::new(
+        with_outcomes(
+            base(NoteType::Decision, "vinte sucessos")?,
+            &["success"; 20],
+        )?,
+        "",
+    );
+    let one = Note::new(
+        with_outcomes(base(NoteType::Decision, "um sucesso")?, &["success"])?,
+        "",
+    );
+    let many_id = many.id()?.to_string();
+    let one_id = one.id()?.to_string();
+    let index = Index::build(&[one, many])?;
+
+    let hits = rank(&index, &Filter::new(), &query(Universe::All, 0.0));
+    assert_eq!(
+        hits.first().map(|hit| hit.id.as_str()),
+        Some(many_id.as_str())
+    );
+    assert_eq!(
+        hits.last().map(|hit| hit.id.as_str()),
+        Some(one_id.as_str())
+    );
+    Ok(())
+}
+
+#[test]
+fn rank_penalizes_failures() -> Result<()> {
+    let clean = Note::new(
+        with_outcomes(
+            base(NoteType::Decision, "tres sucessos")?,
+            &["success", "success", "success"],
+        )?,
+        "",
+    );
+    let mixed = Note::new(
+        with_outcomes(
+            base(NoteType::Decision, "um sucesso duas falhas")?,
+            &["success", "failure", "failure"],
+        )?,
+        "",
+    );
+    let clean_id = clean.id()?.to_string();
+    let mixed_id = mixed.id()?.to_string();
+    let index = Index::build(&[clean, mixed])?;
+
+    let hits = rank(&index, &Filter::new(), &query(Universe::All, 0.0));
+    assert_eq!(
+        hits.first().map(|hit| hit.id.as_str()),
+        Some(clean_id.as_str())
+    );
+    assert_eq!(
+        hits.last().map(|hit| hit.id.as_str()),
+        Some(mixed_id.as_str())
+    );
+    Ok(())
+}
+
+#[test]
 fn rank_promotes_task_confirmed_note() -> Result<()> {
     let task = Note::new(
         with_anchors(

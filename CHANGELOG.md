@@ -46,6 +46,11 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   (`ja`, `sao`, `nao`, `tambem`, `ate`, `apos`, `entao`, `porem`, `voce`, …) e o canal lexical
   descarta termos com `df/N ≥ recall.max_term_ratio` (default `0.9`; só para corpora ≥ 64 notas;
   `0` desliga).
+- **Confiança bayesiana (E19-T01/D189)** — os `outcomes` viram ensaios de Bernoulli e a
+  confiança deriva do posterior `Beta(1+s, 1+f)`: a média alimenta `stars` e o **limite inferior**
+  de 95 % (Wilson) é a confiança conservadora (1 sucesso ≈0,21 × 20 ≈0,84). `Meta` ganha
+  `failures`; o índice derivado passa a `retrieval-v3`. Absorve o `feedback` de `outcomes`
+  negativos de E16/D174.
 
 ### Corrigido
 - **Status consistente na leitura (E16-T02/D176)** — `Status::VISIBLE` é a fonte única; `knowledge

@@ -114,5 +114,6 @@ fn empty_meta() -> Meta {
         anchors: Vec::new(),
         created_ms: 0,
         confirmation: 0.0,
+        failures: 0.0,
     }
 }

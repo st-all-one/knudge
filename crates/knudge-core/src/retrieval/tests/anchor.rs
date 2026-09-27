@@ -113,6 +113,7 @@ fn match_note_distinguishes_file_and_id() {
         anchors: vec!["V2/**".to_string(), "fact_00000009".to_string()],
         created_ms: 0,
         confirmation: 0.0,
+        failures: 0.0,
     };
     let paths = vec!["V2/x.rs".to_string()];
     let ids = vec!["fact_00000009".to_string()];

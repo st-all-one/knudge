@@ -80,7 +80,10 @@ kd knowledge rank --tag retry --limit 5
 ```
 
 Ranqueia por **confiança derivada** (evidência, uso, idade, confirmação por tarefas) — bom para
-revisar o que merece atenção. Saída `id|statement|score|why`. Exige escopo ou `--universe`.
+revisar o que merece atenção. A evidência é **bayesiana** (D189): `outcomes` viram ensaios de
+Bernoulli e a confiança usa o **limite inferior** de 95 % do posterior `Beta(1+s, 1+f)` — uma
+nota com 1 sucesso não empata com uma com 20 (o canal `stars` usa a média). Saída
+`id|statement|score|why`. Exige escopo ou `--universe`.
 
 ## `knowledge tags`
 

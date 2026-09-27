@@ -8,8 +8,8 @@
 > ortogonal à versão do crate. Supersede o corte Q4 (0.5.x/0.6.0): a Trilha D vira a fase final
 > de 0.5.0.
 >
-> **Decisões candidatas (provisório):** D189 (confiança Beta — **absorve E16/D174**), D190
-> (retenção/FSRS — **substitui E16/D178**), D191 (obrigatoriedades por tipo — **soft/corpo**),
+> **Decisões candidatas (provisório):** ~~D189~~ (**registrada** — confiança Beta; absorve E16/D174),
+> D190 (retenção/FSRS — **substitui E16/D178**), D191 (obrigatoriedades por tipo — **soft/corpo**),
 > D192 (PageRank/PPR — **soma** ao canal de âncoras), D193 (comunidades), D194 (reranking —
 > mesmo servidor llama.cpp), D195 (MinHash/LSH), D196 (Matryoshka/ANN), D197 (claims SPO +
 > ontologia), D198 (TMS/defeasible — após E16/T07), D199 (drift KL/JS), D200 (flow metrics),
@@ -89,7 +89,7 @@ Fecho:        T13 (docs/goldens/matriz/CHANGELOG)
 
 ## Tarefas
 
-### E19-T01 ☐ R1 — confiança bayesiana (Beta-Bernoulli) — **absorve E16/D174**
+### E19-T01 ☑ R1 — confiança bayesiana (Beta-Bernoulli) — **absorve E16/D174**
 - **Escopo:** `lifecycle/confidence.rs` — posterior `Beta(α+Σs, β+Σf)` (parcial = 0.5); média
   posterior para `stars` e **limite inferior** do intervalo de credibilidade como confiança
   conservadora. **Absorve E16/D174**: persistir a validade de âncoras (derivado `.idx/`,
@@ -98,6 +98,19 @@ Fecho:        T13 (docs/goldens/matriz/CHANGELOG)
 - **Perf:** O(1) por nota; persistir `drift` num único walk (reusar `Corpus`), cacheado.
 - **Aceite:** proptest (monotonicidade, limites `[0,1]`, empate só com mesma evidência); A/B em
   `knowledge rank`/`ask`; bytes de `notas/` intactos.
+- **Feito (D189):** `lifecycle/beta.rs` (`posterior_mean`/`lower_bound` Wilson, puro, sem dep);
+  `Meta.failures` derivado de `failure`/`abandoned`/`partial` (`filter.rs`); `INDEX_FORMAT`
+  → `retrieval-v3`; `confidence_score` = `base + lower_bound(s,f) + 0,2·feedback + task`;
+  `stars` usa a média posterior. **`feedback` de `outcomes` negativos absorvido** (as falhas).
+- **Pendente:** persistência de `drift` (validade de âncoras off-path, `.idx/`, D84) → **T01b**.
+
+### E19-T01b ☐ R1/D174 — persistir `drift` de âncoras (absorção de E16/T05)
+- **Escopo:** derivado `.idx/drift.jsonl` (como `usage.jsonl`, purgável por D84); computar num
+  **único walk** do projeto (off-path: `rebuild`/`doctor`/`maintenance proposals`); carregar em
+  `RecallQuery`/`RankQuery` e alimentar `ConfidenceInput.drift` (`pipeline.rs`/`rank.rs`).
+- **Perf:** walk único reusado; arquivo pequeno; ausente ⇒ `drift = 0` (degradação graciosa).
+- **Aceite:** teste de que âncora quebrada reduz a confiança do `rank`; arquivo ausente é no-op;
+  A/B na bancada.
 
 ### E19-T02 ☐ R2 — retenção por curva de esquecimento + revisão espaçada — **substitui E16/D178**
 - **Escopo:** `lifecycle/shelf_life.rs` — retenção `R(t)=exp(-t/S)` com estabilidade `S` que

@@ -145,13 +145,23 @@ fn fixed(harness: &mut Harness) {
     // --- Confiança e orçamento ---
     let confidence_input = ConfidenceInput {
         similarity: 0.7,
-        confirmation: 0.4,
+        successes: 0.4,
         age_days: 12.0,
         task_confirmation: 0.1,
         ..ConfidenceInput::default()
     };
     harness.measure("micro/fixo", "lifecycle::confidence_score", 25, 100000, || {
         let _ = black_box(confidence_score(black_box(&confidence_input)));
+    });
+    // Caminho comum: a maioria das notas não tem `outcomes` (evita a raiz do intervalo).
+    let confidence_empty = ConfidenceInput {
+        similarity: 0.7,
+        age_days: 12.0,
+        task_confirmation: 0.1,
+        ..ConfidenceInput::default()
+    };
+    harness.measure("micro/fixo", "lifecycle::confidence_score (sem evidência)", 25, 100000, || {
+        let _ = black_box(confidence_score(black_box(&confidence_empty)));
     });
     let lines: Vec<String> = (0..1000)
         .map(|index| format!("item {index}|statement sintetica de teste com cerca de 60 chars"))

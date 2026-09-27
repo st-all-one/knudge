@@ -29,6 +29,8 @@ pub struct Meta {
     pub created_ms: i64,
     /// Confirmação derivada de `outcomes`: `success + partial*0.5` (D38).
     pub confirmation: f64,
+    /// Falhas derivadas de `outcomes`: `failure + abandoned + partial*0.5` (D189).
+    pub failures: f64,
 }
 
 impl Meta {
@@ -47,6 +49,7 @@ impl Meta {
             anchors: string_list(frontmatter, "anchors"),
             created_ms: created_ms(frontmatter),
             confirmation: confirmation(frontmatter),
+            failures: failures(frontmatter),
         })
     }
 }
@@ -136,6 +139,25 @@ fn confirmation(frontmatter: &Frontmatter) -> f64 {
         };
         match map.get("status").and_then(Value::as_str) {
             Some("success") => score += 1.0,
+            Some("partial") => score += 0.5,
+            _ => {}
+        }
+    }
+    score
+}
+
+/// Falhas derivadas de `outcomes` (D189): `failure`/`abandoned` valem 1, `partial` vale 0,5.
+fn failures(frontmatter: &Frontmatter) -> f64 {
+    let Some(Value::List(items)) = frontmatter.get("outcomes") else {
+        return 0.0;
+    };
+    let mut score = 0.0;
+    for item in items {
+        let Some(map) = item.as_map() else {
+            continue;
+        };
+        match map.get("status").and_then(Value::as_str) {
+            Some("failure" | "abandoned") => score += 1.0,
             Some("partial") => score += 0.5,
             _ => {}
         }

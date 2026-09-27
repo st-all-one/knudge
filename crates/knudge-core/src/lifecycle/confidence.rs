@@ -7,7 +7,9 @@
 use crate::retrieval::Index;
 use crate::retrieval::filter::{Meta, anchor_matches};
 
-/// Peso do termo de feedback (confirmação + feedback explícito).
+use super::beta;
+
+/// Peso do termo de feedback explícito (confirmações menos contradições).
 pub const FEEDBACK_WEIGHT: f64 = 0.2;
 
 /// Peso padrão da confirmação derivada de tarefas (`recall.confirmation_from_tasks` — D108).
@@ -24,8 +26,10 @@ pub const AGE_HALF_LIFE_DAYS: f64 = 90.0;
 pub struct ConfidenceInput {
     /// Similaridade normalizada `0..=1` (quanto maior, mais relevante).
     pub similarity: f64,
-    /// Confirmação derivada de `outcomes` (`success + partial*0.5`).
-    pub confirmation: f64,
+    /// Sucessos derivados de `outcomes` (`success + partial*0.5`).
+    pub successes: f64,
+    /// Falhas derivadas de `outcomes` (`failure + abandoned + partial*0.5`).
+    pub failures: f64,
     /// Drift de âncoras `0..=1` (0 = sem drift; 1 = totalmente desviado).
     pub drift: f64,
     /// Idade em dias.
@@ -41,7 +45,8 @@ impl Default for ConfidenceInput {
     fn default() -> Self {
         Self {
             similarity: 0.0,
-            confirmation: 0.0,
+            successes: 0.0,
+            failures: 0.0,
             drift: 0.0,
             age_days: 0.0,
             feedback: 0.0,
@@ -64,13 +69,17 @@ pub fn age_factor(age_days: f64) -> f64 {
     1.0 / (1.0 + age / AGE_HALF_LIFE_DAYS)
 }
 
-/// Confiança derivada em `[0,1]` (monotônica em `similarity`/`confirmation`/`feedback`,
-/// decrescente em `drift`/`age_days`).
+/// Confiança derivada em `[0,1]` (monotônica em `similarity`/`successes`/`feedback`,
+/// decrescente em `failures`/`drift`/`age_days`).
+///
+/// A evidência entra como o **limite inferior** do intervalo de credibilidade de 95 %
+/// (D189): conservadora por construção, sem saturar com muitos sucessos.
 #[must_use]
 pub fn confidence_score(input: &ConfidenceInput) -> f64 {
     let base = clamp01(input.similarity) * drift_factor(input.drift) * age_factor(input.age_days);
-    let feedback = FEEDBACK_WEIGHT * (input.confirmation.max(0.0) + input.feedback);
-    clamp01(base + feedback + input.task_confirmation.max(0.0))
+    let evidence = beta::lower_bound(input.successes, input.failures);
+    let feedback = FEEDBACK_WEIGHT * input.feedback.max(0.0);
+    clamp01(base + evidence + feedback + input.task_confirmation.max(0.0))
 }
 
 /// `true` se a nota é uma **tarefa** (tem `scope`) com `outcomes` de sucesso (D108).

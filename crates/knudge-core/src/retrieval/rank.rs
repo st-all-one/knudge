@@ -5,6 +5,7 @@
 //! `outcomes`, o feedback de tarefas (X1/D108) e a idade; `similarity` é `0` porque não
 //! há texto. Ordem determinística: `(confidence desc, id asc)`.
 
+use crate::lifecycle::beta::posterior_mean;
 use crate::lifecycle::confidence::{
     ConfidenceInput, age_factor, confidence_score, from_tasks_with,
 };
@@ -63,7 +64,8 @@ pub fn rank(index: &Index, filter: &Filter, query: &RankQuery) -> Vec<RecallHit>
         .map(|doc| {
             let task_confirmation = from_tasks_with(&doc.meta, &confirmers, query.task_weight);
             let confidence = confidence_score(&ConfidenceInput {
-                confirmation: doc.meta.confirmation,
+                successes: doc.meta.confirmation,
+                failures: doc.meta.failures,
                 age_days: age_days(doc, query.now_ms),
                 task_confirmation,
                 ..ConfidenceInput::default()
@@ -76,7 +78,9 @@ pub fn rank(index: &Index, filter: &Filter, query: &RankQuery) -> Vec<RecallHit>
                 why: why(doc.meta.confirmation, task_confirmation),
                 channels: HitChannels {
                     recent: age_factor(age_days(doc, query.now_ms)),
-                    stars: (doc.meta.confirmation + task_confirmation).clamp(0.0, 1.0),
+                    stars: (posterior_mean(doc.meta.confirmation, doc.meta.failures)
+                        + task_confirmation)
+                        .clamp(0.0, 1.0),
                     ..HitChannels::default()
                 },
             }
