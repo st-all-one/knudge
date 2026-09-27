@@ -3,7 +3,7 @@
 use crate::Result;
 use crate::ports::Fs;
 use crate::ports::fakes::MemFs;
-use crate::retrieval::{INDEX_FILE, INDEX_WARN_BYTES, Index, size_warning};
+use crate::retrieval::{INDEX_FILE, INDEX_FORMAT, INDEX_WARN_BYTES, Index, size_warning};
 use crate::schema::{NoteType, Scope};
 use crate::store::{Note, Store};
 
@@ -21,6 +21,25 @@ fn rebuild_is_byte_for_byte() -> Result<()> {
     let loaded = Index::parse(&bytes)?;
     assert_eq!(loaded, first);
     assert_eq!(loaded.serialize()?, bytes);
+    Ok(())
+}
+
+#[test]
+fn serialized_index_carries_format_header() -> Result<()> {
+    let index = Index::build(&[note(NoteType::Fact, "alpha", "corpo")?])?;
+    assert!(index.serialize()?.starts_with(INDEX_FORMAT));
+    Ok(())
+}
+
+#[test]
+fn old_format_index_is_rejected() -> Result<()> {
+    // Um `.idx/` pré-D172 (sem cabeçalho) é recusado e força rebuild.
+    let index = Index::build(&[note(NoteType::Fact, "alpha", "corpo")?])?;
+    let bytes = index.serialize()?;
+    let Some((_, body)) = bytes.split_once('\n') else {
+        return Ok(());
+    };
+    assert!(Index::parse(body).is_err());
     Ok(())
 }
 

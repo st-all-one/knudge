@@ -122,26 +122,47 @@ T09 (fusão) → T10 (perf) → T11 (stemming, condicional) → T12 (docs/golden
 - **Aceite:** `knowledge rank`/`map` não incluem deprecados (teste de regressão por consumidor);
   goldens de `knowledge rank`/`map` atualizados; linha em `DIVERGENCES.md`.
 
-### E16-T03 ☐ D172 — normalização de acentos na tokenização
+### E16-T03 ☑ D172 — normalização de acentos na tokenização
 - **Escopo:** `retrieval/token.rs` — `tokenize` dobra acentos (NFD + remoção de marcas
   combinantes) com fast-path ASCII (`Cow`), via `unicode-normalization` (dep existente);
   `content_terms`/`query_terms` herdam; `snippet.rs` acompanha. O `normalize` do schema
   **não muda**.
+- **Feito:** `token.rs` ganhou `folded_chars`/`fold_ascii`/`folded_byte_to_original`;
+  `tokenize` dispacha ASCII (emprestado) × não-ASCII (NFD). `snippet.rs` busca no texto dobrado e
+  devolve o trecho **original**. O índice derivado ganhou o cabeçalho `INDEX_FORMAT`
+  (`retrieval-v2`) em `serialize`/`parse` — sem ele, um `.idx/` pré-fold seria servido por
+  engano (frescura é por `mtime`). Testes: proptest de idempotência/ASCII,
+  `precomposed_and_decomposed_fold_equivalently`, `accents_fold_to_ascii`,
+  `old_format_index_is_rejected`, `matches_accented_body_and_query_interchangeably`.
+  **Ganho medido** (`bench/qualidade.md`): família `sem-acento` nDCG@1 **8,3 % → 100 %**,
+  MRR 8,3 % → 100 %; `com-acento` segue 100 %. Sem regressão de latência (micro `tokenize`
+  260 → 243 ns; `ask` N=1000 dentro do ruído). `DIVERGENCES.md` #96. `notas/`/`id`/`body_hash`
+  intactos (goldens TOON/hash verdes).
 - **Perf:** fast-path ASCII devolve `Cow::Borrowed` (zero alocação); NFD só em não-ASCII; micro
-  `tokenize` trava o custo; índice/dedup reconstruídos uma vez.
+  `tokenize` (ASCII e acentuado) trava o custo; índice/dedup reconstruídos uma vez.
 - **Depende de:** T01.
 - **Aceite:** proptest de idempotência do fold; golden de retrieval regenerado com intenção;
   A/B na bancada de qualidade (ganho medido em PT-BR); `notas/` e `id`/`body_hash` inalterados
-  (goldens TOON/hash verdes); linha em `DIVERGENCES.md`; golden de `write`/dedup regenerado.
+  (goldens TOON/hash verdes); linha em `DIVERGENCES.md`; golden de `write`/dedup regenerado. ✔
 
-### E16-T04 ☐ D173 — termos de alta frequência
-- **Escopo:** `STOPWORDS` ganha as formas dobradas do PT; `content_terms` descarta termos com
+### E16-T04 ☑ D173 — termos de alta frequência
+- **Escopo:** `STOPWORDS` ganha as formas dobradas do PT; o canal lexical descarta termos com
   `df/N` acima de um limiar (config, default conservador). Sem quebrar o determinismo do canal.
-- **Perf:** `df` é contado **uma** vez sobre o `Index` já carregado (não por consulta); corte
-  O(1) por termo; sem alocação extra por token.
+- **Feito:** `STOPWORDS` ganhou 63 formas dobradas do PT (`ja`, `sao`, `nao`, `tambem`, `ate`,
+  `apos`, `entao`, `porem`, `voce`, …) mantendo a ordenação para busca binária. O corte por
+  `df/N` entrou em `Index::score_with` (novo parâmetro `max_term_ratio` + `term_ratio`/`
+  drop_high_frequency`), configurado por `recall.max_term_ratio` (default `0.5`) e desligado para
+  corpora < `MIN_CUTOFF_CORPUS` (64 notas) — abaixo disso `df/N` é alto para quase todo termo.
+  Testes: `term_ratio_counts_documents_with_the_term`,
+  `high_frequency_terms_are_dropped_only_for_large_corpora`,
+  `high_frequency_cutoff_is_noop_below_min_corpus`; bancada de qualidade **sem regressão**
+  (100 %/100 %). O corte é o "cinto de segurança" de idioma; o ganho concreto veio das stopwords
+  dobradas + fold (T03).
+- **Perf:** `df` já está no `Index` (recomputado uma vez); corte O(1) por termo; sem alocação
+  extra por token (o filtro reusa os `Cow`).
 - **Depende de:** T03.
 - **Aceite:** medição (qualidade + latência) na bancada; goldens de retrieval; teste de que o
-  corte é estável e ordenado.
+  corte é estável e ordenado. ✔
 
 ### E16-T05 ☐ D174 — confiança derivada completa (`drift` + `feedback`) → **absorvida por E19/T01**
 - **Escopo:** persistir a validade de âncoras como derivado (`.idx/`, off-path, purgável por
@@ -169,6 +190,9 @@ T09 (fusão) → T10 (perf) → T11 (stemming, condicional) → T12 (docs/golden
   `demotion_candidates` roda só no `prune` (raro).
 - **Depende de:** E19/T01 (confiança), T06.
 - **Aceite:** testes de ranking e de `prune` (proposta, não aplicação); goldens de `prune`/`rank`.
+- **Candidato (análise de riscos):** check **read-only** do `doctor` (`CheckId::Contradictions`)
+  que lista pares `X ⊣ Y` com ambos visíveis — fecha o ciclo propor→ranquear→**auditar**. Ver
+  [`../proposals/riscos_memoria_duravel.md`](../proposals/riscos_memoria_duravel.md) §2.2.
 
 ### E16-T08 ☐ D178 — shelf-life consciente de evidência → **substituída por E19/T02**
 - **Escopo:** `shelf_life.rs` — `effective_expiry` estende o prazo por confirmação/`outcomes`.

@@ -46,8 +46,8 @@ fn statement_dominates_body() -> Result<()> {
 }
 
 #[test]
-fn accents_collapse_to_ascii_prefix() -> Result<()> {
-    let target = note(NoteType::Fact, "caf com leite", "")?;
+fn accents_fold_to_ascii() -> Result<()> {
+    let target = note(NoteType::Fact, "cafe com leite", "")?;
     let expected = id_of(&target)?;
     let index = Index::build(&[target])?;
     let hits = index.score("café", &allowed(&index));
@@ -103,7 +103,7 @@ fn task_boost_raises_score() -> Result<()> {
     let allowed = allowed(&index);
 
     let base = index.score("cache", &allowed);
-    let with_boost = index.score_with("cache", &allowed, |meta| {
+    let with_boost = index.score_with("cache", &allowed, 0.0, |meta| {
         if meta.id == boosted_id { 0.5 } else { 0.0 }
     });
     let base_score = base
@@ -144,6 +144,60 @@ fn score_matches_manual_scan() -> Result<()> {
         .map(|hit| (hit.id, hit.score))
         .collect();
     assert_eq!(hits, expected);
+    Ok(())
+}
+
+#[test]
+fn term_ratio_counts_documents_with_the_term() -> Result<()> {
+    let notes = vec![
+        note(NoteType::Fact, "comum alfa", "")?,
+        note(NoteType::Fact, "comum beta", "")?,
+        note(NoteType::Fact, "raro gama", "")?,
+    ];
+    let index = Index::build(&notes)?;
+    assert!((index.term_ratio("comum") - 2.0 / 3.0).abs() < 1e-9);
+    assert!((index.term_ratio("raro") - 1.0 / 3.0).abs() < 1e-9);
+    assert!(index.term_ratio("ausente").abs() < f64::EPSILON);
+    Ok(())
+}
+
+#[test]
+fn high_frequency_terms_are_dropped_only_for_large_corpora() -> Result<()> {
+    // 64 notas: `ubiquo` em 40 (62,5%) e `raro<i>` em uma cada.
+    let mut notes = Vec::new();
+    for serial in 0..64 {
+        let statement = if serial < 40 {
+            format!("ubiquo raro{serial}")
+        } else {
+            format!("outro raro{serial}")
+        };
+        notes.push(note(NoteType::Fact, &statement, "")?);
+    }
+    let index = Index::build(&notes)?;
+    let allowed = allowed(&index);
+    // Sem corte: `ubiquo` casa 40 notas.
+    assert_eq!(index.score("ubiquo", &allowed).len(), 40);
+    // Com corte (0.5): `ubiquo` some (df/N = 62,5% ≥ 50%).
+    assert!(
+        index
+            .score_with("ubiquo", &allowed, 0.5, |_| 0.0)
+            .is_empty()
+    );
+    // `raro0` não é ubíquo: segue casando, na ordem canônica.
+    assert_eq!(index.score_with("raro0", &allowed, 0.5, |_| 0.0).len(), 1);
+    Ok(())
+}
+
+#[test]
+fn high_frequency_cutoff_is_noop_below_min_corpus() -> Result<()> {
+    // Corpus pequeno (< MIN_CUTOFF_CORPUS): mesmo com ratio 0.5, nada é cortado.
+    let notes = vec![
+        note(NoteType::Fact, "ubiquo alfa", "")?,
+        note(NoteType::Fact, "ubiquo beta", "")?,
+    ];
+    let index = Index::build(&notes)?;
+    let allowed = allowed(&index);
+    assert_eq!(index.score_with("ubiquo", &allowed, 0.5, |_| 0.0).len(), 2);
     Ok(())
 }
 

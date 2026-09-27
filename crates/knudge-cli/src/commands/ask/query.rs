@@ -6,9 +6,9 @@ use knudge_core::Result;
 use knudge_core::embeddings::{EmbeddingIndex, rank_query};
 use knudge_core::lifecycle::DEFAULT_TASK_CONFIRMATION;
 use knudge_core::retrieval::{
-    DEFAULT_ANCHOR_WEIGHT, DEFAULT_LEXICAL_WEIGHT, DEFAULT_LIMIT, DEFAULT_RRF_K,
-    DEFAULT_SEMANTIC_WEIGHT, Filter, FusionWeights, Index, RecallQuery, Universe, active_ids,
-    recall,
+    DEFAULT_ANCHOR_WEIGHT, DEFAULT_LEXICAL_WEIGHT, DEFAULT_LIMIT, DEFAULT_MAX_TERM_RATIO,
+    DEFAULT_RRF_K, DEFAULT_SEMANTIC_WEIGHT, Filter, FusionWeights, Index, RecallQuery, Universe,
+    active_ids, recall,
 };
 use knudge_core::schema::Status;
 use serde_json::json;
@@ -89,6 +89,9 @@ fn build_recall_query(
     query.task_confirmation_weight = config
         .get_float("recall.confirmation_from_tasks")
         .unwrap_or(DEFAULT_TASK_CONFIRMATION);
+    query.max_term_ratio = config
+        .get_float("recall.max_term_ratio")
+        .unwrap_or(DEFAULT_MAX_TERM_RATIO);
     query.weights = FusionWeights {
         lexical: config
             .get_float("recall.lexical_weight")

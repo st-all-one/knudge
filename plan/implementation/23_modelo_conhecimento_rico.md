@@ -228,3 +228,6 @@ Fecho:        T13 (docs/goldens/matriz/CHANGELOG)
 > vira uma tarefa `E19-Txx` (ou nota) aqui.
 
 - _(a preencher)_
+- **Candidato (análise de riscos):** `kd rewind --digest` — ponteiros das notas omitidas pelo
+  orçamento (nunca sumário semântico); aditivo e default byte-idêntico. Ver
+  [`../proposals/riscos_memoria_duravel.md`](../proposals/riscos_memoria_duravel.md) §2.3.

@@ -69,6 +69,11 @@ const BASE: &[KeySpec] = &[
         default: Default::Float(0.1),
     },
     KeySpec {
+        key: "recall.max_term_ratio",
+        kind: Kind::Float,
+        default: Default::Float(0.9),
+    },
+    KeySpec {
         key: "recall.lexical_weight",
         kind: Kind::Float,
         default: Default::Float(1.0),

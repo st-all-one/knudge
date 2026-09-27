@@ -1,14 +1,19 @@
-//! Snippet do corpo e detecção de match no corpo (D161).
+//! Snippet do corpo e detecção de match no corpo (D161/D172).
 //!
-//! Funções puras, sem índice: usam a tokenização ASCII do BM25 (D36) e devolvem um trecho
+//! Funções puras, sem índice: usam a tokenização com fold (D36/D172) e devolvem um trecho
 //! determinístico em torno do primeiro termo de conteúdo casado.
 
-use crate::retrieval::token::content_terms;
+use crate::retrieval::token::{content_terms, fold_ascii, folded_byte_to_original};
 
-/// `true` se algum termo de conteúdo da consulta aparece no corpo (case-insensitive ASCII).
+/// `true` se algum termo de conteúdo da consulta aparece no corpo (case/acento-insensível).
 #[must_use]
 pub fn body_matches(body: &str, query: &str) -> bool {
-    body_snippet(body, query, 0).is_some()
+    let terms = content_terms(query);
+    if terms.is_empty() || body.trim().is_empty() {
+        return false;
+    }
+    let folded = fold_ascii(body);
+    terms.iter().any(|term| folded.contains(term.as_ref()))
 }
 
 /// Trecho do corpo em torno do primeiro termo casado, com até `max_chars` caracteres.
@@ -21,11 +26,12 @@ pub fn body_snippet(body: &str, query: &str, max_chars: usize) -> Option<String>
     if terms.is_empty() || body.trim().is_empty() {
         return None;
     }
-    let lower = body.to_ascii_lowercase();
-    let match_byte = terms
+    let folded = fold_ascii(body);
+    let folded_byte = terms
         .iter()
-        .filter_map(|term| lower.find(term.as_ref()))
+        .filter_map(|term| folded.find(term.as_ref()))
         .min()?;
+    let match_byte = folded_byte_to_original(body, folded_byte)?;
     Some(window(body, match_byte, max_chars))
 }
 
@@ -68,6 +74,19 @@ mod tests {
         assert!(body_matches("usa PostgreSQL no primário", "postgresql"));
         assert!(!body_matches("usa PostgreSQL", "sqlite"));
         assert!(!body_matches("", "postgres"));
+    }
+
+    #[test]
+    fn matches_accented_body_and_query_interchangeably() {
+        assert!(body_matches("usa configuração global", "configuracao"));
+        assert!(body_matches("usa configuracao global", "configuração"));
+        // O snippet preserva o texto original (acentuado), só a busca é dobrada.
+        assert_eq!(
+            body_snippet("usa configuração global", "configuracao", 80).as_deref(),
+            Some("usa configuração global")
+        );
+        // Limite de palavra: `caf e` não casa `cafe`.
+        assert!(!body_matches("caf e", "cafe"));
     }
 
     #[test]

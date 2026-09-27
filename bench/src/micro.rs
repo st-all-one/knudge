@@ -34,6 +34,10 @@ use crate::harness::Harness;
 const SMALL_JSON: &str =
     "{\"id\":\"fact_00000001\",\"statement\":\"o indice e derivado\",\"tags\":[\"retrieval\"],\"metrics\":{\"n\":42,\"ok\":true}}";
 
+/// Corpo PT-BR acentuado (exercita o caminho de fold não-ASCII — D172).
+const ACCENTED_BODY: &str = "configuração de índice com âncoras e retenção; revisão da confiança \
+    em memória e análise de sessão.";
+
 const SAMPLE_TOML: &str = "[recall]\ndefault_limit = 5\nrrf_k = 60\nlexical_weight = 1.0\nsemantic_weight = 30.0\nsemantic = true\n\n[behavior]\nstrict = false\n\n[embeddings]\nmode = \"lazy\"\nprovider = \"none\"\ndimensions = 384\n";
 
 /// Roda toda a micromb.
@@ -101,6 +105,15 @@ fn fixed(harness: &mut Harness) {
     harness.measure("micro/fixo", "retrieval::token::tokenize (corpo)", 25, 1000, || {
         let _ = black_box(token::tokenize(black_box(&note_body)));
     });
+    harness.measure(
+        "micro/fixo",
+        "retrieval::token::tokenize (acentuado)",
+        25,
+        1000,
+        || {
+            let _ = black_box(token::tokenize(black_box(ACCENTED_BODY)));
+        },
+    );
     harness.measure("micro/fixo", "retrieval::token::content_terms", 25, 1000, || {
         let _ = black_box(token::content_terms(black_box(&query)));
     });

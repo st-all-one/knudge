@@ -27,7 +27,7 @@ pub use bm25::{B, Bm25Hit, CONFIRMATION_STEP, K1, type_weight};
 pub use filter::{Filter, Meta};
 pub use format::{format_brief, format_hit};
 pub use index::{
-    Field, FieldTf, INDEX_FILE, INDEX_WARN_BYTES, Index, NoteDoc, Stats, size_warning,
+    Field, FieldTf, INDEX_FILE, INDEX_FORMAT, INDEX_WARN_BYTES, Index, NoteDoc, Stats, size_warning,
 };
 pub use postings::Postings;
 pub use rank::{RankQuery, Universe, rank};
@@ -94,6 +94,18 @@ impl Default for FusionWeights {
 /// 5 (D121): contexto de LLM é caro e o `ask` devolvia hits demais. Ajuste por config.
 pub const DEFAULT_LIMIT: usize = 5;
 
+/// Corte de termos de alta frequência (config `recall.max_term_ratio`, D173).
+///
+/// Um termo presente em **≥** esta fração dos documentos é descartado do canal lexical. O IDF já
+/// o atenua, mas o RRF usa *ranks*: um termo ubíquo ainda poderia puxar um rank-1 espúrio. `0`
+/// desliga; conservador de propósito (só vale para corpora grandes — [`MIN_CUTOFF_CORPUS`]).
+pub const DEFAULT_MAX_TERM_RATIO: f64 = 0.9;
+
+/// Corpus mínimo (notas) para o corte de alta frequência valer (D173).
+///
+/// Abaixo disso, `df/N` é alto para quase todo termo e o corte derrubaria casamentos legítimos.
+pub const MIN_CUTOFF_CORPUS: usize = 64;
+
 /// Janela de recência do `why = recent` (7 dias em ms).
 pub const RECENT_WINDOW_MS: i64 = 604_800_000;
 
@@ -127,6 +139,9 @@ pub struct RecallQuery {
     /// Peso da confirmação derivada de tarefas (X1/D108; config
     /// `recall.confirmation_from_tasks`).
     pub task_confirmation_weight: f64,
+    /// Corte de termos de alta frequência no canal lexical (D173; config
+    /// `recall.max_term_ratio`); `0` desliga.
+    pub max_term_ratio: f64,
     /// Promove `warnings` a erro (config `behavior.strict` — D94).
     pub strict: bool,
     /// Conjunto ativo em `as_of` (D155); `None` = corpus atual.
@@ -143,6 +158,7 @@ impl RecallQuery {
             rrf_k: DEFAULT_RRF_K,
             universe: Universe::All,
             task_confirmation_weight: DEFAULT_TASK_CONFIRMATION,
+            max_term_ratio: DEFAULT_MAX_TERM_RATIO,
             ..Self::default()
         }
     }

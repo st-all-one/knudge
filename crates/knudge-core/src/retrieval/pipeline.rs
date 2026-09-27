@@ -60,7 +60,7 @@ pub(super) fn lexical_channel(
     weight: f64,
 ) -> Vec<String> {
     index
-        .score_with(&query.text, allowed, |meta| {
+        .score_with(&query.text, allowed, query.max_term_ratio, |meta| {
             from_tasks_with(meta, confirmers, weight)
         })
         .into_iter()

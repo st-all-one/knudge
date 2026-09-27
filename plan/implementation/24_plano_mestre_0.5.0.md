@@ -107,7 +107,7 @@ registra a rejeição no épico.
 
 ### Trilha C — Léxico, confiança e ranking (E16 + E19 R1/R4)
 
-13. **E16/T03** — acentos; **E16/T04** — alta frequência.
+13. ✅ **E16/T03** — acentos; **E16/T04** — alta frequência.
 14. **E19/T01** — Beta (absorve E16/D174); **E19/T02** — FSRS; **E19/T03** — obrigatoriedades-soft.
 15. **E19/T04** — PageRank/PPR; **E19/T05** — comunidades.
 16. **E16/T06** — idade; **E16/T07** — `contradicts`; **E16/T09** — fusão recalibrada.
@@ -155,7 +155,7 @@ O `CHANGELOG.md` consolida tudo em `[0.5.0]` no fecho (E16/T12, E17/T08, E18/T07
 | 10 | E18/T04 `drain service` | **sim** | — | matriz + `prime` |
 | 11 | ✅ E17/T05–T07 supply/polish | — | — | testes de checksum/`--every` |
 | 12 | ✅ E18/T05–T06 `self upgrade`/auditoria | **sim** | — | teste + decisão escrita |
-| 13 | E16/T03/T04 acentos/alta freq. | — | derivado | qualidade + goldens |
+| 13 | ✅ E16/T03/T04 acentos/alta freq. | — | derivado | qualidade + goldens |
 | 14 | E19/T01–T03 R1 (Beta/FSRS/obrig.) | — | — | proptest + A/B |
 | 15 | E19/T04/T05 R4 (PPR/comunidades) | — | — | proptest + A/B |
 | 16 | E16/T06/T07/T09 ranking | — | — | qualidade + goldens |

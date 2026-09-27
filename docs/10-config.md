@@ -82,6 +82,7 @@ catálogo de `checks` executáveis fica em `.knudge/validators.toml`.
 | `recall.semantic` | `true` | Liga/desliga o canal vetorial |
 | `recall.semantic_weight` | `30.0` | Peso do canal vetorial no RRF |
 | `recall.confirmation_from_tasks` | `0.1` | Boost de tarefas que confirmam |
+| `recall.max_term_ratio` | `0.9` | Descarta termos presentes em ≥ esta fração do corpus (D173; `0` desliga; só vale para ≥ 64 notas) |
 | `dedup.create_below` / `dedup.merge_below` | `0.75` / `0.92` | Limiares do `write` |
 | `write.batch_max` / `task.batch_max` | `100` | Teto de `--batch` |
 | `retention.*` | — | Shelf-life por classificação (`foundational`/`tactical`/`observational`/`retired`) |

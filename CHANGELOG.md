@@ -37,6 +37,15 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 - **Auditoria de verbos acionáveis (E18-T06/D188)** — decisão escrita: permanecem nativos
   `init`/`sync`/`doctor --fix`/`self setup`/`self completions`/`hooks`/`forget`/`prune`; só
   orquestração de SO/rede e utilitários de dev vivem em `scripts/`.
+- **Busca PT-BR: acentos (E16-T03/D172)** — a tokenização dobra diacríticos (NFD + remoção de
+  marcas combinantes) com fast-path ASCII: `café`≡`cafe`, `configuracao` casa `configuração`.
+  `notas/`/`id`/`body_hash` intactos (NFC); o índice derivado ganha o cabeçalho `INDEX_FORMAT`
+  (`retrieval-v2`), que força o rebuild do `.idx/` antigo. Bancada: `sem-acento` nDCG@1
+  **8,3 % → 100 %**.
+- **Busca PT-BR: alta frequência (E16-T04/D173)** — `STOPWORDS` ganha as formas dobradas do PT
+  (`ja`, `sao`, `nao`, `tambem`, `ate`, `apos`, `entao`, `porem`, `voce`, …) e o canal lexical
+  descarta termos com `df/N ≥ recall.max_term_ratio` (default `0.9`; só para corpora ≥ 64 notas;
+  `0` desliga).
 
 ### Corrigido
 - **Status consistente na leitura (E16-T02/D176)** — `Status::VISIBLE` é a fonte única; `knowledge

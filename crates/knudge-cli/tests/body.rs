@@ -15,10 +15,10 @@ fn ask_shows_body_of_top_hit_and_reports_match() -> TestResult {
         &["Por quê: reduz latência.", "--anchor", "src/cache.rs"],
     )?;
 
-    let text = ok(&dir, &["ask", "lat"])?;
+    let text = ok(&dir, &["ask", "latencia"])?;
     assert!(text.contains("Por quê"), "corpo do top hit ausente: {text}");
 
-    let data = ok_json(&dir, &["ask", "lat"])?;
+    let data = ok_json(&dir, &["ask", "latencia"])?;
     let hit = data
         .get("hits")
         .and_then(|hits| hits.as_array())

@@ -86,7 +86,7 @@ Cada achado traz **estado atual, recomendação, onde aplicar e aceite** em `14_
 segue as decisões `Dxx` e as políticas `Rnn`. **E15 ✅** (performance + reforma da CLI) concluído —
 plano em [`../proposals/`](../proposals/) e épico em
 [`19_performance_reforma_cli.md`](19_performance_reforma_cli.md). **E16 ◐** (qualidade da busca +
-depreciação de conhecimento; **T01/T02 ✅**) — plano em
+depreciação de conhecimento; **T01/T02/T03/T04 ✅**) — plano em
 [`../proposals/qualidade_busca_depreciacao.md`](../proposals/qualidade_busca_depreciacao.md) e
 épico em [`20_qualidade_busca_depreciacao.md`](20_qualidade_busca_depreciacao.md). **E17 ◐**
 (robustez do worker de embeddings + `--install`; **T01/T02/T03/T04/T05/T06/T07 ✅**) — plano em
@@ -98,6 +98,12 @@ scriptados: superfície mínima e cross-platform; **T01/T02/T03/T04/T05/T06 ✅*
 **proposto** — plano em
 [`../proposals/modelo_conhecimento_rico.md`](../proposals/modelo_conhecimento_rico.md) e épico
 em [`23_modelo_conhecimento_rico.md`](23_modelo_conhecimento_rico.md).
+
+**Riscos da memória durável:** a análise crítica (deriva do curador, envenenamento, drift de
+sumarização, diluição atencional, limites de host) está em
+[`../proposals/riscos_memoria_duravel.md`](../proposals/riscos_memoria_duravel.md) — confirma as
+defesas já presentes e deixa **dois candidatos** (check read-only de contradições no `doctor`;
+`rewind --digest`). Confiança permanece **mecanismo** (E19/T01 Beta), nunca campo (D142).
 
 **Evolução 0.5.0 (E16–E19):** a ordem integrada, o orçamento de performance (herança de E15) e
 os gates de teste/bancada estão no [plano-mestre](24_plano_mestre_0.5.0.md). E19 (R1–R7) entra

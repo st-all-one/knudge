@@ -7,6 +7,7 @@
 use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::retrieval::MIN_CUTOFF_CORPUS;
 use crate::retrieval::filter::Meta;
 use crate::retrieval::index::{Field, Index, NoteDoc};
 use crate::retrieval::token::content_terms;
@@ -49,21 +50,27 @@ impl Index {
     /// Pontua o corpus (restrito a `allowed`) por uma consulta livre.
     #[must_use]
     pub fn score(&self, query: &str, allowed: &BTreeSet<String>) -> Vec<Bm25Hit> {
-        self.score_with(query, allowed, |_| 0.0)
+        self.score_with(query, allowed, 0.0, |_| 0.0)
     }
 
     /// Como [`Index::score`], mas multiplica o score de cada doc por `1 + boost(meta)`.
     ///
     /// O `boost` é a confirmação derivada de tarefas (X1/D108); o closure só é chamado para
-    /// documentos que casam a consulta (o termo lexical é o gate).
+    /// documentos que casam a consulta (o termo lexical é o gate). `max_term_ratio` descarta
+    /// termos de alta frequência do canal lexical (D173; `0` desliga).
     #[must_use]
     pub fn score_with<F: Fn(&Meta) -> f64>(
         &self,
         query: &str,
         allowed: &BTreeSet<String>,
+        max_term_ratio: f64,
         boost: F,
     ) -> Vec<Bm25Hit> {
         let terms = content_terms(query);
+        if terms.is_empty() {
+            return Vec::new();
+        }
+        let terms = self.drop_high_frequency(terms, max_term_ratio);
         if terms.is_empty() {
             return Vec::new();
         }
@@ -130,6 +137,41 @@ impl Index {
             reach = reach.saturating_add(usize::try_from(df).unwrap_or(usize::MAX));
         }
         reach.saturating_mul(2) < n
+    }
+
+    /// Descarta termos presentes em **≥** `max_ratio` dos documentos (D173).
+    ///
+    /// `max_ratio <= 0` desliga; abaixo de [`MIN_CUTOFF_CORPUS`] notas o corte não vale (`df/N`
+    /// é alto para quase todo termo e derrubaria casamentos legítimos). O IDF já atenua termos
+    /// comuns, mas o RRF usa **ranks**, então um termo ubíquo ainda poderia puxar um rank-1.
+    fn drop_high_frequency<'a>(
+        &self,
+        terms: Vec<Cow<'a, str>>,
+        max_ratio: f64,
+    ) -> Vec<Cow<'a, str>> {
+        if max_ratio <= 0.0 || self.docs.len() < MIN_CUTOFF_CORPUS {
+            return terms;
+        }
+        terms
+            .into_iter()
+            .filter(|term| self.term_ratio(term.as_ref()) < max_ratio)
+            .collect()
+    }
+
+    /// Fração de documentos que contêm `term` (maior `df` entre os campos).
+    #[must_use]
+    pub fn term_ratio(&self, term: &str) -> f64 {
+        let n = f64::from(self.stats.n);
+        if n <= 0.0 {
+            return 0.0;
+        }
+        let df = Field::ALL
+            .iter()
+            .filter_map(|field| self.stats.df.get(field)?.get(term))
+            .copied()
+            .max()
+            .unwrap_or(0);
+        f64::from(df) / n
     }
 
     #[allow(

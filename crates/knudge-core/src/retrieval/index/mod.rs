@@ -1,8 +1,12 @@
 //! Índice derivado do retrieval (E06-T01).
 //!
 //! O índice é **derivado** de `notas/`: reconstruível byte a byte e descartável (D15/D27). Vive
-//! em `.idx/retrieval.jsonl` (uma linha JSON por nota) e a troca é atômica via `tmp + rename`.
-//! As estatísticas (df/avgdl) são **recomputadas ao carregar**, então nunca divergem do corpo.
+//! em `.idx/retrieval.jsonl` (uma linha JSON por nota, precedida do cabeçalho de formato) e a
+//! troca é atômica via `tmp + rename`. As estatísticas (df/avgdl) são **recomputadas ao
+//! carregar**, então nunca divergem do corpo.
+//!
+//! O cabeçalho [`INDEX_FORMAT`] invalida índices antigos quando o tokenizador muda (D172): como a
+//! frescura é decidida por `mtime`, sem ele um `.idx/` pré-fold seria servido por engano.
 
 use std::collections::BTreeMap;
 use std::sync::OnceLock;
@@ -19,6 +23,9 @@ pub use persist::size_warning;
 
 /// Nome do arquivo do índice dentro de `.idx/`.
 pub const INDEX_FILE: &str = "retrieval.jsonl";
+
+/// Cabeçalho de formato do índice (D172) — muda quando a tokenização muda.
+pub const INDEX_FORMAT: &str = "retrieval-v2";
 
 /// Acima deste tamanho (bytes) o índice emite aviso (E06-T07).
 pub const INDEX_WARN_BYTES: u64 = 8_388_608;
