@@ -126,3 +126,28 @@ chama `powershell -File <script>.ps1` (ou imprime o caminho manual). O guia manu
 - **Off-path:** só verbos acionáveis (`drain service`, `self upgrade`) evocam script; os verbos
   frequentes (`ask`/`write`/`prime`/`task`) **não** pagam nada. Resolução local (embutido) por
   padrão — sem download por comando.
+
+---
+
+## 9. Auditoria de verbos acionáveis (D188)
+
+> Critério: só migra para `scripts/` o que é **essencialmente orquestração de SO/rede** (evoca
+> processos/gerenciadores externos) e **não** precisa do contrato de bytes do core (`notas/`,
+> `--json`, determinismo, portas). O resto permanece **nativo**.
+
+| Verbo | Hoje | Decisão | Motivo |
+|---|---|---|---|
+| `kd init` (onboard) | nativo | **nativo** | escreve `.knudge/` + `AGENTS.md` + `git exclude` com idempotência/determinismo (portas `Fs`/`Git`) e golden; script seria frágil e não cross-platform. |
+| `kd sync` | nativo | **nativo** | usa a porta `Git` (pull/push/status) e reporta em `--json`; não é orquestração de SO. |
+| `kd doctor --fix` | nativo | **nativo** | corrige o corpus **derivado** de forma reversível e determinística; domínio puro. |
+| `kd self setup <cliente>` | nativo | **nativo** | grava uma recipe JSON (pura serialização), sem shell. |
+| `kd self completions <shell>` | nativo | **nativo** | gera strings de completion (puro). |
+| `kd hooks` | nativo | **nativo** | executa hooks do usuário pela porta `HookRunner` (timeouts/`--json` determinísticos). |
+| `kd forget`/`prune` | nativo | **nativo** | mutações do corpus com aceite explícito (D112); domínio. |
+| `kd drain service` | script | **script** (`knudge-idle.sh`) | orquestra `systemd`/`launchd`/servidor/porta (SO). |
+| `kd self upgrade` | script (novo) | **script** (`kd-upgrade.sh`) | baixa e executa o `install.sh` (rede + SO). |
+| `install.sh` | script (raiz) | **script** | alvo canônico do `curl \| bash`. |
+| `scripts/{bump-version,package,check_file_length}.sh` | scripts (dev) | **script** | release/CI (não é superfície do `kd`). |
+
+**Conclusão (D188):** nenhuma migração adicional. O binário mantém a lógica de domínio; só
+orquestração de SO/rede e utilitários de dev vivem em `scripts/`.

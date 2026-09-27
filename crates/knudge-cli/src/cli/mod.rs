@@ -13,7 +13,7 @@ pub use knowledge::{
     KnowledgeCommand, KnowledgeMapArgs, KnowledgeRankArgs, KnowledgeSuggestArgs, KnowledgeTagsArgs,
     PromoteCommand, PromoteEditArgs, PromoteRecommendArgs, PromoteTargetArgs,
 };
-pub use maintenance::{ConfigCommand, CorpusArgs, MaintenanceCommand, SelfCommand};
+pub use maintenance::{ConfigCommand, CorpusArgs, MaintenanceCommand, SelfCommand, UpgradeArgs};
 pub use rewind::RewindArgs;
 pub use task::{TaskCommand, TaskListArgs, TaskNewArgs, TaskPlanArgs, TaskSort};
 

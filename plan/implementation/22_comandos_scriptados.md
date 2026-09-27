@@ -130,22 +130,35 @@ T07 (docs/goldens/matriz/CHANGELOG) — incorpora os pontos em aberto
 - **Aceite:** `kd maintenance watch-service` ⇒ uso (2); `kd drain service --status` funciona;
   testes migrados (`cli::drain_service_*`); linhas da matriz e `prime` atualizadas.
 
-### E18-T05 ☐ D187 — `self upgrade` real
+### E18-T05 ☑ D187 — `self upgrade` real
 - **Escopo:** `scripts/kd-upgrade.sh` (novo) que **chama** o `install.sh` oficial (release +
   checksum), verbose e cross-platform; `kd self upgrade` evoca o script (sem lógica em Rust).
   Revisa D69/D165.
+- **Feito:** `scripts/kd-upgrade.sh` (embutido por `include_str!`) baixa o `install.sh` oficial
+  (ou usa um local), verifica `KNUDGE_INSTALL_SHA256` quando definido e executa com `VERSION`;
+  nunca `curl … \| sh` cego; `--dry-run` imprime o plano (stdout). `kd self upgrade` virou wrapper
+  fino (`commands/self_cmd/upgrade.rs`) com `--dry-run`/`--version`/`--script`/`--url`/`--sha256`
+  (`UpgradeArgs`); o stub saiu. Testes `cli::self_upgrade_invokes_script`,
+  `cli::self_upgrade_dry_run_shows_plan`, `cli::self_upgrade_remote_requires_checksum` (+ unit
+  `self_cmd::upgrade::embedded_upgrade_script_is_present`).
 - **Perf:** `self upgrade` é raro; chama `install.sh` (não reimplementa).
 - **Depende de:** T01/T02.
 - **Aceite:** `self upgrade` deixa de ser stub; teste com `--script`/fixture prova a invocação;
-  `--dry-run` mostra o plano; release verifica checksum.
+  `--dry-run` mostra o plano; release verifica checksum. ✔
 
-### E18-T06 ☐ D188 — auditoria de verbos acionáveis
+### E18-T06 ☑ D188 — auditoria de verbos acionáveis
 - **Escopo:** reavaliar `self setup`, onboard (`init`), `sync`, `doctor --fix` e afins: se
   essencialmente scriptável, mover para `scripts/` e reduzir o comando à ação mínima; senão,
   registrar a decisão de manter nativo (com motivo).
+- **Feito:** auditoria escrita na proposta
+  ([`../proposals/comandos_scriptados.md`](../proposals/comandos_scriptados.md) §9) com o veredito
+  por verbo; **nenhuma migração adicional**. Permanecem nativos
+  `init`/`sync`/`doctor --fix`/`self setup`/`self completions`/`hooks`/`forget`/`prune` (domínio com
+  portas, `--json` e determinismo); só orquestração de SO/rede (`knudge-idle.sh`, `kd-upgrade.sh`,
+  `install.sh`) e utilitários de dev vivem em `scripts/`.
 - **Perf:** auditoria é decisão de plano, não código quente.
 - **Depende de:** T01–T05.
-- **Aceite:** decisão escrita por verbo (script/nativo + motivo); o que migrar tem teste de smoke.
+- **Aceite:** decisão escrita por verbo (script/nativo + motivo); o que migrar tem teste de smoke. ✔
 
 ### E18-T07 ☐ Fecho — docs, goldens, matriz e CHANGELOG
 - **Escopo:** `docs/09-maintenance.md`, `docs/15-embeddings.md`, `docs/13-self.md`, `SKILL.md`,
@@ -162,7 +175,7 @@ T07 (docs/goldens/matriz/CHANGELOG) — incorpora os pontos em aberto
       com **stream** de logs (D184). `self upgrade` pendente (T05).
 - [x] Cross-platform documentado e testado (Linux/macOS/Windows) (D185).
 - [x] `watch-service` sob `drain service`; `maintenance` só `compact|learn|prune` (D186).
-- [ ] `self upgrade` real com checksum (D187); auditoria de verbos acionáveis escrita (D188).
+- [x] `self upgrade` real com checksum (D187); auditoria de verbos acionáveis escrita (D188).
 - [ ] `install.sh` permanece na raiz (target do `curl | bash`); `kd-upgrade.sh` o invoca.
 - [ ] Nenhum `src/` > 300 linhas; zero `unwrap/expect/panic/unsafe`; stdout = dados (R20).
 

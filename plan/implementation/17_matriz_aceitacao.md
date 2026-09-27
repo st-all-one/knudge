@@ -66,7 +66,7 @@
 | `kd self version` | `kd <versão>` + linha de ajuda (D165) | `{name, version}` | — | nada | `golden::json_version_matches_golden` |
 | `kd self completions` | script do shell (puro no stdout; resumo em stderr) | `{shell, script}` | `invalid_input` (2) shell desconhecido | nada | `cli::*` |
 | `kd self setup` | `recipe <alvo> gravada em …` + `próximos:` (D165) | `{target, path}` | `invalid_input` (2) alvo desconhecido | grava `.knudge/setup/<alvo>.json` | `cli::*` |
-| `kd self upgrade` | orientação de upgrade | `{channel}` | — | nada | `cli::*` |
+| `kd self upgrade [--version TAG] [--dry-run] [--script <PATH>\|--url <URL> --sha256 <HEX>]` | `self upgrade: ok` (ou o stdout do script) + `próximos:` (D165) | `{done, script}` ou `{dry_run, source, reference, command, plan?}` | `invalid_input` (2) em `--url` sem `--sha256`; `io` (5) se o script falhar | evoca o `kd-upgrade.sh` (D187), que baixa o `install.sh` oficial e o executa com `VERSION` | `cli::self_upgrade_invokes_script`, `cli::self_upgrade_dry_run_shows_plan`, `cli::self_upgrade_remote_requires_checksum` (+ unit `self_cmd::upgrade::embedded_upgrade_script_is_present`) |
 
 ## Invariantes transversais
 

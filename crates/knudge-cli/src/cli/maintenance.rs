@@ -131,8 +131,28 @@ pub enum SelfCommand {
         #[arg(value_name = "SHELL")]
         shell: String,
     },
-    /// Atualiza o binário.
-    Upgrade,
+    /// Atualiza o binário pelo instalador oficial (release + checksum; D187).
+    Upgrade(UpgradeArgs),
     /// Mostra a versão.
     Version,
+}
+
+/// Argumentos de `kd self upgrade` (D187).
+#[derive(Debug, Args)]
+pub struct UpgradeArgs {
+    /// Só mostra o plano (não baixa nem executa).
+    #[arg(long)]
+    pub dry_run: bool,
+    /// Versão/tag alvo (default: `latest`).
+    #[arg(long, value_name = "TAG")]
+    pub version: Option<String>,
+    /// Usa um script local em vez do embutido (offline/testes).
+    #[arg(long, value_name = "PATH")]
+    pub script: Option<String>,
+    /// Baixa o script de uma URL (HTTPS) em vez de usar o embutido.
+    #[arg(long, value_name = "URL")]
+    pub url: Option<String>,
+    /// SHA-256 (hex) do script remoto (`--url`); obrigatório para baixar (D184).
+    #[arg(long, value_name = "HEX")]
+    pub sha256: Option<String>,
 }

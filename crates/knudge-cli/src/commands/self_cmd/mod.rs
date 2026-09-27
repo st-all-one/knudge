@@ -11,6 +11,8 @@ use crate::cli::SelfCommand;
 use crate::output::Output;
 use crate::session::Session;
 
+mod upgrade;
+
 /// Versão do binário.
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -54,7 +56,7 @@ pub fn completions(shell: &str) -> Result<Output> {
 pub fn setup(session: &Session, command: &SelfCommand) -> Result<Output> {
     match command {
         SelfCommand::Setup { client } => setup_client(session, client),
-        SelfCommand::Upgrade => upgrade(),
+        SelfCommand::Upgrade(args) => upgrade::run(session, args),
         SelfCommand::Version => Ok(version()),
         SelfCommand::Completions { shell } => completions(shell),
     }
@@ -93,12 +95,6 @@ fn setup_client(session: &Session, client: &str) -> Result<Output> {
             path.display()
         ),
         data,
-    ))
-}
-
-fn upgrade() -> Result<Output> {
-    Err(Error::invalid_input(
-        "atualização automática não disponível; instale a nova versão pelo canal de origem",
     ))
 }
 

@@ -164,6 +164,54 @@ fn self_version_works_in_both_modes() -> TestResult {
 }
 
 #[test]
+fn self_upgrade_invokes_script() -> TestResult {
+    let dir = temp_project();
+    let script = dir.join("fake-upgrade.sh");
+    std::fs::write(&script, "#!/usr/bin/env bash\necho \"upgrade fake\"\n")?;
+    let script_s = script.to_string_lossy().into_owned();
+    let out = run_in(&dir, &["self", "upgrade", "--script", script_s.as_str()])?;
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let stdout = String::from_utf8(out.stdout)?;
+    assert!(stdout.contains("upgrade fake"), "stdout: {stdout}");
+    Ok(())
+}
+
+#[test]
+fn self_upgrade_dry_run_shows_plan() -> TestResult {
+    let dir = temp_project();
+    let out = run_in(&dir, &["--json", "self", "upgrade", "--dry-run"])?;
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let value = json(&out)?;
+    let data = value.get("data").ok_or("sem data")?;
+    assert_eq!(
+        data.get("dry_run").and_then(serde_json::Value::as_bool),
+        Some(true)
+    );
+    let plan = data
+        .get("plan")
+        .and_then(serde_json::Value::as_str)
+        .ok_or("envelope sem `plan`")?;
+    assert!(plan.contains("install.sh"), "plan: {plan}");
+    Ok(())
+}
+
+#[test]
+fn self_upgrade_remote_requires_checksum() -> TestResult {
+    let dir = temp_project();
+    let out = run_in(
+        &dir,
+        &["self", "upgrade", "--url", "https://example.invalid/x.sh"],
+    )?;
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "remoto sem checksum deveria ser uso (2): {:?}",
+        out.stderr
+    );
+    Ok(())
+}
+
+#[test]
 fn unknown_command_exits_two() -> TestResult {
     let out = run(&["definitely-not-a-command"])?;
     assert_eq!(out.status.code(), Some(2));

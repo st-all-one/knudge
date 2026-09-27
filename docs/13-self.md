@@ -9,7 +9,7 @@ completions, atualização e versão.
 |---|---|
 | `setup <CLIENTE>` | Grava a recipe de integração do cliente (`claude`/`cursor`/`codex`/`pi`) |
 | `completions <SHELL>` | Gera completions (`bash`/`zsh`/`fish`) |
-| `upgrade` | Atualização automática (não disponível; instale pelo canal de origem) |
+| `upgrade` | Atualiza o binário pelo instalador oficial (release + checksum; D187) |
 | `version` | Versão do binário |
 
 ## Em 30 segundos
@@ -25,7 +25,7 @@ kd self setup claude
 ```
 kd self setup <CLIENTE>
 kd self completions <SHELL>
-kd self upgrade
+kd self upgrade [--version TAG] [--dry-run]
 kd self version
 ```
 
@@ -78,18 +78,22 @@ servidor MCP, veja [MCP](14-mcp.md).
 ### Nível 4 — atualização
 
 ```bash
-kd self upgrade
+kd self upgrade                 # baixa e roda o install.sh oficial (release + checksum)
+kd self upgrade --version v0.5.0
+kd self upgrade --dry-run       # só mostra o plano
 ```
 
-Retorna `invalid_input` (exit 2): a atualização automática não está disponível — instale a nova
-versão pelo canal de origem (script/`make install`).
+O `upgrade` evoca o **`kd-upgrade.sh`** (embutido), que baixa o `install.sh` oficial e o executa
+com `VERSION`; o `install.sh` verifica o checksum SHA-256 do release antes de instalar. Não há
+lógica de install em Rust (wrapper fino, D187). No Windows nativo, rode via Git Bash/WSL ou baixe
+o release manualmente.
 
 ## Resultados
 
 - `version` — `kd <versão>`; `{name, version}`.
 - `completions` — script no stdout; `{shell, script}`.
 - `setup` — `recipe <cliente> gravada em <path>`; `{client, path}`.
-- `upgrade` — exit 2.
+- `upgrade` — `self upgrade: ok`; `{done, script}` (ou `--dry-run` com `{dry_run, …, plan?}`).
 - Cliente/shell desconhecido → exit 2.
 
 ## Quando (não) usar

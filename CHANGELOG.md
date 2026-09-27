@@ -31,6 +31,12 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 - **Polimento do worker (E17-T07/P6–P10)** — `--every` validado no `cli` (exit 2) e antes de
   escrever a unit; `--status` é **read-only** (não materializa o script embutido) e explica
   `pending=?`; `drain --digest` marca `clean` ("fila limpa") quando nada estava pendente.
+- **`self upgrade` real (E18-T05/D187)** — `kd self upgrade` deixa de ser stub: evoca o
+  `kd-upgrade.sh` (embutido), que baixa o `install.sh` oficial (release + checksum) e o executa;
+  `--version`/`--dry-run`/`--script`/`--url --sha256`.
+- **Auditoria de verbos acionáveis (E18-T06/D188)** — decisão escrita: permanecem nativos
+  `init`/`sync`/`doctor --fix`/`self setup`/`self completions`/`hooks`/`forget`/`prune`; só
+  orquestração de SO/rede e utilitários de dev vivem em `scripts/`.
 
 ### Corrigido
 - **Status consistente na leitura (E16-T02/D176)** — `Status::VISIBLE` é a fonte única; `knowledge

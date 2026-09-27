@@ -336,7 +336,7 @@ kd init [--force] [--no-prompt]   # estrutura canônica + prompt inicial de fund
 
 kd self setup <claude|cursor|codex|pi>
 kd self completions <shell>
-kd self upgrade
+kd self upgrade [--version TAG] [--dry-run] [--script <PATH> | --url <URL> --sha256 <HEX>]
 kd self version
 ```
 
@@ -344,7 +344,9 @@ kd self version
   `próximos:`; `config` mostra `(projeto|global) — <path do arquivo>`; `sync` mostra
   `<branch>: N arquivo(s) commitados (<hash curto>)` ou `nada a sincronizar`; `self version`
   aponta o help; `self setup` lista o próximo passo; `self completions` mantém o **script puro**
-  no stdout (resumo só em stderr).
+  no stdout (resumo só em stderr); `self upgrade` evoca o **`kd-upgrade.sh`** (wrapper fino;
+  D187), que chama o `install.sh` oficial (release + checksum) — `--dry-run` mostra o plano,
+  `--version` fixa a tag e `--url` remoto exige `--sha256` (D184).
 
 ## 12. `strict` como config (D94)
 
