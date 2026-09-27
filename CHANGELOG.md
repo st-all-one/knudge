@@ -4,6 +4,22 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+### Adicionado
+- **Bancada de qualidade de busca (E16-T01)** — `bench/src/quality.rs` mede Recall@k/MRR/nDCG@k
+  num corpus PT-BR rotulado (192 notas, 24 consultas); baselines versionados em
+  `bench/qualidade.md`/`.json` (régua para D172/D173/D179).
+- **Wrapper fino de scripts acionáveis (E18-T01/T03/D184)** — `commands/script.rs` resolve
+  (embutido/local; `--url` remoto exige `--sha256`), faz stream do stderr, captura o stdout e
+  propaga exit; `kd drain service` é wrapper do `knudge-idle.sh` (fonte da verdade).
+- **`kd drain service <ação>` (E18-T04/D186)** — o worker de auto-drain sai de `maintenance` e
+  entra sob `drain`; `kd maintenance` fica só com `compact|learn|prune`.
+- **Stream do worker (E17-T03/D181)** e **sem confirmação/`--yes` (E17-T04/D180)** — mutações do
+  worker executam direto e os passos aparecem em stderr.
+
+### Corrigido
+- **Status consistente na leitura (E16-T02/D176)** — `Status::VISIBLE` é a fonte única; `knowledge
+  rank`/`map`, `rewind` e `maintenance` deixam de incluir `forgotten`/`superseded`.
+
 ## [0.4.0] - 2026-09-26
 
 ### Adicionado

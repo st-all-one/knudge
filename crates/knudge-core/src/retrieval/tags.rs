@@ -6,14 +6,13 @@
 use std::collections::BTreeMap;
 
 use super::Index;
-use crate::schema::Status;
 
 /// Contagem de tags do índice, `(count desc, tag asc)`.
 #[must_use]
 pub fn tag_counts(index: &Index) -> Vec<(String, usize)> {
     let mut counts: BTreeMap<String, usize> = BTreeMap::new();
     for doc in &index.docs {
-        if matches!(doc.meta.status, Status::Forgotten | Status::Superseded) {
+        if doc.meta.status.is_deprecated() {
             continue;
         }
         for tag in &doc.meta.tags {

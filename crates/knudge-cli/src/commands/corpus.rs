@@ -10,6 +10,7 @@ use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::graph::Graph;
 use knudge_core::retrieval::{Filter, Index, Meta};
+use knudge_core::schema::Status;
 
 use crate::cli::CorpusArgs;
 
@@ -73,9 +74,10 @@ impl CorpusScope {
         let filter = Filter {
             types: parse::types(&self.types)?,
             classifications: parse::classifications(&self.classes)?,
+            // D176/D43: esconde `superseded`/`forgotten` por padrão, como `ask`/`tags`/`dedup`.
+            statuses: Status::VISIBLE.to_vec(),
             tags: self.tags.clone(),
             anchors: self.anchors.clone(),
-            ..Filter::new()
         };
         let allowed = self.allowed(graph)?;
         let metas = index

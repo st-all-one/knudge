@@ -1,7 +1,7 @@
 //! Check de corpo/lastro das notas (D162).
 
 use crate::Result;
-use crate::schema::{NoteType, Status, Value};
+use crate::schema::{NoteType, Value};
 use crate::store::Note;
 
 use super::{CheckId, DoctorCheck};
@@ -17,10 +17,7 @@ pub(super) fn body_check(notes: &[Note]) -> Result<DoctorCheck> {
         ) {
             continue;
         }
-        if matches!(
-            note.frontmatter.status()?,
-            Status::Forgotten | Status::Superseded
-        ) {
+        if note.frontmatter.status()?.is_deprecated() {
             continue;
         }
         if !note.body.trim().is_empty() {

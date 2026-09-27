@@ -30,9 +30,9 @@
 | `kd write` | `write`, `update`, `link` | toda escrita |
 | `kd task` | `epic`, grupos de tarefa | epic/issue/task |
 | `kd knowledge` | `clusters` | mapa/ranking/vocabulário de conhecimento (D128/D146) |
-| `kd drain` | — | fila de embeddings: status/digestão (D170) |
+| `kd drain` | `service` | fila de embeddings: status/digestão; `service` = worker de auto-drain (D170/D186) |
 | `kd doctor` | — | saúde do corpus: 13 checks + auditoria (`--fix`, `--explain`) — D163 |
-| `kd maintenance` | `compact`, `learn`, `prune`, `watch-service` | manutenção |
+| `kd maintenance` | `compact`, `learn`, `prune` | manutenção (só revisão; D186) |
 | `kd config` | `config` | `.knudge/config.toml` |
 | `kd forget` | `forget`, `restore` | soft-delete |
 | `kd sync` | `sync` | commit git |
@@ -247,10 +247,11 @@ kd maintenance learn [--scope <C>] [--tag ...|--anchor ...|--type ...|--class ..
                                           # sugestões de notas/links/merges (escopo obrigatório — D144)
 kd maintenance prune [--scope <C>] [--tag ...|--anchor ...|--type ...|--class ...|--around ...|--universe]
                                           # propõe forget por shelf-life/decay (nunca age, D112)
-kd maintenance watch-service [--install|--subscribe|--unsubscribe|--status|--uninstall]
-                             [--yes] [--dry-run] [--every 1h] [--port 8999]
-                                          # gerencia o worker e o servidor de embeddings (systemd/launchd)
 kd drain [--status | --digest [--force]]   # fila de embeddings: estado rico e digestão (D170)
+kd drain service [--install|--subscribe|--unsubscribe|--status|--uninstall]
+                             [--dry-run] [--every 1h] [--port 8999]
+                             [--script <PATH> | --url <URL> --sha256 <HEX>]
+                                          # worker de auto-drain + servidor de embeddings (D184/D186)
 ```
 
 - `audit` virou modo do `doctor` (relatório de integridade + arestas sugeridas).
@@ -260,15 +261,18 @@ kd drain [--status | --digest [--force]]   # fila de embeddings: estado rico e d
   qualquer verbo não-`maintenance`/`doctor`/`drain` (auto-drain ocioso, D131); `manual` desliga.
 - `prune` **só propõe** (`forget|id|motivo`); a aplicação é `kd forget` (D47/D112).
 - **Verbosidade (D165):** `compact`/`learn`/`prune` terminam com `propostas: <kind>=N` e
-  `próximos:` (aplicar via `kd write`/`kd forget`); `watch-service` termina com `próximos:`.
-- `watch-service` gerencia o worker **sem supply-chain**: o `knudge-idle.sh` é embutido no binário
-  (`--script`/`--url` sobrescrevem). Ações (exclusivas; default `--status`): `--install` faz
+  `próximos:` (aplicar via `kd write`/`kd forget`); `drain service` termina com `próximos:`.
+- `drain service` gerencia o worker com **wrapper fino** (D184/D186): o `knudge-idle.sh` é embutido no
+  binário por padrão; `--script <PATH>` usa um script local; `--url <URL>` baixa por HTTPS e
+  **exige `--sha256 <HEX>`** (checksum SHA-256; sem ele o download é recusado). O wrapper faz
+  **stream do stderr** (logs verbosos) e mantém o **stdout** como dados (R20); falha do script
+  propaga exit não-zero. Ações (exclusivas; default `--status`): `--install` faz
   pré-flight (`kd`/`llama`/GGUF/projeto), instala o agendador — `systemd --user` (Linux) ou
   `launchd` (macOS) —, sobe o **servidor de embeddings persistente** (`knudge-embed`) e cadastra o
   projeto atual; `--subscribe`/`--unsubscribe` cadastram/descadastram **um** projeto
   (multi-projeto; não desinstalam o sistema); `--status` mostra agendador/servidor/fila por
   projeto; `--uninstall` remove agendador + servidor. Sem systemd/launchd, o `--install` recusa e
-  imprime a linha de cron. Mutar exige confirmação (stderr; não-TTY cancela; `--yes` pula). O GGUF
+  imprime a linha de cron. Ação explícita = aceite (D180): mutações executam sem prompt. O GGUF
   mora ao lado do `config.toml` global (D132/D133).
 
 ## 10. `learn` em profundidade

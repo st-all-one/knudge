@@ -2850,19 +2850,13 @@ fn eager_mode_is_rejected() -> TestResult {
 }
 
 #[test]
-fn watch_service_dry_run_reports_plan() -> TestResult {
+fn drain_service_dry_run_reports_plan() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
     let out = run_in(
         &dir,
-        &[
-            "--json",
-            "maintenance",
-            "watch-service",
-            "--install",
-            "--dry-run",
-        ],
+        &["--json", "drain", "service", "--install", "--dry-run"],
     )?;
     assert!(out.status.success(), "stderr: {:?}", out.stderr);
     let data = json(&out)?;
@@ -2895,14 +2889,11 @@ fn watch_service_dry_run_reports_plan() -> TestResult {
 }
 
 #[test]
-fn watch_service_defaults_to_status() -> TestResult {
+fn drain_service_defaults_to_status() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
-    let out = run_in(
-        &dir,
-        &["--json", "maintenance", "watch-service", "--dry-run"],
-    )?;
+    let out = run_in(&dir, &["--json", "drain", "service", "--dry-run"])?;
     assert!(out.status.success(), "stderr: {:?}", out.stderr);
     let data = json(&out)?;
     assert_eq!(
@@ -2915,12 +2906,9 @@ fn watch_service_defaults_to_status() -> TestResult {
 }
 
 #[test]
-fn watch_service_action_flags_are_exclusive() -> TestResult {
+fn drain_service_action_flags_are_exclusive() -> TestResult {
     let dir = temp_project();
-    let out = run_in(
-        &dir,
-        &["maintenance", "watch-service", "--install", "--status"],
-    )?;
+    let out = run_in(&dir, &["drain", "service", "--install", "--status"])?;
     assert_eq!(
         out.status.code(),
         Some(2),
@@ -2930,19 +2918,7 @@ fn watch_service_action_flags_are_exclusive() -> TestResult {
 }
 
 #[test]
-fn watch_service_declined_does_nothing() -> TestResult {
-    let dir = temp_project();
-    let init = run_in(&dir, &["init", "--no-prompt"])?;
-    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
-    let out = run_stdin(&dir, &["maintenance", "watch-service", "--install"], "n\n")?;
-    assert!(out.status.success(), "stderr: {:?}", out.stderr);
-    let text = String::from_utf8(out.stdout)?;
-    assert!(text.contains("cancelad"), "saída: {text}");
-    Ok(())
-}
-
-#[test]
-fn watch_service_subscribe_runs_local_script() -> TestResult {
+fn drain_service_subscribe_runs_local_script() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
@@ -2958,19 +2934,85 @@ fn watch_service_subscribe_runs_local_script() -> TestResult {
     let script_arg = script.display().to_string();
     let out = run_in(
         &dir,
-        &[
-            "maintenance",
-            "watch-service",
-            "--subscribe",
-            "--yes",
-            "--script",
-            &script_arg,
-        ],
+        &["drain", "service", "--subscribe", "--script", &script_arg],
     )?;
     assert!(out.status.success(), "stderr: {:?}", out.stderr);
     let recorded = std::fs::read_to_string(&args_file)?;
     assert!(recorded.contains("subscribe"), "args: {recorded}");
     assert!(recorded.contains("--project"), "args: {recorded}");
+    Ok(())
+}
+
+#[test]
+fn drain_service_streams_stderr_and_keeps_stdout_as_data() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    let script = dir.join("fake-stream.sh");
+    std::fs::write(
+        &script,
+        "#!/usr/bin/env bash\necho 'dados-do-script'\necho 'log-do-script' >&2\n",
+    )?;
+    let script_arg = script.display().to_string();
+    let out = run_in(
+        &dir,
+        &["drain", "service", "--status", "--script", &script_arg],
+    )?;
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let stdout = String::from_utf8(out.stdout)?;
+    let stderr = String::from_utf8(out.stderr)?;
+    // stdout = dados (R20); stderr = logs, repassados em stream.
+    assert!(stdout.contains("dados-do-script"), "stdout: {stdout}");
+    assert!(stderr.contains("log-do-script"), "stderr: {stderr}");
+    Ok(())
+}
+
+#[test]
+fn drain_service_propagates_script_failure() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    let script = dir.join("fake-fail.sh");
+    std::fs::write(
+        &script,
+        "#!/usr/bin/env bash\necho 'vai falhar' >&2\nexit 7\n",
+    )?;
+    let script_arg = script.display().to_string();
+    let out = run_in(
+        &dir,
+        &["drain", "service", "--status", "--script", &script_arg],
+    )?;
+    assert!(!out.status.success(), "script falho deveria falhar");
+    assert_eq!(
+        out.status.code(),
+        Some(5),
+        "falha de script mapeia para io (5)"
+    );
+    let stderr = String::from_utf8(out.stderr)?;
+    assert!(stderr.contains("vai falhar"), "stderr: {stderr}");
+    Ok(())
+}
+
+#[test]
+fn drain_service_remote_requires_checksum() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    let out = run_in(
+        &dir,
+        &[
+            "drain",
+            "service",
+            "--status",
+            "--url",
+            "https://example.invalid/worker.sh",
+        ],
+    )?;
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "sem --sha256 o download deveria ser recusado (2)"
+    );
     Ok(())
 }
 

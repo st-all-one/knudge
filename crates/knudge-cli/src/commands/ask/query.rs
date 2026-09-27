@@ -144,10 +144,8 @@ fn resolve_statuses(args: &AskArgs) -> Result<Vec<Status>> {
         return Ok(Vec::new());
     }
     Ok(if statuses.is_empty() {
-        Status::ALL
-            .into_iter()
-            .filter(|status| !matches!(status, Status::Superseded | Status::Forgotten))
-            .collect()
+        // D43/D176: default esconde `superseded`/`forgotten` (fonte única: `Status::VISIBLE`).
+        Status::VISIBLE.to_vec()
     } else {
         statuses
     })

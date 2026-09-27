@@ -88,19 +88,20 @@ registra a rejeição no épico.
 
 ### Trilha A — Medição e correções baratas (E16)
 
-1. **E16/T01** — bancada de qualidade (habilitador de tudo que muda ranking).
-2. **E16/T02** — status consistente em `knowledge` (bug, sem dependência).
+1. ✅ **E16/T01** — bancada de qualidade (`bench/src/quality.rs`, `make bench-quality`;
+   baseline `bench/qualidade.md`).
+2. ✅ **E16/T02** — status consistente (`Status::VISIBLE`, D176; teste de regressão).
 
 ### Trilha B — Superfície e scripts (E18 + E17)
 
-3. **E18/T01** — wrapper fino + stream (base de E17/T03).
+3. ✅ **E18/T01** — wrapper fino + stream (`commands/script.rs`; checksum SHA-256 no remoto).
 4. **E18/T02** — cross-platform.
-5. **E17/T03** — verbosidade/stream do worker.
+5. ✅ **E17/T03** — verbosidade/stream do worker (entregue por E18/T01).
 6. **E17/T01** — reconciliação de `endpoint`/`model` (no script).
 7. **E17/T02** — `--status` com probe.
-8. **E17/T04** — remover confirmação/`--yes`.
-9. **E18/T03** — `watch-service` como script (consolida E17/T03/T04).
-10. **E18/T04** — superfície `kd drain service` (D186).
+8. ✅ **E17/T04** — remover confirmação/`--yes` (D180).
+9. ✅ **E18/T03** — `watch-service` como script (consolida E17/T03/T04).
+10. ✅ **E18/T04** — superfície `kd drain service` (D186).
 11. **E17/T05** — supply-chain; **E17/T06** — uninstall/GGUF; **E17/T07** — polimento P6–P10.
 12. **E18/T05** — `self upgrade` real; **E18/T06** — auditoria de verbos acionáveis.
 

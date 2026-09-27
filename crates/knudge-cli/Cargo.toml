@@ -18,6 +18,8 @@ serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+# SHA-256 do script remoto (`--url`): verificação de supply-chain (E18/T01/D184).
+sha2.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true

@@ -99,19 +99,26 @@ T08 (docs/goldens/matriz/CHANGELOG) — incorpora os pontos em aberto
 - **Aceite:** teste com endpoint divergente marca `divergente`; endpoint ausente marca `fora`;
   endpoint correto marca `ok`; `--json` ganha o campo (aditivo).
 
-### E17-T03 ☐ D181 — verbosidade e stream do worker (prioridade 1)
+### E17-T03 ☑ D181 — verbosidade e stream do worker (prioridade 1)
 - **Escopo:** o **stream do stderr** é implementado por **E18/T01** (wrapper fino canônico);
   aqui o **script** cobre cada passo com números: baixar llama.cpp, baixar GGUF (tamanho),
   escrever unidades, subir servidor (porta), cadastrar projeto, verificar. stdout continua só
   dados (R20).
+- **Feito:** o script já loga cada passo via `log()` (stderr); o wrapper `commands/script.rs`
+  (E18/T01) faz **stream do stderr** e captura o stdout. Teste
+  `cli::watch_service_streams_stderr_and_keeps_stdout_as_data` prova o repasse.
 - **Perf:** stream de stderr via E18/T01; nenhum custo no caminho quente.
 - **Depende de:** nada.
 - **Aceite:** `--install` (e `--uninstall`/`--subscribe`) exibem os passos em stderr; teste com
   `--script` fake que escreve em stderr verifica o repasse; `--json 2>/dev/null` segue JSON válido.
 
-### E17-T04 ☐ D180 — remover confirmação (e `--yes`)
+### E17-T04 ☑ D180 — remover confirmação (e `--yes`)
 - **Escopo:** `Action::asks()` deixa de existir; o prompt e `confirm()` saem; `WatchServiceArgs.yes`
   sai (D14). Ações explícitas executam direto.
+- **Feito:** `asks()`/`question()`/`confirm()` removidos de `watch.rs`; `--yes` removido de
+  `WatchServiceArgs`; teste `watch_service_declined_does_nothing` removido e
+  `watch_service_subscribe_runs_local_script` migrado (sem `--yes`). Docs (`09-maintenance`,
+  `15-embeddings`) e superfície/matriz atualizadas.
 - **Perf:** remoção de código (`asks`/`confirm`) — não afeta o caminho quente.
 - **Depende de:** T03 (verbosidade garante visibilidade do que ocorre).
 - **Aceite:** `--install`/`--uninstall`/`--subscribe`/`--unsubscribe` executam sem prompt; testes

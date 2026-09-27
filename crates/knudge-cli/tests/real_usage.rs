@@ -118,6 +118,16 @@ fn has_hit(value: &serde_json::Value, id: &str) -> bool {
         .any(|hit| hit.get("id").and_then(serde_json::Value::as_str) == Some(id))
 }
 
+/// `true` se algum item de `ranked` (`knowledge rank`) tem o id dado.
+fn has_ranked(value: &serde_json::Value, id: &str) -> bool {
+    value
+        .get("ranked")
+        .and_then(|v| v.as_array())
+        .into_iter()
+        .flatten()
+        .any(|hit| hit.get("id").and_then(serde_json::Value::as_str) == Some(id))
+}
+
 #[test]
 fn knowledge_write_and_ask() -> TestResult {
     let dir = temp_project();
@@ -193,6 +203,65 @@ fn knowledge_map_rank_tags_digest() -> TestResult {
     // Escopo obrigatório (D143/D144).
     expect_code(&dir, &["knowledge", "map", "--axis", "type"], 2)?;
     expect_code(&dir, &["knowledge", "rank"], 2)?;
+    Ok(())
+}
+
+#[test]
+fn knowledge_rank_map_exclude_deprecated() -> TestResult {
+    let dir = temp_project();
+    init(&dir)?;
+    let seeded = seed_knowledge(&dir)?;
+
+    // Nota ativa aparece em `rank` (D176).
+    let ranked = ok_json(&dir, &["knowledge", "rank", "--universe", "--limit", "50"])?;
+    assert!(has_ranked(&ranked, &seeded.fact), "ativo ausente de rank");
+
+    // `forget` (soft-delete) → some de `rank` e `map` por padrão (D43/D176).
+    let _forget = ok(&dir, &["forget", "--id", &seeded.fact])?;
+    let ranked = ok_json(&dir, &["knowledge", "rank", "--universe", "--limit", "50"])?;
+    assert!(
+        !has_ranked(&ranked, &seeded.fact),
+        "forgotten ainda aparece em rank"
+    );
+    let map = ok(
+        &dir,
+        &[
+            "knowledge",
+            "map",
+            "--universe",
+            "--axis",
+            "anchor",
+            "--members",
+        ],
+    )?;
+    assert!(
+        !map.contains(&seeded.fact),
+        "forgotten ainda aparece em map"
+    );
+
+    // A linhagem continua inspecionável com `--status` explícito (D43).
+    let lineage = ok_json(&dir, &["ask", "cache", "--status", "forgotten"])?;
+    assert!(
+        has_hit(&lineage, &seeded.fact),
+        "linhagem não inspecionável"
+    );
+
+    // `superseded` (via `write --update` que muda a chave de conteúdo) também sai do default.
+    let _updated = ok(
+        &dir,
+        &[
+            "write",
+            "--update",
+            &seeded.snippet,
+            "--summary",
+            "Snippet de retry (revisado)",
+        ],
+    )?;
+    let ranked = ok_json(&dir, &["knowledge", "rank", "--universe", "--limit", "50"])?;
+    assert!(
+        !has_ranked(&ranked, &seeded.snippet),
+        "superseded ainda aparece em rank"
+    );
     Ok(())
 }
 

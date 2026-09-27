@@ -17,6 +17,7 @@ pub mod maintenance;
 pub mod parse;
 pub mod prime;
 pub mod rewind;
+pub mod script;
 pub mod self_cmd;
 pub mod task;
 pub mod validators;

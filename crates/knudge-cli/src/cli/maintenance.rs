@@ -1,4 +1,7 @@
 //! Subcomandos de `kd maintenance`, `kd config` e `kd self`.
+//!
+//! `kd maintenance` só revisa (`compact`/`learn`/`prune`); o worker de auto-drain vive em
+//! `kd drain service` (D186).
 
 use clap::{Args, Subcommand};
 
@@ -42,54 +45,6 @@ pub enum MaintenanceCommand {
         #[command(flatten)]
         corpus: CorpusArgs,
     },
-    /// Gerencia o worker de auto-drain ocioso: `--install`/`--subscribe`/`--unsubscribe`/`--status`/`--uninstall`.
-    WatchService(WatchServiceArgs),
-}
-
-/// Argumentos de `kd maintenance watch-service`.
-#[allow(clippy::struct_excessive_bools, reason = "flags de CLI")]
-#[derive(Debug, Args)]
-pub struct WatchServiceArgs {
-    /// Instala o agendador (systemd/launchd), o servidor de embeddings persistente e cadastra
-    /// o projeto atual. Baixa llama.cpp + GGUF se ausentes (use `--no-deps` para pular).
-    #[arg(long, group = "action")]
-    pub install: bool,
-    /// Cadastra o projeto atual (multi-projeto; exige o sistema instalado).
-    #[arg(long, group = "action")]
-    pub subscribe: bool,
-    /// Descadastra o projeto atual (mantém o sistema instalado).
-    #[arg(long, group = "action")]
-    pub unsubscribe: bool,
-    /// Mostra a saúde atual (agendador, servidor, fila por projeto). É o default.
-    #[arg(long, group = "action")]
-    pub status: bool,
-    /// Remove o sistema (agendador + servidor + config + binário).
-    #[arg(long, group = "action")]
-    pub uninstall: bool,
-    /// Não pergunta: assume que sim.
-    #[arg(long, short = 'y')]
-    pub yes: bool,
-    /// Só mostra o plano (não baixa nem executa).
-    #[arg(long)]
-    pub dry_run: bool,
-    /// Período do drain (ex.: `1h`, `15min`).
-    #[arg(long, value_name = "DUR", default_value = "1h")]
-    pub every: String,
-    /// Porta do servidor de embeddings local.
-    #[arg(long, value_name = "N", default_value_t = 8999)]
-    pub port: u16,
-    /// Caminho do modelo GGUF (default: ao lado do config.toml global).
-    #[arg(long, value_name = "PATH")]
-    pub model: Option<String>,
-    /// Não instala dependências (llama.cpp + GGUF) no `--install`; falha se faltarem.
-    #[arg(long)]
-    pub no_deps: bool,
-    /// Usa um script local em vez do embutido (offline/testes).
-    #[arg(long, value_name = "PATH")]
-    pub script: Option<String>,
-    /// Baixa o script de uma URL (HTTPS) em vez de usar o embutido.
-    #[arg(long, value_name = "URL")]
-    pub url: Option<String>,
 }
 
 /// Filtros de corpus compartilhados por `learn`/`compact`/`prune` (D143/D144).

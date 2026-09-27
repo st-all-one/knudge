@@ -5,13 +5,12 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::retrieval::token::content_terms;
 use crate::retrieval::{Field, Index, NoteDoc};
-use crate::schema::Status;
 
 use super::{DedupThresholds, MAX_CANDIDATES, MergeProposal};
 
 /// `true` se a nota ainda participa do dedup (`forgotten`/`superseded` ficam fora — D43).
 fn is_live(doc: &NoteDoc) -> bool {
-    !matches!(doc.meta.status, Status::Forgotten | Status::Superseded)
+    !doc.meta.status.is_deprecated()
 }
 
 /// Similaridade Dice sobre o conjunto de termos de dois documentos.

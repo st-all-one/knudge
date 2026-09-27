@@ -172,10 +172,10 @@ kd maintenance learn --universe         # o que deveria virar nota? (exige escop
 kd knowledge map --axis scope --semantic --universe
 kd maintenance prune --universe         # propõe forget por shelf-life (exige escopo)
 kd drain --status           # fila de embeddings (pending) por projeto
-kd maintenance watch-service --status   # saúde do worker de auto-drain (systemd/launchd)
+kd drain service --status   # saúde do worker de auto-drain (systemd/launchd)
 ```
 
-O worker de auto-drain é gerenciado por `kd maintenance watch-service`: `--install` (pré-flight +
+O worker de auto-drain é gerenciado por `kd drain service`: `--install` (pré-flight +
 agendador `systemd --user`/`launchd` + servidor de embeddings persistente `knudge-embed` +
 cadastra o projeto), `--subscribe`/`--unsubscribe` (multi-projeto; não desinstalam o sistema),
 `--status` (default) e `--uninstall`. O script é **embutido** no binário (sem download) e o GGUF

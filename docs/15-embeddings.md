@@ -11,11 +11,11 @@ Se você só quer usar o knudge, **pule este guia**. Ele é necessário apenas p
 ## Em 30 segundos
 
 ```bash
-kd maintenance watch-service --install    # baixa llama.cpp + GGUF, sobe servidor + worker
+kd drain service --install    # baixa llama.cpp + GGUF, sobe servidor + worker
 kd ask "como o servidor não vê o conteúdo das notas"
 ```
 
-`--install` **pergunta antes** de agir (`--yes` pula; `--no-deps` não baixa dependências).
+`--install` age direto (ação explícita = aceite, D180; `--no-deps` não baixa dependências).
 
 ## Nível 1 — instalação manual do provedor
 
@@ -101,14 +101,14 @@ segurança para troca acidental) e a mesma chave com vetores divergentes desempa
 
 ## Nível 4 — worker persistente (systemd/launchd)
 
-O `kd maintenance watch-service` instala um agendador de usuário que mantém o servidor
+O `kd drain service` instala um agendador de usuário que mantém o servidor
 **persistente** e drena a fila periodicamente.
 
 ```bash
-kd maintenance watch-service --install      # agendador + servidor + cadastra este projeto
-kd maintenance watch-service --subscribe    # cadastra outro projeto (multi-projeto)
-kd maintenance watch-service --status       # saúde (default)
-kd maintenance watch-service --uninstall    # remove agendador + servidor
+kd drain service --install      # agendador + servidor + cadastra este projeto
+kd drain service --subscribe    # cadastra outro projeto (multi-projeto)
+kd drain service --status       # saúde (default)
+kd drain service --uninstall    # remove agendador + servidor
 ```
 
 - `--install` **baixa `llama.cpp` e o GGUF se faltarem**; `--no-deps` pula.
@@ -136,7 +136,7 @@ kd maintenance watch-service --uninstall    # remove agendador + servidor
 | Sintoma | Causa provável | Ação |
 |---|---|---|
 | `indexed=0` no drain | `-ub` default (512) | Suba o llama com `-ub 2048` |
-| `warnings[]` "provedor inalcançável" | servidor fora do ar | `kd maintenance watch-service --status`; suba o servidor |
+| `warnings[]` "provedor inalcançável" | servidor fora do ar | `kd drain service --status`; suba o servidor |
 | Notas longas presas em `pending` | `-ub` pequeno ou nota grande | Reinicie com `-b 2048 -ub 2048` |
 | `Connection refused` no `--digest` | nenhum servidor no endpoint | Configure/instale o servidor persistente |
 

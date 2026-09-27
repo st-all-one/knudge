@@ -110,12 +110,18 @@ ci: check nextest deny audit machete typos
 # --- Bancada de benchmark (fora do workspace, observação — E13-T09) ---
 
 ## Compara componentes (micromb) e ações (ponta-a-ponta) em corpora 200 e 1000.
+## Inclui a avaliação de qualidade de retrieval (Recall@k/MRR/nDCG@k — E16/T01).
 ## Resultado em tabela Markdown; `--json`/`--out` guardam artefatos.
 bench:
 	$(CARGO) build --release -p knudge-cli
 	$(CARGO) run --release --manifest-path bench/Cargo.toml -- all \
 		--kd target/release/kd --sizes 200,1000 --samples 8 \
 		--out bench/ULTIMO.md --json bench/ULTIMO.json
+
+## Só a avaliação de qualidade de retrieval (E16/T01) — rápida, sem `kd`.
+bench-quality:
+	$(CARGO) run --release --manifest-path bench/Cargo.toml -- quality \
+		--quality-out bench/qualidade.md --quality-json bench/qualidade.json
 
 ## Versão rápida (1 corpus, 5 amostras).
 bench-quick:

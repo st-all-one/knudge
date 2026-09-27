@@ -9,7 +9,6 @@ use std::collections::BTreeSet;
 
 use crate::config::Config;
 use crate::retrieval::{Index, NoteDoc};
-use crate::schema::Status;
 use crate::{Error, Result};
 
 use super::Draft;
@@ -150,7 +149,7 @@ pub(super) fn live_ids(index: &Index) -> BTreeSet<String> {
     index
         .docs
         .iter()
-        .filter(|doc| !matches!(doc.meta.status, Status::Forgotten | Status::Superseded))
+        .filter(|doc| !doc.meta.status.is_deprecated())
         .map(|doc| doc.meta.id.clone())
         .collect()
 }

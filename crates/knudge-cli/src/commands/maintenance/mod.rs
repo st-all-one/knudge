@@ -1,10 +1,10 @@
-//! `kd maintenance` — compact, learn, prune e watch-service (E12-T01).
+//! `kd maintenance` — compact, learn e prune (E12-T01).
 //!
-//! Saúde do corpus (`doctor`/auditoria) é verbo de topo: `kd doctor` (D163).
+//! Só revisão: propõem, nunca agem (D112/D186). O worker de auto-drain vive em
+//! `kd drain service`. Saúde do corpus (`doctor`/auditoria) é verbo de topo: `kd doctor` (D163).
 
 pub mod extra;
 pub mod proposals;
-pub mod watch;
 
 use knudge_core::Result;
 
@@ -49,6 +49,5 @@ pub fn run(session: &Session, command: &MaintenanceCommand) -> Result<Output> {
         MaintenanceCommand::Prune { scope, corpus, .. } => {
             extra::prune(session, scope.as_deref(), corpus)
         }
-        MaintenanceCommand::WatchService(args) => watch::run(session, args),
     }
 }

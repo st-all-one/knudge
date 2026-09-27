@@ -76,10 +76,17 @@ T07 (docs/goldens/matriz/CHANGELOG) — incorpora os pontos em aberto
 
 ## Tarefas
 
-### E18-T01 ☐ D184 — padrão de invocação (wrapper fino + stream)
+### E18-T01 ☑ D184 — padrão de invocação (wrapper fino + stream)
 - **Escopo:** função comum de invocação: resolver o script (embutido/local por padrão;
   `--url`/`curl` com **checksum** quando remoto) → executar com o shell do SO → **stream** de
   stdout/stderr → propagar exit code. stdout = dados (R20); logs em stderr, verbosos.
+- **Feito:** `commands/script.rs` (`Source::{Embedded,Local,Remote}`, `resolve`, `run`):
+  materializa o embutido, roda `bash` com **stderr herdado (stream)** e stdout capturado, e
+  recusa `--url` sem `--sha256` (SHA-256 verificado antes de executar). `watch.rs` virou
+  wrapper fino (usa o módulo); `--sha256` adicionado a `WatchServiceArgs`; dep `sha2` no CLI.
+  Testes: `cli::watch_service_streams_stderr_and_keeps_stdout_as_data`,
+  `cli::watch_service_propagates_script_failure`, `cli::watch_service_remote_requires_checksum`
+  + vetor SHA-256.
 - **Perf:** off-path; resolver local é O(1); download só remoto e explícito.
 - **Depende de:** E17-T03/T05 (reutiliza).
 - **Aceite:** teste com script fake (stderr/stdout) prova o stream e o exit code; `--json
@@ -93,21 +100,28 @@ T07 (docs/goldens/matriz/CHANGELOG) — incorpora os pontos em aberto
 - **Aceite:** matriz SO × script documentada; smoke por SO no CI (ou guia manual verificável);
   `--help` diz o que é suportado.
 
-### E18-T03 ☐ D184 — `watch-service` como script + wrapper fino
+### E18-T03 ☑ D184 — `watch-service` como script + wrapper fino
 - **Escopo:** `scripts/knudge-idle.sh` é a fonte da verdade; o binário só resolve/evoca (sem
   lógica de agendador em Rust). Consolida E17-T03/T04 (stream, sem confirmação).
-- **Perf:** `watch.rs` reduzido a wrapper; nada no caminho quente.
+- **Feito:** o script é embutido por `include_str!` (`commands/drain/service.rs`) e o wrapper
+  (`commands/script.rs`) resolve (`Embedded`/`Local`/`Remote`+checksum) e evoca; nenhuma lógica de
+  agendador em Rust. `--dry-run` mostra o comando completo; stream de stderr entregue (T01).
+- **Perf:** `service.rs` reduzido a wrapper; nada no caminho quente.
 - **Depende de:** T01/T02.
-- **Aceite:** `watch.rs` reduzido a wrapper; teste de invocação; `--dry-run` mostra o comando.
+- **Aceite:** `watch.rs` reduzido a wrapper; teste de invocação; `--dry-run` mostra o comando. ✔
 
-### E18-T04 ☐ D186 — superfície: `watch-service` sob `drain`; `maintenance` só revisão
+### E18-T04 ☑ D186 — superfície: `watch-service` sob `drain`; `maintenance` só revisão
 - **Escopo:** criar `kd drain service <ação>` (`--install|--subscribe|--unsubscribe|--status|--uninstall`);
   remover `watch-service` de `maintenance`; `maintenance` = `compact|learn|prune`. `--help`/`prime`/
   matriz/`docs` atualizados. Revisa D170.
+- **Feito:** `DrainArgs` ganhou o subcomando opcional `service` (`args_conflicts_with_subcommands`);
+  `WatchServiceArgs`/`DrainCommand` moveram para `cli/health.rs`; `commands/drain.rs` virou
+  `commands/drain/{mod,service}.rs`; `MaintenanceCommand::WatchService` removido; `prime`/goldens,
+  matriz, `16_cli_surface.md`, `docs/` e `llms.txt`/`SKILL.md`/`README.md` atualizados.
 - **Perf:** renomear/remover verbo não muda o custo dos verbos frequentes.
 - **Depende de:** T03.
 - **Aceite:** `kd maintenance watch-service` ⇒ uso (2); `kd drain service --status` funciona;
-  testes migrados; linhas da matriz e `prime` atualizadas.
+  testes migrados (`cli::drain_service_*`); linhas da matriz e `prime` atualizadas.
 
 ### E18-T05 ☐ D187 — `self upgrade` real
 - **Escopo:** `scripts/kd-upgrade.sh` (novo) que **chama** o `install.sh` oficial (release +

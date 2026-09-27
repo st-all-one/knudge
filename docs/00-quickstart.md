@@ -61,7 +61,7 @@ corpus (`.knudge/`) nem na config global:
 
 Se você instalou via `make install`, use `make uninstall` (move os binários para o lixo
 recuperável). Para remover o sistema de embeddings (agendador + servidor), use
-`kd maintenance watch-service --uninstall` — veja [Manutenção](09-maintenance.md).
+`kd drain service --uninstall` — veja [Manutenção](09-maintenance.md).
 
 > O corpus vive **dentro de cada projeto** (`.knudge/`). Desinstalar o binário não apaga nota
 > nenhuma; para esquecer notas, use [`kd forget`](11-forget.md).
@@ -151,7 +151,7 @@ nota que talvez você só precise atualizar (`kd write --update <ID> --summary "
 | `kd: command not found` | PATH não atualizado | `export PATH="$HOME/.local/bin:$PATH"` |
 | `nota ausente`/`schema` | corpus legado ou nota malformada | `kd doctor --fix` |
 | `ask` sem resultados | termo não casa | veja o sentinela `[no_results]`; ajuste a query |
-| Embeddings fora do ar | servidor não sobe | `kd maintenance watch-service --status` |
+| Embeddings fora do ar | servidor não sobe | `kd drain service --status` |
 | Conflito de merge | dois devs editaram a mesma nota | `kd doctor` aponta; resolva/supersede |
 
 A lista completa está em [Troubleshooting](troubleshooting.md).

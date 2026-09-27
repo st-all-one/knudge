@@ -12,7 +12,7 @@ GUIA (o que usar, quando e quando NÃO usar):
   kd task new <...>   PLANEJAR/EXECUTAR trabalho (epic ⊃ {issue ⊃ task | task}); NÃO use p/ conhecimento.
   kd rewind           RECONSTRUIR contexto/handoff no início de sessão (orçamento de tokens).
   kd doctor           SAÚDE do corpus: 13 checks + auditoria (--fix corrige; --explain detalha).
-  kd drain            FILA de embeddings: --status (estado) | --digest [--force] (digerir).
+  kd drain            FILA: --status (estado) | --digest [--force] (digerir); service = worker.
   kd forget --id <ID>  SOFT-DELETE (--restore; --purge [--force] após retenção).
   kd sync             COMMIT de notas/ + eventos/ (--message).
   kd init|config|self|prime|help — fundação, ajustes, binário, protocolo e ajuda.

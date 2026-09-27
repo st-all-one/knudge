@@ -12,6 +12,7 @@ mod e2e;
 mod fixture;
 mod harness;
 mod micro;
+mod quality;
 
 use std::path::PathBuf;
 
@@ -26,6 +27,8 @@ fn main() {
     let mut no_idle = false;
     let mut json_out: Option<PathBuf> = None;
     let mut md_out: Option<PathBuf> = None;
+    let mut quality_md: Option<PathBuf> = None;
+    let mut quality_json: Option<PathBuf> = None;
 
     let mut index = 0;
     while index < args.len() {
@@ -35,19 +38,21 @@ fn main() {
             args.get(*index).cloned().unwrap_or_default()
         };
         match arg {
-            "micro" | "e2e" | "all" => mode = arg.to_string(),
+            "micro" | "e2e" | "all" | "quality" => mode = arg.to_string(),
             "--sizes" => sizes = next(&mut index),
             "--samples" => samples = next(&mut index).parse().unwrap_or(samples),
             "--kd" => kd = next(&mut index),
             "--no-idle" => no_idle = true,
             "--json" => json_out = Some(PathBuf::from(next(&mut index))),
             "--out" => md_out = Some(PathBuf::from(next(&mut index))),
+            "--quality-out" => quality_md = Some(PathBuf::from(next(&mut index))),
+            "--quality-json" => quality_json = Some(PathBuf::from(next(&mut index))),
             "--quick" => {
                 sizes = "200".to_string();
                 samples = 5;
             }
             "--help" | "-h" => {
-                println!("uso: knudge-bench [micro|e2e|all] [--sizes 200,1000] [--samples 8] [--kd PATH] [--json out.json] [--out report.md] [--quick]");
+                println!("uso: knudge-bench [micro|e2e|quality|all] [--sizes 200,1000] [--samples 8] [--kd PATH] [--json out.json] [--out report.md] [--quality-out bench/qualidade.md] [--quality-json bench/qualidade.json] [--quick]");
                 return;
             }
             other => {
@@ -79,13 +84,21 @@ fn main() {
         eprintln!("== ponta-a-ponta (kd={}, sizes={sizes:?}) ==", absolute.display());
         e2e::run(&mut harness, &absolute, &sizes, samples, no_idle);
     }
-
-    let markdown = harness.render_markdown();
-    print!("{markdown}");
-    if let Some(path) = md_out {
-        let _ = std::fs::write(path, &markdown);
+    if mode == "quality" || mode == "all" {
+        eprintln!("== qualidade de retrieval ==");
+        let md = quality_md.unwrap_or_else(|| PathBuf::from("bench/qualidade.md"));
+        let json = quality_json.unwrap_or_else(|| PathBuf::from("bench/qualidade.json"));
+        quality::run(&md, &json);
     }
-    if let Some(path) = json_out {
-        let _ = std::fs::write(path, harness.render_json());
+
+    if mode == "micro" || mode == "e2e" || mode == "all" {
+        let markdown = harness.render_markdown();
+        print!("{markdown}");
+        if let Some(path) = md_out {
+            let _ = std::fs::write(path, &markdown);
+        }
+        if let Some(path) = json_out {
+            let _ = std::fs::write(path, harness.render_json());
+        }
     }
 }

@@ -8,20 +8,20 @@ use knudge_core::store::Note;
 use knudge_core::write::Draft;
 
 /// Gerador congruente linear determinístico (não usa `rand`/relógio).
-struct Lcg(u64);
+pub(crate) struct Lcg(u64);
 
 impl Lcg {
-    const fn new(seed: u64) -> Self {
+    pub(crate) const fn new(seed: u64) -> Self {
         Self(seed)
     }
-    fn next(&mut self) -> u64 {
+    pub(crate) fn next(&mut self) -> u64 {
         self.0 = self
             .0
             .wrapping_mul(6_364_136_223_846_793_005)
             .wrapping_add(1_442_695_040_888_963_407);
         self.0
     }
-    fn pick(&mut self, len: usize) -> usize {
+    pub(crate) fn pick(&mut self, len: usize) -> usize {
         (self.next() >> 33) as usize % len.max(1)
     }
 }

@@ -94,19 +94,29 @@ T09 (fusão) → T10 (perf) → T11 (stemming, condicional) → T12 (docs/golden
 
 ## Tarefas
 
-### E16-T01 ☐ Avaliação de qualidade na bancada (habilitador)
+### E16-T01 ☑ Avaliação de qualidade na bancada (habilitador)
 - **Objetivo:** medir **qualidade** de retrieval (não latência) na bancada externa.
 - **Escopo:** modo `quality` em `bench/` (zero-dep, fora do workspace): conjunto rotulado
   `consulta → ids esperados` (derivado do corpus + sintético + amostra manual) e métricas
   **Recall@k**, **MRR**, **nDCG@k**; relatório `bench/qualidade.md`/`.json`. Baseline registrado.
+- **Feito:** `bench/src/quality.rs` (corpus PT-BR de 12 tópicos × 8 notas + 96 distratores = 192
+  notas; 24 consultas `com-acento`/`sem-acento`); modo `quality` em `bench/src/main.rs`;
+  `make bench-quality`; alvo irmão `make bench` inclui a qualidade. **Baseline:**
+  `com-acento` nDCG@k = 100 % (ranking perfeito); `sem-acento` nDCG@1 = 8,3 % — a régua exata
+  de D172 (fold). Artefatos `bench/qualidade.md`/`.json` versionados.
 - **Depende de:** nada.
 - **Aceite:** `make bench` (ou alvo irmão) emite as métricas de qualidade; baseline gravado;
   `make check` inalterado (bancada não é gate, E13-T09).
 
-### E16-T02 ☐ D176 — consistência de status em todo consumidor
+### E16-T02 ☑ D176 — consistência de status em todo consumidor
 - **Escopo:** `CorpusScope::select`/`Selection` e/ou `rank()`/`structural_clusters_filtered()`
   passam a excluir `Forgotten | Superseded` por padrão, alinhados a `ask`/`tags`/`dedup`/
   `body_check` (D43). `--status` explícito continua permitindo inspecioná-los.
+- **Feito:** `Status::VISIBLE` (`schema/types.rs`) é a **fonte única** do default (D43);
+  `CorpusScope::select` (`commands/corpus.rs`) aplica em `knowledge rank`/`map`, `rewind` e
+  `maintenance learn/compact/prune`; `ask/query.rs` passou a reusar a constante (mesmo
+  comportamento). Teste de regressão por consumidor (`real_usage`); linha #95 em
+  `DIVERGENCES.md`.
 - **Perf:** filtro O(N) sobre o vetor já carregado; **sem** novo walk do disco (reusa `Corpus`).
 - **Depende de:** T01 (para não regredir métricas de ranking).
 - **Aceite:** `knowledge rank`/`map` não incluem deprecados (teste de regressão por consumidor);

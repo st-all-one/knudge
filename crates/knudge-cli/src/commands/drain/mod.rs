@@ -1,29 +1,36 @@
-//! `kd drain` — estado e digestão da fila de embeddings (D170).
+//! `kd drain` — fila de embeddings e worker de auto-drain (D170/D186).
 //!
-//! Absorve o antigo `kd knowledge digest` (D145). Três modos, mutuamente exclusivos:
+//! Absorve o antigo `kd knowledge digest` (D145). Modos, mutuamente exclusivos:
 //!
 //! - `kd drain` (sem flags) = **help**: o `clap` (`arg_required_else_help`) mostra os modos e
 //!   **não executa nada**;
 //! - `kd drain --status` = estado rico (enabled/provider/mode/dimensions, indexed/pending/stale
 //!   e uma recomendação), sem tocar em `.idx/`;
 //! - `kd drain --digest [--force]` = digestão em lotes até esvaziar/estagnar; `--force` é o
-//!   último recurso: apaga `.idx/` (100 % derivado, D84) e redige todas as notas do zero.
+//!   último recurso: apaga `.idx/` (100 % derivado, D84) e redige todas as notas do zero;
+//! - `kd drain service <ação>` = worker de auto-drain ocioso (agendador + servidor de
+//!   embeddings), delegado ao `knudge-idle.sh` (D131/D132/D184/D186).
 
 use knudge_core::Result;
 use knudge_core::embeddings::{EmbeddingIndex, EmbeddingState};
 use knudge_core::schema::Value;
 use serde_json::json;
 
-use crate::cli::DrainArgs;
+use crate::cli::{DrainArgs, DrainCommand};
 use crate::commands::embedder;
 use crate::output::Output;
 use crate::session::Session;
 
-/// Executa `kd drain [--status | --digest [--force]]`.
+pub mod service;
+
+/// Executa `kd drain [--status | --digest [--force] | service <ação>]`.
 ///
 /// # Errors
-/// Propaga erros de leitura do índice/store e de execução do provedor.
+/// Propaga erros de leitura do índice/store e de execução do provedor/worker.
 pub fn run(session: &Session, args: &DrainArgs) -> Result<Output> {
+    if let Some(DrainCommand::Service(service_args)) = &args.command {
+        return service::run(session, service_args);
+    }
     if args.digest {
         let rebuild = if args.force {
             Rebuild::Wipe

@@ -373,6 +373,16 @@
 | D170 | **`kd drain` de topo.** Absorve `kd knowledge digest` (D145): sem flag = `--help` (não executa); `--status` = estado rico + recomendação; `--digest [--force]` = digestão (`--force` apaga `.idx/` e redigeri tudo, último recurso); `--force` sem `--digest` = `invalid_input` (2). Revisa D145. |
 | D171 | **`kd` sozinho = `kd help`.** Deixa de ser atalho implícito para `prime`; intenção explícita exige verbo (`prime` sempre explícito). `--json` sem verbo = `invalid_input` (2). |
 
+### 0.5.0 (E16–E19) — registradas na implementação
+
+| # | Decisão |
+|---|---|
+| D176 | **Consistência de status na leitura.** `Status::VISIBLE` (`schema/types.rs`) é a **fonte única** do default (D43): `CorpusScope::select` (`knowledge rank`/`map`, `rewind`, `maintenance learn/compact/prune`) e `ask` excluem `Forgotten \| Superseded`; `Status::is_deprecated()` centraliza o teste. `--status` explícito continua inspecionando linhagem. Teste de regressão por consumidor (`real_usage`); `DIVERGENCES.md` #95. Fecha E16-T02. |
+| D180 | **Ação explícita = aceite.** O worker (`kd drain service`) não pergunta mais: `Action::asks()`/`question()`/`confirm()` e `WatchServiceArgs.yes` saem (D14). `--install`/`--uninstall`/`--subscribe`/`--unsubscribe` executam direto; testes migram para `--dry-run`/`--script` fake. Fecha E17-T04. |
+| D181 | **Stream do worker.** O `knudge-idle.sh` cobre cada passo via `log()` (stderr); o wrapper (`commands/script.rs`) faz **stream do stderr** e mantém stdout como dados (R20). Entregue por E18-T01; prova em `cli::drain_service_streams_stderr_and_keeps_stdout_as_data`. Fecha E17-T03. |
+| D184 | **Scripts no repositório; comando = wrapper fino.** `commands/script.rs`: `Source::{Embedded,Local,Remote}`; embutido/local por padrão, `--url` remoto **exige `--sha256`** (SHA-256 verificado antes de executar); `run` faz stream do stderr e captura o stdout, propagando exit. `kd drain service` é wrapper; `scripts/knudge-idle.sh` é a fonte da verdade (sem lógica de agendador em Rust). E18-T01/T03. |
+| D186 | **`watch-service` sob `drain`; `maintenance` só revisão.** `kd drain service <ação>` (`--install`/`--subscribe`/`--unsubscribe`/`--status`/`--uninstall`); `kd maintenance watch-service` ⇒ uso (2); `maintenance` = `compact`/`learn`/`prune`. `DrainArgs` ganha o subcomando opcional `service` (`args_conflicts_with_subcommands`). Revisa D170. Fecha E18-T04. |
+
 ## Pendências / pontos de atenção
 
 | # | Questão | Encaminhamento sugerido |

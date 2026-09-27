@@ -249,6 +249,19 @@ impl Status {
         Self::Forgotten,
     ];
 
+    /// Estados **visíveis por padrão** (D43): esconde `Superseded` e `Forgotten`.
+    ///
+    /// Fonte única do default de leitura: `ask` (sem `--status`), `knowledge rank`/`map`,
+    /// `rewind` e `maintenance` (via [`crate::retrieval::Filter`]) compartilham esta lista.
+    /// Inspecionar a linhagem exige pedir o status explicitamente (ex.: `ask --status forgotten`).
+    pub const VISIBLE: [Self; 4] = [Self::Active, Self::InProgress, Self::Blocked, Self::Closed];
+
+    /// `true` para estados depreciados (`superseded`/`forgotten`) — fora do default (D43).
+    #[must_use]
+    pub const fn is_deprecated(self) -> bool {
+        matches!(self, Self::Superseded | Self::Forgotten)
+    }
+
     /// Rótulo canônico.
     #[must_use]
     pub const fn as_str(self) -> &'static str {

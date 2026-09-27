@@ -2,7 +2,8 @@
 
 > Gerado pela bancada [`bench/`](README.md). Números são **medianas de latência** salvo
 > indicação; reproduza com `make bench`. Snapshot bruto em [`ULTIMO.md`](ULTIMO.md) e
-> [`ULTIMO.json`](ULTIMO.json).
+> [`ULTIMO.json`](ULTIMO.json). A **qualidade** de retrieval (Recall@k/MRR/nDCG@k, E16/T01) tem
+> baseline próprio em [`qualidade.md`](qualidade.md).
 
 ## Ambiente
 

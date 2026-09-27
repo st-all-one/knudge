@@ -68,7 +68,7 @@ kd doctor  # integridade de grafo/arestas
 Ver a seção de [solução de problemas](15-embeddings.md#solução-de-problemas). Em resumo:
 
 ```bash
-kd maintenance watch-service --status   # agendador/servidor/fila
+kd drain service --status   # agendador/servidor/fila
 kd drain --status            # fila pending
 kd drain --digest             # tenta de novo
 kd config set --key recall.semantic --value false   # desliga o canal

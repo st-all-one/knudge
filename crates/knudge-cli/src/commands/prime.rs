@@ -28,7 +28,7 @@ GUIA (o que usar, quando e quando NÃO usar):
   kd task new <...>   PLANEJAR/EXECUTAR trabalho (epic ⊃ {issue ⊃ task | task}); NÃO use p/ conhecimento.
   kd rewind           RECONSTRUIR contexto/handoff no início de sessão (orçamento de tokens).
   kd doctor           SAÚDE do corpus: 13 checks + auditoria (--fix corrige; --explain detalha).
-  kd drain            FILA de embeddings: --status (estado) | --digest [--force] (digerir).
+  kd drain            FILA: --status (estado) | --digest [--force] (digerir); service = worker.
   kd forget --id <ID>  SOFT-DELETE (--restore; --purge [--force] após retenção).
   kd sync             COMMIT de notas/ + eventos/ (--message).
   kd init|config|self|prime|help — fundação, ajustes, binário, protocolo e ajuda.
@@ -130,8 +130,9 @@ ESTADO / HANDOFF: kd rewind [--scope CONTAINER] [--files PATH...] [--budget N] [
 MAPA/RANK: kd knowledge map|rank|tags ...  (map/rank exigem escopo ou --universe; D143/D146)
   kd knowledge map [--axis anchor|type|classification|scope] [--scope C] [--semantic] [--members] [--write]
   kd drain --status|--digest  (fila de embeddings: estado rico e digestão; --force redigeri tudo)
+  kd drain service ..  (worker de auto-drain: install/subscribe/unsubscribe/status/uninstall)
 SAÚDE: kd doctor [--fix] [--explain]  (13 checks + auditoria; reparo reversível; --explain detalha cada achado)
-MANUTENÇÃO: kd maintenance compact|learn|prune|watch-service  (learn/compact/prune só propõem; exigem escopo ou --universe)
+MANUTENÇÃO: kd maintenance compact|learn|prune  (só propõem; exigem escopo ou --universe)
 CICLO DE VIDA: kd forget --id <ID>  (soft; --restore; --purge [--force] após retenção)
 CONFIG: kd config get --key K | set --key K --value V | unset --key K | list [--global]  (strict é config, não flag)
 INIT/SYNC: kd init  (funda .knudge/ + AGENTS.md)  ·  kd sync  (commit de notas/ + eventos/)

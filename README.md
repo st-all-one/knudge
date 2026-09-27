@@ -53,7 +53,7 @@ SHA-256**, que nunca apaga nada (move o antigo para um lixo recuperável). Vers�
 servidor **persistente** + worker de auto-drain de pé:
 
 ```bash
-kd maintenance watch-service --install
+kd drain service --install
 ```
 
 O passo a passo manual por SO — **Windows, macOS, Ubuntu, Fedora, Arch** — está em

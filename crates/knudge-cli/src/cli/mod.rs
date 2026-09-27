@@ -7,15 +7,13 @@ mod maintenance;
 mod rewind;
 mod task;
 
-pub use health::{DoctorArgs, DrainArgs};
+pub use health::{DoctorArgs, DrainArgs, DrainCommand, WatchServiceArgs};
 pub use help::{render_help, subcommand_help};
 pub use knowledge::{
     KnowledgeCommand, KnowledgeMapArgs, KnowledgeRankArgs, KnowledgeSuggestArgs, KnowledgeTagsArgs,
     PromoteCommand, PromoteEditArgs, PromoteRecommendArgs, PromoteTargetArgs,
 };
-pub use maintenance::{
-    ConfigCommand, CorpusArgs, MaintenanceCommand, SelfCommand, WatchServiceArgs,
-};
+pub use maintenance::{ConfigCommand, CorpusArgs, MaintenanceCommand, SelfCommand};
 pub use rewind::RewindArgs;
 pub use task::{TaskCommand, TaskListArgs, TaskNewArgs, TaskPlanArgs, TaskSort};
 
@@ -73,7 +71,7 @@ pub enum Command {
         #[command(subcommand)]
         command: KnowledgeCommand,
     },
-    /// Manutenção (compact, learn, prune, watch-service).
+    /// Manutenção (compact, learn, prune; só propõem, nunca agem).
     Maintenance {
         /// Subcomando de manutenção.
         #[command(subcommand)]
@@ -81,7 +79,7 @@ pub enum Command {
     },
     /// Saúde do corpus: 13 checks + auditoria, com reparo reversível (D163).
     Doctor(DoctorArgs),
-    /// Fila de embeddings: estado rico (`--status`) e digestão (`--digest`; D170).
+    /// Fila de embeddings (`--status`/`--digest`) e worker (`service`; D170/D186).
     Drain(DrainArgs),
     /// Configuração do projeto.
     Config {

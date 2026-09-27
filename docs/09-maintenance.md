@@ -1,16 +1,15 @@
-# `kd doctor` e `kd maintenance` — saúde, propostas e worker
+# `kd doctor` e `kd maintenance` — saúde e propostas
 
 ## O que faz
 
 `kd doctor` (verbo de topo) é a **saúde**: 13 checks + auditoria, com `--fix` e `--explain` (D163).
-`kd maintenance` reúne as **propostas** e o **worker de embeddings**:
+`kd maintenance` reúne as **propostas** (o worker de auto-drain vive em `kd drain service`, D186):
 
 | Subcomando | O que dá |
 |---|---|
 | `compact` | **Propõe** merge/supersede de quase-duplicatas |
 | `learn` | **Sugere** notas/links/merges a partir de eventos e âncoras |
 | `prune` | **Propõe** aposentadoria (`forget`) por shelf-life/decay |
-| `watch-service` | Gerencia o worker de auto-drain e o servidor de embeddings persistente |
 
 `compact`/`learn`/`prune` **só propõem** (D47) e **exigem escopo** ou `--universe` (D144). Nada
 muda sem o seu aceite.
@@ -101,16 +100,16 @@ kd maintenance prune --class observational
 Propõe `forget` por **shelf-life/decay**. É sempre read-only; a aplicação é
 [`kd forget`](11-forget.md). Âncora literal que aponta para diretório conta como **quebrada**.
 
-## `maintenance watch-service`
+## `drain service` (worker)
 
 Gerencia o worker de auto-drain **fora** do `kd` (systemd `--user`/launchd).
 
 ```bash
-kd maintenance watch-service --install        # agendador + servidor + cadastra o projeto
-kd maintenance watch-service --status         # saúde (default)
-kd maintenance watch-service --subscribe      # cadastra outro projeto
-kd maintenance watch-service --unsubscribe    # descadastra (mantém o sistema)
-kd maintenance watch-service --uninstall      # remove agendador + servidor
+kd drain service --install        # agendador + servidor + cadastra o projeto
+kd drain service --status         # saúde (default)
+kd drain service --subscribe      # cadastra outro projeto
+kd drain service --unsubscribe    # descadastra (mantém o sistema)
+kd drain service --uninstall      # remove agendador + servidor
 ```
 
 - `--install` **baixa `llama.cpp` e o GGUF se faltarem** (script oficial + fallback para
@@ -118,7 +117,7 @@ kd maintenance watch-service --uninstall      # remove agendador + servidor
 - O servidor sobe como unidade/agente próprio (`knudge-embed`), com `-b 2048 -ub 2048` — o
   `kd drain --digest` manual e o auto-drain ocioso sempre o encontram.
 - Sem `systemd`/`launchd`, o comando recusa o `--install` e imprime a linha de cron equivalente.
-- Ações que mudam perguntam no stderr (`s/N`); `--yes` pula; stdin não-TTY cancela.
+- Ação explícita = aceite (D180): mutações executam direto, sem prompt.
 
 ## Referência de flags
 
@@ -127,14 +126,14 @@ kd maintenance watch-service --uninstall      # remove agendador + servidor
 | `kd doctor` (topo) | `--fix`, `--explain` |
 | `compact`/`learn`/`prune` | `--scope`, `--type`/`--class`/`--tag`/`--anchor`, `--around`/`--depth`, `--universe` (escopo obrigatório) |
 | `prune` | + `--dry-run` (paridade; já é read-only) |
-| `watch-service` | `--install`/`--subscribe`/`--unsubscribe`/`--status`/`--uninstall`, `--yes`, `--dry-run`, `--every`, `--port`, `--model`, `--no-deps`, `--script`, `--url` |
+| `drain service` | `--install`/`--subscribe`/`--unsubscribe`/`--status`/`--uninstall`, `--dry-run`, `--every`, `--port`, `--model`, `--no-deps`, `--script`, `--url`, `--sha256` |
 
 ## Resultados
 
 - `kd doctor` — `{checks[], healthy, degraded, status, fixed[], audit{...}, suggestions[]}`; cada
   check tem `ok`/`warn`/`fail`; texto `ok|warn|fail <check> <msg>` + `auditoria:` + `próximos:`.
 - `compact`/`learn`/`prune` — `{proposals[]}`; texto pipe por linha.
-- `watch-service` — `{action, done, script}` ou `{dry_run, action, source, reference, command}`.
+- `drain service` — `{action, done, script}` ou `{dry_run, action, source, reference, command}`.
 - `compact`/`learn`/`prune` sem escopo → exit 2.
 
 ## Quando (não) usar
