@@ -178,9 +178,11 @@ kd drain service --status   # saúde do worker de auto-drain (systemd/launchd)
 O worker de auto-drain é gerenciado por `kd drain service`: `--install` (pré-flight +
 agendador `systemd --user`/`launchd` + servidor de embeddings persistente `knudge-embed` +
 cadastra o projeto), `--subscribe`/`--unsubscribe` (multi-projeto; não desinstalam o sistema),
-`--status` (default) e `--uninstall`. O script é **embutido** no binário (sem download) e o GGUF
-mora ao lado do `config.toml` global. Com `embeddings.mode=lazy` (default) o próprio `kd` já
-drena um lote ao fim de cada verbo.
+`--status` (default, read-only), `--reconcile` (alinha `endpoint`/`model` e reindexa) e
+`--uninstall` (preserva o GGUF; `--remove-model` move ao lixo). O script é **embutido** no
+binário (sem download) e o GGUF mora ao lado do `config.toml` global, baixado de uma **revisão
+pinada** com **SHA-256 verificado** (D183). Com `embeddings.mode=lazy` (default) o próprio `kd`
+já drena um lote ao fim de cada verbo.
 
 ### Integração MCP
 

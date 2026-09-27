@@ -3016,6 +3016,384 @@ fn drain_service_remote_requires_checksum() -> TestResult {
     Ok(())
 }
 
+/// Caminho do worker embutido (fonte da verdade), para testes do script real.
+const IDLE_SCRIPT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../scripts/knudge-idle.sh");
+
+#[test]
+fn drain_service_reconcile_aligns_endpoint_and_model() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    // Endpoint divergente do worker (7777 × 8889).
+    let set = run_in(
+        &dir,
+        &[
+            "config",
+            "set",
+            "--key",
+            "embeddings.endpoint",
+            "--value",
+            "http://127.0.0.1:7777/v1/embeddings",
+        ],
+    )?;
+    assert!(set.status.success(), "config set falhou: {:?}", set.stderr);
+    let out = run_env(
+        &dir,
+        &["drain", "service", "--reconcile", "--script", IDLE_SCRIPT],
+        &[("KNUDGE_KD", env!("CARGO_BIN_EXE_kd"))],
+    )?;
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let stderr = String::from_utf8(out.stderr)?;
+    assert!(
+        stderr.contains("embeddings.endpoint"),
+        "aviso deveria citar o comando exato: {stderr}"
+    );
+    let get = run_in(&dir, &["config", "get", "--key", "embeddings.endpoint"])?;
+    let endpoint = String::from_utf8(get.stdout)?;
+    assert!(
+        endpoint.contains("http://127.0.0.1:8889/v1/embeddings"),
+        "endpoint após reconcile: {endpoint}"
+    );
+    let get_model = run_in(&dir, &["config", "get", "--key", "embeddings.model"])?;
+    let model = String::from_utf8(get_model.stdout)?;
+    assert!(
+        model.contains("ibm-granite/granite-embedding-97m-multilingual-r2"),
+        "modelo após reconcile: {model}"
+    );
+    Ok(())
+}
+
+#[test]
+fn drain_service_status_reports_divergent_endpoint() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    let set = run_in(
+        &dir,
+        &[
+            "config",
+            "set",
+            "--key",
+            "embeddings.endpoint",
+            "--value",
+            "http://127.0.0.1:7777/v1/embeddings",
+        ],
+    )?;
+    assert!(set.status.success(), "config set falhou: {:?}", set.stderr);
+    let out = run_env(
+        &dir,
+        &[
+            "--json",
+            "drain",
+            "service",
+            "--status",
+            "--script",
+            IDLE_SCRIPT,
+        ],
+        &[("KNUDGE_KD", env!("CARGO_BIN_EXE_kd"))],
+    )?;
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let endpoint = json(&out)?
+        .get("data")
+        .and_then(|data| data.get("endpoint"))
+        .and_then(serde_json::Value::as_str)
+        .ok_or("envelope sem `endpoint`")?
+        .to_string();
+    assert!(
+        endpoint.contains("divergente"),
+        "endpoint divergente deveria ser marcado: {endpoint}"
+    );
+    Ok(())
+}
+
+/// Ambiente isolado de `uninstall`: (config, cache, bin, PATH, caminho do GGUF).
+type UninstallEnv = (String, String, String, String, PathBuf);
+
+/// Prepara um ambiente isolado de `uninstall`: `idle.conf` com `MODEL`, cache/bin isolados e um
+/// `systemctl` falso que **falha** (força `SCHEDULER=none`, sem tocar o systemd real).
+fn uninstall_env(dir: &Path) -> Result<UninstallEnv, Box<dyn std::error::Error>> {
+    let cfg = dir.join("xdg");
+    let conf_dir = cfg.join("local/knudge");
+    std::fs::create_dir_all(&conf_dir)?;
+    let model = conf_dir.join("custom.gguf");
+    std::fs::write(&model, b"modelo de teste")?;
+    std::fs::write(
+        conf_dir.join("idle.conf"),
+        format!("PORT=8889\nMODEL={}\nEVERY=1h\n", model.display()),
+    )?;
+    let cache = dir.join("cache");
+    std::fs::create_dir_all(&cache)?;
+    let bin = dir.join("bin");
+    std::fs::create_dir_all(&bin)?;
+    let fake = dir.join("fakebin");
+    std::fs::create_dir_all(&fake)?;
+    let sysctl = fake.join("systemctl");
+    std::fs::write(&sysctl, "#!/bin/sh\nexit 1\n")?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&sysctl, std::fs::Permissions::from_mode(0o755))?;
+    }
+    let path = format!("{}:/usr/bin:/bin", fake.display());
+    Ok((
+        cfg.to_string_lossy().into_owned(),
+        cache.to_string_lossy().into_owned(),
+        bin.to_string_lossy().into_owned(),
+        path,
+        model,
+    ))
+}
+
+#[test]
+fn drain_service_install_aborts_on_bad_model_checksum() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    let fixture = dir.join("fake-model.gguf");
+    std::fs::write(&fixture, b"nao e o granite")?;
+    let cache = dir.join("cache");
+    std::fs::create_dir_all(&cache)?;
+    let bin = dir.join("bin");
+    std::fs::create_dir_all(&bin)?;
+    let url = format!("file://{}", fixture.display());
+    let cache_s = cache.to_string_lossy().into_owned();
+    let bin_s = bin.to_string_lossy().into_owned();
+    let out = run_env(
+        &dir,
+        &["drain", "service", "--install", "--script", IDLE_SCRIPT],
+        &[
+            ("KNUDGE_KD", env!("CARGO_BIN_EXE_kd")),
+            ("KNUDGE_LLAMA", "/bin/true"),
+            ("KNUDGE_BIN_DIR", bin_s.as_str()),
+            ("XDG_CACHE_HOME", cache_s.as_str()),
+            ("KNUDGE_MODEL_URL", url.as_str()),
+            (
+                "KNUDGE_MODEL_SHA256",
+                "0000000000000000000000000000000000000000000000000000000000000000",
+            ),
+        ],
+    )?;
+    assert!(
+        !out.status.success(),
+        "install deveria abortar com checksum inválido"
+    );
+    let stderr = String::from_utf8(out.stderr)?;
+    assert!(stderr.contains("checksum do GGUF"), "stderr: {stderr}");
+    let model = dir.join("local/knudge/granite-97m-r2-Q8_0.gguf");
+    assert!(
+        !model.exists(),
+        "o GGUF não deveria existir: {}",
+        model.display()
+    );
+    Ok(())
+}
+
+#[test]
+fn drain_service_dry_run_shows_model_url_and_hash() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    let out = run_in(
+        &dir,
+        &["--json", "drain", "service", "--install", "--dry-run"],
+    )?;
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let plan = json(&out)?
+        .get("data")
+        .and_then(|data| data.get("plan"))
+        .and_then(serde_json::Value::as_str)
+        .ok_or("envelope sem `plan`")?
+        .to_string();
+    assert!(
+        plan.contains("45ce642d3fab2033d167ec09641a159010f7d9d9"),
+        "revisão pinada ausente: {plan}"
+    );
+    assert!(
+        plan.contains("25155b89638e501ac33495fa278d551d7545e1e2f62722a499bba1f064c080f2"),
+        "sha256 ausente: {plan}"
+    );
+    assert!(
+        !plan.contains("/resolve/main/"),
+        "não deve usar `/resolve/main/`: {plan}"
+    );
+    Ok(())
+}
+
+#[test]
+fn drain_service_uninstall_preserves_model_by_default() -> TestResult {
+    let dir = temp_project();
+    let (cfg, cache, bin, path, model) = uninstall_env(&dir)?;
+    let out = run_env(
+        &dir,
+        &["drain", "service", "--uninstall", "--script", IDLE_SCRIPT],
+        &[
+            ("XDG_CONFIG_HOME", cfg.as_str()),
+            ("XDG_CACHE_HOME", cache.as_str()),
+            ("KNUDGE_BIN_DIR", bin.as_str()),
+            ("PATH", path.as_str()),
+        ],
+    )?;
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let stderr = String::from_utf8(out.stderr)?;
+    assert!(
+        stderr.contains("preservado"),
+        "deveria preservar o GGUF: {stderr}"
+    );
+    assert!(
+        model.exists(),
+        "o GGUF deveria continuar em {}",
+        model.display()
+    );
+    Ok(())
+}
+
+#[test]
+fn drain_service_uninstall_removes_model_with_flag() -> TestResult {
+    let dir = temp_project();
+    let (cfg, cache, bin, path, model) = uninstall_env(&dir)?;
+    let out = run_env(
+        &dir,
+        &[
+            "drain",
+            "service",
+            "--uninstall",
+            "--remove-model",
+            "--script",
+            IDLE_SCRIPT,
+        ],
+        &[
+            ("XDG_CONFIG_HOME", cfg.as_str()),
+            ("XDG_CACHE_HOME", cache.as_str()),
+            ("KNUDGE_BIN_DIR", bin.as_str()),
+            ("PATH", path.as_str()),
+        ],
+    )?;
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let stderr = String::from_utf8(out.stderr)?;
+    assert!(
+        stderr.contains("movido para o lixo"),
+        "deveria relatar o destino do GGUF: {stderr}"
+    );
+    assert!(
+        !model.exists(),
+        "o GGUF deveria ter sido movido: {}",
+        model.display()
+    );
+    Ok(())
+}
+
+#[test]
+fn drain_service_install_rejects_bad_every() -> TestResult {
+    let dir = temp_project();
+    let out = run_in(&dir, &["drain", "service", "--install", "--every", "15min"])?;
+    assert_eq!(
+        out.status.code(),
+        Some(2),
+        "`--every` inválido deveria ser uso (2): {:?}",
+        out.stderr
+    );
+    let ok = run_in(
+        &dir,
+        &[
+            "drain",
+            "service",
+            "--install",
+            "--every",
+            "30m",
+            "--dry-run",
+        ],
+    )?;
+    assert!(
+        ok.status.success(),
+        "`--every 30m` deveria ser aceito: {:?}",
+        ok.stderr
+    );
+    Ok(())
+}
+
+#[test]
+fn drain_service_status_does_not_write_staging() -> TestResult {
+    let dir = temp_project();
+    let cache = dir.join("cache");
+    std::fs::create_dir_all(&cache)?;
+    let cache_s = cache.to_string_lossy().into_owned();
+    let out = run_env(
+        &dir,
+        &["drain", "service", "--status"],
+        &[("XDG_CACHE_HOME", cache_s.as_str())],
+    )?;
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let staging = cache.join("knudge/staging");
+    assert!(
+        !staging.exists(),
+        "`--status` não deveria materializar o staging: {}",
+        staging.display()
+    );
+    Ok(())
+}
+
+#[test]
+fn drain_service_status_reports_missing_project() -> TestResult {
+    let dir = temp_project();
+    let cfg = dir.join("xdg");
+    let conf_dir = cfg.join("local/knudge");
+    std::fs::create_dir_all(&conf_dir)?;
+    let missing = dir.join("projeto-ausente");
+    std::fs::write(
+        conf_dir.join("idle.conf"),
+        format!(
+            "PORT=8889\nMODEL={}\nEVERY=1h\nPROJECT={}\n",
+            dir.join("m.gguf").display(),
+            missing.display()
+        ),
+    )?;
+    let cfg_s = cfg.to_string_lossy().into_owned();
+    let out = run_env(
+        &dir,
+        &["drain", "service", "--status"],
+        &[("XDG_CONFIG_HOME", cfg_s.as_str())],
+    )?;
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let stdout = String::from_utf8(out.stdout)?;
+    assert!(
+        stdout.contains("ausente"),
+        "deveria explicar o projeto ausente: {stdout}"
+    );
+    Ok(())
+}
+
+#[test]
+fn drain_digest_reports_clean_when_nothing_pending() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    let provider = config_set(&dir, "embeddings.provider", "lightweight")?;
+    assert!(provider.status.success(), "config: {:?}", provider.stderr);
+    let write = run_in(
+        &dir,
+        &["write", "--summary", "nota digest", "--type", "fact"],
+    )?;
+    assert!(write.status.success(), "write: {:?}", write.stderr);
+    // A primeira digestão esvazia a fila; a seguinte é "nada pendente".
+    let first = run_in(&dir, &["drain", "--digest"])?;
+    assert!(
+        first.status.success(),
+        "primeira digestão: {:?}",
+        first.stderr
+    );
+    let out = run_in(&dir, &["--json", "drain", "--digest"])?;
+    assert!(out.status.success(), "drain: {:?}", out.stderr);
+    let clean = json(&out)?
+        .get("data")
+        .and_then(|data| data.get("clean"))
+        .and_then(serde_json::Value::as_bool);
+    assert_eq!(clean, Some(true), "fila limpa deveria marcar clean=true");
+    let plain = run_in(&dir, &["drain", "--digest"])?;
+    let text = String::from_utf8(plain.stdout)?;
+    assert!(text.contains("fila limpa"), "texto: {text}");
+    Ok(())
+}
+
 /// Escreve uma nota com tag e classe e devolve o id.
 fn write_tagged(
     dir: &Path,

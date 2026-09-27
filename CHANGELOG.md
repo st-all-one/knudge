@@ -11,14 +11,36 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 - **Wrapper fino de scripts acionáveis (E18-T01/T03/D184)** — `commands/script.rs` resolve
   (embutido/local; `--url` remoto exige `--sha256`), faz stream do stderr, captura o stdout e
   propaga exit; `kd drain service` é wrapper do `knudge-idle.sh` (fonte da verdade).
+- **Cross-platform do wrapper (E18-T02/D185)** — Unix usa `bash`; Windows usa
+  `powershell -NoProfile -File` para scripts `.ps1` (o embutido é Unix → guia manual); smoke no CI
+  (`windows-latest`) e testes unitários por SO.
 - **`kd drain service <ação>` (E18-T04/D186)** — o worker de auto-drain sai de `maintenance` e
   entra sob `drain`; `kd maintenance` fica só com `compact|learn|prune`.
 - **Stream do worker (E17-T03/D181)** e **sem confirmação/`--yes` (E17-T04/D180)** — mutações do
   worker executam direto e os passos aparecem em stderr.
+- **Reconciliação e probe do worker (E17-T01/T02/D182)** — `kd drain service --install` avisa se
+  `embeddings.endpoint`/`model` divergirem do worker (com o `kd config set …` exato);
+  `--reconcile` alinha e reindexa; `--status` reporta `endpoint: ok|fora|divergente` e o `--json`
+  expõe `endpoint` (aditivo).
+- **Supply-chain do worker (E17-T05/D183)** — GGUF de **revisão pinada** (nunca `/resolve/main/`)
+  com **SHA-256 verificado** (aborta com hash errado); instalador do llama.cpp baixado e
+  verificado por SHA-256 **antes** de executar (senão usa o gestor de pacotes);
+  `--install --dry-run` mostra URL/revisão/hash; `file://` habilita mirror local.
+- **`uninstall` e o GGUF (E17-T06/P5)** — `--uninstall` **preserva o GGUF** por padrão
+  (`--remove-model` move ao lixo recuperável, nunca `rm`; `--keep-model` explícito).
+- **Polimento do worker (E17-T07/P6–P10)** — `--every` validado no `cli` (exit 2) e antes de
+  escrever a unit; `--status` é **read-only** (não materializa o script embutido) e explica
+  `pending=?`; `drain --digest` marca `clean` ("fila limpa") quando nada estava pendente.
 
 ### Corrigido
 - **Status consistente na leitura (E16-T02/D176)** — `Status::VISIBLE` é a fonte única; `knowledge
   rank`/`map`, `rewind` e `maintenance` deixam de incluir `forgotten`/`superseded`.
+
+### Alterado
+- **Porta do provedor de embeddings unificada em `8889` (D202)** — o default de
+  `embeddings.endpoint`, o `--port` de `kd drain service` e o `DEFAULT_PORT` do worker passam a
+  ser `8889` (antes: config `8080` × worker `8999`). Instalações antigas mantêm a porta do
+  `idle.conf`; `kd drain service --install --port 8889` migra.
 
 ## [0.4.0] - 2026-09-26
 

@@ -109,7 +109,7 @@ kd drain service --install        # agendador + servidor + cadastra o projeto
 kd drain service --status         # saúde (default)
 kd drain service --subscribe      # cadastra outro projeto
 kd drain service --unsubscribe    # descadastra (mantém o sistema)
-kd drain service --uninstall      # remove agendador + servidor
+kd drain service --uninstall      # remove agendador + servidor (preserva o GGUF)
 ```
 
 - `--install` **baixa `llama.cpp` e o GGUF se faltarem** (script oficial + fallback para
@@ -126,14 +126,14 @@ kd drain service --uninstall      # remove agendador + servidor
 | `kd doctor` (topo) | `--fix`, `--explain` |
 | `compact`/`learn`/`prune` | `--scope`, `--type`/`--class`/`--tag`/`--anchor`, `--around`/`--depth`, `--universe` (escopo obrigatório) |
 | `prune` | + `--dry-run` (paridade; já é read-only) |
-| `drain service` | `--install`/`--subscribe`/`--unsubscribe`/`--status`/`--uninstall`, `--dry-run`, `--every`, `--port`, `--model`, `--no-deps`, `--script`, `--url`, `--sha256` |
+| `drain service` | `--install`/`--subscribe`/`--unsubscribe`/`--status`/`--uninstall`/`--reconcile`, `--dry-run`, `--every`, `--port`, `--model`, `--no-deps`, `--keep-model`/`--remove-model`, `--script`, `--url`, `--sha256` |
 
 ## Resultados
 
 - `kd doctor` — `{checks[], healthy, degraded, status, fixed[], audit{...}, suggestions[]}`; cada
   check tem `ok`/`warn`/`fail`; texto `ok|warn|fail <check> <msg>` + `auditoria:` + `próximos:`.
 - `compact`/`learn`/`prune` — `{proposals[]}`; texto pipe por linha.
-- `drain service` — `{action, done, script}` ou `{dry_run, action, source, reference, command}`.
+- `drain service` — `{action, done, script}` ou `{dry_run, action, source, reference, command, plan?}`.
 - `compact`/`learn`/`prune` sem escopo → exit 2.
 
 ## Quando (não) usar

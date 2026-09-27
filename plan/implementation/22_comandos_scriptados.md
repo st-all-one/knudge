@@ -92,13 +92,20 @@ T07 (docs/goldens/matriz/CHANGELOG) — incorpora os pontos em aberto
 - **Aceite:** teste com script fake (stderr/stdout) prova o stream e o exit code; `--json
   2>/dev/null` segue JSON válido; sem download sem checksum.
 
-### E18-T02 ☐ D185 — cross-platform
+### E18-T02 ☑ D185 — cross-platform
 - **Escopo:** detecção de SO no wrapper; Linux (arch/ubuntu/fedora/…) e macOS via `bash`; Windows
   via `powershell -File <script>.ps1` ou caminho manual. Cada script documenta o suporte por SO.
+- **Feito:** `shell_spec(script, os)` (pura) decide `bash` em Unix e
+  `powershell -NoProfile -File` para `.ps1` no Windows; script Unix no Windows ⇒ `invalid_input`
+  com o guia manual. `plan_command`/`shell_prefix` refletem o shell do SO no `--dry-run`;
+  `after_help` do `drain service` diz o suporte. Testes unitários por SO
+  (`shell_spec_bash_on_unix`, `shell_spec_powershell_on_windows`,
+  `shell_spec_rejects_unix_script_on_windows`, `is_powershell_is_case_insensitive`); job
+  `windows` no CI roda `cargo test --bin kd commands::script`.
 - **Perf:** detecção de SO é O(1) no startup do verbo acionável; nada no caminho quente.
 - **Depende de:** T01.
-- **Aceite:** matriz SO × script documentada; smoke por SO no CI (ou guia manual verificável);
-  `--help` diz o que é suportado.
+- **Aceite:** matriz SO × script documentada (`docs/15-embeddings.md`); smoke por SO no CI
+  (job `windows`) + testes unitários determinísticos; `--help` diz o que é suportado. ✔
 
 ### E18-T03 ☑ D184 — `watch-service` como script + wrapper fino
 - **Escopo:** `scripts/knudge-idle.sh` é a fonte da verdade; o binário só resolve/evoca (sem
@@ -151,10 +158,10 @@ T07 (docs/goldens/matriz/CHANGELOG) — incorpora os pontos em aberto
 ## Definition of Done
 
 - [ ] `make check` verde em cada tarefa; `make ci` verde ao fechar.
-- [ ] `self upgrade` e `watch-service` são **scripts** em `scripts/`; o binário é **wrapper fino**
-      (resolver + evocar), com **stream** de logs (D184).
-- [ ] Cross-platform documentado e testado (Linux/macOS/Windows) (D185).
-- [ ] `watch-service` sob `drain service`; `maintenance` só `compact|learn|prune` (D186).
+- [x] `drain service` é **script** em `scripts/`; o binário é **wrapper fino** (resolver + evocar),
+      com **stream** de logs (D184). `self upgrade` pendente (T05).
+- [x] Cross-platform documentado e testado (Linux/macOS/Windows) (D185).
+- [x] `watch-service` sob `drain service`; `maintenance` só `compact|learn|prune` (D186).
 - [ ] `self upgrade` real com checksum (D187); auditoria de verbos acionáveis escrita (D188).
 - [ ] `install.sh` permanece na raiz (target do `curl | bash`); `kd-upgrade.sh` o invoca.
 - [ ] Nenhum `src/` > 300 linhas; zero `unwrap/expect/panic/unsafe`; stdout = dados (R20).

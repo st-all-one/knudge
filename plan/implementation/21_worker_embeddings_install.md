@@ -36,8 +36,10 @@ contrato de bytes de `notas/`.
 1. **O progresso do `--install` morre no buffer.** `run_worker` usa `.output()` e descarta o
    **stderr** no sucesso; o script já loga os passos, mas eles não chegam ao usuário. O stream é
    entregue por **E18/T01** (wrapper fino canônico); T03 é a fatia do worker.
-2. **Degradação silenciosa por endpoint divergente.** Worker em 8999 × config em 8080; `--status`
-   diz `servidor: ok`. T01/T02 detectam e reportam — **no script** (D184).
+2. **Degradação silenciosa por endpoint divergente.** O worker e o config agora usam a **mesma**
+   porta default (**8889**, D202); antes o worker usava 8999 e o config 8080, e o `--status` dizia
+   `servidor: ok` mesmo com o `kd` apontando para outro lugar. T01/T02 detectam e reportam
+   qualquer divergência — **no script** (D184).
 3. **Identidade mentirosa do índice.** O modelo do config (msmarco) ≠ modelo servido (granite);
    T01 reconcilia e alinha D79.
 4. **Ação explícita = aceite.** D180 remove o prompt e o `--yes`; os testes migram para
@@ -79,25 +81,32 @@ T08 (docs/goldens/matriz/CHANGELOG) — incorpora os pontos em aberto
 
 ## Tarefas
 
-### E17-T01 ☐ D182 — reconciliação de `embeddings.endpoint` e `embeddings.model`
+### E17-T01 ☑ D182 — reconciliação de `embeddings.endpoint` e `embeddings.model`
 - **Escopo:** **no script** (`knudge-idle.sh`, D184), após instalar o servidor na porta `$PORT`,
   comparar o `embeddings.endpoint` e o `embeddings.model` **efetivos** do projeto (e/ou global)
   com o servidor instalado. Divergência ⇒ `warn` + `próximos:` com o `kd config set --key …
   --value …` exato; `--reconcile` (ou flag explícita) aplica a correção. Alinha o modelo ao GGUF
   baixado (D79). O binário só invoca (wrapper fino).
+- **Feito:** `effective_config` (projeto > global) + `reconcile_config` no script; `install`
+  **avisa** (warn + comando exato) e a ação **`kd drain service --reconcile`** aplica e reindexa
+  (`kd drain --digest`). `MODEL_ID`/endpoint do worker (`http://127.0.0.1:$PORT/v1/embeddings`)
+  são a régua. Teste `cli::drain_service_reconcile_aligns_endpoint_and_model` (script real).
 - **Perf:** só roda em `--install`/`--reconcile`; **não** é chamado no caminho quente.
 - **Depende de:** T03 (para o aviso aparecer no stream).
 - **Aceite:** teste de divergência (endpoint e modelo) emite o comando exato; `--reconcile`
-  alinha e reindexa com intenção; `notas/` intacto.
+  alinha e reindexa com intenção; `notas/` intacto. ✔
 
-### E17-T02 ☐ D182 — `--status` valida o endpoint efetivo (probe)
+### E17-T02 ☑ D182 — `--status` valida o endpoint efetivo (probe)
 - **Escopo:** **no script**, `--status` faz probe do endpoint configurado (`/health` derivado ou
   `POST /v1/embeddings` curto) e reporta `endpoint: ok | fora | divergente (config=…, worker=…)`;
   mantém o `servidor: ok` do health do worker.
+- **Feito:** `probe_endpoint` no script classifica `divergente` (config ≠ worker), `ok`/`fora`
+  (config = worker, com probe em `/health`); o wrapper extrai a linha e a expõe no `--json` como
+  `endpoint` (aditivo). Teste `cli::drain_service_status_reports_divergent_endpoint`.
 - **Perf:** 1 probe por `--status` (raro); nunca no caminho quente.
 - **Depende de:** T01.
 - **Aceite:** teste com endpoint divergente marca `divergente`; endpoint ausente marca `fora`;
-  endpoint correto marca `ok`; `--json` ganha o campo (aditivo).
+  endpoint correto marca `ok`; `--json` ganha o campo (aditivo). ✔
 
 ### E17-T03 ☑ D181 — verbosidade e stream do worker (prioridade 1)
 - **Escopo:** o **stream do stderr** é implementado por **E18/T01** (wrapper fino canônico);
@@ -125,33 +134,57 @@ T08 (docs/goldens/matriz/CHANGELOG) — incorpora os pontos em aberto
   migrados para `--dry-run`/`--script` fake (remover `watch_service_declined_does_nothing`);
   `--yes` ⇒ uso (2); linha da matriz e `--help` atualizados.
 
-### E17-T05 ☐ D183 — supply-chain do worker
+### E17-T05 ☑ D183 — supply-chain do worker
 - **Escopo:** verificar **SHA-256** do GGUF; pinar a **revisão** do modelo (sem `/resolve/main/`);
   validar o instalador do llama.cpp (checksum ou release pinada) em vez de `curl … | sh` cego;
   preferir o repo oficial do modelo.
+- **Feito:** `MODEL_REVISION`/`MODEL_SHA256` (revisão `45ce642d…`, sha `25155b89…`) e `MODEL_URL`
+  com `/resolve/<revisão>/`; `sha256_of`/`verify_sha256` (sha256sum/shasum/openssl) no script;
+  `install_model` baixa para `.tmp`, **aborta** com checksum inválido (move ao lixo) e só então
+  promove; `install_llama` baixa o instalador oficial, verifica `LLAMA_INSTALL_SHA256`
+  (`cccdfcb…`) e só executa se conferir (senão fallback para gestor de pacotes); `fetch` aceita
+  `file://` (mirror local); `install --dry-run` imprime URL/revisão/sha256; overrides
+  `KNUDGE_MODEL_URL`/`_SHA256`/`_REVISION`/`KNUDGE_LLAMA_INSTALL_SHA256`. O GGUF segue do mirror
+  `mykor` (não há GGUF oficial da IBM); a revisão fica pinada. Testes
+  `cli::drain_service_install_aborts_on_bad_model_checksum`,
+  `cli::drain_service_dry_run_shows_model_url_and_hash`.
 - **Perf:** verificação de checksum é O(tamanho do arquivo), só no `--install` (raro).
 - **Depende de:** T01 (modelo reconciliado).
 - **Aceite:** download aborta com checksum inválido (teste com `--script`/fixture); revisão
-  pinada documentada; `--dry-run` mostra a URL+hash.
+  pinada documentada; `--dry-run` mostra a URL+hash. ✔
 
-### E17-T06 ☐ P5 — `uninstall` e o GGUF
+### E17-T06 ☑ P5 — `uninstall` e o GGUF
 - **Escopo:** o prompt/texto do `--uninstall` menciona o modelo; `--keep-model` preserva (default
   documentado) e a remoção vai para o trash. Nunca `rm`.
+- **Feito:** `cmd_uninstall` faz `load_conf` e **preserva** o GGUF por padrão (mensagem com o
+  caminho); `--remove-model` move ao lixo recuperável (`trash`, nunca `rm`); `--keep-model` é
+  explícito (mesmo efeito do default). Flags no grupo `uninstall_model` do `WatchServiceArgs`
+  (conflitantes). Testes `cli::drain_service_uninstall_preserves_model_by_default`,
+  `cli::drain_service_uninstall_removes_model_with_flag` (com `systemctl` falso → `SCHEDULER=none`).
 - **Perf:** operação de arquivo, rara; sem impacto no caminho quente.
 - **Depende de:** T04.
-- **Aceite:** `--uninstall` relata o destino do GGUF; `--keep-model` mantém o arquivo; teste.
+- **Aceite:** `--uninstall` relata o destino do GGUF; `--keep-model` mantém o arquivo; teste. ✔
 
-### E17-T07 ☐ P6–P10 — polimento
+### E17-T07 ☑ P6–P10 — polimento
 - **Escopo:**
   - **P6:** só materializar o script embutido para ações que executam o worker (não `--status`).
   - **P7:** resolvido por D180 (`confirm()` sai); ajustar comentários.
   - **P8:** validar `--every` (formato) antes de escrever a unit, para **todos** os agendadores.
   - **P9:** `--status` explica `pending=?` (motivo da falha do `kd`).
   - **P10:** `drain --digest` distingue "nada pendente" de "indexado agora".
+- **Feito:** **P6** — `script::run_body` (via `bash -s`, stdin) para `Source::Embedded` em ações ≠
+  `install`; `--status` não escreve no staging (só `install` materializa, por precisar do `$SELF`);
+  **P7** — sem `confirm()`; **P8** — `parse_every` no `clap` (exit 2 antes de qualquer unit) +
+  `duration_seconds` no script antes de escrever; **P9** — projeto ausente e falha do `kd`
+  mostram o motivo (sem `?` cru); **P10** — `drain --digest` marca `clean` ("fila limpa: nada
+  pendente") quando `indexed=0` sem `--force`. Testes `cli::drain_service_install_rejects_bad_every`,
+  `cli::drain_service_status_does_not_write_staging`,
+  `cli::drain_service_status_reports_missing_project`,
+  `cli::drain_digest_reports_clean_when_nothing_pending` (+ unit `script::tests::run_body_*`).
 - **Perf:** validar `--every`/read-only **antes** de escrever a unit evita trabalho descartável.
 - **Depende de:** T01–T06.
 - **Aceite:** testes de `--every` inválido (exit 2, sem escrever unit); `--status` read-only não
-  escreve staging; mensagens sem `?` cru.
+  escreve staging; mensagens sem `?` cru. ✔
 
 ### E17-T08 ☐ Fecho — docs, goldens, matriz e CHANGELOG
 - **Escopo:** `docs/15-embeddings.md`, `docs/09-maintenance.md`, `SKILL.md`, `llms.txt`,
@@ -167,9 +200,9 @@ T08 (docs/goldens/matriz/CHANGELOG) — incorpora os pontos em aberto
       passo em stderr, stream por E18/T01) e **sem confirmação** (D180/D181).
 - [ ] Divergência de `embeddings.endpoint`/`model` **detectada e reportada** com comando exato
       (D182); `--status` faz probe.
-- [ ] Supply-chain do worker endurecida (D183): GGUF com SHA-256 + revisão pinada; llama.cpp
+- [x] Supply-chain do worker endurecida (D183): GGUF com SHA-256 + revisão pinada; llama.cpp
       validado.
-- [ ] P5–P10 resolvidos; `--yes` inexistente; testes migrados.
+- [x] P5–P10 resolvidos; `--yes` inexistente; testes migrados.
 - [ ] Nenhum `src/` > 300 linhas; zero `unwrap/expect/panic/unsafe`; stdout = dados (R20).
 
 ## Não-objetivos

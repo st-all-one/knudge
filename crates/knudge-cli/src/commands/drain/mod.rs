@@ -221,7 +221,12 @@ fn digest(session: &Session, rebuild: Rebuild) -> Result<Output> {
         }
     }
 
-    let text = format!("indexed={indexed} batches={batches} cache_hits={cache_hits}");
+    let clean = indexed == 0 && !force;
+    let text = if clean {
+        "fila limpa: nada pendente (indexed=0)".to_string()
+    } else {
+        format!("indexed={indexed} batches={batches} cache_hits={cache_hits}")
+    };
     let data = json!({
         "enabled": true,
         "batches": batches,
@@ -229,6 +234,7 @@ fn digest(session: &Session, rebuild: Rebuild) -> Result<Output> {
         "cache_hits": cache_hits,
         "rebuilt": force,
         "removed": removed,
+        "clean": clean,
     });
     Ok(Output::new(text, data).with_warnings(warnings))
 }

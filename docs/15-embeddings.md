@@ -37,10 +37,14 @@ multilíngue com PT).
 ```bash
 mkdir -p ~/.config/local/knudge
 wget -O ~/.config/local/knudge/granite-97m-r2-Q8_0.gguf \
-  https://huggingface.co/mykor/granite-embedding-97m-multilingual-r2-GGUF/resolve/main/granite-embedding-97M-multilingual-r2-Q8_0.gguf
+  https://huggingface.co/mykor/granite-embedding-97m-multilingual-r2-GGUF/resolve/45ce642d3fab2033d167ec09641a159010f7d9d9/granite-embedding-97M-multilingual-r2-Q8_0.gguf
+# confira o SHA-256 (revisão pinada — D183):
+sha256sum ~/.config/local/knudge/granite-97m-r2-Q8_0.gguf
+# 25155b89638e501ac33495fa278d551d7545e1e2f62722a499bba1f064c080f2
 ```
 
 Sem `wget`? Use `curl -fL -o <destino> <url>`. O GGUF mora **ao lado do `config.toml` global**.
+O `--install` faz o download de uma **revisão pinada** e **verifica o SHA-256** antes de usar.
 
 ### 1.3 Subir o servidor e configurar
 
@@ -108,13 +112,47 @@ O `kd drain service` instala um agendador de usuário que mantém o servidor
 kd drain service --install      # agendador + servidor + cadastra este projeto
 kd drain service --subscribe    # cadastra outro projeto (multi-projeto)
 kd drain service --status       # saúde (default)
-kd drain service --uninstall    # remove agendador + servidor
+kd drain service --uninstall    # remove agendador + servidor (preserva o GGUF)
 ```
 
 - `--install` **baixa `llama.cpp` e o GGUF se faltarem**; `--no-deps` pula.
+- **Supply-chain (D183):** o GGUF vem de **revisão pinada** (nunca `/resolve/main/`) com
+  **SHA-256 verificado**; o instalador oficial do `llama.cpp` é verificado por SHA-256 **antes** de
+  executar (senão cai para o gestor de pacotes). `kd drain service --install --dry-run` mostra a
+  URL, a revisão e o hash.
+- `--uninstall` **preserva o GGUF** por padrão; `--remove-model` move-o para o lixo recuperável
+  (nunca `rm`); `--keep-model` documenta o default.
 - O servidor sobe como `knudge-embed.service` (systemd) / `local.knudge.embed.plist` (launchd),
   com `-b 2048 -ub 2048`.
 - Sem `systemd`/`launchd`, o script imprime a linha de cron equivalente.
+- **Reconciliação (D182):** `--install` avisa se `embeddings.endpoint`/`model` divergirem do
+  worker (mostrando o `kd config set …` exato); `kd drain service --reconcile` alinha e reindexa.
+  `kd drain service --status` reporta `endpoint: ok | fora | divergente (config=…, worker=…)`.
+
+### Suporte por SO (D185)
+
+O **wrapper** é cross-platform; o **script embutido** (`knudge-idle.sh`) é Unix.
+
+| SO | Shell do wrapper | Worker |
+|---|---|---|
+| Linux (Arch/Ubuntu/Fedora/…) | `bash` | `kd drain service --install` (systemd `--user`) |
+| macOS | `bash` | `kd drain service --install` (launchd) |
+| Windows | PowerShell | embutido é Unix → use `--script worker.ps1` ou o caminho manual |
+
+No Windows, `kd drain service` com o script embutido **recusa (exit 2)** e aponta este guia.
+Para automatizar, forneça um script `.ps1`:
+
+```powershell
+# worker.ps1 (exemplo): sobe o llama.cpp e drena a fila
+$ErrorActionPreference = "Stop"
+$gguf = "$env:USERPROFILE\.config\knudge\model.gguf"
+Start-Process llama-server -ArgumentList "--model", $gguf, "--port", "8889", "-b", "2048", "-ub", "2048"
+kd drain --digest
+```
+
+```powershell
+kd drain service --status --script .\worker.ps1
+```
 
 ## Configuração de embeddings
 
@@ -128,7 +166,7 @@ kd drain service --uninstall    # remove agendador + servidor
 | `embeddings.batch` / `embeddings.max_pending` | `32` / `1000` | Lote e backpressure |
 | `embeddings.cache` / `version_cache` | `true` / `false` | Cache (versionado ou não) |
 | `embeddings.cache_max_bytes` / `cache_ttl_days` | 32 MiB / `30` | Teto/TTL (não-versionado) |
-| `embeddings.endpoint` / `timeout_ms` / `retries` | `:8080` / 30000 / `2` | Provedor HTTP |
+| `embeddings.endpoint` / `timeout_ms` / `retries` | `:8889` / 30000 / `2` | Provedor HTTP |
 | `recall.semantic` / `semantic_weight` / `semantic_top_k` | `true` / `30.0` / `50` | Canal vetorial |
 
 ## Solução de problemas

@@ -248,8 +248,9 @@ kd maintenance learn [--scope <C>] [--tag ...|--anchor ...|--type ...|--class ..
 kd maintenance prune [--scope <C>] [--tag ...|--anchor ...|--type ...|--class ...|--around ...|--universe]
                                           # propõe forget por shelf-life/decay (nunca age, D112)
 kd drain [--status | --digest [--force]]   # fila de embeddings: estado rico e digestão (D170)
-kd drain service [--install|--subscribe|--unsubscribe|--status|--uninstall]
-                             [--dry-run] [--every 1h] [--port 8999]
+kd drain service [--install|--subscribe|--unsubscribe|--status|--uninstall|--reconcile]
+                             [--dry-run] [--every 1h] [--port 8889]
+                             [--keep-model | --remove-model]
                              [--script <PATH> | --url <URL> --sha256 <HEX>]
                                           # worker de auto-drain + servidor de embeddings (D184/D186)
 ```
@@ -266,14 +267,27 @@ kd drain service [--install|--subscribe|--unsubscribe|--status|--uninstall]
   binário por padrão; `--script <PATH>` usa um script local; `--url <URL>` baixa por HTTPS e
   **exige `--sha256 <HEX>`** (checksum SHA-256; sem ele o download é recusado). O wrapper faz
   **stream do stderr** (logs verbosos) e mantém o **stdout** como dados (R20); falha do script
-  propaga exit não-zero. Ações (exclusivas; default `--status`): `--install` faz
+  propaga exit não-zero. O wrapper é **cross-platform** (D185): Unix usa `bash`; Windows usa
+  `powershell -NoProfile -File` para scripts `.ps1` (o embutido é Unix → guia manual em
+  `docs/15-embeddings.md`). Ações (exclusivas; default `--status`): `--install` faz
   pré-flight (`kd`/`llama`/GGUF/projeto), instala o agendador — `systemd --user` (Linux) ou
   `launchd` (macOS) —, sobe o **servidor de embeddings persistente** (`knudge-embed`) e cadastra o
   projeto atual; `--subscribe`/`--unsubscribe` cadastram/descadastram **um** projeto
   (multi-projeto; não desinstalam o sistema); `--status` mostra agendador/servidor/fila por
-  projeto; `--uninstall` remove agendador + servidor. Sem systemd/launchd, o `--install` recusa e
-  imprime a linha de cron. Ação explícita = aceite (D180): mutações executam sem prompt. O GGUF
-  mora ao lado do `config.toml` global (D132/D133).
+  projeto **e faz probe do endpoint** (`endpoint: ok | fora | divergente`; `--json` expõe
+  `endpoint` — D182); `--reconcile` alinha `embeddings.endpoint`/`model` ao worker (D182);
+  `--uninstall` remove agendador + servidor e, por padrão, **preserva o GGUF** (`--keep-model`
+  documenta o default; `--remove-model` move ao lixo recuperável — nunca `rm`; P5/E17-T06). Sem
+  systemd/launchd, o `--install` recusa e imprime a linha de cron. Ação explícita = aceite (D180):
+  mutações executam sem prompt. O GGUF mora ao lado do `config.toml` global (D132/D133).
+- **Supply-chain (D183):** o `--install` baixa o GGUF de uma **revisão pinada** (nunca
+  `/resolve/main/`) e **verifica o SHA-256** (aborta com hash errado); o instalador oficial do
+  llama.cpp é baixado e verificado por SHA-256 **antes** de executar (fallback para gestor de
+  pacotes), nunca `curl … | sh` cego. `--dry-run` mostra URL/revisão/hash do modelo.
+- **Polimento (P6–P10):** `--every` é validado no `clap` (exit 2) e no script **antes** de escrever
+  a unit; `--status` é **read-only** (não materializa o script embutido — roda via stdin) e explica
+  o motivo de falhas (`pending=?`); `drain --digest` distingue "fila limpa" de "indexado agora"
+  (`clean` no `--json`).
 
 ## 10. `learn` em profundidade
 

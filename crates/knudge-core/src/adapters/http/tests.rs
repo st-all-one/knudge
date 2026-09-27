@@ -4,11 +4,11 @@ use super::*;
 
 #[test]
 fn parses_endpoint_with_port_and_path() -> Result<()> {
-    let endpoint = Endpoint::parse("http://127.0.0.1:8080/v1/embeddings")?;
+    let endpoint = Endpoint::parse("http://127.0.0.1:8889/v1/embeddings")?;
     assert_eq!(endpoint.host, "127.0.0.1");
-    assert_eq!(endpoint.port, 8080);
+    assert_eq!(endpoint.port, 8889);
     assert_eq!(endpoint.path, "/v1/embeddings");
-    assert_eq!(endpoint.authority(), "127.0.0.1:8080");
+    assert_eq!(endpoint.authority(), "127.0.0.1:8889");
     Ok(())
 }
 

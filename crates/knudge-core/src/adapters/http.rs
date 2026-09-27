@@ -20,7 +20,7 @@ use crate::schema::Value;
 use crate::{Error, ErrorKind, Result};
 
 /// Endpoint default (servidor local OpenAI-compatible).
-pub const DEFAULT_ENDPOINT: &str = "http://127.0.0.1:8080/v1/embeddings";
+pub const DEFAULT_ENDPOINT: &str = "http://127.0.0.1:8889/v1/embeddings";
 
 /// Embedder HTTP bloqueante.
 pub struct HttpEmbedder {

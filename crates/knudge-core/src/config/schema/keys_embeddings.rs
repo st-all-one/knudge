@@ -87,7 +87,7 @@ pub(super) const EMBEDDINGS: &[KeySpec] = &[
     KeySpec {
         key: "embeddings.endpoint",
         kind: Kind::Text,
-        default: Default::Text("http://127.0.0.1:8080/v1/embeddings"),
+        default: Default::Text("http://127.0.0.1:8889/v1/embeddings"),
     },
     KeySpec {
         key: "embeddings.timeout_ms",

@@ -12,22 +12,23 @@
 # só drena (e sobe um servidor efêmero de fallback se o persistente estiver fora).
 #
 # Uso:
-#   knudge-idle install [--project DIR] [--port N] [--model PATH] [--every DUR] [--no-deps]
+#   knudge-idle install [--project DIR] [--port N] [--model PATH] [--every DUR] [--no-deps] [--dry-run]
 #   knudge-idle subscribe [--project DIR]      # cadastra um projeto (multi-projeto)
 #   knudge-idle unsubscribe [--project DIR]    # descadastra (mantém o sistema instalado)
 #   knudge-idle status                         # saúde: agendador, servidor, fila por projeto
-#   knudge-idle uninstall                      # remove o sistema (unidades/agentes + config + binário)
+#   knudge-idle uninstall [--keep-model|--remove-model]  # remove o sistema; preserva o GGUF por padrão
 #   knudge-idle run [PROJETO...]               # corpo do worker (o agendador chama isto)
 #
-# O install baixa o llama.cpp (script oficial llama.app; fallback para brew/winget/scoop/choco/
-# apt/dnf/pacman/zypper) e o GGUF recomendado se ausentes; --no-deps pula.
+# O install baixa o llama.cpp (instalador oficial **verificado por SHA-256**; fallback para
+# brew/winget/scoop/choco/apt/dnf/pacman/zypper) e o GGUF (revisão pinada + SHA-256) se ausentes;
+# --no-deps pula. Supply-chain em D183.
 #
 # Segurança: idempotente; nunca usa `rm` (move para ${XDG_CACHE_HOME:-~/.cache}/knudge/trash).
 # O GGUF mora ao lado do config.toml global (${XDG_CONFIG_HOME:-~/.config}/local/knudge/).
 set -uo pipefail
 
 PROG="knudge-idle"
-SELF="${BASH_SOURCE[0]}"
+SELF="${BASH_SOURCE[0]:-}"
 XDG_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}"
 XDG_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}"
 CONF_DIR="$XDG_CONFIG/local/knudge"
@@ -45,15 +46,24 @@ TRASH="$XDG_CACHE/knudge/trash"
 KD="${KNUDGE_KD:-$BIN_DIR/kd}"
 LLAMA="${KNUDGE_LLAMA:-$BIN_DIR/llama}"
 DEFAULT_MODEL="$CONF_DIR/granite-97m-r2-Q8_0.gguf"
-DEFAULT_PORT=8999
+MODEL_ID="ibm-granite/granite-embedding-97m-multilingual-r2"
+DEFAULT_PORT=8889
 DEFAULT_EVERY=1h
 LOG_DIR="$XDG_CACHE/knudge"
 LOG="$LOG_DIR/idle.log"
 SCHEDULER="" # systemd | launchd | none
+# Supply-chain (D183): revisão **pinada** (nunca `/resolve/main/`) e SHA-256 do GGUF;
+# instalador do llama.cpp **verificado** (nunca `curl … | sh` cego).
+MODEL_REVISION="45ce642d3fab2033d167ec09641a159010f7d9d9"
+MODEL_FILE="granite-embedding-97M-multilingual-r2-Q8_0.gguf"
+MODEL_SHA256="25155b89638e501ac33495fa278d551d7545e1e2f62722a499bba1f064c080f2"
 LLAMA_INSTALL_URL="https://llama.app/install.sh"
-MODEL_URL="https://huggingface.co/mykor/granite-embedding-97m-multilingual-r2-GGUF/resolve/main/granite-embedding-97M-multilingual-r2-Q8_0.gguf"
+LLAMA_INSTALL_SHA256="cccdfcbd1b55bf6003ac3037588c9f5b3b79aa0a75fe991e97bb218ccdb55e4d"
+MODEL_URL="https://huggingface.co/mykor/granite-embedding-97m-multilingual-r2-GGUF/resolve/$MODEL_REVISION/$MODEL_FILE"
 
 log() { printf '%s: %s\n' "$PROG" "$*" >&2; }
+warn() { printf '%s: aviso: %s\n' "$PROG" "$*" >&2; }
+next_cmd() { printf '  próximos: %s\n' "$*" >&2; }
 die() {
     log "$*"
     exit 1
@@ -63,6 +73,28 @@ trash() {
     [ -e "$1" ] || return 0
     mkdir -p "$TRASH"
     mv "$1" "$TRASH/$(basename "$1").$(date +%Y%m%d%H%M%S).$$" 2>/dev/null || true
+}
+
+# SHA-256 em hex (supply-chain, D183): usa o primeiro verificador disponível.
+sha256_of() {
+    local file=$1
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$file" | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$file" | awk '{print $1}'
+    elif command -v openssl >/dev/null 2>&1; then
+        openssl dgst -sha256 "$file" | awk '{print $NF}'
+    else
+        return 1
+    fi
+}
+
+# Compara o SHA-256 de um arquivo com o esperado (vazio ⇒ falha: nunca confia sem hash).
+verify_sha256() {
+    local file=$1 expected=$2 got
+    [ -n "$expected" ] || return 1
+    got="$(sha256_of "$file")" || return 1
+    [ "$got" = "$expected" ]
 }
 
 # ---------- guia manual (ambiente inválido / falha) ----------
@@ -81,10 +113,12 @@ manual_guide() {
    Windows (Scoop)       : scoop install llama.cpp
    Windows (Chocolatey)  : choco install -y llama.cpp
 
-2) Baixe o modelo GGUF (~100 MB) para $MODEL:
+2) Baixe o modelo GGUF (~110 MB) para $MODEL:
    curl -fL -o "$MODEL" \\
-     https://huggingface.co/mykor/granite-embedding-97m-multilingual-r2-GGUF/resolve/main/granite-embedding-97M-multilingual-r2-Q8_0.gguf
-   (sem curl: wget -O "$MODEL" <url>)
+     $MODEL_URL
+   (sem curl: wget -O "$MODEL" "$MODEL_URL")
+   Confira o SHA-256 (revisão pinada $MODEL_REVISION):
+     $MODEL_SHA256
 
 3) Suba o servidor em primeiro plano (teste):
    llama serve -m "$MODEL" --embeddings --pooling mean -b 2048 -ub 2048 --host 127.0.0.1 --port $PORT
@@ -115,7 +149,7 @@ manual_guide() {
    kd config set --key embeddings.model --value ibm-granite/granite-embedding-97m-multilingual-r2
    kd config set --key embeddings.dimensions --value 384
    kd drain --digest
-   kd maintenance watch-service --status
+   kd drain service --status
 
 Guia completo por SO: docs/15-embeddings.md
 EOF
@@ -172,6 +206,71 @@ remove_project() {
         [ "$p" = "$want" ] || kept+=("$p")
     done
     PROJECTS=("${kept[@]}")
+}
+
+# ---------- reconciliação de config (D182) ----------
+# Extrai o valor de uma linha `chave = valor (escopo) — caminho` do `kd config get`
+# (remove as aspas que o render TOML adiciona a textos).
+extract_value() { sed -n 's/^[^=]*= *\([^ ]*\).*/\1/p' | head -n1 | sed 's/^"//; s/"$//'; }
+
+# Valor efetivo de uma chave: projeto > global > vazio (o kd usa o default embutido).
+effective_config() {
+    local proj=$1 key=$2 v
+    v="$(cd "$proj" 2>/dev/null && "$KD" config get --key "$key" 2>/dev/null | extract_value)"
+    [ -n "$v" ] && { printf '%s\n' "$v"; return 0; }
+    v="$(cd "$proj" 2>/dev/null && "$KD" config get --key "$key" --global 2>/dev/null | extract_value)"
+    [ -n "$v" ] && { printf '%s\n' "$v"; return 0; }
+    return 0
+}
+
+# Compara endpoint/model efetivos com o worker instalado (D182). Divergência ⇒ aviso com o
+# comando exato; `apply=1` (--reconcile) aplica no config do projeto.
+reconcile_config() {
+    local proj=$1 apply=$2
+    local want_endpoint="http://127.0.0.1:$PORT/v1/embeddings" want_model="$MODEL_ID"
+    local cur_endpoint cur_model drift=0
+    cur_endpoint="$(effective_config "$proj" embeddings.endpoint)"
+    cur_model="$(effective_config "$proj" embeddings.model)"
+    if [ "$cur_endpoint" != "$want_endpoint" ]; then
+        drift=1
+        warn "endpoint do kd difere do worker: config='${cur_endpoint:-<default>}' worker='$want_endpoint'"
+        next_cmd "kd config set --key embeddings.endpoint --value $want_endpoint"
+    fi
+    if [ "$cur_model" != "$want_model" ]; then
+        drift=1
+        warn "modelo do kd difere do worker: config='${cur_model:-<default>}' worker='$want_model'"
+        next_cmd "kd config set --key embeddings.model --value $want_model"
+    fi
+    if [ "$drift" -eq 0 ]; then
+        log "config do kd alinhada ao worker (endpoint e modelo)"
+        return 0
+    fi
+    if [ "$apply" = "1" ]; then
+        (cd "$proj" && "$KD" config set --key embeddings.endpoint --value "$want_endpoint") >&2 || true
+        (cd "$proj" && "$KD" config set --key embeddings.model --value "$want_model") >&2 || true
+        log "config reconciliada; rode 'kd drain --force' para reindexar com o modelo novo"
+    else
+        log "para alinhar agora: kd drain service --install --reconcile"
+    fi
+    return 0
+}
+
+# Probe do endpoint efetivo (D182): `ok`/`fora`/`divergente` (config ≠ worker).
+probe_endpoint() {
+    local proj=$1 cur base worker
+    cur="$(effective_config "$proj" embeddings.endpoint)"
+    [ -n "$cur" ] || cur="http://127.0.0.1:8889/v1/embeddings"
+    base="${cur%/v1/embeddings}"
+    worker="http://127.0.0.1:$PORT/v1/embeddings"
+    if [ "$cur" != "$worker" ]; then
+        printf 'endpoint: divergente (config=%s, worker=%s)\n' "$cur" "$worker"
+        return 0
+    fi
+    if curl -fsS "$base/health" >/dev/null 2>&1; then
+        printf 'endpoint: ok (%s)\n' "$cur"
+    else
+        printf 'endpoint: fora (%s)\n' "$cur"
+    fi
 }
 
 # ---------- agendador ----------
@@ -462,8 +561,12 @@ resolve_llama() {
 }
 
 # Baixa uma URL para um destino com curl e cai para wget (resiliente a ambientes sem curl).
+# `file://` (mirror local/air-gapped) é copiado direto — não passa pelo `--proto '=https'`.
 fetch() {
     local url=$1 dest=$2
+    case "$url" in
+        file://*) cp "${url#file://}" "$dest" && return 0 ;;
+    esac
     if command -v curl >/dev/null 2>&1; then
         curl -fL --proto '=https' --tlsv1.2 -o "$dest" "$url" && return 0
     fi
@@ -473,18 +576,34 @@ fetch() {
     return 1
 }
 
-# Instala o llama.cpp: binário já presente > script oficial (llama.app) > gestor de pacotes.
+# Instala o llama.cpp: binário já presente > instalador oficial (verificado) > gestor.
 install_llama() {
     resolve_llama
     [ -x "$LLAMA" ] && return 0
-    if command -v curl >/dev/null 2>&1; then
-        log "instalando llama.cpp (script oficial $LLAMA_INSTALL_URL)..."
-        if curl -LsSf "$LLAMA_INSTALL_URL" | sh >/dev/null 2>&1; then
-            hash -r 2>/dev/null || true
-            resolve_llama
-            [ -x "$LLAMA" ] && return 0
+    if command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1; then
+        local tmp="$XDG_CACHE/knudge/llama-install.$$"
+        local expected="${KNUDGE_LLAMA_INSTALL_SHA256:-$LLAMA_INSTALL_SHA256}" got=""
+        mkdir -p "$(dirname "$tmp")"
+        log "baixando instalador oficial do llama.cpp ($LLAMA_INSTALL_URL)..."
+        if fetch "$LLAMA_INSTALL_URL" "$tmp"; then
+            got="$(sha256_of "$tmp" || true)"
+            log "  sha256: ${got:-<indisponível>} (esperado: $expected)"
+            if verify_sha256 "$tmp" "$expected"; then
+                log "checksum confere; executando o instalador oficial..."
+                sh "$tmp" >/dev/null 2>&1 || log "instalador oficial falhou; tentando gestor de pacotes..."
+                trash "$tmp"
+                hash -r 2>/dev/null || true
+                resolve_llama
+                [ -x "$LLAMA" ] && return 0
+            else
+                warn "checksum do instalador não confere; NÃO executando (supply-chain, D183)"
+                [ -n "$got" ] && next_cmd "confie explicitamente com: KNUDGE_LLAMA_INSTALL_SHA256=$got kd drain service --install"
+                trash "$tmp"
+                log "tentando gestor de pacotes..."
+            fi
+        else
+            log "download do instalador falhou; tentando gestor de pacotes..."
         fi
-        log "script oficial falhou; tentando gestor de pacotes..."
     fi
     local pm
     for pm in brew winget scoop choco apt-get dnf pacman zypper; do
@@ -506,13 +625,23 @@ install_llama() {
     [ -x "$LLAMA" ]
 }
 
-# Baixa o GGUF recomendado para $MODEL (default: ao lado do config.toml global).
+# Baixa o GGUF recomendado para $MODEL e **verifica o SHA-256** (revisão pinada; D183).
 install_model() {
     [ -f "$MODEL" ] && return 0
     mkdir -p "$(dirname "$MODEL")"
-    log "baixando modelo GGUF (~100 MB) para $MODEL..."
-    fetch "$MODEL_URL" "$MODEL.tmp" || { trash "$MODEL.tmp"; return 1; }
+    local url="${KNUDGE_MODEL_URL:-$MODEL_URL}" expected="${KNUDGE_MODEL_SHA256:-$MODEL_SHA256}"
+    log "baixando modelo GGUF (~110 MB) para $MODEL..."
+    log "  url: $url"
+    log "  revisão: ${KNUDGE_MODEL_REVISION:-$MODEL_REVISION}"
+    log "  sha256 esperado: $expected"
+    fetch "$url" "$MODEL.tmp" || { trash "$MODEL.tmp"; return 1; }
+    if ! verify_sha256 "$MODEL.tmp" "$expected"; then
+        warn "checksum do GGUF não confere; abortando (arquivo movido para o lixo, D183)"
+        trash "$MODEL.tmp"
+        return 1
+    fi
     mv "$MODEL.tmp" "$MODEL"
+    log "GGUF verificado (sha256 ok)"
     [ -f "$MODEL" ]
 }
 
@@ -539,6 +668,9 @@ parse_common_args() {
     OPT_MODEL=""
     OPT_EVERY=""
     OPT_NO_DEPS=""
+    OPT_DRY_RUN=""
+    OPT_KEEP_MODEL=""
+    OPT_REMOVE_MODEL=""
     while [ "$#" -gt 0 ]; do
         case "$1" in
             --project)
@@ -560,6 +692,18 @@ parse_common_args() {
             --every)
                 OPT_EVERY="${2:?--every exige uma duração (ex.: 1h)}"
                 shift 2
+                ;;
+            --dry-run)
+                OPT_DRY_RUN=1
+                shift
+                ;;
+            --keep-model)
+                OPT_KEEP_MODEL=1
+                shift
+                ;;
+            --remove-model)
+                OPT_REMOVE_MODEL=1
+                shift
                 ;;
             *) die "opção desconhecida: $1" ;;
         esac
@@ -583,6 +727,22 @@ cmd_install() {
     [ -n "$OPT_MODEL" ] && MODEL="$OPT_MODEL"
     [ -n "$OPT_EVERY" ] && EVERY="$OPT_EVERY"
     [ -n "$OPT_NO_DEPS" ] && export KNUDGE_SKIP_DEPS=1
+    # P8: valida a duração antes de escrever qualquer unit (todos os agendadores).
+    duration_seconds "$EVERY" >/dev/null
+    if [ -n "$OPT_DRY_RUN" ]; then
+        printf 'knudge-idle install (dry-run)\n'
+        printf '  projeto: %s\n' "$OPT_PROJECT"
+        printf '  porta: %s\n' "$PORT"
+        printf '  modelo: %s\n' "$MODEL"
+        printf '  timer: %s\n' "$EVERY"
+        printf '  agendador: %s\n' "$SCHEDULER"
+        printf '  llama.cpp: %s\n' "$LLAMA"
+        printf '  gguf url: %s\n' "${KNUDGE_MODEL_URL:-$MODEL_URL}"
+        printf '  gguf revisão: %s\n' "${KNUDGE_MODEL_REVISION:-$MODEL_REVISION}"
+        printf '  gguf sha256: %s\n' "${KNUDGE_MODEL_SHA256:-$MODEL_SHA256}"
+        printf '  llama.cpp instalador sha256: %s\n' "${KNUDGE_LLAMA_INSTALL_SHA256:-$LLAMA_INSTALL_SHA256}"
+        return 0
+    fi
     preflight "$OPT_PROJECT"
     [ "$SCHEDULER" != "none" ] ||
         die_with_guide "sem systemd --user/launchd; use cron: 0 * * * * $BIN_DIR/$UNIT run"
@@ -592,6 +752,7 @@ cmd_install() {
     [ "$SELF" -ef "$BIN_DIR/$UNIT" ] || cp "$SELF" "$BIN_DIR/$UNIT"
     chmod +x "$BIN_DIR/$UNIT"
     scheduler_install
+    reconcile_config "$OPT_PROJECT" 0
     log "instalado: ${#PROJECTS[@]} projeto(s), porta=$PORT, timer=$EVERY, agendador=$SCHEDULER"
     case "$SCHEDULER" in
         systemd) log "log: journalctl --user -u $UNIT.service -n 30" ;;
@@ -636,7 +797,7 @@ cmd_unsubscribe() {
 cmd_status() {
     load_conf
     detect_scheduler
-    local current="$PWD" p pending
+    local current="$PWD" p pending out
     printf 'config: %s%s\n' "$CONF" "$([ -r "$CONF" ] || printf ' (ausente)')"
     printf '  porta=%s modelo=%s timer=%s agendador=%s\n' "$PORT" "$MODEL" "$EVERY" "$SCHEDULER"
     printf 'kd: %s\n' "$([ -x "$KD" ] && printf ok || printf AUSENTE)"
@@ -648,21 +809,54 @@ cmd_status() {
     else
         printf 'servidor: fora\n'
     fi
+    probe_endpoint "$current"
     printf 'projeto atual: %s\n' "$(has_project "$current" && printf cadastrado || printf não-cadastrado)"
     printf 'projetos (%s):\n' "${#PROJECTS[@]}"
     for p in "${PROJECTS[@]}"; do
-        pending=$(cd "$p" 2>/dev/null && "$KD" drain --status 2>/dev/null | sed -n 's/.*pending=\([0-9][0-9]*\).*/\1/p' | tail -1)
-        printf '  %s (pending=%s)\n' "$p" "${pending:-?}"
+        if [ ! -d "$p" ]; then
+            printf '  %s (ausente — projeto removido?)\n' "$p"
+            continue
+        fi
+        out=$(cd "$p" 2>/dev/null && "$KD" drain --status 2>&1)
+        pending=$(printf '%s\n' "$out" | sed -n 's/.*pending=\([0-9][0-9]*\).*/\1/p' | tail -1)
+        if [ -n "$pending" ]; then
+            printf '  %s (pending=%s)\n' "$p" "$pending"
+        else
+            printf '  %s (pending=? — %s)\n' "$p" "$(printf '%s' "$out" | head -n1)"
+        fi
     done
     return 0
 }
 
 cmd_uninstall() {
+    parse_common_args "$@"
+    load_conf
     detect_scheduler
     scheduler_uninstall
     trash "$CONF"
     trash "$BIN_DIR/$UNIT"
-    log "desinstalado (unidades/agentes movidos para $TRASH)"
+    if [ "$OPT_REMOVE_MODEL" = "1" ]; then
+        if [ -f "$MODEL" ]; then
+            trash "$MODEL"
+            log "modelo GGUF movido para o lixo: $MODEL"
+        else
+            log "modelo GGUF ausente: $MODEL"
+        fi
+    elif [ -f "$MODEL" ]; then
+        log "modelo GGUF preservado: $MODEL (use --remove-model para movê-lo ao lixo)"
+    fi
+    log "desinstalado (unidades/agentes + config movidos para $TRASH)"
+}
+
+cmd_reconcile() {
+    parse_common_args "$@"
+    load_conf
+    [ -n "$OPT_PORT" ] && PORT="$OPT_PORT"
+    reconcile_config "$OPT_PROJECT" 1
+    if [ -x "$KD" ]; then
+        log "reindexando (kd drain --digest)..."
+        (cd "$OPT_PROJECT" && "$KD" drain --digest) >&2 || true
+    fi
 }
 
 cmd_run() {
@@ -686,16 +880,18 @@ usage() {
     cat <<'EOF'
 knudge-idle — worker de auto-drain ocioso do knudge (E11-T03/D131/D132/D133)
 
-  knudge-idle install [--project DIR] [--port N] [--model PATH] [--every DUR] [--no-deps]
+  knudge-idle install [--project DIR] [--port N] [--model PATH] [--every DUR] [--no-deps] [--dry-run]
   knudge-idle subscribe [--project DIR]     cadastra um projeto (multi-projeto)
   knudge-idle unsubscribe [--project DIR]   descadastra (mantém o sistema instalado)
   knudge-idle status                        saúde: agendador, servidor, fila por projeto
-  knudge-idle uninstall                     remove o sistema (unidades/agentes + config)
+  knudge-idle reconcile [--project DIR]     alinha endpoint/model do kd ao worker instalado
+  knudge-idle uninstall [--keep-model|--remove-model]  remove o sistema (preserva o GGUF por padrão)
   knudge-idle run [PROJETO...]              corpo do worker (systemd/launchd chama isto)
 
 Agendador: systemd --user (Linux) ou launchd (macOS). O servidor de embeddings
 (knudge-embed) roda persistente; o worker só drena a fila. O install baixa o
-llama.cpp (llama.app) e o GGUF se ausentes; --no-deps pula.
+llama.cpp (instalador oficial verificado por SHA-256) e o GGUF (revisão pinada +
+SHA-256) se ausentes; --no-deps pula. Supply-chain em D183.
 EOF
 }
 
@@ -707,7 +903,8 @@ case "$cmd" in
     subscribe) cmd_subscribe "$@" ;;
     unsubscribe) cmd_unsubscribe "$@" ;;
     status) cmd_status ;;
-    uninstall) cmd_uninstall ;;
+    uninstall) cmd_uninstall "$@" ;;
+    reconcile) cmd_reconcile "$@" ;;
     "" | -h | --help | help) usage ;;
     *) die "subcomando desconhecido: $cmd (use install|subscribe|unsubscribe|status|uninstall|run)" ;;
 esac

@@ -89,10 +89,10 @@ plano em [`../proposals/`](../proposals/) e épico em
 depreciação de conhecimento; **T01/T02 ✅**) — plano em
 [`../proposals/qualidade_busca_depreciacao.md`](../proposals/qualidade_busca_depreciacao.md) e
 épico em [`20_qualidade_busca_depreciacao.md`](20_qualidade_busca_depreciacao.md). **E17 ◐**
-(robustez do worker de embeddings + `--install`; **T03/T04 ✅**) — plano em
+(robustez do worker de embeddings + `--install`; **T01/T02/T03/T04/T05/T06/T07 ✅**) — plano em
 [`../proposals/worker_embeddings_install.md`](../proposals/worker_embeddings_install.md) e épico
 em [`21_worker_embeddings_install.md`](21_worker_embeddings_install.md). **E18 ◐** (comandos
-scriptados: superfície mínima e cross-platform; **T01/T03/T04 ✅**) — plano em
+scriptados: superfície mínima e cross-platform; **T01/T02/T03/T04 ✅**) — plano em
 [`../proposals/comandos_scriptados.md`](../proposals/comandos_scriptados.md) e épico em
 [`22_comandos_scriptados.md`](22_comandos_scriptados.md). **E19 ☐** (modelo de conhecimento rico)
 **proposto** — plano em

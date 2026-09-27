@@ -7,7 +7,9 @@
 //!
 //! A resolução é **local por padrão** — nada de rede no caminho quente (herança de E15).
 
+use std::ffi::OsStr;
 use std::fmt::Write as _;
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -112,6 +114,54 @@ pub fn run(script: &Path, args: &[String]) -> Result<ScriptRun> {
     })
 }
 
+/// Executa o **corpo** de um script embutido **sem materializar** (stdin do shell) — para ações
+/// read-only como `--status` (P6/E17-T07). Evita escrever no staging de cache.
+///
+/// # Errors
+/// `InvalidInput` em SO sem shell compatível; `Io` quando o processo não inicia ou falha.
+pub fn run_body(body: &str, args: &[String]) -> Result<ScriptRun> {
+    let mut command = shell_command_stdin()?;
+    let mut child = command
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .map_err(|error| Error::io(EMBEDDED_REF, error))?;
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(body.as_bytes())
+            .map_err(|error| Error::io(EMBEDDED_REF, error))?;
+    }
+    let output = child
+        .wait_with_output()
+        .map_err(|error| Error::io(EMBEDDED_REF, error))?;
+    if !output.status.success() {
+        return Err(Error::io(
+            EMBEDDED_REF,
+            std::io::Error::other(format!("script terminou com {}", output.status)),
+        ));
+    }
+    Ok(ScriptRun {
+        stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+    })
+}
+
+/// Referência de diagnóstico do script embutido (não é um caminho real).
+const EMBEDDED_REF: &str = "knudge-idle.sh (embedded)";
+
+/// Comando de shell que lê o script do **stdin** (`bash -s`); Windows recusa (D185).
+fn shell_command_stdin() -> Result<Command> {
+    if std::env::consts::OS == "windows" {
+        return Err(Error::invalid_input(
+            "no Windows, o worker embutido é shell Unix; use `--script` com um `.ps1` (D185)",
+        ));
+    }
+    let mut command = Command::new("bash");
+    command.arg("-s");
+    Ok(command)
+}
+
 /// Raiz de cache (`${XDG_CACHE_HOME:-~/.cache}/knudge`).
 fn cache_dir(session: &Session) -> PathBuf {
     let env = session.env();
@@ -156,26 +206,62 @@ fn download(session: &Session, url: &str, expected: Option<&str>) -> Result<Path
     Ok(dest)
 }
 
-/// Comando do shell do SO para executar `script`.
-#[allow(
-    clippy::unnecessary_wraps,
-    reason = "no Windows o mesmo caminho devolve Err (E18/T02)"
-)]
+/// Comando do shell do SO para executar `script` (D185).
 fn shell_command(script: &Path) -> Result<Command> {
-    #[cfg(unix)]
-    {
-        let mut command = Command::new("bash");
-        command.arg(script);
-        Ok(command)
+    let (program, args) = shell_spec(script, std::env::consts::OS)?;
+    let mut command = Command::new(program);
+    command.args(args);
+    Ok(command)
+}
+
+/// Shell do SO para executar `script` (D185). Pura: recebe o SO para ser testável.
+///
+/// - Unix (Linux/macOS/BSD): `bash <script>`.
+/// - Windows: `powershell -NoProfile -File <script>` quando o script é `.ps1`; caso
+///   contrário, recusa e aponta o caminho manual (o embutido é Unix).
+fn shell_spec(script: &Path, os: &str) -> Result<(String, Vec<String>)> {
+    let path = script.display().to_string();
+    if os == "windows" {
+        if is_powershell(script) {
+            return Ok((
+                "powershell".to_string(),
+                vec!["-NoProfile".to_string(), "-File".to_string(), path],
+            ));
+        }
+        return Err(Error::invalid_input(format!(
+            "no Windows, scripts acionáveis exigem `.ps1` (PowerShell): `{path}` é shell Unix — \
+             veja o caminho manual em docs/15-embeddings.md (D185)"
+        )));
     }
-    #[cfg(not(unix))]
-    {
-        let _ignored = script;
-        // E18/T02 generaliza (PowerShell/`.ps1`); por ora, só bash é suportado.
-        Err(Error::invalid_input(
-            "scripts acionáveis exigem bash; no Windows use o caminho manual (E18/T02)",
-        ))
+    Ok(("bash".to_string(), vec![path]))
+}
+
+/// `true` quando o script tem extensão `.ps1` (sem diferenciar maiúsculas).
+fn is_powershell(script: &Path) -> bool {
+    script
+        .extension()
+        .and_then(OsStr::to_str)
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("ps1"))
+}
+
+/// Prefixo de shell do SO atual, para exibição (`--dry-run`; D185).
+#[must_use]
+pub fn shell_prefix() -> &'static str {
+    if std::env::consts::OS == "windows" {
+        "powershell -NoProfile -File"
+    } else {
+        "bash"
     }
+}
+
+/// Linha de comando do `--dry-run` (ou o caminho manual quando o SO não suporta o script).
+#[must_use]
+pub fn plan_command(reference: &str, args: &[String]) -> String {
+    let Ok((program, mut parts)) = shell_spec(Path::new(reference), std::env::consts::OS) else {
+        return format!("{reference} (manual: sem shell compatível neste SO — D185)");
+    };
+    parts.extend(args.iter().cloned());
+    format!("{program} {}", parts.join(" "))
 }
 
 /// SHA-256 em hexadecimal minúsculo (verificação de supply-chain).
@@ -191,34 +277,4 @@ fn sha256_hex(bytes: &[u8]) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn sha256_matches_known_vector() {
-        // Vetor conhecido: SHA-256 de "abc".
-        let digest = sha256_hex(b"abc");
-        assert_eq!(
-            digest,
-            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-        );
-    }
-
-    #[test]
-    fn source_kind_and_reference() {
-        let embedded = Source::Embedded {
-            name: "knudge-idle.sh",
-            body: "",
-        };
-        assert_eq!(embedded.kind(), "embedded");
-        assert_eq!(embedded.reference(), "scripts/knudge-idle.sh");
-        let local = Source::Local(PathBuf::from("/tmp/x.sh"));
-        assert_eq!(local.kind(), "local");
-        let remote = Source::Remote {
-            url: "https://example.invalid/x.sh".to_string(),
-            sha256: None,
-        };
-        assert_eq!(remote.kind(), "download");
-        assert_eq!(remote.reference(), "https://example.invalid/x.sh");
-    }
-}
+mod tests;

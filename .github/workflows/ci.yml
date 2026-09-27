@@ -24,6 +24,16 @@ jobs:
       # `cargo test --workspace` já cobre doc-tests; nextest fica para `make ci` local.
       - run: make check
 
+  windows:
+    name: smoke Windows (wrapper de scripts, D185)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # Smoke cross-platform do wrapper fino: `bash` em Unix, PowerShell em Windows (D185).
+      - run: cargo test -p knudge-cli --bin kd commands::script
+
   supply-chain:
     name: deny + audit + machete + typos
     runs-on: ubuntu-latest

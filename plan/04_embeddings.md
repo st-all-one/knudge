@@ -138,7 +138,7 @@ cache        = true                                       # cache por body_hash 
 cache_max_bytes = 33554432                                # teto com eviction LRU (32 MiB)
 cache_ttl_days  = 30
 flush_ms     = 2000                                       # flush coalescido (debounce) do índice
-endpoint     = "http://127.0.0.1:8080/v1/embeddings"      # OpenAI-compatible (llama-server/TEI/Ollama)
+endpoint     = "http://127.0.0.1:8889/v1/embeddings"      # OpenAI-compatible (llama-server/TEI/Ollama)
 timeout_ms   = 30000
 retries      = 2
 api_key_env  = "KNUDGE_EMBEDDING_API_KEY"
@@ -159,10 +159,10 @@ api_key_env  = "KNUDGE_EMBEDDING_API_KEY"
 # `-b/-ub 2048` são obrigatórios: o default do llama.cpp (`-ub 512`) rejeita notas longas e o
 # drain fica com `indexed=0` (a nota não-embeddável agora é isolada, mas nunca indexa).
 llama-server -m granite-embedding-97M-multilingual-r2-Q8_0.gguf --embeddings --pooling mean \
-    -b 2048 -ub 2048 --port 8080
+    -b 2048 -ub 2048 --port 8889
 ```
 
-O `kd` consome `http://127.0.0.1:8080/v1/embeddings` por padrão; aponte
+O `kd` consome `http://127.0.0.1:8889/v1/embeddings` por padrão; aponte
 `embeddings.endpoint` para outra porta/host se necessário. Enquanto o servidor não estiver de pé,
 as notas ficam `pending` (gap tolerado) e o retrieval usa BM25.
 

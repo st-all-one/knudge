@@ -95,14 +95,14 @@ registra a rejeição no épico.
 ### Trilha B — Superfície e scripts (E18 + E17)
 
 3. ✅ **E18/T01** — wrapper fino + stream (`commands/script.rs`; checksum SHA-256 no remoto).
-4. **E18/T02** — cross-platform.
+4. ✅ **E18/T02** — cross-platform (`bash`/PowerShell; D185).
 5. ✅ **E17/T03** — verbosidade/stream do worker (entregue por E18/T01).
-6. **E17/T01** — reconciliação de `endpoint`/`model` (no script).
-7. **E17/T02** — `--status` com probe.
+6. ✅ **E17/T01** — reconciliação de `endpoint`/`model` (no script; D182).
+7. ✅ **E17/T02** — `--status` com probe de endpoint (D182).
 8. ✅ **E17/T04** — remover confirmação/`--yes` (D180).
 9. ✅ **E18/T03** — `watch-service` como script (consolida E17/T03/T04).
 10. ✅ **E18/T04** — superfície `kd drain service` (D186).
-11. **E17/T05** — supply-chain; **E17/T06** — uninstall/GGUF; **E17/T07** — polimento P6–P10.
+11. ✅ **E17/T05** — supply-chain; **E17/T06** — uninstall/GGUF; **E17/T07** — polimento P6–P10.
 12. **E18/T05** — `self upgrade` real; **E18/T06** — auditoria de verbos acionáveis.
 
 ### Trilha C — Léxico, confiança e ranking (E16 + E19 R1/R4)
@@ -153,7 +153,7 @@ O `CHANGELOG.md` consolida tudo em `[0.5.0]` no fecho (E16/T12, E17/T08, E18/T07
 | 8 | E17/T04 sem confirmação | `--yes` sai | — | matriz |
 | 9 | E18/T03 `watch-service` script | — | — | smoke |
 | 10 | E18/T04 `drain service` | **sim** | — | matriz + `prime` |
-| 11 | E17/T05–T07 supply/polish | — | — | testes de checksum/`--every` |
+| 11 | ✅ E17/T05–T07 supply/polish | — | — | testes de checksum/`--every` |
 | 12 | E18/T05–T06 `self upgrade`/auditoria | **sim** | — | teste + decisão escrita |
 | 13 | E16/T03/T04 acentos/alta freq. | — | derivado | qualidade + goldens |
 | 14 | E19/T01–T03 R1 (Beta/FSRS/obrig.) | — | — | proptest + A/B |

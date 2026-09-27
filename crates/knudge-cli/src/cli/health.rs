@@ -46,6 +46,11 @@ pub enum DrainCommand {
 /// Argumentos de `kd drain service`.
 #[allow(clippy::struct_excessive_bools, reason = "flags de CLI")]
 #[derive(Debug, Args)]
+#[command(
+    after_help = "SO: Linux/macOS usam bash (systemd --user/launchd); no Windows o worker \
+embutido é Unix — forneça um script `.ps1` com `--script` ou use o caminho manual \
+(docs/15-embeddings.md, D185)."
+)]
 pub struct WatchServiceArgs {
     /// Instala o agendador (systemd/launchd), o servidor de embeddings persistente e cadastra
     /// o projeto atual. Baixa llama.cpp + GGUF se ausentes (use `--no-deps` para pular).
@@ -63,14 +68,23 @@ pub struct WatchServiceArgs {
     /// Remove o sistema (agendador + servidor + config + binário).
     #[arg(long, group = "action")]
     pub uninstall: bool,
+    /// Mantém o GGUF ao desinstalar (default: preserva; use `--remove-model` para removê-lo).
+    #[arg(long, group = "uninstall_model")]
+    pub keep_model: bool,
+    /// Move o GGUF para o lixo recuperável ao desinstalar (nunca `rm`).
+    #[arg(long, group = "uninstall_model")]
+    pub remove_model: bool,
+    /// Alinha `embeddings.endpoint`/`embeddings.model` do projeto ao worker instalado (D182).
+    #[arg(long, group = "action")]
+    pub reconcile: bool,
     /// Só mostra o plano (não baixa nem executa).
     #[arg(long)]
     pub dry_run: bool,
-    /// Período do drain (ex.: `1h`, `15min`).
-    #[arg(long, value_name = "DUR", default_value = "1h")]
+    /// Período do drain (ex.: `1h`, `30m`, `1d`).
+    #[arg(long, value_name = "DUR", default_value = "1h", value_parser = parse_every)]
     pub every: String,
     /// Porta do servidor de embeddings local.
-    #[arg(long, value_name = "N", default_value_t = 8999)]
+    #[arg(long, value_name = "N", default_value_t = 8889)]
     pub port: u16,
     /// Caminho do modelo GGUF (default: ao lado do config.toml global).
     #[arg(long, value_name = "PATH")]
@@ -87,4 +101,23 @@ pub struct WatchServiceArgs {
     /// SHA-256 (hex) do script remoto (`--url`); obrigatório para baixar (D184).
     #[arg(long, value_name = "HEX")]
     pub sha256: Option<String>,
+}
+
+/// Valida `--every` (`30m`/`1h`/`1d`/`45s`/`90`) **antes** de escrever qualquer unit — para
+/// todos os agendadores (P8/E17-T07). Recusa formatos como `15min`.
+fn parse_every(raw: &str) -> Result<String, String> {
+    let digits = if let Some(last) = raw.chars().last()
+        && last.is_ascii_alphabetic()
+    {
+        if !matches!(last, 's' | 'm' | 'h' | 'd') {
+            return Err(format!("duração inválida: `{raw}` (use 30m, 1h, 1d)"));
+        }
+        raw.strip_suffix(last).unwrap_or(raw)
+    } else {
+        raw
+    };
+    if digits.is_empty() || !digits.chars().all(|c| c.is_ascii_digit()) {
+        return Err(format!("duração inválida: `{raw}` (use 30m, 1h, 1d)"));
+    }
+    Ok(raw.to_string())
 }

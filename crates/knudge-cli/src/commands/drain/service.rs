@@ -31,6 +31,7 @@ enum Action {
     Unsubscribe,
     Status,
     Uninstall,
+    Reconcile,
 }
 
 impl Action {
@@ -44,6 +45,8 @@ impl Action {
             Self::Unsubscribe
         } else if args.uninstall {
             Self::Uninstall
+        } else if args.reconcile {
+            Self::Reconcile
         } else {
             Self::Status
         }
@@ -56,12 +59,16 @@ impl Action {
             Self::Unsubscribe => "unsubscribe",
             Self::Status => "status",
             Self::Uninstall => "uninstall",
+            Self::Reconcile => "reconcile",
         }
     }
 
     /// Ações que operam sobre o projeto atual.
     fn scoped(self) -> bool {
-        matches!(self, Self::Install | Self::Subscribe | Self::Unsubscribe)
+        matches!(
+            self,
+            Self::Install | Self::Subscribe | Self::Unsubscribe | Self::Reconcile
+        )
     }
 }
 
@@ -76,24 +83,81 @@ pub fn run(session: &Session, args: &WatchServiceArgs) -> Result<Output> {
     let worker = worker_args(action, &root, args);
 
     if args.dry_run {
-        return Ok(plan(action, &source, &worker));
+        return dry_run(session, action, &source, &worker);
     }
-    let path = script::resolve(session, &source)?;
-    let run = script::run(&path, &worker)?;
+    let (run, script_ref) = execute(session, action, &source, &worker)?;
     let stdout = run.stdout.trim();
     let text = if stdout.is_empty() {
         format!("drain service {}: ok", action.name())
     } else {
         stdout.to_string()
     };
-    Ok(Output::new(
-        format!("{text}\npróximos: {}", next_step(action)),
-        json!({
+    // `--status` faz probe do endpoint e o wrapper expõe o veredito (aditivo; D182).
+    let endpoint = stdout
+        .lines()
+        .find_map(|line| line.strip_prefix("endpoint: "));
+    let data = match endpoint {
+        Some(endpoint) => json!({
             "action": action.name(),
             "done": true,
-            "script": path.display().to_string(),
+            "script": script_ref,
+            "endpoint": endpoint,
         }),
+        None => json!({
+            "action": action.name(),
+            "done": true,
+            "script": script_ref,
+        }),
+    };
+    Ok(Output::new(
+        format!("{text}\npróximos: {}", next_step(action)),
+        data,
     ))
+}
+
+/// Executa o script: `install` materializa (precisa do `$SELF` para se copiar em `~/.local/bin`);
+/// as demais ações embutidas rodam por **stdin** (sem staging; P6/E17-T07).
+fn execute(
+    session: &Session,
+    action: Action,
+    source: &script::Source,
+    worker: &[String],
+) -> Result<(script::ScriptRun, String)> {
+    if let script::Source::Embedded { body, .. } = source
+        && !matches!(action, Action::Install)
+    {
+        return Ok((script::run_body(body, worker)?, source.reference()));
+    }
+    let path = script::resolve(session, source)?;
+    let run = script::run(&path, worker)?;
+    Ok((run, path.display().to_string()))
+}
+
+/// `--dry-run`: para `install`, o script é a fonte do plano (URL+hash do GGUF; D183); as demais
+/// ações usam o plano genérico do wrapper.
+fn dry_run(
+    session: &Session,
+    action: Action,
+    source: &script::Source,
+    worker: &[String],
+) -> Result<Output> {
+    if matches!(action, Action::Install) {
+        let mut planned = worker.to_vec();
+        planned.push("--dry-run".to_string());
+        let run = if let script::Source::Embedded { body, .. } = source {
+            script::run_body(body, &planned)
+        } else {
+            let path = script::resolve(session, source)?;
+            script::run(&path, &planned)
+        };
+        if let Ok(run) = run {
+            let detail = run.stdout.trim();
+            if !detail.is_empty() {
+                return Ok(plan_output(action, source, worker, Some(detail)));
+            }
+        }
+    }
+    Ok(plan_output(action, source, worker, None))
 }
 
 /// Argumentos repassados ao `knudge-idle.sh`.
@@ -114,6 +178,14 @@ fn worker_args(action: Action, root: &Path, args: &WatchServiceArgs) -> Vec<Stri
         }
         if args.no_deps {
             out.push("--no-deps".to_string());
+        }
+    }
+    if matches!(action, Action::Uninstall) {
+        if args.keep_model {
+            out.push("--keep-model".to_string());
+        }
+        if args.remove_model {
+            out.push("--remove-model".to_string());
         }
     }
     out
@@ -140,24 +212,40 @@ fn source_of(session: &Session, args: &WatchServiceArgs) -> script::Source {
     }
 }
 
-/// Plano do `--dry-run` (não materializa nem executa).
-fn plan(action: Action, source: &script::Source, worker: &[String]) -> Output {
-    let executable = match source {
-        script::Source::Embedded { .. } => "<embutido>".to_string(),
-        script::Source::Local(path) => path.display().to_string(),
-        script::Source::Remote { .. } => "<baixado>".to_string(),
+/// Plano do `--dry-run` (não materializa nem executa; `detail` é o plano do script, se houver).
+fn plan_output(
+    action: Action,
+    source: &script::Source,
+    worker: &[String],
+    detail: Option<&str>,
+) -> Output {
+    let reference = source.reference();
+    let command = script::plan_command(&reference, worker);
+    let text = match detail {
+        Some(detail) => format!(
+            "dry-run: {command}\n{detail}\npróximos: {}",
+            next_step(action)
+        ),
+        None => format!("dry-run: {command}\npróximos: {}", next_step(action)),
     };
-    let command = format!("bash {executable} {}", worker.join(" "));
-    Output::new(
-        format!("dry-run: {command}\npróximos: {}", next_step(action)),
-        json!({
+    let data = match detail {
+        Some(detail) => json!({
             "dry_run": true,
             "action": action.name(),
             "source": source.kind(),
-            "reference": source.reference(),
+            "reference": reference,
+            "command": command,
+            "plan": detail,
+        }),
+        None => json!({
+            "dry_run": true,
+            "action": action.name(),
+            "source": source.kind(),
+            "reference": reference,
             "command": command,
         }),
-    )
+    };
+    Output::new(text, data)
 }
 
 /// Passo seguinte sugerido por ação (D165).
@@ -167,5 +255,6 @@ fn next_step(action: Action) -> &'static str {
         Action::Subscribe | Action::Unsubscribe => "confira com `--status`",
         Action::Uninstall => "nada a fazer",
         Action::Status => "`--install`/`--subscribe` são opcionais",
+        Action::Reconcile => "rode `kd drain --digest` para reindexar com o modelo novo",
     }
 }
