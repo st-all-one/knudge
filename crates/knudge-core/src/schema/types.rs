@@ -4,9 +4,6 @@
 //! `classification` e `status` são fechados e a evolução exige bump de `schema_version` (D14).
 
 use std::fmt;
-use std::str::FromStr;
-
-use crate::{Error, Result};
 
 /// Tipo de nota — **10 espécies** armazenadas, mais [`NoteType::Epic`] (grupo **derivado** de
 /// `scope=epic`, nunca gravado — D149).
@@ -109,18 +106,6 @@ impl fmt::Display for NoteType {
     }
 }
 
-impl FromStr for NoteType {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self> {
-        Self::ALL
-            .iter()
-            .copied()
-            .find(|note_type| note_type.as_str() == s)
-            .ok_or_else(|| Error::schema(format!("tipo desconhecido: {s:?}")))
-    }
-}
-
 /// Escopo de tarefa — enum fechado, só para `type` de trabalho/container (D93/D113/D134).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Scope {
@@ -163,18 +148,6 @@ impl fmt::Display for Scope {
     }
 }
 
-impl FromStr for Scope {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self> {
-        Self::ALL
-            .iter()
-            .copied()
-            .find(|scope| scope.as_str() == s)
-            .ok_or_else(|| Error::schema(format!("scope desconhecido: {s:?}")))
-    }
-}
-
 /// Classificação de maturidade (D44).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub enum Classification {
@@ -205,18 +178,6 @@ impl Classification {
 impl fmt::Display for Classification {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
-    }
-}
-
-impl FromStr for Classification {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self> {
-        Self::ALL
-            .iter()
-            .copied()
-            .find(|value| value.as_str() == s)
-            .ok_or_else(|| Error::schema(format!("classification desconhecida: {s:?}")))
     }
 }
 
@@ -279,17 +240,5 @@ impl Status {
 impl fmt::Display for Status {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
-    }
-}
-
-impl FromStr for Status {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self> {
-        Self::ALL
-            .iter()
-            .copied()
-            .find(|value| value.as_str() == s)
-            .ok_or_else(|| Error::schema(format!("status desconhecido: {s:?}")))
     }
 }

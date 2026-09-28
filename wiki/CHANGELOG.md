@@ -1,0 +1,1045 @@
+# Changelog
+
+Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
+
+## [0.5.0] - 2026-09-27
+
+### Adicionado
+- **Bancada de qualidade de busca (E16-T01)** — `bench/src/quality.rs` mede Recall@k/MRR/nDCG@k
+  num corpus PT-BR rotulado (192 notas, 60 consultas); baselines versionados em
+  `bench/qualidade.md`/`.json` (régua para D172/D173/D179).
+- **Wrapper fino de scripts acionáveis (E18-T01/T03/D184)** — `commands/script.rs` resolve
+  (embutido/local; `--url` remoto exige `--sha256`), faz stream do stderr, captura o stdout e
+  propaga exit; `kd drain service` é wrapper do `knudge-idle.sh` (fonte da verdade).
+- **Cross-platform do wrapper (E18-T02/D185)** — Unix usa `bash`; Windows usa
+  `powershell -NoProfile -File` para scripts `.ps1` (o embutido é Unix → guia manual); smoke no CI
+  (`windows-latest`) e testes unitários por SO.
+- **`kd drain service <ação>` (E18-T04/D186)** — o worker de auto-drain sai de `maintenance` e
+  entra sob `drain`; `kd maintenance` fica só com `compact|learn|prune`.
+- **Stream do worker (E17-T03/D181)** e **sem confirmação/`--yes` (E17-T04/D180)** — mutações do
+  worker executam direto e os passos aparecem em stderr.
+- **Reconciliação e probe do worker (E17-T01/T02/D182)** — `kd drain service --install` avisa se
+  `embeddings.endpoint`/`model` divergirem do worker (com o `kd config set …` exato);
+  `--reconcile` alinha e reindexa; `--status` reporta `endpoint: ok|fora|divergente` e o `--json`
+  expõe `endpoint` (aditivo).
+- **Supply-chain do worker (E17-T05/D183)** — GGUF de **revisão pinada** (nunca `/resolve/main/`)
+  com **SHA-256 verificado** (aborta com hash errado); instalador do llama.cpp baixado e
+  verificado por SHA-256 **antes** de executar (senão usa o gestor de pacotes);
+  `--install --dry-run` mostra URL/revisão/hash; `file://` habilita mirror local.
+- **`uninstall` e o GGUF (E17-T06/P5)** — `--uninstall` **preserva o GGUF** por padrão
+  (`--remove-model` move ao lixo recuperável, nunca `rm`; `--keep-model` explícito).
+- **Polimento do worker (E17-T07/P6–P10)** — `--every` validado no `cli` (exit 2) e antes de
+  escrever a unit; `--status` é **read-only** (não materializa o script embutido) e explica
+  `pending=?`; `drain --digest` marca `clean` ("fila limpa") quando nada estava pendente.
+- **`self upgrade` real (E18-T05/D187)** — `kd self upgrade` deixa de ser stub: evoca o
+  `kd-upgrade.sh` (embutido), que baixa o `install.sh` oficial (release + checksum) e o executa;
+  `--version`/`--dry-run`/`--script`/`--url --sha256`.
+- **Auditoria de verbos acionáveis (E18-T06/D188)** — decisão escrita: permanecem nativos
+  `init`/`sync`/`doctor --fix`/`self setup`/`self completions`/`hooks`/`forget`/`prune`; só
+  orquestração de SO/rede e utilitários de dev vivem em `scripts/`.
+- **Busca PT-BR: acentos (E16-T03/D172)** — a tokenização dobra diacríticos (NFD + remoção de
+  marcas combinantes) com fast-path ASCII: `café`≡`cafe`, `configuracao` casa `configuração`.
+  `notas/`/`id`/`body_hash` intactos (NFC); o índice derivado ganha o cabeçalho `INDEX_FORMAT`
+  (`retrieval-v2`), que força o rebuild do `.idx/` antigo. Bancada: `sem-acento` nDCG@1
+  **8,3 % → 100 %**.
+- **Busca PT-BR: alta frequência (E16-T04/D173)** — `STOPWORDS` ganha as formas dobradas do PT
+  (`ja`, `sao`, `nao`, `tambem`, `ate`, `apos`, `entao`, `porem`, `voce`, …) e o canal lexical
+  descarta termos com `df/N ≥ recall.max_term_ratio` (default `0.9`; só para corpora ≥ 64 notas;
+  `0` desliga).
+- **Confiança bayesiana (E19-T01/D189)** — os `outcomes` viram ensaios de Bernoulli e a
+  confiança deriva do posterior `Beta(1+s, 1+f)`: a média alimenta `stars` e o **limite inferior**
+  de 95 % (Wilson) é a confiança conservadora (1 sucesso ≈0,21 × 20 ≈0,84). `Meta` ganha
+  `failures`; o índice derivado passa a `retrieval-v3`. Absorve o `feedback` de `outcomes`
+  negativos de E16/D174.
+- **Retenção por curva de esquecimento (E19-T02/D190)** — o shelf-life deixa de ser prazo fixo:
+  cada `outcome` de sucesso estende o prazo em `retention.growth_percent` (default 50 %) e
+  **reseta o relógio** (`origin = max(created, último ensaio, último uso)`). `prune --json` passa
+  a informar a `retention` atual. Substitui E16/D178.
+- **Data contract por tipo (E19-T03/D191)** — o `write` confere **slots mínimos de corpo** por
+  espécie (`decision`→Alternativas/Por quê/Consequência; `error`→Causa/Correção; `risk`→
+  Probabilidade/Impacto; `def`→Significado; `snippet`→Linguagem+âncora; `question`→âncora/`depends_on`),
+  sem chave nova. **Soft**: aviso em `write`, `invalid_input` só sob `behavior.strict`; `--dry-run`
+  expõe `missing_slots`; o check `body` do `doctor` passa a contar slots ausentes.
+- **Autoridade no grafo (E19-T04/D192)** — `graph/rank.rs` calcula `PageRank` e **PPR** (semeado
+  pelo working set) sobre as arestas de autoridade, por iteração de potência determinística. Vira
+  o canal `ppr` da fusão RRF (`recall.ppr_weight`, default **0,0** = desligado) e `channels.ppr`
+  no `--json` do `ask`.
+- **Comunidades + `GraphRAG` (E19-T05/D193)** — `graph/communities.rs` (Louvain determinístico) +
+  `lifecycle/communities.rs` (arestas + âncoras, resumo local por termos). Exposto em
+  `map --communities` (JSON aditivo) e materializado em `--write` (`## Comunidades` no
+  `MAP.md` + hub `meta`).
+- **Idade no ranking sem query (E16-T06/D175)** — em `ask --rank` (sem `similarity`) a idade
+  entra **aditiva** (`AGE_WEIGHT = 0,05`) e desempata a favor da nota recente; a evidência Beta
+  continua dominando.
+- **`contradicts` no ranking e no `prune` (E16-T07/D177)** — o lado perdedor de uma contradição
+  declarada (menor confiança derivada) é rebaixado no `rank`/`recall` (`CONTRADICTION_PENALTY`) e
+  proposto no `prune` (`DemotionReason::Contradicted`, só propõe — D112).
+- **Fusão recalibrada (E16-T09/D179)** — `recall.anchor_weight` default `1.0 → 2.0`: um match
+  exato de âncora contra o working set passa a pesar mais que um único casamento lexical ruidoso
+  (bancada de qualidade, família `working-set`: nDCG@5 87,7 % → 100 %). `rrf_k` foi medido
+  **inerte** no corpus rotulado e fica em `60`; `semantic_weight` fica em `30`.
+- **Stemming PT conservador (E16-T11/D206)** — o canal lexical (índice + consulta) corta sufixos
+  flexionais/derivacionais do PT-BR (`retrieval/stem.rs`): `consultas` casa `consulta`,
+  `configurações` casa `configuração`. Adotado por medição (**+25 % de nDCG@5**,
+  `bench/t11_stemming.md`); `INDEX_FORMAT` → `retrieval-v4`. Bytes de `notas/` idênticos.
+- **Flow metrics e caminho crítico (E19-T11/D205)** — `kd task flow` deriva do log
+  `cycle`/`lead`/`throughput` e o caminho crítico (PERT/CPM) do DAG `depends_on`; `rewind --json`
+  ganha `data.flow` (aditivo). Tudo derivado do log — sem verdade nova.
+- **Blocking MinHash/LSH no dedup (E19-T07/D204)** — acima de 256 notas densas, `propose_merges`
+  usa assinaturas `MinHash` + *banding* LSH (`write/dedup/lsh.rs`) para reduzir os pares
+  candidatos; o Dice exato e o limiar de merge são preservados. Corpus pequeno/esparso mantém a
+  peneira exata (byte-idêntica). `compact`/`doctor` denso N=1000 **−94 %**.
+- **Drift de âncoras na confiança (E19-T01b/D203)** — a validade de âncoras vira o derivado
+  `.idx/drift.jsonl` (`prune` persiste do mesmo walk off-path); `ask`/`ask --rank` carregam o
+  índice e `confidence_score` desconta o score inteiro por `drift_factor`. Arquivo ausente ⇒
+  `drift = 0`. Sem chave nova e sem bump de `schema_version`.
+- **Claims SPO + ontologia leve + proveniência (E19-T09/D207)** — o frontmatter ganha três
+  blocos aditivos (`schema_version` 1→2): arestas de ontologia SKOS-lite
+  (`same_as`/`broader`/`narrower`/`related`, `EdgeKind` 8→12), `claims`
+  (`{subject, relation, object}`) e `provenance` (`{entity, activity, agent}`, PROV-lite).
+  `kd write --claim S:R:O` + `--agent`/`--activity`; inferência derivada em `graph/ontology.rs`
+  (classes de equivalência, clausura `broader`/`narrower`, ciclo) e contradição precisa por claims
+  no check `integrity` do `doctor`. Notas v1 seguem válidas e o rebuild é byte-idêntico.
+- **TMS/defeasible + drift KL/JS (E19-T10/D208)** — `graph/tms.rs` deriva os dependentes
+  transitivos de premissas retratadas (`forgotten`/`superseded`) e os derrotados por `replaces`;
+  `lifecycle/term_drift.rs` mede a divergência **Jensen-Shannon** entre o vocabulário antigo e o
+  novo de cada tópico (âncora). Ambos entram como motivos de demolição (`defeated`/`drifted`) no
+  `kd maintenance prune` — off-path, só propõem.
+
+### Corrigido
+- **Status consistente na leitura (E16-T02/D176)** — `Status::VISIBLE` é a fonte única; `ask
+  --rank`/`map`, `rewind` e `maintenance` deixam de incluir `forgotten`/`superseded`.
+- **`--relation` de `ask --suggest` valida o enum (D158)** — um valor fora de
+  `duplicate`/`contradiction`/`link` era silenciosamente ignorado (o filtro virava "sem filtro",
+  devolvendo **todas** as sugestões); agora é `invalid_input` (exit 2), como os demais enums
+  fechados (`--status`/`--type`/`--class`/`--outcome`). A semântica das três relações e as bandas
+  foram documentadas (`wiki/usage/05_ask.md`, `wiki/specs/embeddings.md`). Teste
+  `improvements_032::ask_suggest_invalid_relation_is_rejected`.
+- **Conjuntos fechados listam as opções e sugerem a mais provável (D212)** — toda flag de lista
+  fixa (`--type`/`--class`/`--status`/`--scope`/`--kind`/`--outcome`, arestas `--link`/`--edge`/
+  `--via`, `--relation`, `--axis`, `--template`, `self setup`, `self completions`, `config --key`)
+  rejeita valor inválido com a **lista das possibilidades** e um "você quis dizer…" (distância de
+  Levenshtein determinística, `schema/suggest.rs`); `--log-level` deixa de cair em `warn`
+  silencioso (exit 2). Flag ausente não valida. `DIVERGENCES.md` #115.
+
+### Alterado
+- **Porta do provedor de embeddings unificada em `8889` (D202)** — o default de
+  `embeddings.endpoint`, o `--port` de `kd drain service` e o `DEFAULT_PORT` do worker passam a
+  ser `8889` (antes: config `8080` × worker `8999`). Instalações antigas mantêm a porta do
+  `idle.conf`; `kd drain service --install --port 8889` migra.
+- **Superfície v3: fim do verbo `knowledge` (E19-T12/D209)** — um vocabulário por conceito, sem
+  retrocompatibilidade (D14): `kd knowledge rank|tags|suggest` → `kd ask --rank|--tags|--suggest`;
+  `kd knowledge map` → `kd map`; `kd knowledge promote` → `kd config promote`. Os verbos de
+  domínio caem para **8** (`ask`/`write`/`task`/`rewind`/`map`/`doctor`/`drain`/`forget`), com
+  `init`/`prime`/`sync`/`config`/`self` como fundação/meta. `prime`/`--help`/matriz/goldens
+  atualizados.
+- **Listas na CLI: repetição + vírgula (D210)** — toda flag de valor múltiplo com semântica de
+  seleção (`--id`, `--type`, `--class`, `--tag`, `--anchor`, `--edge`, `--claim`, `--checks`,
+  `--files`) aceita **repetição** (`--tag a --tag b`) e **lista com vírgula** (`--tag a,b`), de
+  forma equivalente. O formato por **espaço** deixa de existir (`num_args = 1..` removido), por
+  competir com o posicional e descartar valores em silêncio; `ask --id`/`--around` passam a
+  **conflitar** com a query textual (exit 2), inclusive via `--params`. Texto livre (query/corpo/
+  `--step`) não é dividido. `DIVERGENCES.md` #113; teste `crates/knudge-cli/tests/list_args.rs`.
+- **Skill do agente em inglês, versão 2 (D162)** — o corpo embutido (`git/skill.rs`) e o
+  `SKILL.md` do repositório passam a guiar em **inglês** (idioma das skills, ex.
+  `.agents/skill/rust/SKILL.md`), token-optimized, e ganham as convenções recentes: conjuntos
+  fechados (D212), listas repetição+vírgula (D210), códigos de saída e âncora × aresta. O
+  *version marker* sobe `1 → 2`, então projetos já inicializados recebem a skill atualizada no
+  próximo `kd init` (arquivo editado pelo usuário, sem o marker, nunca é sobrescrito).
+
+### Desempenho
+- **`maintenance prune` com varredura única (E16-T10)** — `validity_map` caminha o projeto **uma
+  vez** (`compute_anchor_validity_cached`) em vez de uma vez por nota; `body_share` tokeniza a
+  consulta uma vez por `build_hits` (`body_share_terms`). Saída byte-idêntica.
+  **`prune --universe` N=1000: 118,6 ms → 45,9 ms (−61 %)**; N=200: 29,7 → 19,6 ms (−34 %).
+
+## [0.4.0] - 2026-09-26
+
+### Adicionado
+- **Leitura única do corpus (E15-T02/O1)** — `knudge_core::corpus::Corpus` (`notes`+`index`+
+  `graph` de uma só passada) e `knudge_cli::Session::corpus()`; `Graph::from_notes_ref(&[Note])`
+  deriva o grafo sem clonar. `ask`/`rewind`/`doctor`/`learn`/`compact`/`prune` relêem `notas/`
+  **uma** vez em vez de 2–5 (o `pending` da fila de embeddings recebe o corpus pronto). Saída
+  byte-idêntica (goldens); `Session::index()`/`graph()` seguem como wrappers. A/B (`make bench`,
+  N≈1 k): `rewind` ≈ −18 %, `rewind --files` ≈ −39 %, `ask --anchor` ≈ −26 %.
+- **Auto-drain ocioso barato (E15-T03/O1.5)** — `KNUDGE_NO_IDLE` é checado **antes** de
+  `Session::open` e `maybe_drain` não roda em `prime`/`self` (além de `doctor`/`drain`/
+  `maintenance`); `provider=none`/`enabled=false` saem antes de varrer o corpus. A/B (N≈1 k):
+  `self version` 42,9→3,5 ms (−92 %), `prime` 43,6→2,5 ms (−94 %).
+- **Dedup sem quadrático (E15-T04/O3)** — `propose_merges` usa uma peneira de postings por posição
+  (máscara reutilizável, sem o `find` O(N) e sem `BTreeSet` por doc) e conjuntos/termos cacheados;
+  `Index::score_doc` fica exposto. A soma doc-major do BM25 é preservada (proptest
+  `sieve_matches_reference`). A/B (N≈1 k): `doctor` −13 %, `compact` −10 %; no micromb,
+  `propose_merges` esparso é ~900× mais rápido que o denso (o corpus sintético é denso).
+- **Consistência de ordenação e capacidade (E15-T05/O6.1/O6.2)** — `sort_by` vira
+  `sort_unstable_by` onde a ordem é total (tiebreak por `id`/par único), poupando o buffer da
+  stable sort; `build_hits`, componentes/ordem de ciclo e `Store::list_ids` passam a reservar
+  capacidade. `suggestions` e `learn::learn` ficam estáveis (comparadores parciais). A/B neutro
+  no e2e; ordem/bytes inalterados.
+- **Índice invertido + BM25 (E15-T06/O2)** — novo `retrieval::postings::Postings` (índice invertido
+  derivado, cacheado por `OnceLock` no `Index`, **nunca** persistido) serve de peneira ao
+  `score_with`, que pontua só candidatos com ≥1 termo quando isso compensa; se os termos cobrem
+  ≥ metade do corpus, um fallback por `df` varre como antes (evita construir o índice invertido à
+  toa). `field_sum` faz hoisting de `norm`/`weight` e reusa `idf_from`. A soma doc-major, pesos e
+  IDF permanecem idênticos (goldens + proptest `sieve_positions_match_scan`). No corpus sintético
+  (denso) o A/B é neutro; a peneira paga em vocabulário seletivo.
+- **Glob sem alocação por par (E15-T07/O2.3)** — `retrieval::anchor::GlobPattern` compila os
+  tokens uma vez e o matcher usa uma **matriz DP de uma linha** (1 `Vec` em vez de
+  `tokens.len()+1` por par); `match_note` compila cada âncora uma vez por nota. Semântica
+  idêntica (`glob_edge_cases` + proptest `glob_matches_reference` contra oráculo independente).
+- **Parse e hash sem alocação (E15-T08/O4)** — `normalize` ganha fast-path ASCII (NFC é
+  identidade) e `normalize_into` reutiliza buffer; `body_hash`/`note_id` hasheiam em partes
+  (`short_hash_parts`) sem concatenar; `hex8_value` e `base36_8` sem `format!`/`Vec<char>`; o
+  lexer TOON devolve `Cow<str>` por linha (sem alocar quando não há comentário) e o JSONL reserva
+  capacidade e pula `sort` já ordenado. Micro (N=1167): `normalize` −89 %, `body_hash` −84 %,
+  `note_id` −84 %, `base36_8` −63 %, `toon::parse` −21 %, `Note::parse` −8 %.
+- **Grafo, views e manifest (E15-T09/O5)** — `Graph` ganha **índice reverso filho→pai**
+  (`parents`, 1º vencedor na ordem do `BTreeMap`), tornando `parent`/`has_parent` O(1) (antes
+  varredura reversa O(V+E) por chamada); `next_tasks` **pré-computa `impact`** (antes chamado
+  dentro do comparador) e `manifest_at` computa `compute_views` **uma vez** (antes `next` +
+  contadores recomputavam o SCC). A/B (N=1167): `rewind` **319→134 ms (−58 %)** e
+  `rewind --json` **309→113 ms (−63 %)**; saída idêntica.
+- **`kd task` ponta a ponta (E15-T20/O8)** — o impacto de todos os ids passa a ser calculado
+  **numa passada** (`task::impacts`, O8.2): antes cada id relia o corpus e fazia uma travessia;
+  agora um único percurso credita cada ancestral (custo de **um** `impact`). `task list` lê o
+  corpus **uma vez** (`Session::notes` + `Graph::from_notes_ref`, O8.1) em vez de grafo + releitura,
+  e `task graph` deriva grafo e notas do mesmo vetor (sem reler por nó, O8.4). A/B (N=1167):
+  `task graph` 115→77 ms, `task list --ready` 99→76 ms, `task list --full-content` 22→14 ms,
+  `task list --sort impact` 18→13 ms; `rewind` consolidado em ~100 ms.
+- **Consistência transversal (E15-T10/O6)** — `content_terms` filtra por `len()` (tokens são
+  ASCII por D36, sem varrer `chars`); `query_terms` deduplica com `BTreeSet<Cow<str>>` (sem
+  `String` por token já minúsculo); `logging::init` não instala subscriber em `--quiet`/`off` e
+  usa `LevelFilter` para níveis simples (sem parsear `EnvFilter`); `#[cold]` nos construtores de
+  `Error` e `#[inline]` em `Index::tf`/`len`. Micro: `content_terms` 2,13→1,91 µs (−10 %).
+- **Carga validada do `.idx/` (E15-T11/O1.6)** — `Index::open`/`load_if_fresh` passam a validar a
+  frescura do índice derivado por **`mtime`** (só serve se for ≥ todas as notas; ausente,
+  desatualizado ou ilegível → reconstrói + aviso) e `Corpus::load_fresh` reusa o índice a partir
+  das mesmas notas. **Não habilitado** por padrão: decodificar o `retrieval.jsonl` (13,8 ms em
+  N=1167) custa mais que o rebuild (8,5 ms); fica pronto para o formato binário de T12. A bancada
+  foi corrigida (`timed` exige exit 0; `task list --universe`; `config --key/--value`; `forget`
+  idempotente) — antes comandos inválidos eram medidos como “ganhos”.
+- **Leitura paralela do corpus (E15-T12/O7)** — `Corpus::load_notes` divide os ids em faixas
+  contíguas e lê/parseia em `std::thread::scope` (**zero-dep**, sem `rayon`), remontando **na
+  ordem de `list_ids`** (bytes idênticos; limiar de 256 notas). É a **única adoção** da Onda 7: as
+  dependências avaliadas (`memchr`, `smallvec`, `rustc-hash`, `globset`, `rayon`, `mimalloc`) e o
+  formato binário do `.idx/` foram **rejeitados por medição** (o `mimalloc` regride; o binário
+  economiza < 20 % porque as notas ainda são lidas para o grafo). A/B (N=1167, `--no-idle`):
+  `Corpus::load_notes` −65 %, `Corpus::load` −44 %, `ask` −40 %, `task list --universe` −51 %,
+  `task graph` −31 %. Travado por `load_notes_parallel_matches_sequential_order`.
+- **Revisão de coleções (E15-T21/O9)** — `entry` substitui `contains_key` + `insert` em
+  `toon::flow::insert` e `config::toml::parse::insert_leaf` (**uma** busca por inserção; micro
+  `toon::parse` 1,66→1,52 µs, `Note::parse` 3,54→3,35 µs). A auditoria confirma que o restante já
+  usa chave emprestada ótima (`Postings::build` clona só no *miss*) e `sort_by` estável apenas
+  onde o comparador é parcial (`suggestions`, `learn`); `swap_remove` rejeitado (a ordem é
+  contrato) e `HashMap`/`HashSet`/`rayon` rejeitados por princípio.
+- **Bancada de benchmark** (`bench/`, fora do workspace, zero dependências além do `knudge-core`)
+  medindo componentes puros (**micromb**) e ações do binário (**ponta-a-ponta**) em corpora de
+  200 e 1000 notas. Alvos `make bench`/`make bench-quick`; relatório de gargalos em
+  [`bench/RELATORIO.md`](../bench/RELATORIO.md). Observação, não gate (E13-T09/R43: `criterion`
+  continua não-objetivo).
+
+### Mudado
+- **Saúde de topo: `kd doctor` (D163).** O antigo `kd maintenance doctor [--audit]` vira o verbo
+  `kd doctor [--fix] [--explain]`: a execução padrão roda os **13 checks + auditoria** num só
+  relatório, termina em `próximos:` e, com `--explain`, detalha cada achado (`esperado` ×
+  `encontrado` × `ação`). `--audit` deixa de existir; `kd maintenance` mantém
+  `compact|learn|prune|watch-service`. O `--json` ganha `degraded`/`status`/`audit`/`suggestions`
+  (e `explain[]` com `--explain`). `kd help` e `kd help <verbo>` passam a funcionar (D164).
+- **Fila de embeddings de topo: `kd drain` (D170).** O antigo `kd knowledge digest
+  [--status|--drain]` vira `kd drain [--status | --digest [--force]]`: `--status` mostra o estado
+  rico (`provider`/`mode`/`dimensions`, `indexed/pending/stale` e uma recomendação); `--digest`
+  digere em lotes até esvaziar/estagnar (log mínimo) e `--digest --force` apaga `.idx/` (derivado,
+  D84) e redigeri tudo — `--force` sem `--digest` é `invalid_input` (2). `kd drain` sem flags
+  mostra o help e **não** executa nada.
+- **`prime` compacto por padrão (D166).** O protocolo padrão passa a ser a versão **compacta**
+  (ciclo, guia dos verbos essenciais, âncoras, corpo, ID, saída); `kd prime --long` traz o
+  protocolo completo + gramática TOON/schema. O `kd init` usa a versão compacta como prompt
+  inicial. Goldens `prime.txt`/`json_prime.json` regenerados (novo `prime_long.txt`).
+- **Verbosidade explícita (D165).** `kd init` lista a estrutura e os arquivos com
+  `novo`/`atualizado`/`inalterado` + `próximos:`; `kd config` mostra `(projeto|global) — <path>`;
+  `kd sync` mostra `<branch>: N arquivo(s) commitados (<hash>)` ou `nada a sincronizar`;
+  `kd self version` aponta o help e `setup` lista o próximo passo (`completions` mantém o script
+  puro no stdout); `compact`/`learn`/`prune`/`watch-service` terminam com `propostas:`/`próximos:`.
+  O `init` tem golden regenerado.
+- **`kd` sozinho = `kd help` (D171).** Sem verbo, o `kd` imprime o help completo (`== kd --help`,
+  exit 0); `--json` sem verbo é `invalid_input` (2) — não há envelope sem comando. `kd <verbo>`
+  sem argumentos mostra o help do verbo (exit 0); `kd help`/`kd help <verbo>` funcionam; `kd ask`
+  vazio segue exit 2 (D130), agora com o help completo. `after_help` global com ciclo/âncoras/corpo.
+- **Redundância removida (D168).** O alias `--anchors` sai de `write`, `task new`/`task list`
+  (`--anchor` é a única grafia); `--with-body` permanece só como chave JSON de `--params`
+  (documentada). Testes de regressão garantem exit 2 para o alias removido.
+- **Documentação sincronizada (D169).** `AGENTS.md`, `docs/*`, `SKILL.md`, `llms.txt`, `README.md`,
+  `DIVERGENCES.md` e os templates embutidos (`agent_md.rs`/`skill.rs`) refletem `kd doctor`,
+  `kd drain`, `kd` sozinho = `kd help`, `--anchor` canônico (sem `--anchors`) e a verbosidade.
+
+## [0.3.3] - 2026-09-25
+
+### Adicionado
+- **Corpo da nota visível e incentivado (D161/D162).** `kd ask` revela o corpo
+  progressivamente (1º hit completo, 2–5 truncado a `recall.preview_chars`, resto padrão;
+  `--brief` desliga, `--full-content` mostra tudo); o `--json` ganha `body_match`/`body_snippet`
+  (snippet puro no core) e `channels.body` (parcela do body, informativa). O `prime` ganha a
+  seção **CORPO** com template (`Por quê`/`Evidência`/`Consequência`); o `kd init`/`onboard`
+  cria a skill `.agents/skill/kd/SKILL.md` (idempotente, governada por version marker); o
+  `rewind` anexa o corpo de `foundational`/`decision` (respeitando o orçamento); o `doctor`
+  ganha o check advisório `body` (notas sem corpo / sem lastro); e o gate de corpo para
+  `decision` fica disponível via `validators.toml kind="gate"`.
+
+### Mudado
+- **Chave de config nova:** `recall.preview_chars`. Nenhuma chave canônica TOON mudou (25).
+
+## [0.3.2] - 2026-09-24
+
+### Adicionado
+- **v0.3.2 — melhorias destiladas do `ai-memory` (D154–D159).** Sete contribuições adaptadas à
+  tese do knudge (protocolo explícito, núcleo puro, índice derivado); as demais foram recusadas
+  por premissa (captura automática, LLM interno, SQLite/servidor).
+  - **Renovação de shelf-life por uso (D154).** Uso vira derivado `.idx/usage.jsonl` (nunca
+    verdade, purgado em D84). Com `retention.renew_on_use=true`, a expiração passa a
+    `max(created_at, last_seen) + prazo` e **só estende** — `prune`/`rewind` respeitam o uso;
+    `ask`/`rewind` creditam os ids devolvidos, coalescidos no fim da invocação.
+  - **Consulta temporal `ask --as-of <TS>` (D155).** Reconstrói o corpus ativo em `T` a partir
+    de `forget`/`restore` e da cadeia de supersessão (`link replaces`) e roda o pipeline
+    determinístico sobre o subconjunto — o ranking de `T` é reproduzível. Nota purgada vira
+    `warnings[]`; `T` no futuro é `invalid_input`; `--json` traz `as_of`/`historical`.
+  - **Portão de evidência em propostas (D156).** `validators.toml` ganha `kind="gate"`
+    (stdin `{op,before,after}` → stdout `{passed,score_before,score_after}`).
+    `learn`/`compact --verify` anexam o veredito (read-only); com `proposals.enforce=true` e
+    `proposals.gate` configurado, o `write` bloqueia quando o gate reprova (`min_delta`).
+  - **Promoção de regras para `AGENTS.md` (D157).** `kd knowledge promote
+    recommend|approve|edit|remove|list` escreve um bloco governado (`knudge:rules:start/end`,
+    irmão do protocolo) com proveniência por linha e teto `rules.max_promoted`. Desligado por
+    default; nunca auto-edita; a nota de origem permanece.
+  - **Sugestão semântica de arestas/contradições (D158).** `kd knowledge suggest` classifica
+    pares do índice vetorial em `duplicate`/`contradiction`/`link` (banda
+    `suggestions.contradiction_low..high`) — advisory, nunca vira aresta (D49).
+  - **Redação tipada de segredos (D159).** O log passa a emitir `[REDACTED:<tipo>]`
+    (`authorization`/`token`/`api_key`/`password`/`secret`/`bearer`/`custom`) em vez do marcador
+    anônimo.
+  - **Invariantes transversais (R45).** Default identidade (inclusive sem criar derivados),
+    renovação só estende, supersessão vence evidência, acesso ≠ evidência, transformação não
+    deleta a fonte (a remoção do canônico é só o `forget --purge` explícito), toda varredura
+    executada deixa relatório, leitura nunca escreve nota. Travados de ponta a ponta por
+    `crates/knudge-cli/tests/invariants.rs` e `tests/improvements_032.rs`.
+  - **Varredura de resíduos na inicialização (D160).** `store::sweep_residues` (R10) passa a
+    rodar ao abrir a sessão sobre `notas/`/`.idx/`/`cache/`/`eventos/`, removendo `*.tmp`/
+    `*.stale` antigos (> 30 s) com `warn`; **nunca** toca `*.lock`/`.locks/` (o reclaim atômico
+    fica no `lock.rs`/`doctor --fix`). Best-effort (R33): falha vira aviso. Fecha E03-T08/R10.
+
+### Mudado
+- **Chaves de config novas:** `retention.renew_on_use`, `proposals.gate`/`min_delta`/`enforce`,
+  `suggestions.enabled`/`contradiction_low`/`contradiction_high`,
+  `rules.enabled`/`max_promoted`/`min_confidence`. Nenhuma chave canônica
+  TOON mudou (25).
+
+## [0.3.1] - 2026-09-24
+
+### Corrigido
+- **v0.3.1 — bordas de leitura tolerante e CLI achadas no corpus do Lotep.**
+  - **Âncoras ausentes/diretório não derrubam mais `doctor`/`--fix`.** `StdFs::read` mapeia
+    `ENOENT`/`EISDIR` para `ErrorKind::NotFound` (antes virava `io` e o branch `NotFound` de
+    `hash_file` era morto); o verify-on-hit classifica como `missing` e o `--fix` remove âncoras
+    quebradas e de diretório (D86/E09).
+  - **Índice derivado volta a carregar com `type: epic`.** `doc_from_value` aceita `"epic"`
+    (grupo derivado de `scope=epic`, D149) e `derived_diverges` **reporta** o erro de parse em
+    `warnings[]` em vez de engolir como "divergente"; `doctor --fix` normaliza `type: epic` da
+    nota canônica (além de `container`/`scope: plan`).
+  - **`write --update` não renomeia id legado em silêncio.** Id não-derivável (prefixo histórico)
+    revisa no lugar enquanto `type`+`statement` não mudarem; só supersede quando a chave de
+    conteúdo muda (D01/D02).
+  - **Dedup de item de trabalho compara só o `statement`.** Corpos-template de import deixavam
+    de gerar quase-duplicatas falsas em `compact`/`doctor`/`audit` **e em `maintenance learn`**
+    (E08/D80).
+  - **`doctor --audit --json` expõe ids/pares** (`duplicate_pairs`, `broken_anchor_details`,
+    `missing_edge_details`, `stale_lock_details`, `integrity_issues`, ciclos) — sem contagem sem
+    contexto.
+  - **`program-anchor` vira warn.** Épico-raiz sem `plan/*.md` (típico de corpus importado)
+    aparece como `warn` e **não** deixa `healthy=false` (D119).
+  - **Diretório não é âncora válida em `prune`/decay.** `compute_anchor_validity` passa a tratar
+    diretório como quebrado, alinhado ao `doctor` (D86).
+  - **`task list --scope` aceita nível ou id.** `--scope epic|issue|task` filtra o nível;
+    `--scope <id-de-épico>` traz a subárvore (`results_in`), alinhando com `ask`/`rewind`.
+
+### Adicionado
+- **`kd write --clear-anchors`** limpa todas as âncoras; `--anchor ""` agora é **rejeitado**
+  (`invalid_input`, exit 2) em vez de gravar `anchors: [""]`.
+- **`kd task update --anchor`/`--clear-anchors`** substitui/limpa âncoras de tarefa (mesmo
+  `validate_anchors`; conflitam entre si). No `task --batch`/`--params`, `anchors` no update
+  agora é **aplicado** (antes era parseado e ignorado em silêncio).
+- **`kd write --update <id> --params '<json>'`** aplica um patch JSON (mesmas chaves do lote:
+  `type`/`statement`/`body`/`tags`/`anchors`/`classification`/`status`/`scope`).
+- **`kd forget --purge --force`** ignora a retenção para purgar tombstone `forgotten`/`superseded`
+  recém-criado (nunca nota viva).
+
+## [0.3.0] - 2026-09-24
+
+### Mudado
+- **v0.3.0 — superfície redefinida (D134–D150).** Ciclo de revisão que simplifica o modelo e a CLI:
+  - **Modelo (D134/D149).** `epic` é a raiz; `issue` opcional; `scope=plan` e `type=container`
+    removidos (grupo = `scope=epic`, `type` omitido). Filtro/eixo `container` → `scope`.
+  - **Contrato de bytes (D135/D142).** Chaves canônicas 28→25 (sem `expires_at`/`not_before`/
+    `confidence`); `--anchor` é o único vínculo externo; views colapsam em `compute_views`.
+  - **Agente único (D136).** Sem posse: removidos `claim`/`release`/`--owner`/`--mine`/`actor`;
+    `mode` reduzido a `sequential|concurrent|magentic`; `task list --since` removido.
+  - **Tarefas (D137/D138/D139).** `show` completo (corpo/`checks`/âncoras/tags/`outcomes`) e
+    `list --full-content`; `task plan` só `--prompt`/`--submit`; `graph` enxuto
+    (`id|kind|status|statement`) e `plan.md` ancora vários épicos (floresta).
+  - **Entrada universal (D140/D141/D147).** O posicional é **conteúdo** (corpo/consulta);
+    afirmação vira `--summary` e ids viram `--id`; `--body` removido; `task new --params`/
+    `--batch`; `write`/`ask`/`task new` aceitam `--params '<json>'`; stdin/heredoc universal.
+  - **Escopo explícito (D143/D144/D146).** `knowledge map`/`rank`, `maintenance
+    learn`/`compact`/`prune` e `task list` exigem filtro (`--tag`/`--anchor`/`--type`/
+    `--class`/`--around`) ou `--universe`; `rewind` ganha os mesmos filtros. `ask` devolve só
+    **conhecimento** por padrão (`--with-task` inclui trabalho) e `--with-body` vira
+    `--full-content`; `rank`/`tags` migram para `kd knowledge`.
+  - **Layout material (D150).** `notas/<tipo>/<id>.md` + `MAP.md` + notas-hub
+    (`kd knowledge map --write`).
+  - **Busca observável (D151/D152).** O `--json` do `ask` traz `channels` por hit (parcelas
+    RRF + boosts `recent`/`stars`; o pipe não muda); busca vazia → stdout `[no_results]`
+    (exit 0; `--json` com `hits: []`).
+  - **Digestão e cache (D145/D148/D153).** `maintenance eval`/`index` saem (`eval` era stub);
+    a fila vira `kd knowledge digest --status/--drain`. O cache vetorial deixa de ser descartável:
+    opt-in `embeddings.version_cache` o versiona em `.knudge/emb_cache.jsonl` (`merge=union`, sem
+    eviction), chave `(body_hash, model)` com *lookup* model-aware e desempate determinístico;
+    clone com o mesmo modelo reindexa **sem inferência**. Conflito de nota é pulado/reportado.
+
+### Corrigido
+- **Corpus legado (layout plano + `type: container`) volta a ser lido.** `Store::read`/`exists`/
+  `remove` caem em `notas/<id>.md` quando o canônico não existe, e `Index::from_store`/
+  `Graph::build`/varreduras do CLI usam `read_optional` — uma nota com `type` desconhecido é
+  **pulada** em vez de derrubar `ask`/`task list`/`rewind`/`doctor`. `doctor --fix` então migra o
+  corpus (D134/D149/D150). Coberto por `legacy_migration.rs` (inclui smoke no corpus real do
+  `TMP`) e por testes de `store`/`index`/`graph`.
+
+### Documentação
+- **`docs/` reestruturada: um guia por comando.** Cada verbo (`prime`, `init`, `ask`, `write`,
+  `task`, `knowledge`, `rewind`, `maintenance`, `config`, `forget`, `sync`, `self`) tem o seu
+  `.md` com o que faz, uso ideal, referência de cada flag/subcomando, resultados e exemplos em
+  **complexidade crescente**. Entrada rápida em [`docs/00-quickstart.md`](usage/00_quickstart.md)
+  (instalação, desinstalação, primeiros passos, troubleshooting) e
+  [`docs/01-conceitos.md`](usage/02_ciclo.md) (modelo de dados, layout, arquitetura e decisões
+  `Dxx`), mais [`docs/troubleshooting.md`](usage/19_troubleshooting.md) e os guias de
+  [`mcp`](usage/17_mcp.md)/[`embeddings`](usage/18_embeddings.md).
+
+## [0.2.3] - 2026-09-23
+
+### Adicionado
+- **`watch-service` multiplataforma com servidor de embeddings persistente (D133).** O worker
+  detecta o agendador em runtime — `systemd --user` (Linux) ou `launchd` (macOS,
+  `~/Library/LaunchAgents`) — e o llama.cpp passa a rodar como unidade/agente próprio
+  (`knudge-embed`, `Restart=on-failure`/`KeepAlive`), então o `--drain` manual e o auto-drain
+  lazy sempre encontram o servidor. `--uninstall` derruba agendador + servidor; sem
+  systemd/launchd, o `--install` recusa e imprime a linha de cron.
+- **`watch-service --install` instala as dependências de embeddings.** Se faltarem, baixa o
+  `llama.cpp` (script oficial `llama.app` + fallback para `brew`/`winget`/`scoop`/`choco`/`apt`/
+  `dnf`/`pacman`/`zypper`) e o GGUF recomendado (com `curl` e fallback para `wget`); `--no-deps`
+  pula e exige que já estejam presentes.
+- **`watch-service` imprime um guia manual por SO quando o ambiente é inválido.** Em falha (sem
+  `systemd`/`launchd`, `llama.cpp`/GGUF ausentes ou servidor que não sobe), o worker mostra como
+  instalar o `llama.cpp` e subir o servidor em Windows, macOS, Ubuntu, Fedora e Arch, além do
+  fallback sem agendador (`nohup`/cron) e de como apontar o `kd`.
+- **Guias de uso em `docs/`.** Nove guias didáticos (instalação, primeiros passos e um por grupo
+  de comandos — `ask`, `write`, `task`, embeddings, manutenção, MCP) com todos os comandos e
+  orientação de quando (não) usar. O README ficou enxuto (resumo + instalação com embeddings +
+  quickstart dos comandos principais) e aponta para os guias.
+
+### Corrigido
+- **Provedor de embeddings fora do ar não vira um warning por nota.** O dreno só isola as notas
+  individualmente quando o lote falha e o provedor está **alcançável** (sonda curta); com o
+  provedor inalcançável, sai **um** warning e a fila segue `pending`, em vez de tentar (e avisar)
+  nota a nota (R33/D83).
+- **`watch-service`: o timer volta a disparar após reinstalar/reiniciar.** O `OnUnitActiveSec`
+  só reagenda depois que o serviço roda; um timer reiniciado depois da última execução ficava
+  com `NextElapse=infinity` e o worker nunca mais rodava. O unit agora usa `OnActiveSec=5min`
+  (arma ao instalar/reiniciar) + `OnUnitActiveSec=$EVERY` (reagenda após cada run).
+- **`make update-version` preserva o bit de execução do `install.sh`.** O `replace` do
+  `bump-version.sh` usava `sed > tmp; mv`, perdendo o modo; agora restaura o modo original
+  (`stat` GNU/BSD). Sem isso, `make install` falhava com `Permission denied` logo após o bump.
+- **`--anchor` é o nome canônico em `kd write` e `kd task new`.** O `--anchors` (plural) era o
+  único aceito nessas duas escritas, divergindo de `kd ask`/`kd task list` e da superfície
+  documentada (`16_cli_surface.md`). Agora `--anchor` funciona (canônico) e `--anchors` segue
+  aceito como alias; os dois também aceitam lista com vírgula.
+- **`kd prime` agora traz o guia de uso e as âncoras.** O protocolo (byte-idêntico por versão)
+  ganhou um “guia rápido” por verbo (quando usar e quando NÃO usar) e uma seção dedicada a
+  `--anchor` (o canal que liga a memória ao código), além de corrigir `--anchors`→`--anchor`.
+
+## [0.2.2] - 2026-09-23
+
+### Adicionado
+- **`make update-version VERSION=vX.Y.Z`** (`scripts/bump-version.sh`): atualiza a versão em
+  `Cargo.toml`, `Cargo.lock`, goldens do `prime`/`version`, `install.sh`, `README.md` e
+  `CHANGELOG.md` de uma vez — o portão da release exige `tag == Cargo.toml`.
+
+### Alterado
+- **`.gitattributes` cobre todos os arquivos do `.knudge/`.** O bloco gerenciado agora declara
+  explicitamente: notas (`notas/**`) e configuração (`config.toml`, `templates.toml`,
+  `validators.toml`) com `eol=lf` (`body_hash`/id estáveis entre plataformas), `merge=union` no
+  log de eventos append-only e `binary`/`linguist-generated` para o derivado descartável
+  (`.idx/`, `cache/`, `.locks/`, `*.tmp`) — sem auto-merge de índice reconstruível (D31/D34).
+
+### Corrigido
+- **`forget --purge`/TTL não deixam mais arestas penduradas.** `Store::remove` remove as
+  referências de entrada (as 8 arestas explícitas e `superseded_by`) das demais notas antes de
+  apagar o arquivo, mantendo a integridade do grafo (D46/D84).
+- **Dedup ignora notas `forgotten`/`superseded`.** `propose`/`propose_merges` (e portanto
+  `doctor`/`compact`/`learn`) deixam de propor merge de notas mortas, alinhado a
+  `tags`/`next_tasks` (D43/D107).
+- **Uma nota não-embeddável não trava mais a fila inteira.** Quando o lote falha, o dreno tenta
+  as notas individualmente: as boas entram no índice e a ruim fica `pending` com warning, em vez
+  de descartar o lote e repetir para sempre (R33/D83).
+- **`watch-service`**: o worker avisa (log e `--status`) quando o servidor de embeddings já está
+  no ar, pois não o reconfigura — um llama iniciado fora do worker precisa de `-b 2048 -ub 2048`
+  para não deixar notas longas `pending`. Exemplos manuais nos docs atualizados.
+- **CI de push**: `cargo deny` deixou de falhar por wildcard de path interno
+  (`allow-wildcard-paths`); `miri` pula `adapters::*` (tocam SO/rede/processos, fora do núcleo
+  puro); removidos o `nextest` (redundante com `make check`) e o build release multi-SO (coberto
+  pelo `release.yml`, por tag).
+
+## [0.2.1] - 2026-09-23
+
+### Adicionado
+- **`kd maintenance watch-service` (D132).** Gerencia o worker de auto-drain ocioso. Ações
+  exclusivas (default `--status`): `--install` faz pré-flight (`systemd --user`/`kd`/`llama`/GGUF/
+  projeto), cria o timer e cadastra o projeto; `--subscribe`/`--unsubscribe` cadastram/
+  descadastram **um** projeto (multi-projeto; não desinstalam o sistema); `--status` mostra a
+  saúde (timer, servidor, fila por projeto); `--uninstall` remove o sistema. O `knudge-idle.sh` é
+  **embutido no binário** (sem download por padrão); `--script`/`--url` sobrescrevem. Mutar exige
+  confirmação (stderr; não-TTY cancela; `--yes` pula). O GGUF mora ao lado do `config.toml`
+  global (`${XDG_CONFIG_HOME:-~/.config}/local/knudge/`).
+
+### Alterado
+- **Auto-drain ocioso (E11-T03/D131).** `embeddings.mode` agora aceita só `lazy` (default) e
+  `manual`; `eager` foi removido (rejeitado como `config`=7). Em `lazy`, ao fim de cada comando
+  não-`maintenance`, o `kd` drena **um lote** de embeddings pendentes, *best-effort*, **depois**
+  de emitir a saída — nunca altera exit code nem `warnings[]` e não interage com `strict`.
+  `KNUDGE_NO_IDLE` desliga o caminho. O worker contínuo (timer systemd) passa a ser instalável
+  com `scripts/knudge-idle.sh`.
+
+## [0.1.1] - 2026-09-23
+
+### Adicionado
+- **`llms.txt` e `SKILL.md` (uso por projetos que adotam o knudge).** `llms.txt` é o índice
+  para modelos de linguagem (o que lembrar, docs, key facts, exemplos); `SKILL.md` é o guia de
+  **uso ativo** para agentes — ciclo `ask→write→task→sync`, quick reference, workflows
+  (conhecimento, tarefas, handoff, manutenção, MCP), anti-patterns, limitações e checklist.
+  Ambos em português, alinhados ao `prime`.
+- **README reescrito, simples e objetivo.** Instalação (`curl | bash`), quickstart, "o que faz",
+  casos de uso, embeddings opcional, MCP, destaques, superfície, desenvolvimento e tabela de
+  docs — o detalhe de release/build fica em [`AGENTS.md`](../AGENTS.md) e no plano de distribuição.
+- **CI/CD de release sem Docker (E12-T05).** `.github/workflows/release.yml` publica 6 alvos
+  otimizados a partir de uma tag `vX.Y.Z` — Linux x86_64/ARM64 (musl estático), macOS Apple
+  Silicon/Intel e Windows x86_64/ARM64 — com portão de versão (`verify`: tag == `Cargo.toml` +
+  `make check`), checksums e `install.sh` compatível. **Sem Docker** (cross-compile nativo onde
+  faz sentido). `make dist` empacota a plataforma atual (`scripts/package.sh`); o CI passou a
+  validar o perfil `release` em Linux/macOS/Windows.
+- **`kd prime` reorganizado por fluxo e economia de tokens (D57/D130).** O protocolo agora abre
+  com o **CICLO** (`ask → write → task → sync`), separa **CONHECIMENTO / PESQUISA / TAREFAS**,
+  explicita os modos do `ask` (`--id`/`--around`/`--rank`/`--tags`) e recomenda `--limit N` e
+  `--brief` para gastar menos contexto. Inclui `kd sync` (faltava) e `kd task update`. Goldens
+  `prime.txt`/`json_prime.json` regenerados (~1.2k tokens).
+- **README: ambiente, integração e modelo.** Novas seções **Preparar o ambiente** (Rust 1.97+,
+  git, embedding opcional), **Integrar ao projeto** (`kd init`/`.gitignore`/MCP) e
+  **Embeddings** com o modelo recomendado
+  (`ibm-granite/granite-embedding-97m-multilingual-r2`, `llama.cpp --pooling mean`, config e
+  `kd maintenance index --drain`).
+- **`kd task show` resolve o contexto do item (D125).** Cada id agora traz `parent`,
+  `blocked_by`, `blocks` e `children` com **título** e estado — em texto
+  (`pai:`/`bloqueado_por:`/`bloqueia:`/`filhos:`) e no `--json`. Um comando responde "onde isto
+  se encaixa e o que o bloqueia" sem puxar a árvore inteira. Testes:
+  `task::tests::context::*`, `cli::task_show_includes_context`.
+- **Rollup de progresso por épico (D127).** `epic_of`/`progress_of` contam os **itens de trabalho
+  folha** (`is_work_item` sem filhos de trabalho) no subárvore do épico e quantos estão `closed` —
+  derivado, sem verdade nova. Folhas = a fronteira acionável (`task` + `issue` não decomposta):
+  fechar um `issue` com tarefas abertas não infla, esquecer de fechá-lo não trava. Aparece no
+  `kd task close` (`epico: <id>|<título> (<done>/<total>)`), no `kd task show` e nos containers
+  do `kd task graph` (`(done/total)`). Testes: `task::tests::progress::*`,
+  `cli::task_close_reports_epic_progress`.
+- **Clusters ganham verbo próprio `kd knowledge map` e o eixo `container` passa a usar a
+  hierarquia (D128).** `container_of` sobe pelos pais (`results_in`) — a mesma relação de
+  `belongs_to` — com fallback para `depends_on`; o eixo Container deixa de ser vazio em projetos
+  reais. `kd knowledge map [--axis A] [--scope C] [--semantic] [--members]`: fase 1 determinística
+  e, com `--semantic`, fase 2 dentro de cada cluster acima de `clusters.min_volume` (config que
+  antes era ignorada). Read-only. Testes: `lifecycle::tests::clusters::*`,
+  `lifecycle::tests::semantic::semantic_clusters_preserve_parent`,
+  `cli::knowledge_map_reports_container_axis`.
+- **Fase 2 semântica usa complete-link (D129).** Um id só entra num cluster se for similar a
+  **todos** os membros — evita que um item central puxe vizinhos dissimilares (threshold 0.5
+  fundia tudo). Teste: `lifecycle::tests::semantic::complete_link_prevents_chaining`.
+
+### Alterado
+- **`knudge-cli` e `knudge-mcp` passam a ser binários puros.** Os dois pacotes deixam de expor
+  `[lib]` (`knudge_cli`/`knudge_mcp`); a **única biblioteca** é o `knudge-core`, interna e
+  compartilhada pelos dois. O que se distribui são os executáveis `kd` e `knudge-mcp` (GitHub
+  Releases) — sem `rlib` e sem preparo de publicação de crate.
+- **Arestas passam a ter via única: `kd write --link` (D126).** `kd task new` deixa de aceitar
+  `--depends-on` e `TaskSpec.depends_on` sai do core; `plan submit` cria as dependências dos
+  passos via `write::link`. Reduz a superfície de API e reaproveita o caminho de grafo (valida
+  id/auto-aresta, grava evento e revisão). Testes ajustados:
+  `task::tests::submit::link_creates_depends_on_edge`, `task::tests::impact::*`, `cli::*`.
+- **Modelo de embedding default passa a `ibm-granite/granite-embedding-97m-multilingual-r2`**
+  (384d, Apache-2.0, 200+ idiomas com **PT** explícito), substituindo o inglês
+  `msmarco-MiniLM-L12-cos-v5` (D123). Medido na bancada PT-BR (`bench/`): +0.070 nDCG@5 sobre
+  BM25 e melhor R@1/MRR que o default antigo, com o **mesmo tamanho de índice**.
+- **Fusão RRF agora tem peso por canal** (`recall.lexical_weight`, `recall.anchor_weight`,
+  `recall.semantic_weight`; D124 revê D81). Default `semantic_weight=30` **Pareto-domina** o
+  neutro no corpus PT-BR (R@1/R@5/MRR/nDCG@5 ≥ 1:1), corrigindo a diluição do canal vetorial
+  por votos lexicais. Regressão: `retrieval::tests::rrf::semantic_weight_can_flip_the_winner`,
+  `retrieval::tests::rrf::weight_scales_channel_contribution`.
+
+### Corrigido
+- **Entrada vazia virava lixo ou silêncio (D130).** `kd write`/`kd task new` sem `statement`
+  criavam nota/tarefa com `statement: ""`; `kd ask` sem nenhum modo saía com exit 0 e stdout
+  vazio. Agora `write`/`task new` vazios são `invalid_input` (2) e o `ask` sem modo devolve o uso
+  do comando (2). Regressão: `cli::write_without_statement_is_invalid`,
+  `cli::task_new_without_statement_is_invalid`, `cli::ask_without_mode_returns_usage`.
+- **Nota ausente era `io` (5), não `not_found` (3).** `Store::read` propagava o erro de I/O do
+  arquivo ausente, então `kd ask --id <id>` morria com 5 e a degradação que o `get` já previa
+  (`Err(Error::NotFound(_)) => warnings`) nunca disparava. Agora `read` devolve `not_found`:
+  `ask --id` volta com warning e `ask --around` falha alto com 3. Goldens de erro
+  (`error_not_found.txt`/`json_error_not_found.json`) e teste
+  `cli::ask_missing_id_degrades_to_warning`.
+- **Views `ready`/`blocked`, `impact` e `next:` ignoravam espécies de trabalho (D120).**
+  `compute_views_at`/`block_reason`/`impact` filtravam `type == task`, então itens criados com
+  `--kind error|question|risk|decision` (D113) — que têm `scope` — sumiam das views embora
+  aparecessem no `task list`/`graph`. Agora o critério é **espécie de trabalho com `scope`**
+  (`NoteType::is_work_kind` + `Graph::is_work_item`); containers e conhecimento ficam de fora.
+  Regressão: `retrieval::tests::views::error_kind_work_item_is_ready_but_knowledge_error_is_not`,
+  `task::tests::impact::error_kind_work_item_counts_as_dependent`.
+- **O canal lexical casava stopwords e afogava o vetorial (D122).** Termos funcionais (`de`,
+  `a`, `o`…) e fragmentos de 1 caractere (o tokenizador ASCII quebra `são` → `s`,`o`) geravam
+  votos lexicais espúrios: em `ask "tempestade de requisições"` o topo era um erro casado só por
+  `de`. Agora `retrieval::token::content_terms` os descarta. Regressão:
+  `retrieval::tests::token::content_terms_drop_stopwords_and_short_fragments`,
+  `retrieval::tests::token::stopwords_are_sorted_for_binary_search`.
+- **`kd ask --anchor <path>` voltava vazio sem query textual e ignorava âncoras-glob.** Agora
+  `--anchor` alimenta o **canal** de âncoras (D81) — a consulta funciona só com o path, sem
+  query — e `Filter.anchors` casa nas **duas direções** (o pedido como glob e a âncora da nota
+  como glob sobre o caminho pedido), alinhado a `rewind --files`. Regressão:
+  `retrieval::tests::filter::anchor_filter_accepts_note_glob_matching_requested_path`,
+  `retrieval::tests::recall::anchor_channel_recalls_with_empty_text`,
+  `cli::ask_anchor_finds_note_without_query`.
+- **`kd ask --brief` e `--with-body` eram flags mortas.** Agora `--brief` emite `id|statement`
+  (2 colunas) e `--with-body` anexa o corpo de cada hit (no pipe e em `data.hits[].body` no
+  `--json`); `--id` continua trazendo o corpo, e `--id --brief` o omite. Regressão:
+  `cli::ask_with_body_and_brief_contract`.
+- **`kd ask` devolvia notas `forgotten`/`superseded` por padrão.** Como `forget` é soft-delete
+  (D43), o `ask` sem `--status` agora exclui esses dois estados; `--status forgotten` (ou
+  `superseded`) continua disponível para inspecionar a linhagem. Regressão:
+  `cli::forgotten_note_is_hidden_from_default_ask`.
+- **`kd prime` entregava só um placeholder de 5 linhas.** Agora imprime o protocolo estático
+  completo (D57): tipos, classificação/status, fluxo de escrita em duas fases (0.75/0.92),
+  pesquisa, estado/handoff e orçamento, tarefas, manutenção, ciclo de vida, config, formato de
+  saída/exit codes e regras de `id`/TOON. `--long` anexa tipos e as 28 chaves canônicas.
+  Goldens `prime.txt`/`json_prime.json` atualizados; `kd` continua byte-idêntico a `kd prime`.
+
+### Alterado
+- **`recall.default_limit` cai de 10 para 5** (D121): o `ask` devolvia hits demais para contexto
+  de LLM. Ajuste por config (`kd config set recall.default_limit N`).
+- **`kd prime`** passa a listar `write --batch`, `ask --rank`, `task show` multi-id,
+  `task close --note`, os filtros `--tag`/`--anchor` de `task list` e `maintenance prune`;
+  goldens `prime.txt`/`json_prime.json` regenerados.
+- **`kd prime`** passa a listar `ask --tags` e as linhas `next:`/`fresh:` do `rewind`; goldens
+  `prime.txt`/`json_prime.json` regenerados.
+- **`kd prime`** passa a listar `task list --sort impact`; goldens regenerados.
+- **`rewind`**: a linha `embeddings_pending=N` vira `fresh: stale=… expiring=… pending=N`
+  (D106).
+- **Confiança derivada**: `ConfidenceInput` ganha `task_confirmation` (X1/D108); o `ask` reflete
+  a confirmação por tarefa em `hits[].confidence`. Novo campo `Meta.scope` (persistido no índice
+  derivado; opcional em índices antigos — D15).
+
+### Adicionado
+- **`why = semantic` no `ask`** (D121): um hit que veio pelo canal vetorial deixa de ser rotulado
+  `recent` e passa a mostrar `semantic`, com precedência acima da recência genérica (mas abaixo
+  de `stars`/`file_match`/`anchor_match`/`tracker_match`). Regressão:
+  `retrieval::tests::recall::vector_channel_labels_hit_as_semantic`,
+  `retrieval::tests::recall::stars_take_precedence_over_semantic`.
+- **`kd ask --rank`** (K2/D107): ranqueia por confiança **derivada** sem query textual —
+  `id|statement|confidence|why` (ordem `confidence desc, id asc`); o universo é só conhecimento
+  (notas sem `scope`), já que itens de trabalho têm `task list --sort impact`. Reusa
+  `confidence_score` + a confirmação por tarefa (X1). Regressão:
+  `retrieval::tests::rank::*`, `cli::ask_rank_orders_by_confidence`.
+- **`kd write --batch -`** (K4/D110): aplica um lote de rascunhos **JSONL** pelo mesmo protocolo
+  de dedup (0.75/0.92), uma linha `action|id` por item; linha inválida vira `warnings[]` e o
+  lote continua (R33); `--dry-run` só avalia. Teto `write.batch_max` (int, 100) ⇒ `invalid_input`.
+  `Draft::from_value` rejeita chave desconhecida. Regressão: `write::tests::batch::*`,
+  `cli::write_batch_jsonl_creates_and_dry_run`.
+- **`kd task list --tag/--anchor/--since`** (T5/D104): reusa `retrieval::Filter` (tags/âncoras) e
+  filtra por `created_at`; `kd task new` passa a aceitar `--tag`. Regressão:
+  `cli::task_list_filters_by_tag_anchor_and_since`.
+- **`kd task show <ID> [<ID>…]`** (T5/D104): mostra vários ids separados por `\n---\n`; `--json`
+  devolve `data.tasks[]`; id ausente vira `warnings[]` (parcial) sem derrubar os demais.
+  Regressão: `cli::task_show_multiple_ids_separator_and_partial`.
+- **`kd task close --note <TXT>`** (T6/D104): o motivo entra em `outcomes[].notes` (exige
+  `--outcome`). Regressão: `cli::task_close_note_records_outcome_reason`.
+- **`kd maintenance prune`** (K5/D112): propõe `forget|id|motivo` por shelf-life vencido ou
+  âncoras decaídas, reusando `demotion_candidates`; membros de ciclo ficam de fora (D45) e nada
+  é gravado (D47) — a aplicação é `kd forget`. Regressão:
+  `cli::maintenance_prune_proposes_forget_for_expired`.
+- **`learn` com sinal de tarefa** (X2/D111): tarefa com `outcomes` de sucesso cuja âncora não tem
+  nota ancorada vira proposta `create_note` (`why="tarefa fechada sem nota"`); read-only (D47).
+  Regressão: `maintenance::tests::learn::success_task_*`.
+- **`kd task list --sort impact`** (D109): ordena o caminho crítico por `(impacto desc,
+  created asc, id asc)`, onde impacto = tarefas **abertas** que dependem transitivamente
+  (`depends_on` reverso); `--explain` acrescenta `unblocks=N` e o `--json` traz `impact`. O
+  modo `--sort impact` ignora `closed`/`superseded`/`forgotten` (ao contrário da view `--ready`,
+  que os mantém — D104). `task::is_actionable` é compartilhado com o `next:` do `rewind`.
+  Regressão: `task::tests::impact::adding_dependency_never_decreases_impact`,
+  `task::tests::impact::actionable_excludes_terminal_statuses`,
+  `cli::task_list_sort_impact_orders_critical_path`, `cli::task_list_sort_impact_skips_closed`.
+- **Feedback derivado tarefa→conhecimento (X1/D108)**: tarefas com `outcomes` de sucesso que
+  compartilham `anchors` confirmam a nota — `task_confirmation` entra no boost do BM25 (canal
+  lexical), na confiança derivada (`hits[].confidence`) e promove a `star` no manifest de
+  `rewind`. Peso em `recall.confirmation_from_tasks` (float, 0.1); sem `write` (D87). Regressão:
+  `lifecycle::tests::from_tasks::*`, `lifecycle::tests::confidence::monotone_in_task_confirmation`,
+  `retrieval::tests::bm25::task_boost_raises_score`,
+  `retrieval::tests::recall::task_confirmation_raises_confidence_and_rank`,
+  `cli::task_outcome_promotes_anchored_note_in_ask`,
+  `cli::rewind_files_promotes_task_confirmed_note`.
+- **`rewind` com `next:` e `fresh:`** (D106): o manifest dinâmico lista as tarefas `ready`
+  **abertas** de maior impacto (`next:`) e o frescor do corpus
+  (`fresh: stale/expiring/pending`); `K` deriva do orçamento e o excedente vira `dropped`.
+  Novos `task::impact` (tarefas abertas que dependem transitivamente) e `lifecycle::freshness`
+  (shelf-life + fila). Regressão: `task::tests::impact::*`, `handoff::tests::next::*`,
+  `lifecycle::tests::shelf_life::freshness_counts_stale_expiring_and_pending`,
+  `cli::rewind_manifest_shows_next_and_fresh`.
+- **`kd ask --tags`** (D107): lista o vocabulário de tags (`tag|count`, `count` desc, `tag` asc),
+  ignorando `forgotten`/`superseded`; `--limit N` e `--json` (`data.tags[]`). Regressão:
+  `retrieval::tests::tags::*`, `cli::ask_tags_lists_vocabulary`.
+- **Plano preenchível por LLM (`kd task plan --prompt`/`--from`)** (D105): `--prompt` deriva um
+  prompt TOON read-only do template (`feature`/`bug`/`refactor`, com `min_steps`/`min_acceptance`);
+  `--submit --from -|<arquivo>` lê o plano TOON, valida tudo **antes** de escrever (seções
+  obrigatórias, passos, colisão de id) e cria os filhos. Templates em `.knudge/templates.toml`
+  (subset TOML próprio, D97) sobrepõem os built-ins. Regressão: `task::tests::template::*`,
+  `task::tests::plan::*`, `cli::task_plan_*`.
+- **Papel derivado (`Role`)** (D115): `role(scope, type, tem_filhos)` projeta
+  Initiative/Epic/Feature/Story/Sub-task/Bug/Spike/Risk/Decision — nunca armazenado.
+  Regressão: `task::tests::role::*`.
+- **Modo derivado (`Mode`)** (D116): `mode(container)` classifica
+  sequential/concurrent/supervisor/handoff/magentic a partir de dono, filhos e sinais do log;
+  `kd task graph [--root ID]` imprime `role|kind|status|owner|mode|statement` (antes só
+  `--program`). Regressão: `task::tests::mode::*`, `cli::task_graph_reports_supervisor_mode`.
+- **Canal vetorial no `kd ask`** (D102): quando `recall.semantic=true` (default) e há índice
+  vetorial, o `ask` embute a query, ranqueia por similaridade (`rank_query`) e funde o canal via
+  RRF — sem flag nova (D94). O canal é **filtrado** pelos filtros determinísticos
+  (`--type`/`--class`/`--status`/`--tag`/`--anchor`), então não fura views. Provedor fora do ar
+  degrada para BM25 com `warnings` (`strict` promove a erro). Config: `recall.semantic`,
+  `recall.semantic_top_k`. Regressão: `embeddings::tests::semantic::rank_query_*`,
+  `retrieval::tests::recall::vector_channel_respects_deterministic_filters`,
+  `cli::ask_semantic_channel_reads_vector_index`.
+- **Espécie do item de trabalho (`kd task new --kind`)** (D113): `scope` = nível, `type` =
+  espécie. `--kind error|question|risk|decision|task` grava o `type` mantendo o `scope`;
+  `scope` passa a ser aceito por qualquer item de trabalho e continua **exigido** para
+  `task`/`container`. `kd task list --kind <K>`. Regressão: `task::tests::kind::*`,
+  `cli::task_kind_sets_type_and_filters`.
+- **Dono derivado de eventos (`kd task claim`)** (D114): `kd task claim <ID> --by <agente>` e
+  `--release` gravam eventos `op=claim`/`release`; o dono é a projeção `ownership(events, id)`
+  (último `claim` sem `release`/`close`). `kd task list --owner <A> | --mine` (usa
+  `KNUDGE_AGENT`). Sem chave canônica. Regressão: `task::tests::ownership::*`,
+  `cli::task_claim_sets_and_clears_owner`.
+- **`kd write --outcome <status> <ID> [--note TXT]`** anexa evidência (`outcomes[]`) a
+  **qualquer** nota (D103), não só a tarefas: a confiança derivada (D87) e o boost BM25 (E06)
+  passam a valer para conhecimento confirmado por trabalho. Core: `write::outcome` (generaliza o
+  `task::lifecycle::outcome`, sem `ensure_task`); evento `op=outcome`. Regressão:
+  `write::tests::outcome::*`, `cli::write_outcome_on_note_returns_outcome_action`.
+- **`kd task list --ready|--blocked [--explain]`** (D104): filtra pelas views derivadas
+  `ready`/`blocked` (dependências + `not_before`); `--explain` (só com `--blocked`) acrescenta o
+  motivo (`blocked_by=<id>`, `not_before=<ts>` ou `cycle`). Core: `retrieval::views::block_reason`.
+  Regressão: `retrieval::tests::views::block_reason_*`, `cli::task_list_ready_blocked_and_explain`.
+- **Programas externos (`plan/*.md`) como raiz de trabalho** (D119): o **Programa** é um arquivo
+  markdown real (o "porquê"), ancorado ao **Épico-raiz** (`scope=epic`, sem pai) via `anchors`
+  (D86) — nenhum `scope`/chave TOON nova. `kd task new … --source <arquivo>`; `kd task graph
+  --program plan/<slug>.md` imprime a subárvore; `kd rewind --files plan/<slug>.md` inclui a
+  subárvore; `doctor` ganha o check `program-anchor` (épico-raiz sem programa, programa órfão);
+  config `programs.glob` (default `plan/*.md`). Core: `task::program::{root_for_path, program_of,
+  subtree}`. Regressão: `task::tests::program::*`, `health::tests::doctor::program_anchor_*`,
+  `cli::task_graph_program_renders_subtree`.
+- **`kd ask --anchor` é repetível e aceita lista com vírgula.** `--anchor a,b --anchor c`
+  consulta várias âncoras de uma vez; cada valor alimenta o canal de âncoras (D81). O `prime`
+  e os goldens passam a documentar `[--anchor PATH...]`. Regressão:
+  `cli::ask_anchor_accepts_comma_separated_and_repeated`.
+- **Instalação** (`install.sh` + `make install`):
+  - `make install` compila em release, instala `kd` e `knudge-mcp` em `~/.local/bin`
+    (`PREFIX`/`BINDIR` mudam o destino), cria a config global
+    (`~/.config/local/knudge/config.toml`), instala completions de bash/zsh/fish e ajusta o PATH.
+  - `install.sh` no estilo `curl | bash`: baixa o release pré-compilado, verifica o checksum
+    SHA-256 e instala; com `--from-source` (ou rodando de dentro do repositório) usa o build
+    local. Suporta `--install-dir`, `--prefix`, `--version`, `--no-path`, `--no-completions` e
+    `--uninstall`.
+  - Nada é apagado de forma irreversível: artefatos antigos são **movidos** para
+    `${XDG_CACHE_HOME:-~/.cache}/knudge/trash`.
+  - `.github/workflows/release.yml` empacota `kd` + `knudge-mcp` (Linux musl, macOS e Windows)
+    e publica `sha256sums.txt` no GitHub Release.
+- **E14 — MCP: transporte JSON-RPC (stdio) e tools** (concluído):
+  - **Codec JSON-RPC 2.0** puro (`crates/knudge-mcp/src/jsonrpc.rs`): `Request`/`Id`/`RpcError`,
+    `parse` e emissores `result`/`error` com os códigos canônicos (`-32700`…`-32603`).
+  - **Handshake MCP** (`src/protocol.rs` + `src/server.rs`): `initialize` negocia
+    `protocolVersion` (suportadas `2025-06-18`/`2025-03-26`/`2024-11-05`), `notifications/initialized`
+    e `ping`; notificações não geram resposta.
+  - **Tools** (`src/tools.rs`): `knudge_pre_write`, `knudge_pre_edit`, `knudge_session_end` e
+    `knudge_status`, com `inputSchema`; argumento inválido vira `isError` sem derrubar o servidor.
+  - **Transporte stdio** (`src/transport.rs` + `src/main.rs`): binário `knudge-mcp`, **uma linha
+    JSON por mensagem**, stdout só protocolo, `EPIPE`/EOF → exit 0.
+  - **Config**: `mcp.observation_sessions` (nova chave, default 3); o binário lê
+    `mcp.hints_cap`/`mcp.observation_mode`/`mcp.observation_sessions` de `.knudge/config.toml`.
+  - `kd self setup` passou a incluir o bloco `mcp` (`knudge-mcp --stdio`); `MODULE.md`,
+    matriz de aceite e `DIVERGENCES.md` atualizados.
+- **E13 — Testes e qualidade** (transversal, concluído):
+  - **Golden** do binário (`crates/knudge-cli/tests/golden.rs` + `tests/golden/`): `prime`,
+    `--json`, envelope de erro, erro em texto, `init` e EPIPE, com normalização de
+    `<ROOT>`/`<NAME>`.
+  - **Property tests** ampliados: TOON round-trip, RRF (determinismo, monotonicidade, união),
+    confiança/decay (`[0,1]`, monotonicidade) e `id`/`body_hash` sob normalização.
+  - **Stress de concorrência** sobre adaptadores reais (`crates/knudge-core/tests/stress.rs`):
+    lock sem *lost update*, escritas concorrentes e leitor de índice durante rebuild.
+  - **Crash-injection** com `FaultyFs`: nota-sem-evento, escrita atômica e crash no rebuild.
+  - [`DIVERGENCES.md`](specs/DIVERGENCES.md) — 21 bordas catalogadas com o teste que trava cada
+    uma; [`plan/implementation/17_matriz_aceitacao.md`](../plan/implementation/17_matriz_aceitacao.md)
+    — matriz por tool (pipe/`--json`/erro/exit/estado).
+  - **CI** (`.github/workflows/ci.yml`): `fmt`+`clippy`+`test`+linhas, `nextest`, doc-tests,
+    `cargo deny`/`audit`/`machete`/`typos`, `miri` (core puro) e fuzz smoke (`fuzz/`).
+  - Alvos extras no `Makefile`: `nextest`, `deny`, `audit`, `machete`, `typos`, `miri`, `fuzz`,
+    `coverage`, `ci`.
+
+### Corrigido
+- **Lock advisory**: um lock recém-criado, ainda sem conteúdo visível (janela entre
+  `create_exclusive` e a escrita do `at`), podia ser reclamado por outro processo. Agora o
+  `mtime` decide e, sem `mtime`, o lock **não** é reclamado (E13-T03). Regressão em
+  `store::tests::lock::fresh_unreadable_lock_is_not_reclaimed`.
+- **`StdFs::rename`**: `NotFound` era mapeado para `ErrorKind::Io`, abortando o reclaim de lock;
+  agora vira `ErrorKind::NotFound` (E13-T03).
+
+### Adicionado (continuação)
+- **E12 — CLI, MCP, hooks e distribuição** (Fase 4, concluído):
+  - Superfície v2 completa: os 12 verbos (`init`, `prime`, `rewind`, `ask`, `write`, `task`,
+    `maintenance`, `config`, `forget`, `sync`, `self`) wireados ao domínio via
+    `knudge_cli::session::Session` (resolve projeto, carrega config efetiva, monta
+    store/eventos/índice/grafo).
+  - Envelope de máquina `{success, command, data?, error{code,message,retryable}, warnings?}`
+    (D71/R31); `strict` de projeto promove `warnings[]` a erro (D94); EPIPE → exit 0 (D73).
+  - **Hooks de ciclo de vida** (D59): porta `HookRunner` + `adapters::ProcessHookRunner`
+    (sem shell, timeout e kill do grupo de processos); `pre-record` pode bloquear/mutar,
+    `post-record`/`pre-prune`/`pre-compact` são executados na borda.
+  - **MCP proativo estreito** (D68): `knudge-mcp::triggers::HintEngine` com 3 gatilhos, hints
+    **ponteiro**, cap 3, dedup por sessão e modo observação.
+  - `kd self completions <bash|zsh|fish>` e `kd self setup <claude|cursor|codex|pi>` (D69).
+  - Novas chaves `hooks.*` na config; `TaskSpec` ganha `expires_at`/`not_before`; 11º check do
+    `doctor` reporta o tamanho do índice/cache vetorial.
+- **AGENTS.md** — guia de contribuição do repositório: padrões de desenvolvimento, erros,
+  logs, testes, contrato de bytes e checklist de conclusão.
+- **E11 — Embeddings** (Fase 3, concluído):
+  - Porta `Embedder` (`ports`) e **provedor HTTP** OpenAI-compatible (`adapters::http`), cliente
+    HTTP/1.1 bloqueante sobre `std::net` (sem `tokio`/`reqwest`), com timeout e retry idempotente.
+    O modelo roda num **servidor local** (`llama-server` com o GGUF); **sem** inferência in-process
+    (D101/R16/R43).
+  - `EmbeddingMeta` (provider/model/revision/dimensões/similaridade) com *fingerprint*;
+    `.idx/embeddings.jsonl` com cabeçalho `meta` que **invalida** o índice quando o modelo muda
+    (D79).
+  - `EmbeddingCache` por `body_hash` com teto e eviction **LRU**; falha de cache degrada para
+    *pass-through* (D83/R14).
+  - Fila derivada `indexed|pending|stale` + `EmbeddingMode`; `max_pending` como backpressure e
+    catch-up; falha do provedor mantém `pending` (D80/D83).
+  - Worker `drain` (reconcile off-path) + `FlushState` coalescido com *dirty flag* (D85).
+  - Purga do vetor em toda remoção via `purge_derived` (D84).
+  - Métricas puras `Recall@k`/`nDCG@k`/`MRR` e `ab_compare` (D90); `LightweightEmbedder`
+    determinístico por SHA-256 para testes/CI (D89); consultas semânticas (vizinhos, duplicatas,
+    sugestões de link) sempre como **proposta** (D42/D47).
+  - `rewind` reporta `embeddings_pending` (D80).
+- **E10 — Ciclo de vida, decay e clusters** (Fase 2, concluído):
+  - `lifecycle::shelf_life`: TTL por `classification` — `foundational` nunca expira,
+    `tactical`/`observational` com prazos configuráveis; `expires_at` explícito vence o
+    derivado (D44).
+  - `lifecycle::decay`: validade de âncoras (literal existe / glob casa) com varredura do
+    projeto limitada; demolição após grace se a fração válida < threshold (D43).
+  - `lifecycle::retire`: `retired_at` **derivado** dos eventos (`forget`/`supersede`); purga
+    do conteúdo (nota + derivado) só após a janela de retenção (D48/D84).
+  - `lifecycle::supersession`: demolição soft protegida — membros de ciclo de
+    supersessão/dependência **não** demovem (D45).
+  - `lifecycle::plan`: plano puro de demolição combinando shelf-life × decay × ciclos.
+  - `lifecycle::clusters`: fase 1 estrutural determinística (`anchor`/`type`/`classification`/
+    container) e fase 2 semântica **opcional e off-path**, com similaridade injetada (E11).
+  - `not_before` como **28ª chave canônica** (D100): agendamento ortogonal à expiração;
+    `compute_views_at` o considera, `compute_views` (prime) não (D56/D57).
+  - Correções de contrato: `Classification` ganha `Ord`; `compute_views_at` exportado.
+- **E09 — Validação, saúde e leitura tolerante** (Fase 2, concluído):
+  - `health::validator`: catálogo `.knudge/validators.toml` (subset TOML — D99) e resolução
+    `checks = explícitos ∪ globais ∪ por_âncora`; explícito ausente vira `missing[]` (D54).
+  - `health::evidence`: fechamento por **evidência** — grava `evidence` + `outcomes[]`
+    (`status/duration/agent/notes/recorded_at`) e **infere** o `outcome` pela severidade
+    (`success`/`partial`/`failure`); sem evidência, não fecha (D48/D55).
+  - `health::audit`: relatório puro de integridade, ciclos, âncoras quebradas, duplicatas,
+    arestas sugeridas faltantes e locks stale (D46).
+  - `health::doctor [--fix]`: 10 checks (schema, integridade, ciclos, âncoras, duplicatas,
+    locks, config, `body_hash`, eventos, divergência canônico↔derivado) e reparo reversível
+    **idempotente** (D19/D84). **E11** acrescenta o 11º check (tamanho do índice vetorial/cache).
+  - `health::tolerant`: leitura Postel — chave desconhecida → warning; `type` desconhecido ou
+    nota malformada → **skip + orientação**, sem derrubar o comando (D16–D18); `Config::strict`.
+  - `health::anchors`: `content_hash` derivado em `.idx/anchors.jsonl` e verify-on-hit —
+    `cited` invalida, `context` não; stale **sinaliza**, nunca apaga (D86).
+  - `lifecycle::confidence`: confiança **derivada** (`sim × drift × idade + feedback`, pisos,
+    `[0,1]`) com proptest de monotonicidade; exposta em `RecallHit.confidence` (D87).
+  - Correções de contrato: `task::outcome` usa `notes`/`recorded_at` (D48) e `task` exporta
+    `validate_transition`.
+- **E08 — Prime, handoff, diff e learn** (MVP, concluído):
+  - `handoff::rewind`: família de estado/handoff — manifest (~30 tokens), escopo (container) e
+    working set (âncoras), com ranking por trust-tier
+    (`star*100 + foundational*50 + tactical*20 + observational*10` — D57).
+  - `handoff::budget`: orçamento sem tokenizer (`ceil(chars/4)`, default 4000), truncando o
+    último item e ignorando sobra < 100 tokens (D40/D82); `apply_into` escreve direto no destino
+    (streaming) sem montar saída gigante.
+  - `handoff::scope`: auto-context-scope a partir dos arquivos tocados e auto-flip
+    (`>100 notas` ou `>5 containers` — D41).
+  - `handoff::context`: `context_id` derivado e guardado em `.idx/contexts/`; `--resume` devolve
+    **bytes idênticos** (D88).
+  - `maintenance::diff`: passado derivado da auditoria de eventos por intervalo/escopo (D21/D33).
+  - `maintenance::learn`: propostas determinísticas (`create_note`/`merge`/`supersede`/`link`) a
+    partir de eventos + âncoras — nunca escreve (D33/D47).
+  - `maintenance::compact`: propõe `concat`/`keep_latest`/`merge_outcomes`; aplica só sob aceite,
+    fundindo no `keep` e esquecendo (soft) os demais (D47).
+  - `task`: hierarquia fechada `plan ⊃ epic ⊃ issue ⊃ task` (máx. 4), `plan`/`epic` como
+    `container` sem verdade própria, pai por marcador no corpo + aresta `results_in`, `blocks`
+    1-based; ciclo de vida `adopt`/`release`/`review`, `outcome` e `reorder` (D52/D53/D93).
+- **E07 — Escrita e protocolo** (MVP, concluído):
+  - `write::Draft`: rascunho tipado que vira frontmatter válido; opcionais vazios **omitidos**
+    (D05); `scope` só para `task`/`container` (D93).
+  - `write::dedup`: decisão em três faixas (`<0.75` cria, `0.75–0.92` merge, `≥0.92` rejeita —
+    D26), similaridade **Dice** sobre termos em `[0,1]` calibrada para os limiares, configurável
+    por `[dedup]` (D80).
+  - `write::write`: idempotente por conteúdo (D01) — retry devolve o mesmo id sem duplicar;
+    `task`/`container` rejeitados; merge funde tags/âncoras/corpo e incrementa `revision`;
+    rejeição não escreve.
+  - `write::update`: `Patch` versionado; mesma chave → edita no lugar; `type`/`statement` novos
+    → **supersede** (novo id + `replaces`/`superseded_by` — D01/D48); `history` caminha a cadeia.
+  - `write::lifecycle`: `forget`/`restore` soft (`status`), `link` de arestas explícitas com
+    ponteiro reverso em `replaces` (D46/D49/D52); transições protegidas.
+  - `write::propose_merges`: reconciliação só **propõe** quase-duplicados — nunca funde em
+    silêncio (D47/D80).
+- **E06 — Retrieval: BM25, âncoras e RRF** (MVP, concluído):
+  - `retrieval::token`: tokenização **ASCII explícita** `[a-z0-9_]` (`café` → `caf` — D36),
+    com `Cow` no caminho quente e termos de consulta deduplicados.
+  - `retrieval::index`: índice derivado `.idx/retrieval.jsonl` (uma linha JSON por nota) com
+    frequências por campo (`statement`/`body`/`tags`); reconstruível **byte a byte**; ausente →
+    reconstrói e grava; teto de tamanho emite aviso (D15/D27).
+  - `retrieval::bm25`: BM25 (`k1=1.5`, `b=0.75`) com **IDF por campo**, **peso por tipo** e
+    **boost por confirmação** `1 + 0.1*(success + partial*0.5)` (D35/D37/D38).
+  - `retrieval::anchor`: canal de âncoras por `path`/`id` com globs `?`/`*`/`**` (D81/D86).
+  - `retrieval::rrf`: fusão `1/(k+rank+1)` com `k=60` e desempate `(score desc, id asc)` (D81).
+  - `retrieval::filter`: filtros determinísticos (`type`/`classification`/`status`/`tags`/`anchors`)
+    aplicados antes do BM25; `container` resolvido no grafo via `depends_on` transitivo (D41).
+  - `retrieval::views`: `ready`/`blocked` computadas do `depends_on` transitivo; ciclo de
+    dependência = `blocked` (D53).
+  - `retrieval::why` + contrato `id|statement|score|why` (4ª coluna com conjunto fechado — D39);
+    `get(ids)` devolve corpo só dos ids pedidos.
+  - Degradação graciosa: canal falho retorna resultado parcial + `warnings`; `strict` (D94)
+    promove a erro (E06-T07).
+- **E05 — Grafo e arestas** (Fase 0, concluído):
+  - `schema::edge`: enum fechado `EdgeKind` (8 valores) com chaves de frontmatter em
+    `snake_case`, `Edge` e `EDGE_KEYS` (D49/D51).
+  - `schema::frontmatter`: as 8 chaves de aresta entram na **ordem canônica** (após
+    `superseded_by`, antes de `revision` — **27 chaves**, D98), com `string_list`, `edges()` e
+    validação de formato dos ids.
+  - `graph`: projeção das notas (`Graph`), `link()` idempotente (rejeita id inválido e
+    auto-aresta) e `expand` BFS determinística que só percorre o **explícito** (D49).
+  - `graph::integrity`: arestas penduradas, auto-arestas e bidirecionalidade
+    `replaces ↔ superseded_by` (D46).
+  - `graph::cycles`: SCC (Kosaraju iterativo, sem dependências) para supersessão (`replaces`)
+    e dependência (`depends_on`); `cycle_members()` protege os membros de demolição (D45).
+  - `graph::extract` + `graph::suggestions`: extração conservadora (ids, wikilinks, verbos) com
+    armazenamento derivado em `.idx/suggestions.jsonl` — separado e auditável (D49/D50).
+  - `store::purge` passou a podar ids dentro de listas JSONL (não só descartar a linha), para
+    limpar `targets` de sugestões de um alvo removido (D84).
+  - Decisão **D98** registrada.
+- **E04 — Config, Git e worktree** (Fase 0, concluído):
+  - `config`: config em dois níveis (global template + projeto com precedência — D61), schema
+    fechado com tipos/enums/defaults, merge profundo, `set/unset/list/get` com validação (D64),
+    poda de ancestrais vazios e sanitização de segredos (D91).
+  - `config/toml`: codec TOML próprio (subset) com leitura que **preserva ordem** (diff mínimo)
+    e escrita canônica (D63/D97); comentários, seções, chaves pontilhadas, strings de uma
+    linha, números, listas multilinha; rejeita `[[...]]`/multilinha/`null`.
+  - `git::project`: resolve o **worktree principal** (`--git-common-dir`), compartilha `.knudge/`
+    entre worktrees ligados, usa o top-level do **submódulo** e valida o nome lógico (D29/D91).
+  - `git::exclude`: exclusão idempotente via `.git/info/exclude` (nunca `.gitignore` — D30),
+    versionando `notas/`/`eventos/` e excluindo só o derivado, com reversão ao alternar o modo
+    (D34); no-op fora de repo.
+  - `git::attributes` + `git::block`: bloco `merge=union` para `eventos*.jsonl` em
+    `.gitattributes`, delimitado por marcadores e idempotente (D31/D60).
+  - `git::agent_md`: gera/atualiza o `AGENTS.md` do projeto-alvo com version marker, sem
+    duplicar nem sobrescrever o conteúdo do usuário (D57/D60).
+  - `git::onboard`: cria a árvore `.knudge/`, clona o global **literalmente** (ou usa defaults),
+    aplica exclude/attributes/AGENTS e é idempotente (D62).
+  - `git::sync`: guard de worktree com `git -C <raiz>`, commit de `notas/`+`eventos/` e mensagem
+    gerada do último evento (D32).
+  - Porta `Git` ampliada (`common_dir`, `top_level`, `superproject_root`, `run`) e adaptador
+    `StdGit` sem shell (R12); `MemFs` passou a modelar diretórios explícitos.
+  - Decisão **D97** registrada.
+- **E03 — Store, notas e eventos** (Fase 0, concluído):
+  - `jsonl`: codec JSON próprio (`encode`/`decode` canônicos, chaves ordenadas e sem
+    dependência externa) e leitor de linhas tolerante a CRLF/linhas em branco.
+  - `store`: `Note` (frontmatter + corpo) com render/parse byte-exato, `Store` (write atômico,
+    list, read, `update` com `revision`, `remove`) e ordem de commit **nota → evento** (D21).
+  - `store/events`: `Event` com `id` derivado do conteúdo (`evt_<base36(8)>`), `EventLog`
+    append-only com **dedup on-read** (D26/D28), tolerância a linha malformada, rotação por
+    tamanho (`events-NNNN.jsonl`), checkpoint derivado (`.idx/events.checkpoint`) e `history`.
+  - `store/lock`: lock advisory por arquivo-alvo (`create_exclusive`), stale 30 s, reclaim por
+    rename sidecar e liberação RAII (D23–D25/R05).
+  - `store/rebuild`: `Staging` double-buffer (`.idx.new/` + rename atômico — D27).
+  - `store/purge`: `purge_derived` remove o id de `*.jsonl` e `index.json` em toda remoção
+    (D84), usado por `Store::remove`.
+  - `store/sweep`: varredura de resíduos `*.tmp`/`*.lock`/`*.stale` por idade, com `warn`
+    (R10), **sem** remover lock fresco de processo vivo.
+  - Porta `Fs` estendida com `append`, `create_exclusive`, `rename`, `sync`, `modified_ms`,
+    `is_dir` e `remove_dir_all`; `MemFs` virou um FS fiel (tmp+rename, diretórios implícitos) e
+    `FaultyFs` injeta falhas para testes de crash.
+  - `ARCHITECTURE.md` §5 documenta a persistência; decisão **D96** registrada.
+- **E02 — Contrato de bytes: TOON, schema e IDs** (Fase 0, concluído):
+  - `schema/types`: enums fechados `NoteType` (11), `Scope`, `Classification`, `Status`.
+  - `schema/hash`: hash curto `SHA-256 → u32`, `hex8` e `base36(8)` (D95).
+  - `schema/body`: `normalize` (NFC + trim + colapso) e `body_hash` (D06).
+  - `schema/id`: `id` endereçado por conteúdo (`type + U+001F + statement`) e validador (D01–D03).
+  - `schema/text`: contagem de `statement` em escalares Unicode, limite 120 (D08).
+  - `schema/frontmatter`: ordem canônica das 19 chaves, omissão de opcionais (D05), leitura
+    tolerante com warning (D16) e validação (T01/T07).
+  - `toon`: parser/emissor próprios (`lex`/`flow`/`parse`/`emit`), round-trip byte-exato,
+    comentários, escapes, zero bytes, `1.0 → 1` e detecção de `schema_version` (D74/D75).
+  - `TOON.md` publica a gramática e as regras de bytes.
+- **E01 — Fundação** (Fase 0, concluído):
+  - Workspace Cargo (`knudge-core`, `knudge-cli`, `knudge-mcp`) com `edition = "2024"`,
+    MSRV `1.97`, `[workspace.lints]` (R44), perfil de release (R41) e `make check` (E01-T01/T03).
+  - Portas determinísticas (`Clock`, `Rng`, `Env`, `Fs`, `Git`, `HookRunner`, `Logger`),
+    adaptadores `std` e fakes (`FixedClock`, `SeqRng`, `FakeEnv`, `FakeGit`, `MemFs`,
+    `RecordingLogger`) (E01-T02).
+  - Modelo de erro `Error`/`ErrorKind` com mapa código→exit, `thiserror`, poison via
+    `into_inner` e contexto de I/O com path (E01-T06; R30–R35).
+  - `Timestamp` UTC com milissegundos, formatação/parsing próprios e round-trip por proptest
+    (E01-T02; D07).
+  - Redação de segredos no layer de log (allowlist + chaves sensíveis) (E01-T07; R22).
+  - Binário `kd` com a **superfície v2** (E01-T04; `16_cli_surface.md`): `kd` = `prime`,
+    `--json` (`{success, command, data?, error?, warnings?}`), exit codes estáveis e
+    `EPIPE → exit 0`.
+  - Política de memória: `#![forbid(unsafe_code)]`, rejeição de symlink em `.knudge/` (E01-T08).
+  - `ARCHITECTURE.md`, `MODULE.md` por crate e módulos temáticos de `knudge-core` (E01-T05).
+
+### Decidido (superfície CLI v2)
+- **D57** reescrita: `prime` é protocolo estático byte-idêntico; estado/handoff → `rewind`.
+- **D88** ajustada: `rewind` emite `context_id`; `kd rewind --resume <id>`.
+- **D93**: `task` com `scope` fechado (`plan|epic|issue|task`), hierarquia máx. 4.
+- **D94**: `strict` é config de projeto (`[behavior] strict`), sem flag.
+- **D95**: hash curto `SHA-256 → u32`; chave/derivação de `id` e gramática TOON v1 (`TOON.md`).
+- **D96**: registro de evento (`id` derivado + dedup on-read), rotação por tamanho e
+  semântica de `revision`.
+- **D97**: subset TOML (ordem preservada/canônica), guard `git -C` do `sync` e degradação do
+  `onboard` sem config global.
+- **D98**: arestas como chaves de frontmatter (27 chaves na ordem canônica), ponteiro reverso
+  `superseded_by`, ciclo de supersessão sobre `replaces` e sugestões derivadas.
+
+### Testes
+- 397 testes de unidade no `knudge-core` (erro, tempo/proptest, redação, fakes, symlink,
+  schema/hash/ID/arestas, TOON, JSONL/JSON, store, config/TOML, git/onboard/sync,
+  grafo/integridade/ciclos/sugestões, retrieval/token/BM25/âncoras/RRF/views,
+  escrita/dedup/update/supersede/forget, rewind/orçamento/context_id, diff/learn/compact,
+  tarefas/hierarquia/ciclo de vida, validators/evidência/audit/doctor/âncoras/confiança,
+  shelf-life/decay/purga/ciclos/clusters, embeddings/meta/vector/cache/índice/fila/eval/http,
+  hooks/timeout/kill de grupo, lock/rebuild) e 3 testes de **stress** sobre adaptadores reais.
+- 37 testes do servidor MCP (`knudge-mcp`: gatilhos, codec JSON-RPC, handshake, tools e
+  transporte) + 2 de integração stdio (`tests/stdio.rs`).
+- 12 testes de integração do binário + 7 **golden** (`--help`, `kd == kd prime`, `--json`, exit
+  codes, EPIPE, comando desconhecido, `init`+`write`+`ask`, `task`, `config`, `forget`).

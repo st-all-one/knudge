@@ -1,6 +1,6 @@
 //! Escopo `toon`: parser/emissor do frontmatter TOON (D74/D75).
 //!
-//! A gramática completa está em `TOON.md`. Aqui ficam o parser ([`parse`]), o emissor
+//! A gramática completa está em `wiki/specs/TOON.md`. Aqui ficam o parser ([`parse`]), o emissor
 //! ([`emit`]) e a separação frontmatter/corpo ([`split_frontmatter`]).
 
 pub mod emit;

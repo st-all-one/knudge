@@ -57,6 +57,11 @@ pub fn run(session: &Session, args: &AskArgs) -> Result<Output> {
     }
     let resolved = resolve_query(args)?;
     let args = resolved.as_ref().unwrap_or(args);
+    if (!args.ids.is_empty() || args.around.is_some()) && !args.query.is_empty() {
+        return Err(Error::invalid_input(
+            "os modos `--id` e `--around` não aceitam query textual",
+        ));
+    }
     if !args.ids.is_empty() {
         return get_ids(session, args);
     }

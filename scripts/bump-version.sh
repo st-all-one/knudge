@@ -10,7 +10,7 @@
 #   - Cargo.lock  (crates knudge-core / knudge-cli / knudge-mcp)
 #   - crates/knudge-cli/tests/golden/json_prime.json e json_version.json
 #   - install.sh e README.md  (exemplos `VERSION=vX.Y.Z`)
-#   - CHANGELOG.md  (finaliza `[Não publicado]` → `[X.Y.Z] - <data>`)
+#   - wiki/CHANGELOG.md  (finaliza `[Não publicado]` → `[X.Y.Z] - <data>`)
 #
 # Nunca usa `rm` (reusa com `mv`); recusa versão igual ou inválida.
 set -euo pipefail
@@ -73,7 +73,7 @@ replace install.sh "VERSION=v$old" "VERSION=v$new"
 replace README.md "VERSION=v$old" "VERSION=v$new"
 
 # 5. CHANGELOG — finaliza a seção `[Não publicado]`, mantendo uma nova no topo.
-if grep -q '^## \[Não publicado\]$' CHANGELOG.md; then
+if grep -q '^## \[Não publicado\]$' wiki/CHANGELOG.md; then
     today="$(date +%Y-%m-%d)"
     awk -v new="$new" -v date="$today" '
         /^## \[Não publicado\]$/ && !done {
@@ -84,8 +84,8 @@ if grep -q '^## \[Não publicado\]$' CHANGELOG.md; then
             next
         }
         { print }
-    ' CHANGELOG.md >CHANGELOG.md.bump.tmp
-    mv CHANGELOG.md.bump.tmp CHANGELOG.md
+    ' wiki/CHANGELOG.md >wiki/CHANGELOG.md.bump.tmp
+    mv wiki/CHANGELOG.md.bump.tmp wiki/CHANGELOG.md
 fi
 
 echo "pronto. Próximos passos:"

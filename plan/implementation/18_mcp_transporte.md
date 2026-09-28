@@ -105,4 +105,4 @@ E12 (motor de gatilhos), E13 (golden/testes).
   `kd self setup` passou a incluir o bloco `mcp`.
 - **T06** — 37 testes de unidade + 2 de integração (`tests/stdio.rs`, handshake e `--help`);
   `MODULE.md` e a linha MCP em [`17_matriz_aceitacao.md`](17_matriz_aceitacao.md); framing
-  registrado em [`DIVERGENCES.md`](../../DIVERGENCES.md).
+  registrado em [`DIVERGENCES.md`](../../wiki/specs/DIVERGENCES.md).

@@ -14,9 +14,12 @@ pub mod keys;
 pub mod outcomes;
 pub mod provenance;
 pub mod slots;
+pub mod suggest;
 pub mod text;
 pub mod types;
 pub mod value;
+
+mod parse;
 
 #[cfg(test)]
 mod tests;

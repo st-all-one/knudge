@@ -2,8 +2,8 @@
 
 > Guia para agentes/contribuidores que trabalham **no código deste repositório** (Rust, binário
 > `kd`). **Não** é o `AGENTS.md` de projeto-alvo que o `kd init` emitirá (esse é o protocolo de
-> escrita de notas do usuário). Documentos irmãos: [`ARCHITECTURE.md`](ARCHITECTURE.md) (camadas),
-> [`TOON.md`](TOON.md) (contrato de bytes), [`plan/`](plan/) (decisões `Dxx` e políticas `Rn`).
+> escrita de notas do usuário). Documentos irmãos: [`ARCHITECTURE.md`](wiki/specs/ARCHITECTURE.md) (camadas),
+> [`TOON.md`](wiki/specs/TOON.md) (contrato de bytes), [`plan/`](plan/) (decisões `Dxx` e políticas `Rn`).
 
 ## 0. Regras de ouro
 
@@ -58,9 +58,9 @@ fuzz/                 # alvos de fuzz (TOON, JSONL) — fora do workspace
 bench/                # bancada de benchmark (fora do workspace; micro + e2e; `make bench`)
 scripts/              # utilitários: bump-version.sh, knudge-idle.sh, package.sh, check_file_length.sh
 .agents/skill/rust/   # skill de Rust (SKILL.md + capítulos)
-DIVERGENCES.md        # bordas (Unicode, ordem, lock, atomicidade…) + teste que trava cada uma
+wiki/specs/DIVERGENCES.md  # bordas (Unicode, ordem, lock, atomicidade…) + teste que trava cada uma
 SKILL.md              # guia de uso ativo do knudge para agentes (dos projetos que o adotam)
-docs/                 # guias de uso (didáticos) por grupo de comandos: ask, write, task, embeddings…
+wiki/                 # documentação: `CHANGELOG.md` na raiz; `specs/` (técnica) e `usage/` (guias); `specs/adrs/` (decisões)
 llms.txt              # índice do projeto para modelos de linguagem
 ```
 
@@ -166,14 +166,14 @@ módulos. Onde mexer:
 
 ## 7. Contrato de bytes (TOON / schema)
 
-- Gramática e regras em [`TOON.md`](TOON.md). Ordem canônica das 28 chaves em
+- Gramática e regras em [`TOON.md`](wiki/specs/TOON.md). Ordem canônica das 31 chaves em
   `schema::CANONICAL_KEYS`; opcionais **omitidos**, nunca `null`.
 - `normalize` = NFC + trim + colapso; `body_hash` e `id` derivam dele (D95).
 - `id = <prefixo>_<base36(8)>` endereçado por `type + U+001F + normalize(statement)`; o prefixo é
   **histórico** (reclassificar `type` não reescreve o `id`).
-- `type` é enum fechado de 11; `scope`/`classification`/`status` também. Chave desconhecida:
+- `type` é enum fechado de 10 armazenáveis (`epic` é **derivado** de `scope=epic`, D149); `scope`/`classification`/`status` também. Chave desconhecida:
   rejeita no write, warning no read; **tipo** desconhecido: rejeita a nota (sem derrubar a leitura).
-- Mudou o formato? Atualize `TOON.md`, os goldens e `schema_version`/rebuild (D15).
+- Mudou o formato? Atualize `wiki/specs/TOON.md`, os goldens e `schema_version`/rebuild (D15).
 
 ## 8. O que não fazer
 
@@ -189,13 +189,13 @@ módulos. Onde mexer:
 
 - [ ] `make check` verde.
 - [ ] Testes novos cobrem o comportamento e o bug (se houve) — sem `unwrap`.
-- [ ] Se tocou uma borda: linha em [`DIVERGENCES.md`](DIVERGENCES.md) com o teste que a trava.
+- [ ] Se tocou uma borda: linha em [`DIVERGENCES.md`](wiki/specs/DIVERGENCES.md) com o teste que a trava.
 - [ ] Se adicionou/alterou verbo: linha na
       [`17_matriz_aceitacao.md`](plan/implementation/17_matriz_aceitacao.md) e golden atualizado.
 - [ ] `MODULE.md`/docs atualizados se criou/removeu módulo ou mudou contrato.
 - [ ] Se mudou decisão/contrato: `Dxx` registrado em `plan/03_decisoes-fechadas.md` e propagado.
 - [ ] Se concluiu um épico/tarefa: marque `☑`/`[x]` em `plan/implementation/` e atualize
-      `CHANGELOG.md`.
+      `wiki/CHANGELOG.md`.
 - [ ] Nenhum arquivo de `src/` acima de 300 linhas; nenhum `unwrap/expect/panic/unsafe`.
 
 ## 10. Referências
@@ -205,7 +205,7 @@ módulos. Onde mexer:
 - Lints: [`plan/implementation/15_clippy_config.md`](plan/implementation/15_clippy_config.md) + `clippy.toml`.
 - Superfície `kd`: [`plan/implementation/16_cli_surface.md`](plan/implementation/16_cli_surface.md).
 - Matriz de aceite: [`plan/implementation/17_matriz_aceitacao.md`](plan/implementation/17_matriz_aceitacao.md).
-- Bordas: [`DIVERGENCES.md`](DIVERGENCES.md).
+- Bordas: [`DIVERGENCES.md`](wiki/specs/DIVERGENCES.md).
 - Rust: [`.agents/skill/rust/SKILL.md`](.agents/skill/rust/SKILL.md).
 
 <!-- knudge:start -->

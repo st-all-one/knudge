@@ -32,7 +32,7 @@
 | Performance (harness) | [`../../bench/README.md`](../../bench/README.md) | `make bench`, micro/e2e |
 | Qualidade (baseline) | `bench/qualidade.md` *(novo, E16/T01)* | Recall@k/MRR/nDCG@k |
 | Padrões Rust | [`../../.agents/skill/rust/SKILL.md`](../../.agents/skill/rust/SKILL.md) | hot path, coleções, testes |
-| Bordas | [`../../DIVERGENCES.md`](../../DIVERGENCES.md) | 1 linha + teste por borda |
+| Bordas | [`../../DIVERGENCES.md`](../../wiki/specs/DIVERGENCES.md) | 1 linha + teste por borda |
 | Revisão integrada | [`../proposals/revisao_integrada.md`](../proposals/revisao_integrada.md) | conflitos C1–C20 resolvidos |
 | Índice dos épicos | [`README.md`](README.md) | fases, grafo e status |
 

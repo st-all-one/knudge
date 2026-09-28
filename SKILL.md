@@ -1,245 +1,233 @@
 ---
 name: knudge
-description: Use ao trabalhar com memória de projeto por LLM via knudge (`kd`) — buscar, gravar, planejar tarefas, retomar contexto e manter a base. Dispare em palavras-chave: knudge, kd, memória, nota, recall, ask, write, tarefa, task, épico, handoff, rewind, TOON, embedding, RRF, MCP.
+description: Project-scoped durable memory for LLM agents via the `kd` CLI (knudge) — search before writing, record knowledge, plan/run tasks, resume context, maintain the base. Trigger on: knudge, kd, memory, memória, note, nota, recall, ask, write, task, tarefa, epic, épico, handoff, rewind, TOON, embedding, RRF, MCP.
 ---
 
-# knudge — Active Usage Guide
+# knudge — agent usage guide
 
-**Papel:** dar ao agente **memória durável por projeto** — buscar antes de gravar, registrar
-conhecimento, planejar/executar tarefas e retomar contexto — com um binário único (`kd`), sem
-servidor e sem banco. A **nota Markdown é a verdade**; o índice (BM25, embeddings, grafo) é
-**derivado** e reconstruível.
+**What:** `kd` gives the agent durable, project-scoped memory. Markdown notes in `notas/` are the
+source of truth; the index (BM25 + anchors + optional embeddings + graph) is **derived** and
+rebuildable. Single binary, no server, no DB. `knudge-mcp` exposes memory triggers over MCP.
 
-**Quando carregar:** sempre que a tarefa envolver lembrar/registrar decisões, fatos, erros,
-riscos ou perguntas do projeto; planejar ou acompanhar trabalho; retomar contexto entre sessões;
-ou buscar conhecimento já acumulado.
+**Load when:** the task involves remembering/recording decisions, facts, errors, risks or
+questions; planning or tracking work; resuming context across sessions; or searching accumulated
+project knowledge.
 
-> **Detalhe vive nos docs.** Este guia é o índice orientado a decisão. Referência completa da
-> CLI: [`plan/implementation/16_cli_surface.md`](plan/implementation/16_cli_surface.md). Matriz
-> de aceite: [`17_matriz_aceitacao.md`](plan/implementation/17_matriz_aceitacao.md). Contrato de
-> bytes: [`TOON.md`](TOON.md). Arquitetura: [`ARCHITECTURE.md`](ARCHITECTURE.md). Decisões:
-> [`03_decisoes-fechadas.md`](plan/03_decisoes-fechadas.md). Embeddings:
-> [`04_embeddings.md`](plan/04_embeddings.md). MCP:
-> [`18_mcp_transporte.md`](plan/implementation/18_mcp_transporte.md).
+**Never edit `notas/` by hand** — use `kd write --update`.
 
----
+**Deep docs:** CLI surface `plan/implementation/16_cli_surface.md` · acceptance
+`plan/implementation/17_matriz_aceitacao.md` · byte contract `wiki/specs/TOON.md` · architecture
+`wiki/specs/ARCHITECTURE.md` · decisions `plan/03_decisoes-fechadas.md` · embeddings
+`plan/04_embeddings.md` · MCP `plan/implementation/18_mcp_transporte.md` · full CLI guide
+`wiki/usage/`.
 
-## Ciclo central
+## Golden rules
+
+1. **Search before writing.** `kd ask "<draft>"` → dedup: `<0.75` create, `0.75–0.92` merge,
+   `≥0.92` reject. Never write blind.
+2. **One assertion per note.** Short, self-contained `--summary`; it derives the `id`
+   (`type + statement`). Reclassifying never rewrites the id. **Never invent an id** — copy it.
+3. **Body = the "why" the summary can't carry.** Use when the summary alone can't drive action
+   (`decision`/`error`/`risk`): `Why:` / `Evidence:` / `Consequence:` (2–4 lines).
+4. **Anchor code.** Any note/task about a file gets `--anchor PATH` (globs: `src/**`).
+   `kd ask --anchor PATH` finds by file.
+5. **Evidence ≠ body.** Task completion uses `--outcome`; facts/decisions get anchors.
+6. **Nothing changes without acceptance.** `doctor`/`learn`/`compact`/`prune` only **propose**;
+   apply via `write`/`write --link`/`forget`.
+7. **stdout = data, stderr = logs.** In `--json`, stdout is only the envelope. EPIPE → exit 0.
+
+## Cycle
 
 ```
-kd ask → kd write → kd task → kd sync
-(buscar)  (gravar)   (executar) (commit)
+kd prime  →  kd ask  →  kd write  →  kd task  →  kd sync
+(protocol)   (search)    (record)     (execute)    (commit)
 ```
 
-**Sempre busque antes de gravar** — o `write` faz dedup (0.75/0.92). O `prime` é o protocolo
-estático (byte-idêntico): `kd` sozinho = `kd help`; o protocolo é `kd prime`.
+`kd` alone == `kd help`. `kd prime` is the static, byte-identical protocol (once per session);
+`kd prime --long` appends the TOON grammar + schema.
 
-### Capacidades-chave
+## Commands
 
-- **Busca híbrida** — `kd ask` combina filtros determinísticos → BM25 → âncoras → RRF (e o canal
-  vetorial quando há índice), tudo num só envelope.
-- **Gravação idempotente** — create por conteúdo, merge em quase-duplicata, rejeição em
-  duplicata exata; `--update` versiona; `--link` cria aresta.
-- **Tarefas com hierarquia fechada** — `epic ⊃ { issue ⊃ task | task }` (épico é a raiz); rollup de
-  progresso por épico; fechar exige evidência.
-- **Handoff ponto-no-tempo** — `kd rewind` monta o contexto dentro de um orçamento de tokens,
-  com `next:`/`fresh:` e `--resume` 1:1.
-- **Manutenção read-only** — `doctor`, `learn`, `compact`, `prune` **só propõem**; nada muda sem
-  aceite (D47).
-- **MCP** — `knudge-mcp` serve 4 tools de gatilho; os hints são ponteiros.
+Top-level: `init prime rewind ask write task map maintenance doctor drain config forget sync self`
+(+ `help`).
 
-### Quick Reference
-
-| Ação | Comando |
-|------|---------|
-| Protocolo (o "help da IA") | `kd prime` / `kd` |
-| Buscar conhecimento | `kd ask "<query>" --brief` |
-| Corpo de ids | `kd ask --id <ID>...` |
-| Expandir o grafo | `kd ask --around <ID> [--via ARESTA] [--depth N]` |
-| Mais confiáveis (sem query) | `kd ask --rank --universe` |
-| Vocabulário de tags | `kd ask --tags` |
-| Gravar fato/decisão/erro/risco/pergunta | `kd write --summary "<...>" [<corpo>|-] [--type T] [--tag T] [--anchor PATH]` |
-| Versionar | `kd write --update <ID> --summary "<...>"` (ou `--params '<json>'`; `--clear-anchors` limpa) |
-| Aresta explícita | `kd write --link <FROM:ARESTA:TO>` (12 arestas; inclui `same_as`/`broader`/`narrower`/`related`) |
-| Claim SPO / proveniência | `kd write --claim <S:R:O> [--agent NOME] [--activity NOME]` (D207) |
-| Evidência numa nota | `kd write --outcome <success\|partial\|failure\|abandoned> --id <ID> [--note TXT]` |
-| Nova tarefa | `kd task new --summary "<...>" [<corpo>\|-] --scope <epic\|issue\|task> [--parent ID]` |
-| Listar prontas/bloqueadas | `kd task list --ready` / `--blocked [--explain]` |
-| Contexto do item | `kd task show --id <ID>` |
-| Editar tarefa | `kd task update --id <ID> [--status S] [--anchor P...] [--clear-anchors]` |
-| Fechar com evidência | `kd task close --id <ID> --outcome success --note "..."` |
-| WBS | `kd task graph [--program plan/<slug>.md\|--root ID]` |
-| Fluxo/caminho crítico | `kd task flow [--window-days N]` (cycle/lead/throughput, D205) |
-| Handoff | `kd rewind [--scope C] [--files PATH...] [--budget N]` |
-| Mapa de conhecimento | `kd map --universe [--axis A] [--semantic] [--members] [--write]` |
-| Manutenção | `kd doctor [--fix] [--explain]` |
-| Esquecer (soft) | `kd forget --id <ID>` (`--restore`, `--purge [--force]`) |
-| Commit | `kd sync` |
-
-### Âncoras (`--anchor PATH`) — o que liga memória a código
-
-Ancorar é amarrar a nota/tarefa a um arquivo ou glob. É o canal que faz o `ask` responder “o
-que já sei sobre `src/gateway.rs`” mesmo sem query textual.
-
-- **Use em toda nota/tarefa que fala de código:**
-  `kd write --summary "..." --type decision --anchor src/gateway.rs` e
-  `kd task new --summary "..." --scope task --anchor plan/016.md`.
-- **Repetível e com vírgula:** `--anchor src/a.rs --anchor src/b.rs` ou `--anchor src/a.rs,src/b.rs`.
-- **Glob casa subárvores:** `--anchor src/gateway/**`.
-- **Busca por âncora (sem query):** `kd ask --anchor src/gateway.rs`.
-- **NÃO ancore** nota de conceito global (sem arquivo) nem path que ainda não existe.
-- **Manutenção:** `kd doctor` lista âncoras quebradas (arquivo removido).
-- **Âncora:** `--anchor` é a única grafia (o plural `--anchors` foi removido — D168).
-
----
-
-## Orientação (leia primeiro)
-
-O knudge é **medir/registrar, não adivinhar**. Três invariantes:
-
-1. **Busque antes de gravar.** `kd ask "<rascunho>"`; `< 0.75` cria, `0.75–0.92` merge, `≥ 0.92`
-   rejeita.
-2. **stdout = dados; stderr = logs.** Para máquina, `--json` =
-   `{success, command, data?, error?, warnings?}`.
-3. **Nunca invente id.** O id deriva de `type + statement`; reclassificar não reescreve.
-
-Regras de bolso:
-
-- **Nota boa é curta e autocontida** — um fato por nota; ancore código com `--anchor PATH`.
-- **Classifique certo** — `foundational` (dura), `tactical` (muda), `observational` (efêmera).
-- **Confirmação é derivada** — tarefas com `--outcome` de sucesso que compartilham âncoras
-  confirmam a nota (X1/D108); não escreva "confirmado" à mão.
-- **Nada sem aceite** — `learn`/`compact`/`prune` propõem; você aplica via
-  `write`/`write --link`/`forget`.
-- **Orçamento** — `kd rewind --budget N` corta em `ceil(len/4)` tokens; use `--brief` no `ask`
-  para gastar menos contexto.
-
----
-
-## Interpretação (o que ler na saída)
-
-| Sinal | Significado / ação |
+| Goal | Command |
 |---|---|
-| `why = file_match` | Casou por um arquivo do working set. |
-| `why = anchor_match` | Casou pelo id do working set. |
-| `why = tracker_match` | Pertence ao `--scope` pedido. |
-| `why = stars` | Tem confirmação derivada (`outcomes` ou tarefas com sucesso). |
-| `why = semantic` | Casou pelo vetor (paráfrase). |
-| `why = recent` / `universal` | Recente / fallback sem sinal específico. |
-| `[no_results]` | Busca vazia (exit 0); no `--json`, `hits: []`. |
-| `channels` no `--json` | Parcelas RRF (`lexical`/`anchor`/`semantic`) + boosts (`recent`/`stars`). |
-| `score < 0.75` no `write` | Cria nota nova. |
-| `0.75–0.92` | Merge na existente (revise antes). |
-| `≥ 0.92` | Rejeita (duplicata). |
-| `warnings[]` | Degradação graciosa (ex.: embeddings fora do ar → BM25). Com `strict`, vira erro. |
-| `stale`/`expiring`/`pending` no `rewind` | Nota desatualizada / perto de expirar / embedding na fila. |
-| `epico: <id>|<título> (<done>/<total>)` | Progresso do épico (folhas de trabalho fechadas). |
-| `next:` no `rewind` | Tarefas `ready` abertas por impacto. |
+| Protocol | `kd prime [--long]` |
+| Search | `kd ask "<q>" [--brief] [--limit N] [--full-content] [--with-task]` |
+| Get bodies | `kd ask --id <ID>...` |
+| Expand graph | `kd ask --around <ID> [--via <EDGE>] [--depth N]` |
+| Most trusted | `kd ask --rank --universe` |
+| Tag vocabulary | `kd ask --tags` |
+| Semantic suggestions | `kd ask --suggest [--top-k N] [--relation duplicate\|contradiction\|link]` |
+| Filters | `--type --class --tag --status --scope --anchor --since --until --as-of` |
+| Record | `kd write --summary "<s>" [<body>\|-] [--type T] [--tag T] [--anchor P] [--class C] [--status S]` |
+| Version | `kd write --update <ID> --summary "<s>" [--clear-anchors]` |
+| Edge (existing) | `kd write --link <FROM:EDGE:TO>` |
+| Edge (new note) | `kd write --summary "<s>" --edge <EDGE:ID>` |
+| Claim/provenance | `kd write --claim <S:R:O> [--agent N] [--activity N]` |
+| Evidence | `kd write --outcome <success\|partial\|failure\|abandoned> --id <ID> [--note TXT]` |
+| Batch | `kd write --batch <file.jsonl\|->` · `--params '<json>'` · `--dry-run` |
+| New task | `kd task new --summary "<s>" --scope <epic\|issue\|task> [--parent ID] [--kind K] [--checks C] [--anchor P]` |
+| Batch tasks | `kd task new --batch <file\|->` |
+| List | `kd task list [--ready\|--blocked [--explain]] [--sort impact] [--scope ID] [--kind K]` |
+| Show | `kd task show --id <ID>... [--history]` |
+| Edit | `kd task update --id <ID> [--statement S] [--status S] [--parent ID] [--checks C] [--anchor P...] [--clear-anchors]` |
+| Close | `kd task close --id <ID> --outcome success --note "..."` |
+| WBS tree | `kd task graph [--root ID\|--program plan/<slug>.md]` |
+| Flow / critical path | `kd task flow [--window-days N]` |
+| Plan | `kd task plan <slug> [--prompt\|--submit] [--template <feature\|bug\|refactor>] [--step S] [--from ID]` |
+| Handoff | `kd rewind [--scope C] [--files P...] [--budget N] [--resume <context_id>]` |
+| Map | `kd map [--axis <anchor\|type\|classification\|scope>] [--semantic] [--communities] [--members] [--write]` |
+| Health | `kd doctor [--fix] [--explain]` |
+| Propose maintenance | `kd maintenance <learn\|compact\|prune> [--universe] [--verify] [--dry-run]` |
+| Forget (soft) | `kd forget --id <ID> [--restore \| --purge [--force]]` |
+| Embeddings queue | `kd drain [--status \| --digest [--force]]` |
+| Worker | `kd drain service [--install\|--status\|--subscribe\|--unsubscribe\|--reconcile\|--uninstall] [--every 1h] [--port 8889]` |
+| Config | `kd config <get\|set\|unset\|list\|promote> [--key K] [--value V] [--global]` |
+| Install / integrate | `kd init` · `kd self <version\|setup <client>\|completions <shell>\|upgrade>` |
+| Commit | `kd sync [--message M]` |
 
----
+## Closed sets (D212)
+
+Every flag with a fixed value list **rejects an invalid value** with the full list + closest match
+(`did you mean …`). An **absent** flag validates nothing (no error, no list).
+
+| Flag/field | Values |
+|---|---|
+| `--type` | `fact decision question task def error snippet link meta risk` |
+| `--class` | `foundational tactical observational` |
+| `--status` | `active in_progress blocked closed superseded forgotten` |
+| `--scope` | `epic issue task` |
+| `--kind` | `task error question risk decision` |
+| `--outcome` | `success partial failure abandoned` |
+| edges (`--link`/`--edge`/`--via`) | `references depends_on contradicts supports extends replaces rejects results_in same_as broader narrower related` |
+| `--relation` | `duplicate contradiction link` |
+| `--axis` | `anchor type classification scope` |
+| `--sort` | `impact` |
+| `--template` | `feature bug refactor` |
+| `self setup` | `claude cursor codex pi` |
+| `self completions` | `bash zsh fish` |
+| `--log-level` | `error warn info debug trace off` |
+
+## List syntax (D210)
+
+List flags accept **repetition or comma** (equivalent): `--tag a --tag b` ≡ `--tag a,b`. Applies to
+`--id --type --class --tag --anchor --edge --claim --checks --files`. The **space form**
+(`--id a b`) does **not** exist (exit 2); in `ask`, `--id`/`--around` **conflict** with a textual
+query. **Free text** (query, body, `--step`) is never split — use `--params '<json>'` for arrays.
+
+## Anchors × edges
+
+- **Anchor** (`--anchor src/x.rs`): ties the note to a **file/glob**. The only link to code; powers
+  `kd ask --anchor` and anchor drift. Free vocabulary.
+- **Edge** (`--link "A:contradicts:B"`): ties the note to **another note** with a **type** (12
+  edges, closed). Directed. Powers `ask --around --via`, `task list --ready`/impact, curation
+  (`contradicts`/`replaces`), the light ontology (`same_as`/`broader`/`narrower`/`related`) and
+  `doctor`.
+
+Anchor = "where"; edge = "how it connects to another note". Both are complementary.
+
+## Output contract
+
+- **stdout = data; stderr = logs.** In `--json`, stdout is exactly
+  `{success, command, data?, error?, warnings?}`.
+- Empty search → `[no_results]`, exit 0. Broken pipe → exit 0 (D73).
+- `warnings[]` = graceful degradation (e.g., embeddings down → BM25). With `behavior.strict`,
+  warnings become errors.
+
+Exit codes: `0` ok · `2` invalid usage · `3` not found · `4` conflict · `5` io · `6` timeout ·
+`7` bad config · `8` bad schema/note · `70` internal (`101` reserved for panic).
+
+## Reading output
+
+| Signal | Meaning / action |
+|---|---|
+| `why = file_match` / `anchor_match` | Matched by working-set file / anchor id. |
+| `why = tracker_match` | Belongs to the requested `--scope`. |
+| `why = stars` | Derived confirmation (`outcomes` or successful tasks). |
+| `why = semantic` | Vector match (paraphrase). |
+| `why = recent` / `universal` | Recency / fallback. |
+| `channels` (`--json`) | RRF shares (`lexical`/`anchor`/`semantic`) + boosts (`recent`/`stars`). |
+| `score <0.75` / `0.75–0.92` / `≥0.92` | Create / merge / reject (dedup). |
+| `stale` / `expiring` / `pending` (`rewind`) | Outdated / near expiry / embedding queued. |
+| `epic: <id>\|<title> (done/total)` | Epic progress (closed work leaves). |
+| `next:` (`rewind`) | Open `ready` tasks by impact. |
 
 ## Workflows
 
-### Registrar conhecimento
-
 ```bash
-kd ask "rate limit do gateway" --brief                     # 1. já existe?
-kd write --summary "Rate limit é 100 rps por chave" --type decision \
-  --tag gateway --anchor src/gateway.rs                    # 2. grava
-kd write --link "decision_01m81b6h:extends:fact_01abc123"  # 3. relaciona
-```
+# Record
+kd ask "gateway rate limit" --brief
+kd write --summary "Rate limit is 100 rps per key" --type decision --tag gateway --anchor src/gateway.rs
+kd write --link "decision_01m81b6h:extends:fact_01abc123"
 
-### Planejar e executar tarefas
-
-```bash
-kd task new --summary "Sync offline-first" --scope epic
-kd task new --summary "Resolver conflito de merge" --scope task --parent <epic>
+# Plan + execute
+kd task new --summary "Offline-first sync" --scope epic
+kd task new --summary "Resolve merge conflict" --scope task --parent <epic>
 kd task list --ready --sort impact
-kd task close --id <task> --outcome success --note "testes verdes"
-```
+kd task close --id <task> --outcome success --note "tests green"
 
-### Retomar contexto (handoff)
+# Resume
+kd rewind --budget 2000            # manifest + next:/fresh:
+kd rewind --files src/gateway.rs   # working set only
+kd rewind --resume <context_id>    # resume 1:1
 
-```bash
-kd rewind --budget 2000                 # manifest + next:/fresh:
-kd rewind --files src/gateway.rs        # só o working set
-kd rewind --resume <context_id>         # retoma 1:1
-```
-
-### Auditar / manter
-
-```bash
-kd doctor           # integridade + arestas sugeridas
-kd maintenance learn --universe         # o que deveria virar nota? (exige escopo)
+# Audit / maintain
+kd doctor
+kd maintenance learn --universe    # what should become a note? (scope required)
 kd map --axis scope --semantic --universe
-kd maintenance prune --universe         # propõe forget por shelf-life (exige escopo)
-kd drain --status           # fila de embeddings (pending) por projeto
-kd drain service --status   # saúde do worker de auto-drain (systemd/launchd)
+kd maintenance prune --universe    # proposes forget by shelf-life
+kd drain --status                  # embedding queue
+kd drain service --status          # auto-drain worker health
+
+# Integrate (MCP)
+kd self setup claude|cursor|codex|pi
+# tools: knudge_pre_write, knudge_pre_edit, knudge_session_end, knudge_status
 ```
 
-O worker de auto-drain é gerenciado por `kd drain service`: `--install` (pré-flight +
-agendador `systemd --user`/`launchd` + servidor de embeddings persistente `knudge-embed` +
-cadastra o projeto), `--subscribe`/`--unsubscribe` (multi-projeto; não desinstalam o sistema),
-`--status` (default, read-only), `--reconcile` (alinha `endpoint`/`model` e reindexa) e
-`--uninstall` (preserva o GGUF; `--remove-model` move ao lixo). O script é **embutido** no
-binário (sem download) e o GGUF mora ao lado do `config.toml` global, baixado de uma **revisão
-pinada** com **SHA-256 verificado** (D183). Com `embeddings.mode=lazy` (default) o próprio `kd`
-já drena um lote ao fim de cada verbo.
+The worker (`kd drain service`): `--install` sets up a `systemd --user`/`launchd` scheduler + the
+`knudge-embed` server and registers the project; `--subscribe`/`--unsubscribe` multi-project;
+`--reconcile` aligns `endpoint`/`model` + reindexes; `--uninstall` keeps the GGUF. Script embedded;
+GGUF pinned-revision + SHA-256 (D183). `embeddings.mode=lazy` (default) drains a batch after each
+verb.
 
-### Integração MCP
+## Setup
 
-Configure o `knudge-mcp` no cliente (`kd self setup claude|cursor|codex|pi`) e use as tools:
-`knudge_pre_write` (antes de gravar), `knudge_pre_edit` (antes de editar arquivo),
-`knudge_session_end` (fim de sessão) e `knudge_status`.
-
----
-
-## Instalação
-
-```bash
-curl --proto '=https' --tlsv1.2 -sSf \
-  https://raw.githubusercontent.com/st-all-one/knudge/main/install.sh | bash
-```
-
-Instala `kd` + `knudge-mcp` em `~/.local/bin` (checksum SHA-256). Requer `git` no projeto;
-embeddings são opcionais. `kd init` funda `.knudge/` e escreve o bloco no `AGENTS.md`.
-
----
+`kd init` creates `.knudge/`, writes the protocol block into `AGENTS.md`, and installs the skill
+`.agents/skill/kd/SKILL.md`. Installer (`install.sh`) drops `kd` + `knudge-mcp` into `~/.local/bin`
+(SHA-256 checked); needs `git`; embeddings optional.
 
 ## Anti-patterns
 
-- **Gravar sem buscar** → duplicata. Sempre `kd ask "<rascunho>"` antes.
-- **Inventar id** — ids são derivados; use o que o `write`/`ask` retorna.
-- **`kd write --type task`** — rejeitado; use `kd task`.
-- **Criar aresta por flag de tarefa** — arestas têm via única: `kd write --link`.
-- **Esperar que `learn`/`compact`/`prune` mudem o corpus** — eles só propõem.
-- **Misturar log e dado** — nunca escreva log em stdout; em `--json`, stdout é só o envelope.
-- **Declarar tarefa concluída sem evidência** — `kd task close` exige `--outcome`.
-- **Versionar `.idx/`/`cache/`/`contexts/`** — são derivados; o `kd init` cuida do `.gitignore`.
+- Writing without `kd ask` first → duplicates.
+- Inventing an id — ids are derived; copy them.
+- `kd write --type task` — rejected; use `kd task`.
+- Creating edges from a task flag — edges only via `kd write --link`.
+- Expecting `learn`/`compact`/`prune` to mutate the corpus — they only propose.
+- Logging to stdout — in `--json`, stdout is only the envelope.
+- Declaring a task done without `--outcome`.
+- Committing `.idx/`/`cache/`/`contexts/` — derived; `kd init` handles `.gitignore`.
+- Storing secrets in the body (logs redact, notes don't).
 
----
+## Known limitations
 
-## Limitações conhecidas
-
-- Embeddings exigem um servidor local OpenAI-compatible; sem ele, `ask` degrada para BM25.
-- `forgotten`/`superseded` não aparecem no `ask` por padrão (`--status` inclui).
-- `kd write` rejeita `task`/`epic` (D93/D149).
-- Tarefas têm o épico como raiz (`epic ⊃ { issue ⊃ task | task }`); o issue é opcional.
-- `learn`/`compact`/`prune` são read-only (propostas) — a aplicação é manual.
-- O índice é derivado e reconstruível; trocar o modelo de embedding invalida e re-embeda tudo.
-
----
+- Embeddings need a local OpenAI-compatible server; without it `ask` degrades to BM25.
+- `forgotten`/`superseded` are hidden from `ask` by default (`--status` includes them).
+- `kd write` rejects `task`/`epic` (D93/D149).
+- Tasks root at the epic: `epic ⊃ { issue ⊃ task | task }`; issue optional; depth ≤ 4.
+- `learn`/`compact`/`prune` are read-only (proposals).
+- The index is derived/rebuildable; changing the embedding model invalidates and re-embeds
+  everything.
 
 ## Checklist
 
-Antes de concluir qualquer operação de memória:
-
-- [ ] **Busquei antes de gravar** (`kd ask "<rascunho>"`)?
-- [ ] **Statement curto e autocontido**, com `--anchor` do código?
-- [ ] **Classificação/status** corretos (`foundational`/`tactical`/`observational`)?
-- [ ] **Id não inventado** — copiado da saída?
-- [ ] **Arestas via `kd write --link`**?
-- [ ] **Tarefa com pai único e profundidade ≤ 4**?
-- [ ] **Fechamento com `--outcome`** (evidência)?
-- [ ] **`kd sync`** no fim para versionar `notas/` + `eventos/`?
-- [ ] **`--json 2>/dev/null`** continua JSON válido (sem log vazando)?
+- [ ] Searched before writing (`kd ask "<draft>"`)?
+- [ ] Short, self-contained summary, with `--anchor` for code?
+- [ ] Correct `--class`/`--status`?
+- [ ] Id copied from output (not invented)?
+- [ ] Edges via `kd write --link`?
+- [ ] Task with a single parent and depth ≤ 4?
+- [ ] Closed with `--outcome` (evidence)?
+- [ ] `kd sync` at the end to version `notas/` + `eventos/`?
+- [ ] `--json 2>/dev/null` still valid JSON (no log leak)?

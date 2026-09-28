@@ -2,6 +2,7 @@
 
 use crate::config::table::{flatten, set_path};
 use crate::config::value::{ConfigValue, Table};
+use crate::schema::suggest;
 
 /// Tipo esperado de uma folha de configuração.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -56,6 +57,13 @@ pub fn spec(key: &str) -> Option<&'static KeySpec> {
     KEYS.iter().find(|entry| entry.key == key)
 }
 
+/// Chave mais provável para `raw` (did-you-mean), para mensagens de erro (D212).
+#[must_use]
+pub fn suggest_key(raw: &str) -> String {
+    let keys: Vec<&str> = KEYS.iter().map(|entry| entry.key).collect();
+    suggest::did_you_mean(raw, &keys)
+}
+
 /// Converte o default de uma especificação em valor.
 #[must_use]
 pub fn default_value(spec: &KeySpec) -> ConfigValue {
@@ -99,7 +107,8 @@ pub fn validate_leaf(key: &str, value: &ConfigValue) -> Result<(), String> {
             )),
         };
     }
-    let spec = spec(key).ok_or_else(|| format!("chave desconhecida: `{key}`"))?;
+    let spec =
+        spec(key).ok_or_else(|| format!("chave desconhecida: `{key}`{}", suggest_key(key)))?;
     let ok = match spec.kind {
         Kind::Bool => value.as_bool().is_some(),
         Kind::Int => value.as_int().is_some(),

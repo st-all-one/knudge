@@ -137,7 +137,7 @@ manual_guide() {
      WantedBy=default.target
    depois: systemctl --user daemon-reload && systemctl --user enable --now knudge-embed.service
    macOS (launchd): crie ~/Library/LaunchAgents/local.knudge.embed.plist apontando para o llama
-     (modelo em docs/15-embeddings.md) e carregue: launchctl bootstrap gui/\$(id -u) <plist>
+     (modelo em wiki/usage/18_embeddings.md) e carregue: launchctl bootstrap gui/\$(id -u) <plist>
    Windows: atalho/.bat no Startup do usuario ou tarefa no Agendador de Tarefas:
      llama.exe serve -m "%USERPROFILE%\\granite-97m-r2-Q8_0.gguf" --embeddings --pooling mean -b 2048 -ub 2048 --port $PORT
    Sem agendador (qualquer SO):
@@ -151,7 +151,7 @@ manual_guide() {
    kd drain --digest
    kd drain service --status
 
-Guia completo por SO: docs/15-embeddings.md
+Guia completo por SO: wiki/usage/18_embeddings.md
 EOF
 }
 

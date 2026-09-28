@@ -52,14 +52,14 @@ pub enum MaintenanceCommand {
 /// Filtros de corpus compartilhados por `learn`/`compact`/`prune` (D143/D144).
 #[derive(Debug, Args)]
 pub struct CorpusArgs {
-    /// Filtro por tipo (repetível).
-    #[arg(long = "type", value_name = "TIPO")]
+    /// Filtro por tipo (repetível; aceita lista com vírgula: `--type a,b`).
+    #[arg(long = "type", value_name = "TIPO", value_delimiter = ',')]
     pub types: Vec<String>,
-    /// Filtro por classificação (repetível).
-    #[arg(long = "class", value_name = "CLASSE")]
+    /// Filtro por classificação (repetível; aceita lista com vírgula).
+    #[arg(long = "class", value_name = "CLASSE", value_delimiter = ',')]
     pub classes: Vec<String>,
-    /// Filtro por tag (repetível; basta uma).
-    #[arg(long = "tag", value_name = "TAG")]
+    /// Filtro por tag (repetível; aceita lista com vírgula).
+    #[arg(long = "tag", value_name = "TAG", value_delimiter = ',')]
     pub tags: Vec<String>,
     /// Filtro por âncora (repetível; aceita lista com vírgula).
     #[arg(long, value_name = "PATH", value_delimiter = ',')]

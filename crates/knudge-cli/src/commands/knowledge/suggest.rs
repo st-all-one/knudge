@@ -5,11 +5,11 @@
 
 use std::collections::BTreeMap;
 
-use knudge_core::Result;
 use knudge_core::embeddings::{
     EmbeddingIndex, Relation, SemanticSuggestion, SuggestionPolicy, semantic_suggestions,
 };
 use knudge_core::retrieval::Index;
+use knudge_core::{Error, Result};
 use serde_json::json;
 
 use crate::cli::SuggestArgs;
@@ -25,6 +25,7 @@ const NO_RESULTS: &str = "[no_results]";
 /// # Errors
 /// Propaga erros de leitura do índice/grafo; índice vetorial ausente degrada para vazio.
 pub fn run(session: &Session, args: &SuggestArgs) -> Result<Output> {
+    let filter = relation_filter(args)?;
     let mut warnings = Vec::new();
     if !session
         .config()
@@ -46,7 +47,6 @@ pub fn run(session: &Session, args: &SuggestArgs) -> Result<Output> {
     };
     let anchors = anchors_of(&index);
     let policy = policy(session);
-    let filter = relation_filter(args);
     let limit = args
         .limit
         .or_else(|| {
@@ -108,12 +108,15 @@ fn policy(session: &Session) -> SuggestionPolicy {
     }
 }
 
-fn relation_filter(args: &SuggestArgs) -> Option<Relation> {
+fn relation_filter(args: &SuggestArgs) -> Result<Option<Relation>> {
     match args.relation.as_deref() {
-        Some("duplicate") => Some(Relation::Duplicate),
-        Some("contradiction") => Some(Relation::Contradiction),
-        Some("link") => Some(Relation::Link),
-        _ => None,
+        None => Ok(None),
+        Some("duplicate") => Ok(Some(Relation::Duplicate)),
+        Some("contradiction") => Ok(Some(Relation::Contradiction)),
+        Some("link") => Ok(Some(Relation::Link)),
+        Some(other) => Err(Error::invalid_input(format!(
+            "relação inválida: `{other}` (use `duplicate`, `contradiction` ou `link`)"
+        ))),
     }
 }
 

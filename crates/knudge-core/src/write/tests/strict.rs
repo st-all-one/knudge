@@ -21,12 +21,14 @@ fn unknown_key_is_rejected_with_frozen_message() {
 #[test]
 fn unknown_type_is_rejected() {
     assert!("bogus".parse::<NoteType>().is_err());
-    assert_eq!(
+    assert!(
         "bogus"
             .parse::<NoteType>()
             .err()
-            .map(|error| error.to_string()),
-        Some("erro de schema: tipo desconhecido: \"bogus\"".to_string())
+            .map(|error| error.to_string())
+            .is_some_and(
+                |message| message.starts_with("erro de schema: tipo desconhecido: \"bogus\"")
+            )
     );
 }
 

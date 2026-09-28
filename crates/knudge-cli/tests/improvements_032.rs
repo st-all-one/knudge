@@ -72,6 +72,19 @@ fn ask_suggest_without_embeddings_is_no_results() -> TestResult {
 }
 
 #[test]
+fn ask_suggest_invalid_relation_is_rejected() -> TestResult {
+    let dir = temp_project();
+    init(&dir)?;
+    // Valor fora do enum fechado é erro (não "sem filtro" silencioso).
+    expect_code(&dir, &["ask", "--suggest", "--relation", "bogus"], 2)?;
+    // Valor válido segue normal (sem embeddings → apenas `[no_results]`).
+    let out = run_in(&dir, &["ask", "--suggest", "--relation", "duplicate"])?;
+    assert!(out.status.success(), "suggest falhou: {:?}", out.stderr);
+    assert_eq!(stdout(&out)?.trim(), "[no_results]");
+    Ok(())
+}
+
+#[test]
 fn config_promote_is_disabled_by_default() -> TestResult {
     let dir = temp_project();
     init(&dir)?;

@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use knudge_core::Error;
 use knudge_core::Result;
+use knudge_core::config::schema::suggest_key;
 use knudge_core::config::{Config, global_config_path};
 use serde_json::json;
 
@@ -93,7 +94,10 @@ fn get(session: &Session, key: &str, scope: Scope) -> Result<Output> {
     let config = load(session, &path)?;
     let entry = config.list().into_iter().find(|(name, _)| name == key);
     let Some((name, value)) = entry else {
-        return Err(Error::not_found(format!("chave ausente: {key}")));
+        return Err(Error::not_found(format!(
+            "chave ausente: {key}{}",
+            suggest_key(key)
+        )));
     };
     let data = json!({ "key": name, "value": value, "scope": scope.as_str() });
     Ok(Output::new(

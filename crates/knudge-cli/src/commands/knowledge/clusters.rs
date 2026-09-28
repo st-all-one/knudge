@@ -9,6 +9,7 @@ use knudge_core::graph::Graph;
 use knudge_core::handoff::manifest::belongs_to;
 use knudge_core::lifecycle::{Cluster, structural_clusters_filtered};
 use knudge_core::retrieval::Index;
+use knudge_core::schema::suggest;
 use knudge_core::{Error, Result};
 
 use crate::cli::MapArgs;
@@ -74,7 +75,8 @@ pub(super) fn validate_axis(axis: &str) -> Result<()> {
         Ok(())
     } else {
         Err(Error::invalid_input(format!(
-            "eixo desconhecido: {axis:?} (use anchor|type|classification|scope)"
+            "eixo desconhecido: {axis:?} ({})",
+            suggest::hint(axis, &AXES)
         )))
     }
 }

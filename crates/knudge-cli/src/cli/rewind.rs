@@ -8,8 +8,8 @@ pub struct RewindArgs {
     /// Container/domínio de escopo.
     #[arg(long, value_name = "CONTAINER")]
     pub scope: Option<String>,
-    /// Working set por arquivos.
-    #[arg(long, value_name = "PATH")]
+    /// Working set por arquivos (repetível; aceita lista com vírgula: `--files a,b`).
+    #[arg(long, value_name = "PATH", value_delimiter = ',')]
     pub files: Vec<String>,
     /// Orçamento de tokens.
     #[arg(long, value_name = "N")]
@@ -23,14 +23,14 @@ pub struct RewindArgs {
     /// Retoma um contexto por id (handoff 1:1).
     #[arg(long, value_name = "CONTEXT_ID")]
     pub resume: Option<String>,
-    /// Filtro por tipo (repetível) — D143.
-    #[arg(long = "type", value_name = "TIPO")]
+    /// Filtro por tipo (repetível; aceita lista com vírgula: `--type a,b`) — D143.
+    #[arg(long = "type", value_name = "TIPO", value_delimiter = ',')]
     pub types: Vec<String>,
-    /// Filtro por classificação (repetível) — D143.
-    #[arg(long = "class", value_name = "CLASSE")]
+    /// Filtro por classificação (repetível; aceita lista com vírgula) — D143.
+    #[arg(long = "class", value_name = "CLASSE", value_delimiter = ',')]
     pub classes: Vec<String>,
-    /// Filtro por tag (repetível; basta uma) — D143.
-    #[arg(long = "tag", value_name = "TAG")]
+    /// Filtro por tag (repetível; aceita lista com vírgula) — D143.
+    #[arg(long = "tag", value_name = "TAG", value_delimiter = ',')]
     pub tags: Vec<String>,
     /// Filtro por âncora (repetível; aceita lista com vírgula) — D143.
     #[arg(long, value_name = "PATH", value_delimiter = ',')]

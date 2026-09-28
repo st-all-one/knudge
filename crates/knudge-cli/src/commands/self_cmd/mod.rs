@@ -5,6 +5,7 @@ use std::fmt::Write as _;
 use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::ports::Fs;
+use knudge_core::schema::suggest;
 use serde_json::json;
 
 use crate::cli::SelfCommand;
@@ -39,7 +40,8 @@ pub fn completions(shell: &str) -> Result<Output> {
         "fish" => fish(),
         other => {
             return Err(Error::invalid_input(format!(
-                "shell desconhecido: {other:?} (use bash|zsh|fish)"
+                "shell desconhecido: {other:?} ({})",
+                suggest::hint(other, &["bash", "zsh", "fish"])
             )));
         }
     };
@@ -65,8 +67,8 @@ pub fn setup(session: &Session, command: &SelfCommand) -> Result<Output> {
 fn setup_client(session: &Session, client: &str) -> Result<Output> {
     if !CLIENTS.contains(&client) {
         return Err(Error::invalid_input(format!(
-            "cliente desconhecido: {client:?} (use {})",
-            CLIENTS.join("|")
+            "cliente desconhecido: {client:?} ({})",
+            suggest::hint(client, &CLIENTS)
         )));
     }
     let dir = session.knowledge_dir().join("setup");

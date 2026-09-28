@@ -144,7 +144,12 @@ impl FromStr for EdgeKind {
             .iter()
             .copied()
             .find(|kind| kind.as_str() == s)
-            .ok_or_else(|| Error::schema(format!("aresta desconhecida: {s:?}")))
+            .ok_or_else(|| {
+                Error::schema(format!(
+                    "aresta desconhecida: {s:?} ({})",
+                    super::suggest::hint(s, &Self::ALL.map(Self::as_str))
+                ))
+            })
     }
 }
 

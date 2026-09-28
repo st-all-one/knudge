@@ -6,6 +6,7 @@ use std::path::Path;
 use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::schema::Scope;
+use knudge_core::schema::suggest;
 use knudge_core::task::plan::{PlanSpec, prompt as plan_prompt, submit_plan};
 use knudge_core::task::template::TemplateCatalog;
 use knudge_core::task::{PlanTemplate, TaskSpec, child, submit};
@@ -102,8 +103,8 @@ fn position(index: usize) -> Result<u32> {
 fn lookup<'a>(catalog: &'a TemplateCatalog, name: &str) -> Result<&'a PlanTemplate> {
     catalog.get(name).ok_or_else(|| {
         Error::invalid_input(format!(
-            "template desconhecido: {name}; disponíveis: {}",
-            catalog.names().join(", ")
+            "template desconhecido: {name} ({})",
+            suggest::hint(name, &catalog.names())
         ))
     })
 }

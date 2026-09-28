@@ -49,7 +49,7 @@ pub enum DrainCommand {
 #[command(
     after_help = "SO: Linux/macOS usam bash (systemd --user/launchd); no Windows o worker \
 embutido é Unix — forneça um script `.ps1` com `--script` ou use o caminho manual \
-(docs/15-embeddings.md, D185)."
+(wiki/usage/18_embeddings.md, D185)."
 )]
 pub struct WatchServiceArgs {
     /// Instala o agendador (systemd/launchd), o servidor de embeddings persistente e cadastra

@@ -1,4 +1,4 @@
-//! Argumentos e subcomandos do `kd` (superfície v2, ver `plan/implementation/16_cli_surface.md`).
+//! Argumentos e subcomandos do `kd` (superfície v3, ver `plan/implementation/16_cli_surface.md`).
 
 mod ask;
 mod health;
@@ -22,6 +22,7 @@ pub use task::{TaskCommand, TaskFlowArgs, TaskListArgs, TaskNewArgs, TaskPlanArg
 pub use write::{ForgetArgs, SyncArgs, WriteArgs};
 
 use clap::{Args, Parser, Subcommand};
+use knudge_core::schema::suggest;
 
 /// Interface de linha de comando do `kd`.
 #[allow(
@@ -40,7 +41,13 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub json: bool,
     /// Nível de log em stderr (`error|warn|info|debug|trace|off`).
-    #[arg(long, global = true, value_name = "NÍVEL", default_value = "warn")]
+    #[arg(
+        long,
+        global = true,
+        value_name = "NÍVEL",
+        default_value = "warn",
+        value_parser = parse_log_level
+    )]
     pub log_level: String,
     /// Silencia o stderr.
     #[arg(long, global = true)]
@@ -48,6 +55,21 @@ pub struct Cli {
     /// Subcomando; sem verbo o `kd` mostra o help (D171).
     #[command(subcommand)]
     pub command: Option<Command>,
+}
+
+/// Níveis válidos de log (conjunto fechado — D212).
+const LOG_LEVELS: [&str; 6] = ["error", "warn", "info", "debug", "trace", "off"];
+
+/// Valida `--log-level` contra o conjunto fechado (D212).
+fn parse_log_level(raw: &str) -> Result<String, String> {
+    if LOG_LEVELS.contains(&raw.to_ascii_lowercase().as_str()) {
+        Ok(raw.to_string())
+    } else {
+        Err(format!(
+            "nível de log inválido: {raw:?} ({})",
+            suggest::hint(raw, &LOG_LEVELS)
+        ))
+    }
 }
 
 /// Verbos de topo.

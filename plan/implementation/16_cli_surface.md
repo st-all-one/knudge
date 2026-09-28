@@ -17,6 +17,10 @@
 3. **stdout = dados, stderr = logs** (R20). `--json` é o contrato de máquina (D71).
 4. **`strict` é config de projeto** (D94), não flag.
 5. **Tudo de tarefa vive em `kd task`** (D93); `kd write` rejeita `--type task`.
+6. **Listas por repetição ou vírgula** (D210): toda flag de seleção aceita `--x a --x b` e
+   `--x a,b`; o formato por espaço não existe; texto livre não é dividido.
+7. **Conjuntos fechados listam as opções** (D212): valor inválido → erro com a lista e a sugestão
+   da mais provável; flag ausente não valida.
 
 ## 2. Verbos de topo
 
@@ -45,16 +49,16 @@ Default: **recall completo** (filtros → BM25 → âncoras → RRF). Pipe `id|s
 ```
 kd ask [QUERY|-]
   --params '<JSON>'       # query + filtros (D147); `-` lê o objeto do stdin
-  --id <ID>...            # get: corpo só dos ids pedidos
+  --id <ID>...            # get: corpo só dos ids pedidos (repetível; aceita vírgula)
   --around <ID>           # expand no grafo explícito
   --via <ARESTA>          # tipo de aresta (default: todas)
   --depth <N>             # profundidade do expand (default 1)
   --brief                 # saída mínima: id|statement
   --full-content          # inclui o corpo completo dos hits (ex-`--with-body`, D146)
   --with-task             # inclui itens de trabalho (notas com `scope`); default = só conhecimento (D146)
-  --type <T>...           # filtros determinísticos
-  --class <C>...          # foundational|tactical|observational
-  --tag <T>...
+  --type <T>...           # filtros determinísticos (repetível; aceita vírgula)
+  --class <C>...          # foundational|tactical|observational (repetível; aceita vírgula)
+  --tag <T>...            # (repetível; aceita vírgula)
   --status <S>...
   --scope <ID>
   --anchor <PATH>...      # repetível; aceita vírgula (`--anchor a,b`)
@@ -104,7 +108,7 @@ kd write --summary <TXT> [<BODY>|-]
   --tag <T>... --anchor <PATH>...
   --class <C> --status <S>
   --edge <ARESTA:ID>      # aresta explícita na criação (12 arestas; inclui ontologia)
-  --claim <S:R:O>         # claim atômica SPO (repetível; D207)
+  --claim <S:R:O>         # claim atômica SPO (repetível; aceita vírgula; D207)
   --agent <NOME>          # agente da proveniência PROV-lite (D207)
   --activity <NOME>       # atividade da proveniência PROV-lite (D207)
   --update <ID>           # modo update (patch versionado); aceita [--params '<JSON>']
@@ -414,7 +418,7 @@ Adições que **não** mudam os verbos existentes (só flags/subcomandos) e nenh
 | Superfície | Forma | Papel |
 |---|---|---|
 | `kd ask --as-of <TS>` | flag de `ask` | corpus ativo em `T` (D155); `--json` ganha `as_of`/`historical` |
-| `kd ask --suggest [--top-k N] [--relation R] [--limit N]` | subcomando | sugestões semânticas `duplicate`/`contradiction`/`link` (D158) |
+| `kd ask --suggest [--top-k N] [--relation R] [--limit N]` | subcomando | sugestões semânticas `duplicate`/`contradiction`/`link` — enum fechado; valor inválido → exit 2 (D158) |
 | `kd config promote recommend\|approve\|edit\|remove\|list` | subcomando + sub-subcomandos | regras governadas no `AGENTS.md` (D157) |
 | `kd maintenance learn --verify` / `compact --verify` | flag | anexa o veredito do portão (read-only, D156) |
 | `retention.renew_on_use` | config | renovação de shelf-life por uso (D154) |

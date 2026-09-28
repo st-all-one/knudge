@@ -6,7 +6,7 @@
 
 use std::str::FromStr;
 
-use crate::schema::Value;
+use crate::schema::{Value, suggest};
 use crate::time::Timestamp;
 use crate::{Error, Result};
 
@@ -26,6 +26,9 @@ pub enum OutcomeStatus {
 }
 
 impl OutcomeStatus {
+    /// Todos os resultados, na ordem canônica.
+    pub const ALL: [Self; 4] = [Self::Success, Self::Partial, Self::Failure, Self::Abandoned];
+
     /// Rótulo canônico.
     #[must_use]
     pub const fn as_str(self) -> &'static str {
@@ -48,7 +51,8 @@ impl FromStr for OutcomeStatus {
             "failure" => Ok(Self::Failure),
             "abandoned" => Ok(Self::Abandoned),
             other => Err(Error::invalid_input(format!(
-                "outcome desconhecido: {other:?}"
+                "outcome desconhecido: {other:?} ({})",
+                suggest::hint(other, &Self::ALL.map(Self::as_str))
             ))),
         }
     }

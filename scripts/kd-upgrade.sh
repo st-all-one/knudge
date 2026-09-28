@@ -4,7 +4,7 @@
 # Não reimplementa o install: baixa o `install.sh` oficial (ou usa um local, se houver),
 # opcionalmente verifica um SHA-256 pinado do próprio instalador e o executa com `VERSION`.
 # Verboso: cada passo vai para stderr. Cross-platform via Git Bash/WSL no Windows (o wrapper
-# embutido é Unix — D185); no Windows nativo, baixe o release manualmente (docs/13-self.md).
+# embutido é Unix — D185); no Windows nativo, baixe o release manualmente (wiki/usage/16_self.md).
 #
 # Uso:
 #   kd-upgrade [upgrade] [--version TAG] [--dry-run]

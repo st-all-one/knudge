@@ -13,11 +13,16 @@ pub struct AskArgs {
     /// Objeto JSON com a consulta e os filtros (`-` lê stdin) — D147.
     #[arg(long, value_name = "JSON")]
     pub params: Option<String>,
-    /// Recupera os corpos dos ids.
-    #[arg(long = "id", value_name = "ID")]
+    /// Recupera os corpos dos ids (repetível; aceita lista com vírgula: `--id a,b`).
+    #[arg(
+        long = "id",
+        value_name = "ID",
+        value_delimiter = ',',
+        conflicts_with = "query"
+    )]
     pub ids: Vec<String>,
     /// Expande o grafo a partir do id.
-    #[arg(long, value_name = "ID")]
+    #[arg(long, value_name = "ID", conflicts_with = "query")]
     pub around: Option<String>,
     /// Aresta do expand.
     #[arg(long, value_name = "ARESTA")]
@@ -34,14 +39,14 @@ pub struct AskArgs {
     /// Inclui o corpo completo dos hits (ex-`--with-body`, D146).
     #[arg(long)]
     pub full_content: bool,
-    /// Filtro por tipo.
-    #[arg(long = "type", value_name = "TIPO")]
+    /// Filtro por tipo (repetível; aceita lista com vírgula: `--type a,b`).
+    #[arg(long = "type", value_name = "TIPO", value_delimiter = ',')]
     pub types: Vec<String>,
-    /// Filtro por classificação.
-    #[arg(long = "class", value_name = "CLASSE")]
+    /// Filtro por classificação (repetível; aceita lista com vírgula: `--class a,b`).
+    #[arg(long = "class", value_name = "CLASSE", value_delimiter = ',')]
     pub classes: Vec<String>,
-    /// Filtro por tag.
-    #[arg(long = "tag", value_name = "TAG")]
+    /// Filtro por tag (repetível; aceita lista com vírgula: `--tag a,b`).
+    #[arg(long = "tag", value_name = "TAG", value_delimiter = ',')]
     pub tags: Vec<String>,
     /// Filtro por status.
     #[arg(long, value_name = "STATUS")]

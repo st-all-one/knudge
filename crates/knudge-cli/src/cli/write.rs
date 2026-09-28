@@ -15,8 +15,8 @@ pub struct WriteArgs {
     /// Tipo da nota (default: `fact`).
     #[arg(long = "type", value_name = "TIPO")]
     pub note_type: Option<String>,
-    /// Tags.
-    #[arg(long = "tag", value_name = "TAG")]
+    /// Tags (repetível; aceita lista com vírgula: `--tag a,b`).
+    #[arg(long = "tag", value_name = "TAG", value_delimiter = ',')]
     pub tags: Vec<String>,
     /// Âncoras (repetível; aceita lista com vírgula: `--anchor a,b`).
     #[arg(long = "anchor", value_name = "PATH", value_delimiter = ',')]
@@ -30,8 +30,8 @@ pub struct WriteArgs {
     /// Status inicial.
     #[arg(long, value_name = "STATUS")]
     pub status: Option<String>,
-    /// Aresta explícita `ARESTA:ID` a partir da nota.
-    #[arg(long, value_name = "ARESTA:ID")]
+    /// Aresta explícita `ARESTA:ID` a partir da nota (repetível; aceita lista com vírgula).
+    #[arg(long, value_name = "ARESTA:ID", value_delimiter = ',')]
     pub edge: Vec<String>,
     /// Id da nota (usado com `--outcome`).
     #[arg(long, value_name = "ID")]
@@ -57,8 +57,8 @@ pub struct WriteArgs {
     /// Texto do resultado (usado com `--outcome`).
     #[arg(long, value_name = "TXT")]
     pub note: Option<String>,
-    /// Claim atômica `SUJEITO:RELAÇÃO:OBJETO` (repetível; D207).
-    #[arg(long, value_name = "S:R:O")]
+    /// Claim atômica `SUJEITO:RELAÇÃO:OBJETO` (repetível; aceita lista com vírgula; D207).
+    #[arg(long, value_name = "S:R:O", value_delimiter = ',')]
     pub claim: Vec<String>,
     /// Agente da proveniência — quem produziu a nota (D207).
     #[arg(long, value_name = "NOME")]

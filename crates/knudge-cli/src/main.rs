@@ -1,6 +1,6 @@
 //! # knudge-cli
 //!
-//! Implementação do binário `kd` (superfície v2). O contrato dos verbos está em
+//! Implementação do binário `kd` (superfície v3). O contrato dos verbos está em
 //! `plan/implementation/16_cli_surface.md`.
 //!
 //! Este pacote é um **binário** (sem `[lib]`): o `knudge-core` é a única biblioteca, interna e

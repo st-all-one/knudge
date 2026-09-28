@@ -13,7 +13,7 @@ pub const DIR: &str = ".agents/skill/kd";
 /// Arquivo da skill.
 pub const FILE: &str = "SKILL.md";
 /// Versão atual do conteúdo.
-pub const VERSION: u32 = 1;
+pub const VERSION: u32 = 2;
 /// Prefixo do version marker gerenciado.
 pub const MARKER: &str = "<!-- knudge:skill:version:";
 
@@ -67,68 +67,104 @@ pub fn version_in(text: &str) -> Option<u32> {
 /// Corpo estático da skill (sem o version marker).
 const SKILL_BODY: &str = r#"---
 name: knudge
-description: Memória durável por projeto via `kd` (knudge). Use ao buscar, gravar, planejar tarefas, retomar contexto e manter a base. Dispare em: knudge, kd, memória, nota, ask, write, task, épico, rewind, handoff.
+description: Project-scoped durable memory via `kd` (knudge) — search, record, plan tasks, resume context, maintain the base. Trigger on: knudge, kd, memory, memória, note, nota, ask, write, task, tarefa, epic, épico, rewind, handoff.
 ---
 
-# knudge — uso real
+# knudge — real usage
 
-`kd` é a memória do projeto. A **nota Markdown é a verdade**; índice/embeddings/grafo são
-**derivados**. `notas/` não se edita à mão.
+`kd` is the project memory. The **Markdown note is the truth**; index/embeddings/graph are
+**derived**. Never edit `notas/` by hand.
 
-## Ciclo
+## Cycle
 
 ```
 kd ask → kd write → kd task → kd sync
 ```
 
-## Regras de ouro
+## Golden rules
 
-1. **Busque antes de gravar.** `kd ask "<rascunho>"` evita duplicata (dedup: <0.75 cria,
-   0.75–0.92 faz merge, ≥0.92 rejeita).
-2. **Uma afirmação por nota.** O `statement` é curto, autocontido e vira o `id` — não empilhe
-   afirmações nem dependa de contexto externo.
-3. **Corpo = o "porquê" que não cabe no statement.** Use quando o statement sozinho não permite
-   agir (`decision`/`error`/`risk`). Template (2–4 linhas):
+1. **Search before writing.** `kd ask "<draft>"` avoids duplicates (dedup: `<0.75` create,
+   `0.75–0.92` merge, `≥0.92` reject).
+2. **One assertion per note.** Short, self-contained `statement`; it derives the `id`. Never
+   invent an id — copy it from output. Reclassifying never rewrites the id.
+3. **Body = the "why" the statement can't carry.** Use when the statement alone can't drive
+   action (`decision`/`error`/`risk`):
    ```
-   Por quê: <motivo/decisão>
-   Evidência: <comando, saída, erro, link>
-   Consequência: <o que muda na prática>
+   Why: <reason>
+   Evidence: <command, output, error, link>
+   Consequence: <what changes>
    ```
-   `kd ask` mostra o corpo: 1º hit completo, 2–5 truncado; leia com `--id`/`--full-content`.
-4. **Ancore o código.** Toda nota/tarefa sobre um arquivo leva `--anchor PATH` (glob `src/**`
-   casa subárvores). `kd ask --anchor PATH` acha pelo arquivo.
-5. **Evidência separada do corpo.** Conclusão de tarefa usa `--outcome`; fato/decisão ganha
-   âncora. Corpo não substitui evidência.
+   `kd ask` shows the body: 1st hit full, 2–5 truncated; read with `--id`/`--full-content`.
+4. **Anchor code.** Every note/task about a file gets `--anchor PATH` (glob `src/**` matches
+   subtrees). `kd ask --anchor PATH` finds by file.
+5. **Evidence ≠ body.** Task completion uses `--outcome`; facts/decisions get anchors. Body never
+   replaces evidence.
+6. **Nothing changes without acceptance.** `doctor`/`learn`/`compact`/`prune` only propose; apply
+   via `write`/`write --link`/`forget`.
+7. **stdout = data, stderr = logs.** In `--json`, stdout is only the envelope. EPIPE → exit 0.
 
-## Comandos essenciais
+## Essential commands
 
 ```
-kd prime                                   # protocolo completo (1x por sessão)
-kd ask "<query>" [--limit N] [--brief]     # recuperar; --brief só id|statement
-kd ask --id <ID>                           # corpo completo de uma nota
-kd ask --anchor src/x.rs                   # por arquivo, sem query
-kd write --summary "<afirmação>" [<corpo>|-] --type <fact|decision|error|risk|question>
-        [--tag T] [--anchor PATH]
-kd write --update <ID> --summary "<...>"   # muda statement → novo id + supersede
+kd prime                                   # full protocol (once per session)
+kd ask "<q>" [--brief] [--limit N]         # search; --brief is id|statement only
+kd ask --id <ID>                           # full body of a note
+kd ask --anchor src/x.rs                   # by file, no query
+kd ask --around <ID> [--via <EDGE>]        # expand the graph
+kd ask --suggest [--relation R]            # semantic suggestions
+kd write --summary "<s>" [<body>|-] --type <fact|decision|error|risk|question>
+        [--tag T] [--anchor P]
+kd write --update <ID> --summary "<s>"     # versioned update (new id + supersede)
+kd write --link <FROM:EDGE:TO>             # explicit edge (12 kinds)
 kd write --outcome <success|partial|failure|abandoned> --id <ID> [--note TXT]
-kd task new --summary "<...>" --scope <epic|issue|task> [--parent ID] [--anchor PATH]
-kd task close --id <ID> [--outcome S]      # só declara com evidência
-kd rewind [--budget N]                     # retomar contexto entre sessões
-kd doctor [--fix] [--explain]            # saúde da base
-kd sync [--message M]                      # commit de notas/ + eventos/
+kd task new --summary "<s>" --scope <epic|issue|task> [--parent ID] [--anchor P]
+kd task list --ready [--sort impact]       # or --blocked [--explain]
+kd task close --id <ID> --outcome S        # only declares with evidence
+kd rewind [--budget N] [--files P...]      # resume context between sessions
+kd doctor [--fix] [--explain]              # base health
+kd map [--axis A] [--communities]          # knowledge map
+kd maintenance <learn|compact|prune>       # proposes only (read-only)
+kd sync [--message M]                      # commit notas/ + eventos/
 ```
 
-## Anti-padrões
+## Closed sets (D212)
 
-- Gravar sem `kd ask` antes (duplicata) ou `--type task` no `write` (use `kd task`).
-- Statement composto/ambíguo, sem âncora quando fala de código.
-- Guardar segredo no corpo (o log redige, mas a nota não deve conter segredo).
-- Editar `notas/` à mão — use `kd write --update`.
+Fixed-value flags reject an invalid value with the full list + closest match (`did you mean…`).
+An absent flag validates nothing.
 
-## Saída
+- `--type`: fact decision question task def error snippet link meta risk
+- `--class`: foundational tactical observational
+- `--status`: active in_progress blocked closed superseded forgotten
+- `--scope`: epic issue task · `--kind`: task error question risk decision
+- `--outcome`: success partial failure abandoned
+- edges (`--link`/`--edge`/`--via`): references depends_on contradicts supports extends replaces
+  rejects results_in same_as broader narrower related
+- `--relation`: duplicate contradiction link · `--axis`: anchor type classification scope
 
-stdout = dados, stderr = logs. `--json` = `{success, command, data?, error{code,message,retryable}, warnings?}`.
-Busca vazia → `[no_results]` (exit 0).
+## Lists (D210)
+
+List flags accept repetition or comma: `--tag a --tag b` ≡ `--tag a,b`. The space form
+(`--id a b`) does not exist. Free text is never split; use `--params '<json>'` for arrays.
+
+## Anchors × edges
+
+- **Anchor** (`--anchor PATH`): ties the note to a file/glob — the only link to code.
+- **Edge** (`--link`): ties the note to another note, with a type (12, closed).
+
+## Output
+
+stdout = data, stderr = logs. `--json` =
+`{success, command, data?, error{code,message,retryable}, warnings?}`. Empty search →
+`[no_results]` (exit 0). Exit codes: 2 invalid · 3 not found · 4 conflict · 5 io · 6 timeout ·
+7 config · 8 schema · 70 internal.
+
+## Anti-patterns
+
+- Writing without `kd ask` first (duplicate) or `--type task` in `write` (use `kd task`).
+- Composite/ambiguous statement, or missing anchor when it talks about code.
+- Storing secrets in the body (logs redact, notes don't).
+- Editing `notas/` by hand — use `kd write --update`.
+- Expecting `learn`/`compact`/`prune` to change the corpus — they only propose.
 "#;
 
 #[cfg(test)]

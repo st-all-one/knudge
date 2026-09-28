@@ -230,7 +230,7 @@ fn shell_spec(script: &Path, os: &str) -> Result<(String, Vec<String>)> {
         }
         return Err(Error::invalid_input(format!(
             "no Windows, scripts acionáveis exigem `.ps1` (PowerShell): `{path}` é shell Unix — \
-             veja o caminho manual em docs/15-embeddings.md (D185)"
+             veja o caminho manual em wiki/usage/18_embeddings.md (D185)"
         )));
     }
     Ok(("bash".to_string(), vec![path]))

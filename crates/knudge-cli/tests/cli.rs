@@ -1038,7 +1038,8 @@ fn task_show_multiple_ids_separator_and_partial() -> TestResult {
         &["task", "new", "--summary", "Segunda", "--scope", "task"],
     )?;
 
-    let out = run_in(&dir, &["task", "show", "--id", &first, &second])?;
+    let joined = format!("{first},{second}");
+    let out = run_in(&dir, &["task", "show", "--id", joined.as_str()])?;
     assert!(out.status.success(), "show falhou: {:?}", out.stderr);
     let text = String::from_utf8(out.stdout)?;
     assert!(
@@ -1047,9 +1048,10 @@ fn task_show_multiple_ids_separator_and_partial() -> TestResult {
     );
     assert!(text.contains("\n---\n"), "separador ausente: {text}");
 
+    let partial_id = format!("{first},task_zzzzzzzz");
     let partial = run_in(
         &dir,
-        &["--json", "task", "show", "--id", &first, "task_zzzzzzzz"],
+        &["--json", "task", "show", "--id", partial_id.as_str()],
     )?;
     assert!(
         partial.status.success(),

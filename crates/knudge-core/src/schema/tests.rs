@@ -12,6 +12,7 @@ use proptest::prelude::*;
 use std::str::FromStr;
 
 mod semantic;
+mod suggest;
 
 #[test]
 fn note_type_round_trips_and_prefixes() {

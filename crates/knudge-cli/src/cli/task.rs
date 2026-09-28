@@ -16,14 +16,8 @@ pub enum TaskCommand {
     List(TaskListArgs),
     /// Mostra uma ou mais tarefas.
     Show {
-        /// Ids.
-        #[arg(
-            long = "id",
-            value_name = "ID",
-            required = true,
-            num_args = 1..,
-            value_delimiter = ','
-        )]
+        /// Ids (repetível; aceita lista com vírgula: `--id a,b`).
+        #[arg(long = "id", value_name = "ID", required = true, value_delimiter = ',')]
         ids: Vec<String>,
         /// Inclui o histórico de supersessão.
         #[arg(long)]
@@ -43,8 +37,8 @@ pub enum TaskCommand {
         /// Novo pai.
         #[arg(long, value_name = "ID")]
         parent: Option<String>,
-        /// Novos checks.
-        #[arg(long, value_name = "NOME")]
+        /// Novos checks (repetível; aceita lista com vírgula: `--checks a,b`).
+        #[arg(long, value_name = "NOME", value_delimiter = ',')]
         checks: Vec<String>,
         /// Novas âncoras (repetível; aceita lista com vírgula). Substitui as existentes.
         #[arg(
@@ -149,8 +143,8 @@ pub struct TaskListArgs {
     /// Ordenação derivada do grafo (D109).
     #[arg(long, value_enum, value_name = "CAMPO")]
     pub sort: Option<TaskSort>,
-    /// Filtro por tag (repetível; basta uma).
-    #[arg(long, value_name = "TAG")]
+    /// Filtro por tag (repetível; aceita lista com vírgula: `--tag a,b`).
+    #[arg(long, value_name = "TAG", value_delimiter = ',')]
     pub tag: Vec<String>,
     /// Filtro por âncora (repetível; aceita lista com vírgula: `--anchor a,b`).
     #[arg(long, value_name = "PATH", value_delimiter = ',')]
@@ -188,14 +182,14 @@ pub struct TaskNewArgs {
     /// Pai na hierarquia.
     #[arg(long, value_name = "ID")]
     pub parent: Option<String>,
-    /// Checks (validators).
-    #[arg(long, value_name = "NOME")]
+    /// Checks (validators) (repetível; aceita lista com vírgula: `--checks a,b`).
+    #[arg(long, value_name = "NOME", value_delimiter = ',')]
     pub checks: Vec<String>,
     /// Âncoras (repetível; aceita lista com vírgula: `--anchor a,b`).
     #[arg(long = "anchor", value_name = "PATH", value_delimiter = ',')]
     pub anchors: Vec<String>,
-    /// Tags declaradas (repetível).
-    #[arg(long, value_name = "TAG")]
+    /// Tags declaradas (repetível; aceita lista com vírgula: `--tag a,b`).
+    #[arg(long, value_name = "TAG", value_delimiter = ',')]
     pub tag: Vec<String>,
     /// Objeto JSON de uma tarefa (`-` lê stdin) — D141/D147.
     #[arg(long, value_name = "JSON")]

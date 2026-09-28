@@ -130,8 +130,12 @@ impl Config {
         let value = if schema::is_secret(key) {
             ConfigValue::String(raw.to_string())
         } else {
-            let spec = schema::spec(key)
-                .ok_or_else(|| Error::config(format!("chave desconhecida: `{key}`")))?;
+            let spec = schema::spec(key).ok_or_else(|| {
+                Error::config(format!(
+                    "chave desconhecida: `{key}`{}",
+                    schema::suggest_key(key)
+                ))
+            })?;
             parse_raw(&spec.kind, raw)?
         };
         self.set_value(key, value)

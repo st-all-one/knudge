@@ -4,7 +4,7 @@
 //! D33): `forget`/`restore` (soft-delete, D52) e `link replaces` (supersessão, D46) mudam o
 //! estado; eventos posteriores a `T` são ignorados. O conteúdo da nota é o **atual** — o
 //! knudge não versiona edição in-place (`update`); só a supersessão cria uma nova nota. Essa é
-//! a borda honesta documentada em `DIVERGENCES.md`.
+//! a borda honesta documentada em `wiki/specs/DIVERGENCES.md`.
 
 use std::collections::BTreeSet;
 

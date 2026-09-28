@@ -1,6 +1,6 @@
 //! Parser de blocos do subconjunto TOON (D74/D75).
 //!
-//! A gramática está em `TOON.md`. Documentos são **mapas**; entradas são `chave: valor`;
+//! A gramática está em `wiki/specs/TOON.md`. Documentos são **mapas**; entradas são `chave: valor`;
 //! valores são escalares, coleções *flow* (`[a, b]`, `{a: 1}` — ver [`super::flow`]) ou blocos
 //! aninhados por indentação de 2 espaços. Comentários `#` (fora de aspas) são ignorados.
 //! `null`/`~` não fazem parte do subconjunto: campos opcionais ausentes são **omitidos** (D05).
