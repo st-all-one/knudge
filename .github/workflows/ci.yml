@@ -21,7 +21,7 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      # `cargo test --workspace` já cobre doc-tests; nextest fica para `make ci` local.
+      # `cargo test --workspace` já cobre doc-tests.
       - run: make check
 
   windows:
@@ -48,7 +48,7 @@ jobs:
       - uses: crate-ci/typos@master
 
   miri:
-    name: miri (núcleo puro)
+    name: miri (núcleo puro, smoke)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -57,11 +57,13 @@ jobs:
           components: miri
       - uses: Swatinem/rust-cache@v2
       - run: cargo miri setup
-      # `adapters::*` toca SO/rede/processos (isolamento do miri não permite) — fora do escopo.
-      # `PROPTEST_DISABLE_FAILURE_PERSISTENCE` evita o `getcwd` do proptest, bloqueado sob isolamento.
-      - run: "cargo miri test -p knudge-core --lib -- --skip adapters::"
+      # Suíte mínima `tests/miri_smoke.rs` (segundos): o core é `#![forbid(unsafe_code)]` e a
+      # cobertura funcional fica no `make check`. `-Zmiri-disable-isolation` evita o `getcwd`
+      # do proptest (o core usa fakes), que o isolamento bloqueia.
+      - run: "cargo miri test -p knudge-core --test miri_smoke"
         env:
           PROPTEST_DISABLE_FAILURE_PERSISTENCE: "1"
+          MIRIFLAGS: "-Zmiri-disable-isolation"
 
   fuzz:
     name: fuzz (TOON + JSONL, smoke)

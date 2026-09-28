@@ -32,7 +32,7 @@ make uninstall # invalida os binários (move para o lixo)
 make update-version VERSION=v0.2.1  # bump em Cargo.toml/lock/goldens/install.sh/README/CHANGELOG
 
 # alvos extras (E13) — pulam se a ferramenta não estiver instalada
-make ci        # check + nextest + deny + audit + machete + typos
+make ci        # check + miri + deny + audit + machete + typos
 make miri      # verificação dinâmica de UB no core puro
 make fuzz      # build dos alvos de fuzz (TOON, JSONL)
 make bench     # bancada de benchmark (micro + e2e) → bench/ULTIMO.md (observação, E13-T09)

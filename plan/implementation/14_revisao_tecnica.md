@@ -28,7 +28,7 @@
 8. **Cache/índice sem teto** (R14): eviction no `.idx/emb_cache`, limiar de memória do índice.
 9. **`eventos`/índice carregados inteiros e strings montadas** (R15): streaming e `BufWriter`.
 10. **Build/supply chain incompleto** (R40–R43): edition/MSRV/lints de workspace, perfil de
-    release, `cargo deny/audit/machete`, `nextest`, `criterion`, features mínimas.
+    release, `cargo deny/audit/machete`, `criterion`, features mínimas.
 
 ---
 
@@ -230,7 +230,7 @@
 - **R41 🟠 Perfis:** release `lto = "fat"`, `codegen-units = 1`, `strip = "symbols"`,
   `overflow-checks = true`, `panic = "abort"`; dev com `debug-assertions`/`overflow-checks`.
 - **R42 🟠 Supply chain e ferramentas:** `cargo deny` (licenças/advisories), `cargo audit`,
-  `cargo machete`, `typos`, `nextest`, `llvm-cov`/`tarpaulin`, `criterion` (retrieval).
+  `cargo machete`, `typos`, `llvm-cov`/`tarpaulin`, `criterion` (retrieval).
 - **R43 🟠 Orçamento de dependências:** `default-features = false`; evitar `tokio full`,
   `reqwest`; preferir HTTP bloqueante no adaptador; documentar cada dependência e o porquê.
 - **R44 🔴 Rigor de Clippy:** `clippy.toml` + `[workspace.lints]` com os grupos
@@ -294,7 +294,7 @@
 | **E12-T08** | E12 | envelope de erro + mapa de exit |
 | **E13-T08** | E13 | Miri/loom/fuzz |
 | **E13-T09** | E13 | supply chain, cobertura e benchmark |
-| **E13-T07** (amp.) | E13 | gate com `clippy.toml`, `nextest`, `deny` |
+| **E13-T07** (amp.) | E13 | gate com `clippy.toml`, `deny`, `audit`, `machete` |
 
 ## 8. Riscos e trade-offs — o que **não** fazer
 

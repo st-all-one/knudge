@@ -63,16 +63,17 @@ Transversal — inicia junto com E01 e cresce com os épicos.
 
 ### E13-T07 ☑ Gate de CI
 - **Objetivo:** `fmt --check`, `clippy --workspace --all-targets -D warnings`, `test`, gate de
-  linhas, doc-tests, `nextest`, todos lendo `clippy.toml`.
-- **Entregáveis:** pipeline com `cargo fmt`, `clippy`, `nextest`, `deny`, `audit`, `machete`,
+  linhas e doc-tests, todos lendo `clippy.toml`.
+- **Entregáveis:** pipeline com `cargo fmt`, `clippy`, `deny`, `audit`, `machete`,
   `typos`.
 - **Decisões:** D92. **Políticas:** R42, R44.
 - **Aceite:** PR sem o gate não passa; `clippy.toml` e `[workspace.lints]` aplicados.
 
 ### E13-T08 ☑ Verificação dinâmica de memória e concorrência
 - **Objetivo:** pegar UB e corridas que testes comuns não pegam.
-- **Entregáveis:** `cargo miri test` nos crates puros; `loom` nos primitivos concorrentes
-  (lock/RRF); fuzz do parser TOON e do leitor JSONL; `cargo geiger` para auditar `unsafe`.
+- **Entregáveis:** smoke de `miri` no core puro (`crates/knudge-core/tests/miri_smoke.rs`);
+  `loom` nos primitivos concorrentes (lock/RRF); fuzz do parser TOON e do leitor JSONL;
+  `cargo geiger` para auditar `unsafe`.
 - **Decisões:** D76. **Políticas:** R01, R11.
 - **Aceite:** Miri/loom verdes; fuzz sem panic no corpus; `unsafe` só em `embeddings`.
 
@@ -112,12 +113,13 @@ Transversal — inicia junto com E01 e cresce com os épicos.
 - **T05** — [`DIVERGENCES.md`](../../wiki/specs/DIVERGENCES.md) na raiz (21 bordas, cada uma com o teste).
 - **T06** — [`17_matriz_aceitacao.md`](17_matriz_aceitacao.md): linha por verbo/subcomando com
   pipe, `--json`, erro/exit code, estado de `.knudge/` e teste.
-- **T07** — `.github/workflows/ci.yml` (fmt+clippy+test+linhas, nextest, doc-tests) e alvos
-  `make nextest|deny|audit|machete|typos|miri|fuzz|coverage|ci`.
-- **T08** — job de `miri` para `knudge-core --lib`; fuzz skeleton em `fuzz/`
-  (`toon_parse`, `jsonl_decode`) com smoke de 30 s por alvo. **`loom` não se aplica**: o core não
-  tem primitivos concorrentes em memória (a sincronização real é por arquivo), então o stress
-  cobre o adaptador real.
+- **T07** — `.github/workflows/ci.yml` (fmt+clippy+test+linhas, doc-tests) e alvos
+  `make deny|audit|machete|typos|miri|fuzz|coverage|ci`.
+- **T08** — job de `miri` com a suíte mínima `tests/miri_smoke.rs` (segundos; o core é
+  `#![forbid(unsafe_code)]` e a cobertura funcional fica no `make check`); fuzz skeleton em
+  `fuzz/` (`toon_parse`, `jsonl_decode`) com smoke de 30 s por alvo. **`loom` não se aplica**: o
+  core não tem primitivos concorrentes em memória (a sincronização real é por arquivo), então o
+  stress cobre o adaptador real.
 - **T09** — `deny.toml` (licenças, advisories, fontes, ban de runtime async), `_typos.toml`,
   job de supply chain e alvo de cobertura (`cargo-llvm-cov`, observação).
   **`criterion` fica como não-objetivo** (benchmark é observação, não gate) para não inflar o

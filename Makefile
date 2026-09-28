@@ -5,7 +5,7 @@ PREFIX ?= $(HOME)/.local
 BINDIR ?= $(PREFIX)/bin
 
 .PHONY: check fmt clippy test build file-length clean install uninstall \
-        update-version nextest doc deny audit machete typos miri miri-full fuzz coverage ci dist bench bench-quick bench-quality bench-sweep
+        update-version doc deny audit machete typos miri fuzz coverage ci dist bench bench-quick bench-quality bench-sweep
 
 ## Portão completo local: formatação, lints, testes e gate de tamanho de arquivo.
 check: fmt clippy test file-length
@@ -63,14 +63,6 @@ dist:
 
 # --- Alvos extras (CI / verificação dinâmica). Pulam se a ferramenta não estiver instalada. ---
 
-## Runner paralelo (E13-T07).
-nextest:
-	@if command -v cargo-nextest >/dev/null 2>&1; then \
-		$(CARGO) nextest run --workspace; \
-	else \
-		echo "nextest ausente; pule (instale com: cargo install cargo-nextest --locked)"; \
-	fi
-
 ## Supply chain: licenças/advisories/fontes (E13-T09).
 deny:
 	@if command -v cargo-deny >/dev/null 2>&1; then \
@@ -102,27 +94,16 @@ typos:
 		echo "typos ausente; pule (https://github.com/crate-ci/typos)"; \
 	fi
 
-## Verificação dinâmica de UB nos crates puros (E13-T08). Miri exige nightly.
+## Verificação dinâmica de UB (E13-T08). Miri exige nightly.
 ##
-## Rápido (default): `-Zmiri-disable-isolation` (o core só usa fakes; evita o `getcwd` do
-## proptest) e poucos casos de proptest (`MIRI_CASES`, default 8). O objetivo do Miri é UB,
-## não cobertura de propriedade — use `make miri-full` para o rigor total.
-MIRI_CASES ?= 8
+## Roda a suíte mínima `tests/miri_smoke.rs` (segundos). O core é `#![forbid(unsafe_code)]`;
+## a cobertura funcional fica no `make check` — não reexecutamos os 600+ testes sob
+## interpretação. `-Zmiri-disable-isolation` evita o `getcwd` do proptest (o core usa fakes).
 miri:
-	@if command -v cargo-miri >/dev/null 2>&1 && $(CARGO) +nightly miri --version >/dev/null 2>&1; then \
-		PROPTEST_DISABLE_FAILURE_PERSISTENCE=1 PROPTEST_CASES=$(MIRI_CASES) \
-		MIRIFLAGS="$${MIRIFLAGS:-} -Zmiri-disable-isolation" \
-		$(CARGO) +nightly miri test -p knudge-core --lib -- --skip adapters::; \
-	else \
-		echo "miri ausente; pule (rustup +nightly component add miri)"; \
-	fi
-
-## Miri no rigor total (casos de proptest no default = 256). Lento; rode antes da release.
-miri-full:
 	@if command -v cargo-miri >/dev/null 2>&1 && $(CARGO) +nightly miri --version >/dev/null 2>&1; then \
 		PROPTEST_DISABLE_FAILURE_PERSISTENCE=1 \
 		MIRIFLAGS="$${MIRIFLAGS:-} -Zmiri-disable-isolation" \
-		$(CARGO) +nightly miri test -p knudge-core --lib -- --skip adapters::; \
+		$(CARGO) +nightly miri test -p knudge-core --test miri_smoke; \
 	else \
 		echo "miri ausente; pule (rustup +nightly component add miri)"; \
 	fi
@@ -144,7 +125,7 @@ coverage:
 	fi
 
 ## Portão do CI: check + doc-tests + extras disponíveis.
-ci: check nextest deny audit machete typos
+ci: check miri deny audit machete typos
 
 # --- Bancada de benchmark (fora do workspace, observação — E13-T09) ---
 

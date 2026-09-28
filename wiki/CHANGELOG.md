@@ -14,6 +14,18 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   já fundado e com `--force` (a flag vence o clone do global). `OnboardOptions` ganha
   `persistence: Option<Persistence>` (D34).
 
+### Corrigido
+- **Extras do Makefile não mascaram mais falhas como "ausente"** — `miri`, `machete`, `deny`,
+  `audit`, `typos`, `fuzz` e `coverage` só pulam quando a ferramenta está ausente; erro real do
+  comando propaga. `miri` passa a exigir nightly (`+nightly`) e roda a suíte mínima
+  `crates/knudge-core/tests/miri_smoke.rs` (segundos) com `-Zmiri-disable-isolation`;
+  `machete` fica restrito aos três crates. O `ci` deixa de depender do `cargo-nextest` (o
+  `cargo test --workspace` já cobre) e passa a incluir `miri`.
+- **CI alinhado ao smoke do Miri** — o job `miri` do `.github/workflows/ci.yml` deixa de varrer
+  `knudge-core --lib` sob interpretação e roda `tests/miri_smoke.rs`.
+- **Testes de integração herméticos** — `crates/knudge-cli/tests/cli.rs` semeia uma config global
+  isolada com `embeddings.provider = "none"`, sem depender de um worker local de embeddings.
+
 ## [0.5.0] - 2026-09-27
 
 ### Adicionado

@@ -59,12 +59,22 @@ fn run_stdin(dir: &Path, args: &[&str], input: &str) -> std::io::Result<Output> 
 }
 
 /// Cria um diretório temporário único para um teste.
+///
+/// Semeia uma config global isolada com `embeddings.provider = "none"` para que a busca não
+/// dependa de um worker local de embeddings (testes herméticos, R33); os testes que exercitam
+/// vetores definem `provider = "lightweight"` explicitamente depois do `init`.
 fn temp_project() -> PathBuf {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let serial = COUNTER.fetch_add(1, Ordering::Relaxed);
     let dir = std::env::temp_dir().join(format!("kd-it-{}-{serial}", std::process::id()));
     let _ignored = std::fs::remove_dir_all(&dir);
     let _ignored = std::fs::create_dir_all(&dir);
+    let global = dir.join("local").join("knudge");
+    let _ignored = std::fs::create_dir_all(&global);
+    let _ignored = std::fs::write(
+        global.join("config.toml"),
+        b"[embeddings]\nprovider = \"none\"\n",
+    );
     dir
 }
 
