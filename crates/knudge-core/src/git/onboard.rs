@@ -1,10 +1,10 @@
 //! `onboard()` idempotente: cria/atualiza `.knudge/`, clona o config e aplica exclusões
 //! (E04-T01/T03/T04).
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::Result;
-use crate::config::{Config, global_config_path};
+use crate::config::{Config, ConfigValue, global_config_path};
 use crate::ports::{Env, Fs, Git};
 use crate::schema::NoteType;
 
@@ -23,6 +23,8 @@ pub const LAYOUT_DIRS: &[&str] = &["notas", "eventos", ".idx", "cache"];
 pub struct OnboardOptions {
     /// Sobrescreve um `config.toml` de projeto existente.
     pub force: bool,
+    /// Força o modo de persistência (D34), sobrepondo o config clonado ou existente.
+    pub persistence: Option<Persistence>,
 }
 
 /// Relatório do `onboard` (idempotente e auditável).
@@ -75,18 +77,7 @@ pub fn onboard(
     fs.create_dir_all(&notes_dir.join(NoteType::Epic.as_str()))?;
 
     let config_path = project.config_path();
-    let config_written = if fs.exists(&config_path) && !options.force {
-        false
-    } else {
-        let bytes = match global_config_path(env) {
-            Ok(global_path) if fs.exists(&global_path) => fs.read(&global_path)?,
-            _ => Config::defaults().render().into_bytes(),
-        };
-        fs.write_atomic(&config_path, &bytes)?;
-        true
-    };
-
-    let config = Config::load(fs, &config_path)?.unwrap_or_default();
+    let (config, config_written) = ensure_config(fs, env, &config_path, options)?;
     let persistence = if config
         .get_bool("knowledge.persist_in_project")
         .unwrap_or(true)
@@ -120,4 +111,40 @@ pub fn onboard(
         agents_changed,
         skill_changed,
     })
+}
+
+/// Garante o `config.toml` do projeto e devolve `(config, escrito)`.
+///
+/// `force` recopia o global; `options.persistence` sobrepõe `persist_in_project` (D213) —
+/// inclusive sobre um clone do global — e marca o config como escrito.
+///
+/// # Errors
+/// Propaga erros de I/O e de validação do config.
+fn ensure_config(
+    fs: &dyn Fs,
+    env: &dyn Env,
+    config_path: &Path,
+    options: OnboardOptions,
+) -> Result<(Config, bool)> {
+    let mut written = if fs.exists(config_path) && !options.force {
+        false
+    } else {
+        let bytes = match global_config_path(env) {
+            Ok(global_path) if fs.exists(&global_path) => fs.read(&global_path)?,
+            _ => Config::defaults().render().into_bytes(),
+        };
+        fs.write_atomic(config_path, &bytes)?;
+        true
+    };
+
+    let mut config = Config::load(fs, config_path)?.unwrap_or_default();
+    if let Some(desired) = options.persistence {
+        let versioned = desired.is_versioned();
+        if config.get_bool("knowledge.persist_in_project") != Some(versioned) {
+            config.set_value("knowledge.persist_in_project", ConfigValue::Bool(versioned))?;
+            config.save(fs, config_path)?;
+            written = true;
+        }
+    }
+    Ok((config, written))
 }

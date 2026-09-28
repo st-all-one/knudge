@@ -22,6 +22,7 @@ comita o conhecimento com `sync`.
 - `persist_in_project=true` (default): versiona `notas/`+`eventos/`, mas exclui derivados
   (`.idx/`, `cache/`, `*.lock`) via `DERIVED_PATTERNS`/`KNUDGE_PATTERN`.
 - `persist_in_project=false`: exclui o `.knudge/` inteiro (local-only).
+- `kd init --git-excluded`/`--git-tracked` (D213) escolhem o modo **por invocação** (mutuamente exclusivos): sobrepõem a chave no config do projeto e reaplicam a exclusão; com `--force` a flag vence o clone do global. Sem flag, o modo segue o config.
 - `git/exclude.rs` mantém a exclusão **idempotente** (não duplica linhas).
 
 ## `AGENTS.md` e blocos idempotentes (D60)
@@ -55,7 +56,8 @@ não se percam no merge.
 
 `git/onboard.rs::onboard` cria/atualiza `.knudge/` de forma **idempotente**: clona o config
 global, aplica exclusões, cria `notas/`/`eventos/` e escreve o protocolo. Sem config global,
-**degrada para defaults** (D97).
+**degrada para defaults** (D97). `OnboardOptions.persistence` (D213) permite forçar o modo
+(`Some(Versioned)`/`Some(LocalOnly)`) por invocação, inclusive com `force: true`.
 
 ## Onde vive
 

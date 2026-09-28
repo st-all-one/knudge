@@ -17,7 +17,7 @@ versionar a memória sem versionar o derivado.
 ## Sintaxe
 
 ```
-kd init [--force] [--no-prompt] [--json]
+kd init [--force] [--no-prompt] [--git-excluded | --git-tracked] [--json]
 ```
 
 ## Exemplos
@@ -55,12 +55,25 @@ kd init --force
 
 Útil depois de ajustar o template global. **As notas não são tocadas.**
 
+### 5. Escolher o modo de persistência na fundação
+
+```bash
+kd init --git-excluded   # .knudge/ inteiro fica local-only (fora do git)
+kd init --git-tracked    # versiona notas/ e eventos/; exclui só o derivado (default)
+```
+
+As flags sobrepõem `knowledge.persist_in_project` **no config do projeto** e são mutuamente
+exclusivas. Funcionam também sobre um projeto já fundado (idempotente) e com `--force` — a flag
+vence o clone do global. Sem flag, o modo segue o config (ou o default versionado).
+
 ## Flags
 
 | Flag | O que faz |
 |---|---|
 | `--force` | Sobrescreve a configuração existente (não mexe nas notas) |
 | `--no-prompt` | Não imprime o prompt inicial de fundação |
+| `--git-excluded` | Exclui o `.knudge/` inteiro do git (local-only); grava `persist_in_project = false` |
+| `--git-tracked` | Versiona `notas/`+`eventos/` e exclui só o derivado (default); grava `persist_in_project = true` |
 | `--json` | Devolve o envelope de máquina |
 
 ## Resultado esperado
@@ -80,8 +93,14 @@ criados sob demanda, quando você usa os recursos correspondentes.
 
 E, quando há git:
 
-- **`.git/info/exclude`** — ignora o derivado (`.idx/`, `cache/`, `.locks/`);
-- **`.gitattributes`** — bloco gerenciado para que os logs façam merge sem conflito.
+- **`.git/info/exclude`** — com o modo versionado (default), ignora o derivado (`.idx/`, `cache/`,
+  `.locks/`); com `--git-excluded`, ignora o `.knudge/` inteiro;
+- **`.gitattributes`** — bloco gerenciado para que os logs façam merge sem conflito (ausente no
+  modo local-only).
+
+Alternar entre os modos **reverte** as linhas do modo anterior, sem duplicar. Para mudar depois,
+repita `kd init --git-excluded`/`--git-tracked` (ou `kd config set --key
+knowledge.persist_in_project --value <false|true>` seguido de `kd init`).
 
 Além disso, sempre cria/atualiza:
 

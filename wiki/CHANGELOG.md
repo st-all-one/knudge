@@ -2,6 +2,18 @@
 
 Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## [Não publicado]
+
+## [0.5.1] - 2026-09-28
+
+### Adicionado
+- **Modo de persistência por invocação no `kd init` (D213)** — `--git-excluded` exclui o `.knudge/`
+  inteiro do git (local-only) e `--git-tracked` versiona `notas/`+`eventos/` (default), gravando
+  `knowledge.persist_in_project` no config do **projeto** e reaplicando `.git/info/exclude` e
+  `.gitattributes` de forma idempotente. Flags mutuamente exclusivas; valem também sobre projeto
+  já fundado e com `--force` (a flag vence o clone do global). `OnboardOptions` ganha
+  `persistence: Option<Persistence>` (D34).
+
 ## [0.5.0] - 2026-09-27
 
 ### Adicionado

@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use super::*;
-use crate::git::{OnboardOptions, onboard};
+use crate::git::{OnboardOptions, Persistence, onboard};
 use crate::ports::Fs;
 
 #[test]
@@ -53,7 +53,10 @@ fn does_not_overwrite_project_config_without_force() -> Result<()> {
     assert!(!report.config_written);
     assert_eq!(fs.read(project_config)?, custom);
 
-    let forced = OnboardOptions { force: true };
+    let forced = OnboardOptions {
+        force: true,
+        ..OnboardOptions::default()
+    };
     let report = onboard(&fs, &git, &env_at("/work/proj"), forced)?;
     assert!(report.config_written);
     assert_ne!(fs.read(project_config)?, custom);
@@ -113,6 +116,72 @@ fn local_only_config_excludes_whole_dir_and_reverts() -> Result<()> {
     assert!(
         !attributes.contains("merge=union"),
         "bloco deve ser revertido"
+    );
+    Ok(())
+}
+
+#[test]
+fn persistence_override_forces_local_only_and_reverts() -> Result<()> {
+    let fs = MemFs::new();
+    let git = git_with(true, Some("/repo/.git"), Some("/repo"), None);
+    let env = env_at("/repo");
+    let exclude_path = Path::new("/repo/.git/info/exclude");
+
+    // `--git-excluded` sobrepõe o default versionado e grava a chave no projeto.
+    let local = OnboardOptions {
+        persistence: Some(Persistence::LocalOnly),
+        ..OnboardOptions::default()
+    };
+    let report = onboard(&fs, &git, &env, local)?;
+    assert!(report.config_written, "a chave mudou; config foi reescrita");
+    let exclude = String::from_utf8(fs.read(exclude_path)?).unwrap_or_default();
+    assert!(exclude.lines().any(|line| line.trim() == "/.knudge/"));
+    let config =
+        String::from_utf8(fs.read(Path::new("/repo/.knudge/config.toml"))?).unwrap_or_default();
+    assert!(config.contains("persist_in_project = false"));
+
+    // Reexecutar com o mesmo modo é no-op.
+    let second = onboard(&fs, &git, &env, local)?;
+    assert!(!second.config_written);
+
+    // `--git-tracked` reverte para o modo versionado.
+    let tracked = OnboardOptions {
+        persistence: Some(Persistence::Versioned),
+        ..OnboardOptions::default()
+    };
+    onboard(&fs, &git, &env, tracked)?;
+    let exclude = String::from_utf8(fs.read(exclude_path)?).unwrap_or_default();
+    assert!(!exclude.lines().any(|line| line.trim() == "/.knudge/"));
+    assert!(exclude.contains("/.knudge/.idx/"));
+    let config =
+        String::from_utf8(fs.read(Path::new("/repo/.knudge/config.toml"))?).unwrap_or_default();
+    assert!(config.contains("persist_in_project = true"));
+    Ok(())
+}
+
+#[test]
+fn persistence_override_wins_over_force_clone() -> Result<()> {
+    let fs = MemFs::new();
+    let global_dir = Path::new("/home/u/.config/local/knudge");
+    fs.create_dir_all(global_dir)?;
+    fs.write_atomic(
+        &global_dir.join("config.toml"),
+        b"[knowledge]\npersist_in_project = true\n",
+    )?;
+    let mut env = env_at("/repo");
+    env.vars.insert("HOME".into(), "/home/u".into());
+    let git = git_with(true, Some("/repo/.git"), Some("/repo"), None);
+
+    let forced_local = OnboardOptions {
+        force: true,
+        persistence: Some(Persistence::LocalOnly),
+    };
+    onboard(&fs, &git, &env, forced_local)?;
+    let config =
+        String::from_utf8(fs.read(Path::new("/repo/.knudge/config.toml"))?).unwrap_or_default();
+    assert!(
+        config.contains("persist_in_project = false"),
+        "a flag deve vencer o clone global com --force"
     );
     Ok(())
 }

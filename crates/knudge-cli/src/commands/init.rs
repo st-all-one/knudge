@@ -3,7 +3,7 @@
 use std::fmt::Write as _;
 
 use knudge_core::Result;
-use knudge_core::git::{LAYOUT_DIRS, OnboardOptions, OnboardReport, onboard};
+use knudge_core::git::{LAYOUT_DIRS, OnboardOptions, OnboardReport, Persistence, onboard};
 use serde_json::json;
 
 use crate::cli::InitArgs;
@@ -70,7 +70,10 @@ pub fn run(session: &Session, args: &InitArgs) -> Result<Output> {
         session.fs_dyn(),
         session.git(),
         session.env(),
-        OnboardOptions { force: args.force },
+        OnboardOptions {
+            force: args.force,
+            persistence: requested_persistence(args),
+        },
     )?;
     tracing::info!(
         project = %report.name,
@@ -112,6 +115,20 @@ pub fn run(session: &Session, args: &InitArgs) -> Result<Output> {
     };
     let text = render(&report, &plan, &prompt);
     Ok(Output::new(text, report_data(&report)))
+}
+
+/// Modo de persistência pedido pelas flags (`--git-excluded`/`--git-tracked`).
+///
+/// `None` mantém o que estiver no config do projeto (ou o default). As flags são
+/// mutuamente exclusivas no `clap`, então no máximo uma chega verdadeira.
+const fn requested_persistence(args: &InitArgs) -> Option<Persistence> {
+    if args.git_excluded {
+        Some(Persistence::LocalOnly)
+    } else if args.git_tracked {
+        Some(Persistence::Versioned)
+    } else {
+        None
+    }
 }
 
 /// Estado inicial dos diretórios do layout (antes do `onboard`).

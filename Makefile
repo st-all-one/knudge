@@ -5,7 +5,7 @@ PREFIX ?= $(HOME)/.local
 BINDIR ?= $(PREFIX)/bin
 
 .PHONY: check fmt clippy test build file-length clean install uninstall \
-        update-version nextest doc deny audit machete typos miri fuzz coverage ci dist bench bench-quick bench-quality bench-sweep
+        update-version nextest doc deny audit machete typos miri miri-full fuzz coverage ci dist bench bench-quick bench-quality bench-sweep
 
 ## Portão completo local: formatação, lints, testes e gate de tamanho de arquivo.
 check: fmt clippy test file-length
@@ -65,44 +65,83 @@ dist:
 
 ## Runner paralelo (E13-T07).
 nextest:
-	@command -v cargo-nextest >/dev/null 2>&1 && $(CARGO) nextest run --workspace \
-		|| echo "nextest ausente; pule (instale com: cargo install cargo-nextest --locked)"
+	@if command -v cargo-nextest >/dev/null 2>&1; then \
+		$(CARGO) nextest run --workspace; \
+	else \
+		echo "nextest ausente; pule (instale com: cargo install cargo-nextest --locked)"; \
+	fi
 
 ## Supply chain: licenças/advisories/fontes (E13-T09).
 deny:
-	@command -v cargo-deny >/dev/null 2>&1 && $(CARGO) deny check \
-		|| echo "cargo-deny ausente; pule (cargo install cargo-deny --locked)"
+	@if command -v cargo-deny >/dev/null 2>&1; then \
+		$(CARGO) deny check; \
+	else \
+		echo "cargo-deny ausente; pule (cargo install cargo-deny --locked)"; \
+	fi
 
 audit:
-	@command -v cargo-audit >/dev/null 2>&1 && $(CARGO) audit \
-		|| echo "cargo-audit ausente; pule (cargo install cargo-audit --locked)"
+	@if command -v cargo-audit >/dev/null 2>&1; then \
+		$(CARGO) audit; \
+	else \
+		echo "cargo-audit ausente; pule (cargo install cargo-audit --locked)"; \
+	fi
 
 ## Dependências não usadas (orçamento R43).
 machete:
-	@command -v cargo-machete >/dev/null 2>&1 && $(CARGO) machete \
-		|| echo "cargo-machete ausente; pule (cargo install cargo-machete --locked)"
+	@if command -v cargo-machete >/dev/null 2>&1; then \
+		$(CARGO) machete crates/knudge-core crates/knudge-cli crates/knudge-mcp; \
+	else \
+		echo "cargo-machete ausente; pule (cargo install cargo-machete --locked)"; \
+	fi
 
 ## Verificação ortográfica (E13-T09).
 typos:
-	@command -v typos >/dev/null 2>&1 && typos \
-		|| echo "typos ausente; pule (https://github.com/crate-ci/typos)"
+	@if command -v typos >/dev/null 2>&1; then \
+		typos; \
+	else \
+		echo "typos ausente; pule (https://github.com/crate-ci/typos)"; \
+	fi
 
-## Verificação dinâmica de UB nos crates puros (E13-T08).
+## Verificação dinâmica de UB nos crates puros (E13-T08). Miri exige nightly.
+##
+## Rápido (default): `-Zmiri-disable-isolation` (o core só usa fakes; evita o `getcwd` do
+## proptest) e poucos casos de proptest (`MIRI_CASES`, default 8). O objetivo do Miri é UB,
+## não cobertura de propriedade — use `make miri-full` para o rigor total.
+MIRI_CASES ?= 8
 miri:
-	@command -v cargo-miri >/dev/null 2>&1 && PROPTEST_DISABLE_FAILURE_PERSISTENCE=1 $(CARGO) miri test -p knudge-core --lib -- --skip adapters:: \
-		|| echo "miri ausente; pule (rustup +nightly component add miri)"
+	@if command -v cargo-miri >/dev/null 2>&1 && $(CARGO) +nightly miri --version >/dev/null 2>&1; then \
+		PROPTEST_DISABLE_FAILURE_PERSISTENCE=1 PROPTEST_CASES=$(MIRI_CASES) \
+		MIRIFLAGS="$${MIRIFLAGS:-} -Zmiri-disable-isolation" \
+		$(CARGO) +nightly miri test -p knudge-core --lib -- --skip adapters::; \
+	else \
+		echo "miri ausente; pule (rustup +nightly component add miri)"; \
+	fi
+
+## Miri no rigor total (casos de proptest no default = 256). Lento; rode antes da release.
+miri-full:
+	@if command -v cargo-miri >/dev/null 2>&1 && $(CARGO) +nightly miri --version >/dev/null 2>&1; then \
+		PROPTEST_DISABLE_FAILURE_PERSISTENCE=1 \
+		MIRIFLAGS="$${MIRIFLAGS:-} -Zmiri-disable-isolation" \
+		$(CARGO) +nightly miri test -p knudge-core --lib -- --skip adapters::; \
+	else \
+		echo "miri ausente; pule (rustup +nightly component add miri)"; \
+	fi
 
 ## Fuzz smoke dos parsers (E13-T08).
 fuzz:
-	@command -v cargo-fuzz >/dev/null 2>&1 \
-		&& $(CARGO) fuzz build \
-		|| echo "cargo-fuzz ausente; pule (cargo install cargo-fuzz --locked)"
+	@if command -v cargo-fuzz >/dev/null 2>&1; then \
+		$(CARGO) fuzz build; \
+	else \
+		echo "cargo-fuzz ausente; pule (cargo install cargo-fuzz --locked)"; \
+	fi
 
 ## Cobertura de linhas (E13-T09, observação).
 coverage:
-	@command -v cargo-llvm-cov >/dev/null 2>&1 \
-		&& $(CARGO) llvm-cov --workspace --summary-only \
-		|| echo "cargo-llvm-cov ausente; pule (cargo install cargo-llvm-cov --locked)"
+	@if command -v cargo-llvm-cov >/dev/null 2>&1; then \
+		$(CARGO) llvm-cov --workspace --summary-only; \
+	else \
+		echo "cargo-llvm-cov ausente; pule (cargo install cargo-llvm-cov --locked)"; \
+	fi
 
 ## Portão do CI: check + doc-tests + extras disponíveis.
 ci: check nextest deny audit machete typos

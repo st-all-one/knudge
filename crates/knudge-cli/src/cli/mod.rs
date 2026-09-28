@@ -155,6 +155,12 @@ pub struct InitArgs {
     /// Não emite o prompt inicial de fundação.
     #[arg(long)]
     pub no_prompt: bool,
+    /// Exclui o `.knudge/` inteiro do git (local-only; D34).
+    #[arg(long, conflicts_with = "git_tracked")]
+    pub git_excluded: bool,
+    /// Versiona notas/ e eventos/ no git (default; D34).
+    #[arg(long, conflicts_with = "git_excluded")]
+    pub git_tracked: bool,
 }
 
 /// Argumentos de `kd prime`.

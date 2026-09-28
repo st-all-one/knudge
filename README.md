@@ -31,7 +31,7 @@ curl --proto '=https' --tlsv1.2 --show-error --fail \
 
 Instala **`kd`** + **`knudge-mcp`** em `~/.local/bin` — release pré-compilado, **verificado por
 SHA-256**, que nunca apaga nada (move o antigo para um lixo recuperável). Versão fixa:
-`... | VERSION=v0.5.0 bash`; outro destino: `... | INSTALL_DIR=/usr/local/bin bash`. Do source:
+`... | VERSION=v0.5.1 bash`; outro destino: `... | INSTALL_DIR=/usr/local/bin bash`. Do source:
 `make install`.
 
 **Embeddings (opcional, recomendado)** — um comando baixa o `llama.cpp` e o modelo GGUF e deixa o

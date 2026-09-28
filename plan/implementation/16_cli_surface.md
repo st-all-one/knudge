@@ -350,7 +350,7 @@ kd forget --id <ID> --purge [--force]  # hard-delete só após a janela de reten
 
 kd sync [--message <MSG>]  # commit de notas/ + eventos/ no worktree certo
 
-kd init [--force] [--no-prompt]   # estrutura canônica + prompt inicial de fundação
+kd init [--force] [--no-prompt] [--git-excluded | --git-tracked]   # estrutura canônica + modo de persistência + prompt inicial
 
 kd self setup <claude|cursor|codex|pi>
 kd self completions <shell>
