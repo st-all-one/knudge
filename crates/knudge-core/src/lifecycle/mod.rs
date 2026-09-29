@@ -35,7 +35,7 @@ pub use confidence::{
 };
 pub use decay::{
     AnchorValidity, DecayPolicy, compute_anchor_validity, compute_anchor_validity_cached,
-    compute_anchor_validity_with, has_glob, should_demote, walk_paths,
+    compute_anchor_validity_with, has_glob, should_demote, walk_paths, walk_paths_ignoring,
 };
 pub use drift::{DriftEntry, DriftIndex, DriftStore, entries_from_validity};
 pub use plan::{DemotionCandidate, DemotionInput, DemotionReason, demotion_candidates};

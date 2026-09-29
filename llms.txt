@@ -380,7 +380,8 @@ superfície v3, listas, enums fechados.
   [`AGENTS.md`](AGENTS.md) — contribuir no código.
 - [`wiki/`](wiki/README.md): [`usage/`](wiki/usage/README.md) (um guia por comando),
   [`specs/`](wiki/specs/README.md) (técnico por subsistema), [`adrs/`](wiki/specs/adrs/README.md)
-  (D01–D212), [`CHANGELOG.md`](wiki/CHANGELOG.md).
+  (D01–D212), [`integration/`](wiki/integration/README.md) (embutir o `knudge-core`),
+  [`CHANGELOG.md`](wiki/CHANGELOG.md).
 - Contratos: [`TOON.md`](wiki/specs/TOON.md) · [`ARCHITECTURE.md`](wiki/specs/ARCHITECTURE.md) ·
   [`matematica.md`](wiki/specs/matematica.md) · [`DIVERGENCES.md`](wiki/specs/DIVERGENCES.md) ·
   [`16_cli_surface.md`](plan/implementation/16_cli_surface.md) ·

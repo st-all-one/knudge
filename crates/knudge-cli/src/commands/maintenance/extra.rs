@@ -9,7 +9,7 @@ use knudge_core::handoff::manifest::belongs_to;
 use knudge_core::lifecycle::{
     AnchorValidity, DecayPolicy, DemotionCandidate, DemotionInput, DriftStore, ShelfLife,
     UsageIndex, UsageStore, compute_anchor_validity_cached, demotion_candidates,
-    entries_from_validity, retention_for, walk_paths,
+    entries_from_validity, retention_for, walk_paths_ignoring,
 };
 use knudge_core::maintenance::{LearnInput, learn, propose_compact};
 use knudge_core::store::Note;
@@ -254,7 +254,8 @@ fn retention_map(
 /// Caminha o projeto **uma vez** e reusa os caminhos para todas as notas (E16/T10): antes era um
 /// walk por nota, `O(notas × projeto)`.
 fn validity_map(session: &Session, notes: &[Note]) -> Result<BTreeMap<String, AnchorValidity>> {
-    let paths = walk_paths(session.fs_dyn(), session.project_root());
+    let ignored = session.project().ignored_dirs();
+    let paths = walk_paths_ignoring(session.fs_dyn(), session.project_root(), &ignored);
     let mut map = BTreeMap::new();
     for note in notes {
         let anchors: Vec<String> = note

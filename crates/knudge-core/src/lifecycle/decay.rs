@@ -139,34 +139,63 @@ pub fn has_glob(anchor: &str) -> bool {
 }
 
 /// Caminhos relativos do projeto, ordenados e limitados (ignora `.git`/`target`/…).
+///
+/// Usa [`IGNORED_DIRS`]; para um layout de conhecimento alternativo (ex.: `.a/b`), prefira
+/// [`walk_paths_ignoring`] com [`Project::ignored_dirs`](crate::git::Project::ignored_dirs).
 #[must_use]
 pub fn walk_paths(fs: &dyn Fs, root: &Path) -> Vec<String> {
-    let mut out = Vec::new();
-    walk(fs, root, root, 0, &mut out);
+    let ignored: Vec<String> = IGNORED_DIRS
+        .iter()
+        .map(|name| (*name).to_string())
+        .collect();
+    walk_paths_ignoring(fs, root, &ignored)
+}
+
+/// Como [`walk_paths`], mas ignora os diretórios de topo em `ignored`.
+#[must_use]
+pub fn walk_paths_ignoring(fs: &dyn Fs, root: &Path, ignored: &[String]) -> Vec<String> {
+    let mut walker = Walker {
+        fs,
+        root,
+        ignored,
+        out: Vec::new(),
+    };
+    walker.visit(root, 0);
+    let mut out = walker.out;
     out.sort();
     out.dedup();
     out
 }
 
-fn walk(fs: &dyn Fs, root: &Path, dir: &Path, depth: usize, out: &mut Vec<String>) {
-    if depth > MAX_WALK_DEPTH || out.len() >= MAX_WALK_ENTRIES {
-        return;
-    }
-    let Ok(entries) = fs.list_dir(dir) else {
-        return;
-    };
-    for path in entries {
-        if out.len() >= MAX_WALK_ENTRIES {
+/// Estado da varredura (props para manter a assinatura enxuta).
+struct Walker<'a> {
+    fs: &'a dyn Fs,
+    root: &'a Path,
+    ignored: &'a [String],
+    out: Vec<String>,
+}
+
+impl Walker<'_> {
+    fn visit(&mut self, dir: &Path, depth: usize) {
+        if depth > MAX_WALK_DEPTH || self.out.len() >= MAX_WALK_ENTRIES {
             return;
         }
-        let name = path.file_name().and_then(OsStr::to_str).unwrap_or("");
-        if fs.is_dir(&path) {
-            if IGNORED_DIRS.contains(&name) {
-                continue;
+        let Ok(entries) = self.fs.list_dir(dir) else {
+            return;
+        };
+        for path in entries {
+            if self.out.len() >= MAX_WALK_ENTRIES {
+                return;
             }
-            walk(fs, root, &path, depth.saturating_add(1), out);
-        } else if let Ok(relative) = path.strip_prefix(root) {
-            out.push(relative.to_string_lossy().replace('\\', "/"));
+            let name = path.file_name().and_then(OsStr::to_str).unwrap_or("");
+            if self.fs.is_dir(&path) {
+                if self.ignored.iter().any(|ignored| ignored == name) {
+                    continue;
+                }
+                self.visit(&path, depth.saturating_add(1));
+            } else if let Ok(relative) = path.strip_prefix(self.root) {
+                self.out.push(relative.to_string_lossy().replace('\\', "/"));
+            }
         }
     }
 }

@@ -77,3 +77,39 @@ fn outside_repo_is_noop() -> Result<()> {
     assert!(!exclude::apply(&fs, None, Persistence::Versioned)?);
     Ok(())
 }
+
+#[test]
+fn custom_layout_uses_its_own_patterns() -> Result<()> {
+    let fs = MemFs::new();
+    let common = Path::new("/repo/.git");
+    assert!(exclude::apply_with_layout(
+        &fs,
+        Some(common),
+        Persistence::Versioned,
+        ".a/b"
+    )?);
+    let text = read(&fs, &exclude_path(common));
+    assert!(text.contains("/.a/b/.idx/"));
+    assert!(text.contains("/.a/b/cache/"));
+    assert!(text.contains("/.a/b/.locks/"));
+    assert!(!text.contains("/.knudge/"));
+    assert!(!exclude::apply_with_layout(
+        &fs,
+        Some(common),
+        Persistence::Versioned,
+        ".a/b"
+    )?);
+    Ok(())
+}
+
+#[test]
+fn switching_from_default_layout_reverts_old_lines() -> Result<()> {
+    let fs = MemFs::new();
+    let common = Path::new("/repo/.git");
+    exclude::apply(&fs, Some(common), Persistence::LocalOnly)?;
+    exclude::apply_with_layout(&fs, Some(common), Persistence::Versioned, ".a/b")?;
+    let text = read(&fs, &exclude_path(common));
+    assert!(text.contains("/.a/b/.idx/"));
+    assert!(!text.lines().any(|line| line.trim() == "/.knudge/"));
+    Ok(())
+}

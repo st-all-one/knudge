@@ -1,33 +1,50 @@
 //! Resolução do projeto: raiz do conhecimento no **worktree principal** e nome lógico (D29/D91).
 //!
-//! `notas/`, `eventos/` e `config.toml` vivem em `<raiz>/.knudge/`, onde `<raiz>` é o worktree
-//! principal do repositório. Worktrees ligados compartilham o mesmo `.knudge/`; submódulos são
-//! resolvidos no próprio worktree do submódulo (o superprojeto não conta — D29).
+//! `notas/`, `eventos/` e `config.toml` vivem em `<raiz>/<layout>/`, onde `<raiz>` é o worktree
+//! principal do repositório e `<layout>` é o diretório de conhecimento (default `.knudge/`).
+//! Worktrees ligados compartilham o mesmo diretório; submódulos são resolvidos no próprio
+//! worktree do submódulo (o superprojeto não conta — D29).
+//!
+//! O [`Project`] carrega o `layout` (caminho relativo) para que aplicações embutidas possam
+//! trocar `.knudge` por outro diretório — inclusive aninhado (`.a/b`) — sem tocar no domínio.
 
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use crate::config::CONFIG_FILE;
 use crate::ports::{Env, Git};
 use crate::{Error, Result};
 
-/// Nome do diretório de conhecimento.
+/// Nome default do diretório de conhecimento.
 pub const KNUDGE_DIR: &str = ".knudge";
 
 /// Projeto resolvido.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Project {
     root: PathBuf,
+    layout: PathBuf,
     name: String,
     in_repo: bool,
     common_dir: Option<PathBuf>,
 }
 
 impl Project {
-    /// Resolve o projeto a partir das portas de Git/ambiente.
+    /// Resolve o projeto a partir das portas de Git/ambiente, com o layout default (`.knudge`).
     ///
     /// # Errors
     /// Retorna `ErrorKind::Config` se a raiz ou o nome não puderem ser resolvidos.
     pub fn resolve(git: &dyn Git, env: &dyn Env) -> Result<Self> {
+        Self::resolve_with(git, env, KNUDGE_DIR)
+    }
+
+    /// Resolve o projeto usando um diretório de conhecimento alternativo (relativo à raiz).
+    ///
+    /// O `layout` é um caminho relativo (ex.: `.knudge`, `.a/b`). O default `.knudge` mantém o
+    /// comportamento histórico.
+    ///
+    /// # Errors
+    /// Retorna `ErrorKind::Config` se a raiz, o nome ou o layout forem inválidos.
+    pub fn resolve_with(git: &dyn Git, env: &dyn Env, layout: impl Into<PathBuf>) -> Result<Self> {
+        let layout = validate_layout(layout.into())?;
         if git.is_repo() {
             let common = git.common_dir();
             let root = if git.superproject_root().is_some() {
@@ -39,6 +56,7 @@ impl Project {
             let name = logical_name(&root)?;
             Ok(Self {
                 root,
+                layout,
                 name,
                 in_repo: true,
                 common_dir: common,
@@ -48,6 +66,7 @@ impl Project {
             let name = logical_name(&root)?;
             Ok(Self {
                 root,
+                layout,
                 name,
                 in_repo: false,
                 common_dir: None,
@@ -55,10 +74,51 @@ impl Project {
         }
     }
 
+    /// Constrói um projeto a partir de uma raiz explícita, **sem** consultar o Git.
+    ///
+    /// Útil para embutir o núcleo apontando para um diretório arbitrário (a persistência via
+    /// `git` fica indisponível: `in_repo() == false`).
+    ///
+    /// # Errors
+    /// Retorna `ErrorKind::Config` se a raiz, o nome ou o layout forem inválidos.
+    pub fn at(root: impl Into<PathBuf>, layout: impl Into<PathBuf>) -> Result<Self> {
+        let root = root.into();
+        let layout = validate_layout(layout.into())?;
+        let name = logical_name(&root)?;
+        Ok(Self {
+            root,
+            layout,
+            name,
+            in_repo: false,
+            common_dir: None,
+        })
+    }
+
+    /// Deriva um novo projeto com outro diretório de conhecimento (default `.knudge`).
+    ///
+    /// # Errors
+    /// Retorna `ErrorKind::Config` se o layout for inválido.
+    pub fn with_layout(self, layout: impl Into<PathBuf>) -> Result<Self> {
+        let layout = validate_layout(layout.into())?;
+        Ok(Self { layout, ..self })
+    }
+
     /// Raiz do worktree principal.
     #[must_use]
     pub fn root(&self) -> &Path {
         &self.root
+    }
+
+    /// Diretório de conhecimento, relativo à raiz (ex.: `.knudge` ou `.a/b`).
+    #[must_use]
+    pub fn layout(&self) -> &Path {
+        &self.layout
+    }
+
+    /// Layout como string com separador `/` (para padrões de `.git/info/exclude` e afins).
+    #[must_use]
+    pub fn layout_str(&self) -> String {
+        self.layout.to_string_lossy().replace('\\', "/")
     }
 
     /// Nome lógico do projeto (basename da raiz, nunca um caminho — D91).
@@ -79,13 +139,35 @@ impl Project {
         self.common_dir.as_deref()
     }
 
-    /// Diretório `.knudge/`.
+    /// Diretório de conhecimento completo (`<raiz>/<layout>`).
     #[must_use]
     pub fn knowledge_dir(&self) -> PathBuf {
-        self.root.join(KNUDGE_DIR)
+        self.root.join(&self.layout)
     }
 
-    /// Caminho de `.knudge/config.toml`.
+    /// Diretórios de topo ignorados numa varredura do projeto.
+    ///
+    /// O primeiro componente do layout (`.knudge` ou `.a`) é ignorado, além dos diretórios de
+    /// build/SO. Ordem estável (determinismo).
+    #[must_use]
+    pub fn ignored_dirs(&self) -> Vec<String> {
+        let top = self
+            .layout
+            .iter()
+            .next()
+            .and_then(|component| component.to_str())
+            .unwrap_or(KNUDGE_DIR)
+            .to_string();
+        vec![
+            ".git".to_string(),
+            top,
+            "target".to_string(),
+            "node_modules".to_string(),
+            ".hg".to_string(),
+        ]
+    }
+
+    /// Caminho de `<raiz>/<layout>/config.toml`.
     #[must_use]
     pub fn config_path(&self) -> PathBuf {
         self.knowledge_dir().join(CONFIG_FILE)
@@ -138,4 +220,30 @@ pub fn is_valid_name(name: &str) -> bool {
         && name != ".."
         && !name.contains(['/', '\\'])
         && !Path::new(name).is_absolute()
+}
+
+/// `true` se `layout` é um diretório relativo válido (sem `.`, `..` ou raiz — D91).
+///
+/// Aceita caminhos aninhados (`a/b`, `.a/b`); rejeita vazios, absolutos e travessias (`../x`).
+#[must_use]
+pub fn is_valid_layout(layout: &Path) -> bool {
+    !layout.as_os_str().is_empty()
+        && layout
+            .components()
+            .all(|component| matches!(component, Component::Normal(_)))
+}
+
+/// Valida e devolve o layout.
+///
+/// # Errors
+/// Retorna `ErrorKind::Config` se o layout não for um caminho relativo simples.
+fn validate_layout(layout: PathBuf) -> Result<PathBuf> {
+    if is_valid_layout(&layout) {
+        Ok(layout)
+    } else {
+        Err(Error::config(format!(
+            "diretório de conhecimento inválido: `{}` (use caminho relativo sem `..`)",
+            layout.display()
+        )))
+    }
 }

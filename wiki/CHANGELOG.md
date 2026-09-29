@@ -4,6 +4,22 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+## [0.5.2] - 2026-09-29
+
+### Adicionado
+- **Núcleo publicável e fachada de incorporação (D214)** — `knudge-core` passa a `publish = true`
+  com metadados de crates.io e expõe `Knudge`/`KnudgeBuilder` (adaptadores `std` + `Project` +
+  config) para uso como biblioteca, reproduzindo a montagem da CLI/MCP. O diretório de
+  conhecimento é configurável (`knowledge_dir(".a/b")`, default `.knudge`): `Project` ganha
+  `layout`/`resolve_with`/`at`/`with_layout`/`ignored_dirs`, e os padrões de Git
+  (`info/exclude`, `.gitattributes`, `sync`, `AGENTS.md`) e a varredura de âncoras derivam dele.
+  Sem mudança de comportamento no default.
+- **Wiki de integração do `knudge-core`** — `wiki/integration/` documenta, por subsistema, como
+  embutir o núcleo em outro projeto Rust (fachada, modelo, store, busca, escrita,
+  tarefas/handoff, grafo, saúde/manutenção, ciclo de vida, embeddings, git/config,
+  erros/determinismo) com recomendações de otimização e checklist de produção; indexada em
+  `wiki/README.md` e `llms.txt`.
+
 ## [0.5.1] - 2026-09-28
 
 ### Adicionado

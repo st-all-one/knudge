@@ -8,11 +8,13 @@ Documentação organizada em três camadas:
 | [`specs/`](specs/README.md) | **documentação técnica**: arquitetura, contrato de bytes, bordas e um documento por subsistema. |
 | [`specs/adrs/`](specs/adrs/README.md) | **decisões** (`D01`–`D209`), uma por arquivo, com contexto e impacto. |
 | [`usage/`](usage/README.md) | **guias de uso** práticos: um documento por comando, com exemplos e resultados esperados. |
+| [`integration/`](integration/README.md) | **integração do `knudge-core`** em outro projeto Rust: fachada, cada subsistema e otimização. |
 
 ## Por onde começar
 
 - **Entender o sistema:** [`specs/ARCHITECTURE.md`](specs/ARCHITECTURE.md) → [`specs/README.md`](specs/README.md).
 - **Usar o `kd`:** [`usage/00_quickstart.md`](usage/00_quickstart.md) → [`usage/README.md`](usage/README.md).
+- **Embutir o núcleo em Rust:** [`integration/README.md`](integration/README.md).
 - **Por que uma decisão foi tomada:** [`specs/adrs/README.md`](specs/adrs/README.md).
 - **Contrato de bytes:** [`specs/TOON.md`](specs/TOON.md).
 - **Bordas conhecidas:** [`specs/DIVERGENCES.md`](specs/DIVERGENCES.md).

@@ -6,6 +6,7 @@ use crate::Result;
 use crate::ports::Fs;
 
 use super::block::{read_text, upsert};
+use super::project::KNUDGE_DIR;
 
 /// Início do bloco gerenciado.
 pub const MARKER_BEGIN: &str = "<!-- knudge:start -->";
@@ -18,9 +19,15 @@ pub const VERSION: u32 = 1;
 /// Nome do arquivo.
 pub const FILE: &str = "AGENTS.md";
 
-/// Bloco de protocolo que o `kd init`/`onboard` escreve no projeto-alvo.
+/// Bloco de protocolo que o `kd init`/`onboard` escreve no projeto-alvo (layout default).
 #[must_use]
 pub fn protocol_block() -> String {
+    protocol_block_with_layout(KNUDGE_DIR)
+}
+
+/// Bloco de protocolo para um diretório de conhecimento alternativo.
+#[must_use]
+pub fn protocol_block_with_layout(layout: &str) -> String {
     format!(
         "{MARKER_BEGIN}\n\
          {VERSION_PREFIX} {VERSION} -->\n\
@@ -34,7 +41,7 @@ pub fn protocol_block() -> String {
          3. `kd write \"<afirmação>\"` — registre cada aprendizado (uma afirmação por nota).\n\
          4. `kd rewind` — situe a próxima sessão ao encerrar.\n\
          \n\
-         Config: `.knudge/config.toml`. Diagnóstico: `kd doctor`.\n\
+         Config: `{layout}/config.toml`. Diagnóstico: `kd doctor`.\n\
          {MARKER_END}\n"
     )
 }
@@ -58,14 +65,22 @@ pub fn version_in(text: &str) -> Option<u32> {
     None
 }
 
-/// Garante o bloco de protocolo atual. Devolve `true` se o arquivo mudou.
+/// Garante o bloco de protocolo atual (layout default). Devolve `true` se o arquivo mudou.
 ///
 /// # Errors
 /// Retorna `ErrorKind::Io` em falha de escrita.
 pub fn apply(fs: &dyn Fs, root: &Path) -> Result<bool> {
+    apply_with_layout(fs, root, KNUDGE_DIR)
+}
+
+/// Garante o bloco de protocolo para `layout`. Devolve `true` se o arquivo mudou.
+///
+/// # Errors
+/// Retorna `ErrorKind::Io` em falha de escrita.
+pub fn apply_with_layout(fs: &dyn Fs, root: &Path, layout: &str) -> Result<bool> {
     let path = root.join(FILE);
     let original = read_text(fs, &path)?;
-    let block = protocol_block();
+    let block = protocol_block_with_layout(layout);
     let updated = upsert(&original, MARKER_BEGIN, MARKER_END, Some(&block));
     if updated == original {
         return Ok(false);

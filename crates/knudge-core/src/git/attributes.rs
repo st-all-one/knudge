@@ -1,4 +1,5 @@
-//! `.gitattributes`: regras explícitas para todos os arquivos do `.knudge/` (D31, E04-T06).
+//! `.gitattributes`: regras explícitas para todos os arquivos do diretório de conhecimento
+//! (D31, E04-T06).
 //!
 //! O bloco é gerenciado (marcadores) e idempotente. Em `persist_in_project = false` ele é
 //! removido. As regras cobrem: notas (`notas/**`), configuração (`config.toml`,
@@ -6,6 +7,8 @@
 //! descartável (`.idx/`, `cache/`, `.locks/`). `eol=lf` mantém `body_hash`/id estáveis entre
 //! plataformas; `merge=union` só no log append-only (o `id` do evento torna o union seguro —
 //! D26/D28/D31); o derivado nunca é auto-mergeado.
+//!
+//! Os caminhos derivam do `layout` do [`Project`](super::Project) — default `.knudge`.
 
 use std::path::Path;
 
@@ -14,6 +17,7 @@ use crate::ports::Fs;
 
 use super::block::{read_text, upsert};
 use super::persistence::Persistence;
+use super::project::KNUDGE_DIR;
 
 /// Início do bloco gerenciado.
 pub const MARKER_BEGIN: &str = "# knudge:start";
@@ -27,6 +31,9 @@ pub const CACHE_UNION_LINE: &str = "/.knudge/emb_cache.jsonl text eol=lf merge=u
 pub const FILE: &str = ".gitattributes";
 
 /// Regras gerenciadas, na ordem de emissão (linha vazia separa os grupos).
+///
+/// Os caminhos usam o layout default (`.knudge`); [`render_with_layout`] substitui pelo layout
+/// efetivo do projeto.
 pub const RULES: &[&str] = &[
     "# Notas canônicas: LF mantém `body_hash`/id estáveis (D06/D95).",
     "/.knudge/notas/** text eol=lf",
@@ -49,15 +56,28 @@ pub const RULES: &[&str] = &[
     "/.knudge/**/*.tmp binary linguist-generated",
 ];
 
-/// Garante (ou remove) o bloco gerenciado. Devolve `true` se mudou.
+/// Garante (ou remove) o bloco gerenciado com o layout default. Devolve `true` se mudou.
 ///
 /// # Errors
 /// Retorna `ErrorKind::Io` em falha de escrita.
 pub fn apply(fs: &dyn Fs, root: &Path, persistence: Persistence) -> Result<bool> {
+    apply_with_layout(fs, root, persistence, KNUDGE_DIR)
+}
+
+/// Garante (ou remove) o bloco gerenciado para `layout`. Devolve `true` se mudou.
+///
+/// # Errors
+/// Retorna `ErrorKind::Io` em falha de escrita.
+pub fn apply_with_layout(
+    fs: &dyn Fs,
+    root: &Path,
+    persistence: Persistence,
+    layout: &str,
+) -> Result<bool> {
     let path = root.join(FILE);
     let original = read_text(fs, &path)?;
     let replacement = if persistence.is_versioned() {
-        Some(render())
+        Some(render_with_layout(layout))
     } else {
         None
     };
@@ -69,13 +89,21 @@ pub fn apply(fs: &dyn Fs, root: &Path, persistence: Persistence) -> Result<bool>
     Ok(true)
 }
 
-/// Renderiza o bloco gerenciado (marcadores + [`RULES`]).
+/// Renderiza o bloco gerenciado (marcadores + [`RULES`]) com o layout default.
 #[must_use]
 pub fn render() -> String {
+    render_with_layout(KNUDGE_DIR)
+}
+
+/// Renderiza o bloco gerenciado (marcadores + [`RULES`]) para `layout`.
+#[must_use]
+pub fn render_with_layout(layout: &str) -> String {
+    let from = format!("/{KNUDGE_DIR}/");
+    let to = format!("/{layout}/");
     let mut out = String::from(MARKER_BEGIN);
     out.push('\n');
     for rule in RULES {
-        out.push_str(rule);
+        out.push_str(&rule.replace(&from, &to));
         out.push('\n');
     }
     out.push_str(MARKER_END);

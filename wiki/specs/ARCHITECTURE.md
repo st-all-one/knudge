@@ -23,15 +23,32 @@ knudge-cli ──┘
 
 | Crate | Papel | Pode conter |
 |---|---|---|
-| `knudge-core` | Modelo, schema, retrieval, ciclo de vida e **portas** | Lógica pura; `adapters` (std) isolado |
+| `knudge-core` | Modelo, schema, retrieval, ciclo de vida e **portas** | Lógica pura; `adapters` (std) isolado; fachada `knudge` |
 | `knudge-cli` | Binário `kd`; monta adaptadores e escreve a saída | `clap`, `tracing`, I/O de terminal |
 | `knudge-mcp` | Servidor MCP reativo: motor de gatilhos + transporte JSON-RPC stdio (E12/E14) | Protocolo MCP; nada de domínio |
 
-`knudge-core` é a **única biblioteca** (interna). `knudge-cli` e `knudge-mcp` são **pacotes de
-binário** (só `[[bin]]`, sem `[lib]`): o que se distribui são os executáveis `kd` e `knudge-mcp`.
+`knudge-core` é a **biblioteca pública** do knudge (`publish = true`, D214). `knudge-cli` e
+`knudge-mcp` são **pacotes de binário** (só `[[bin]]`, sem `[lib]`): o que se distribui são os
+executáveis `kd` e `knudge-mcp`.
 
 **Regra:** os adaptadores **não** são dependência do domínio. `knudge-core::adapters` existe para
-conveniência, mas só `cli`/`mcp` o importam.
+conveniência: `cli`/`mcp` e a fachada [`knudge`](#fachada-de-incorporação-d214) o importam; o
+domínio não.
+
+## 2.1 Fachada de incorporação (D214)
+
+`knudge_core::Knudge` reproduz a montagem de `Session` (adaptadores `std` + `Project` + config)
+para uso como dependência em outro projeto:
+
+```rust
+let kd = Knudge::builder().knowledge_dir(".a/b").open()?;
+let index = kd.index()?;
+```
+
+O diretório de conhecimento é um `layout` relativo do `Project` (default `.knudge`) e pode ser
+aninhado (`.a/b`). Os padrões de Git (`info/exclude`, `.gitattributes`, `sync`, `AGENTS.md`) e a
+varredura de âncoras (`Project::ignored_dirs` + `walk_paths_ignoring`) derivam do layout, de modo
+que trocar o diretório é consistente. O default preserva o comportamento histórico.
 
 ## 3. Portas (`knudge-core::ports`)
 
@@ -99,10 +116,11 @@ volatilidade, não CAS (D48).
 | Nível | Caminho | Papel |
 |---|---|---|
 | Global | `$XDG_CONFIG_HOME/local/knudge/config.toml` (ou `~/.config/…`) | template/default curado |
-| Projeto | `<raiz>/.knudge/config.toml` | efetivo, **precedência** (D61) |
+| Projeto | `<raiz>/<layout>/config.toml` (default `.knudge`) | efetivo, **precedência** (D61/D214) |
 
 - **Resolução:** `<raiz>` = worktree principal (`git rev-parse --git-common-dir`); worktrees
-  ligados compartilham `.knudge/`; submódulo resolve no próprio top-level (D29).
+  ligados compartilham o layout; submódulo resolve no próprio top-level (D29). O `layout`
+  (default `.knudge`, configurável por `Project`, D214) é relativo à raiz.
 - **Instanciação:** `onboard` clona o global **literalmente**; não sobrescreve projeto sem
   `--force` (D62); sem global, usa defaults.
 - **Segredos:** vivem só no global (D91); o projeto é sanitizado em `Config::effective`.

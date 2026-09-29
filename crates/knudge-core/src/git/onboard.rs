@@ -12,7 +12,7 @@ use super::agent_md;
 use super::attributes;
 use super::exclude;
 use super::persistence::Persistence;
-use super::project::Project;
+use super::project::{KNUDGE_DIR, Project};
 use super::skill;
 
 /// Subdiretórios criados dentro de `.knudge/`.
@@ -54,7 +54,7 @@ pub struct OnboardReport {
     pub skill_changed: bool,
 }
 
-/// Executa `onboard`. Reexecutar é seguro: nada é duplicado nem sobrescrito sem `force`.
+/// Executa `onboard` com o layout default (`.knudge`).
 ///
 /// # Errors
 /// Propaga erros de resolução de projeto, I/O e configuração.
@@ -64,7 +64,23 @@ pub fn onboard(
     env: &dyn Env,
     options: OnboardOptions,
 ) -> Result<OnboardReport> {
-    let project = Project::resolve(git, env)?;
+    onboard_with_layout(fs, git, env, options, KNUDGE_DIR)
+}
+
+/// Executa `onboard` para um diretório de conhecimento alternativo.
+///
+/// Reexecutar é seguro: nada é duplicado nem sobrescrito sem `force`.
+///
+/// # Errors
+/// Propaga erros de resolução de projeto, I/O e configuração.
+pub fn onboard_with_layout(
+    fs: &dyn Fs,
+    git: &dyn Git,
+    env: &dyn Env,
+    options: OnboardOptions,
+    layout: impl Into<PathBuf>,
+) -> Result<OnboardReport> {
+    let project = Project::resolve_with(git, env, layout)?;
     let knowledge_dir = project.knowledge_dir();
     fs.create_dir_all(&knowledge_dir)?;
     for dir in LAYOUT_DIRS {
@@ -87,17 +103,18 @@ pub fn onboard(
         Persistence::LocalOnly
     };
 
+    let layout = project.layout_str();
     let exclude_changed = if project.in_repo() {
-        exclude::apply(fs, project.common_dir(), persistence)?
+        exclude::apply_with_layout(fs, project.common_dir(), persistence, &layout)?
     } else {
         false
     };
     let attributes_changed = if project.in_repo() {
-        attributes::apply(fs, project.root(), persistence)?
+        attributes::apply_with_layout(fs, project.root(), persistence, &layout)?
     } else {
         false
     };
-    let agents_changed = agent_md::apply(fs, project.root())?;
+    let agents_changed = agent_md::apply_with_layout(fs, project.root(), &layout)?;
     let skill_changed = skill::apply(fs, project.root())?;
 
     Ok(OnboardReport {

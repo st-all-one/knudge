@@ -106,6 +106,28 @@ fn explicit_message_wins() -> Result<()> {
 }
 
 #[test]
+fn sync_uses_custom_layout_paths() -> Result<()> {
+    let fs = MemFs::new();
+    let git = git_with(true, Some("/repo/.git"), Some("/repo"), None);
+    git.push_output(GitOutput {
+        status: 0,
+        stdout: b" M .a/b/notas/fact_abc.md\n".to_vec(),
+        stderr: Vec::new(),
+    });
+    git.push_output(success()); // add
+    git.push_output(success()); // commit
+
+    let project = Project::resolve_with(&git, &env_at("/repo"), ".a/b")?;
+    let report = sync(&fs, &git, &project, Persistence::Versioned, None)?;
+    assert!(report.committed);
+
+    let status = git.commands().first().cloned().unwrap_or_default();
+    assert!(status.contains(&".a/b/notas".to_string()));
+    assert!(status.contains(&".a/b/eventos".to_string()));
+    Ok(())
+}
+
+#[test]
 fn git_failure_is_reported() -> Result<()> {
     let fs = MemFs::new();
     let git = git_with(true, Some("/repo/.git"), Some("/repo"), None);

@@ -69,3 +69,22 @@ fn local_only_removes_block() -> Result<()> {
     assert!(!text.contains("merge=union"));
     Ok(())
 }
+
+#[test]
+fn custom_layout_writes_rules_for_alternate_dir() -> Result<()> {
+    let fs = MemFs::new();
+    let root = Path::new("/repo");
+    fs.create_dir_all(root)?;
+    assert!(attributes::apply_with_layout(
+        &fs,
+        root,
+        Persistence::Versioned,
+        ".a/b"
+    )?);
+    let text = read(&fs, &root.join(attributes::FILE));
+    assert!(text.contains("/.a/b/notas/** text eol=lf"));
+    assert!(text.contains("/.a/b/config.toml text eol=lf"));
+    assert!(text.contains("/.a/b/eventos/events*.jsonl text eol=lf merge=union"));
+    assert!(!text.contains("/.knudge/"));
+    Ok(())
+}

@@ -5,7 +5,7 @@ Como o knudge se ancora no repositório: resolve o **worktree principal**, exclu
 comita o conhecimento com `sync`.
 
 - Código: `crates/knudge-core/src/git/`
-- Decisões: D29–D34, D60, D91, D162
+- Decisões: D29–D34, D60, D91, D162, D214
 
 ## Resolução do projeto (D29/D91)
 
@@ -14,6 +14,11 @@ comita o conhecimento com `sync`.
 - O projeto é identificado por **nome lógico**: worktrees do mesmo repo **compartilham** o mesmo
   `.knudge/`.
 - `Project` (`git/project.rs`) expõe `KNUDGE_DIR`, `is_valid_name`, `logical_name`.
+- **Layout configurável** (D214): o diretório de conhecimento é um campo relativo do `Project`
+  (default `.knudge`; aceita aninhado `.a/b`). APIs aditivas: `Project::resolve_with`/`at`/
+  `with_layout`/`layout`/`layout_str`. Os padrões de `exclude`/`.gitattributes`/`sync`/`AGENTS.md`
+  e a varredura de âncoras (`ignored_dirs`/`walk_paths_ignoring`) derivam do layout; o default
+  preserva o comportamento histórico. Não há chave de config: o layout é injetado.
 - **Segredos só no global** (D91): o projeto nunca carrega credenciais.
 
 ## Exclusão via `info/exclude` (D30/D34)
@@ -21,7 +26,7 @@ comita o conhecimento com `sync`.
 - A exclusão é **absoluta** e vive em `.git/info/exclude` — **nunca** `.gitignore`.
 - `persist_in_project=true` (default): versiona `notas/`+`eventos/`, mas exclui derivados
   (`.idx/`, `cache/`, `*.lock`) via `DERIVED_PATTERNS`/`KNUDGE_PATTERN`.
-- `persist_in_project=false`: exclui o `.knudge/` inteiro (local-only).
+- `persist_in_project=false`: exclui o diretório de conhecimento inteiro (local-only).
 - `kd init --git-excluded`/`--git-tracked` (D213) escolhem o modo **por invocação** (mutuamente exclusivos): sobrepõem a chave no config do projeto e reaplicam a exclusão; com `--force` a flag vence o clone do global. Sem flag, o modo segue o config.
 - `git/exclude.rs` mantém a exclusão **idempotente** (não duplica linhas).
 
@@ -48,13 +53,14 @@ em **inglês** (idioma das skills), token-optimized; o marker governa a versão 
 
 ## `.gitattributes` (D31)
 
-`git/attributes.rs` define regras explícitas para todos os arquivos do `.knudge/`:
+`git/attributes.rs` define regras explícitas para todos os arquivos do diretório de conhecimento:
 `merge=union` para `events.jsonl` (e cache vetorial — D148), garantindo que eventos concorrentes
 não se percam no merge.
 
 ## `onboard` (D60/D97)
 
-`git/onboard.rs::onboard` cria/atualiza `.knudge/` de forma **idempotente**: clona o config
+`git/onboard.rs::onboard_with_layout` cria/atualiza o diretório de conhecimento de forma
+**idempotente**: clona o config
 global, aplica exclusões, cria `notas/`/`eventos/` e escreve o protocolo. Sem config global,
 **degrada para defaults** (D97). `OnboardOptions.persistence` (D213) permite forçar o modo
 (`Some(Versioned)`/`Some(LocalOnly)`) por invocação, inclusive com `force: true`.

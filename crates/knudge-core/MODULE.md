@@ -9,6 +9,10 @@ crate, mas o domínio **nunca** as importa.
 > Dependências externas mínimas: `thiserror` (erros), `indexmap` (ordem determinística),
 > `unicode-normalization` (NFC) e `sha2` (hash). Nada de `tokio`, `reqwest`, DB ou ORM.
 
+O crate é **publicável** (`publish = true`) e a fachada [`knudge`](#fachada-de-incorporação)
+oferece a mesma montagem de adaptadores + projeto + config que a CLI/MCP fazem. O diretório de
+conhecimento é configurável por `Project` (default `.knudge`, aceita aninhado `.a/b`).
+
 ## Invariantes
 
 - `#![forbid(unsafe_code)]` (R01); `#![warn(missing_docs)]`.
@@ -64,6 +68,23 @@ determinístico padrão dos testes do core.
 | `knowledge` | Promoção de conhecimento a regras no `AGENTS.md`. | `recommend`, `render_block` |
 | `ports` | Traits determinísticas + fakes. | `Clock`…`Embedder`, `fakes::*` |
 | `adapters` | Implementações reais (`std`) — **fora** do domínio. | `StdFs`, `StdGit`, `HttpEmbedder`… |
+| `knudge` | **Fachada de incorporação** (adaptadores reais + projeto + config). | `Knudge`, `KnudgeBuilder` |
+
+## Fachada de incorporação
+
+`knudge::Knudge` é a porta de entrada para usar o núcleo como biblioteca: monta os adaptadores
+`std`, resolve o `Project` e carrega a config efetiva, expondo `store`, `events`, `index`,
+`corpus`, `graph`, `notes`, `write_context` e `sweep_residues`. O layout do diretório de
+conhecimento é configurável:
+
+```rust
+let kd = Knudge::builder().knowledge_dir(".a/b").open()?;
+```
+
+Tudo abaixo da fachada continua puro (portas) — quem precisa injectar outro `Fs`/`Git` usa
+`Project`, `Store`, `Index` etc. diretamente. Os padrões de Git (`info/exclude`,
+`.gitattributes`, `sync`, `AGENTS.md`) e a varredura de âncoras derivam do `Project::layout`, de
+modo que trocar `.knudge` por `.a/b` é consistente.
 
 ## Detalhe por escopo
 

@@ -4,8 +4,13 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-publish.workspace = true
+publish = true
 description = "Núcleo puro do knudge: modelo, portas, contrato de bytes e retrieval."
+repository = "https://github.com/st-all-one/knudge"
+homepage = "https://github.com/st-all-one/knudge"
+readme = "MODULE.md"
+keywords = ["memory", "llm", "knowledge", "search", "notes"]
+categories = ["development-tools", "text-processing"]
 
 [lib]
 name = "knudge_core"

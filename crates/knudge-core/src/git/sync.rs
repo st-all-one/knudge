@@ -45,7 +45,10 @@ pub fn sync(
     }
 
     let root = project.root().to_string_lossy().into_owned();
-    let paths = [".knudge/notas", ".knudge/eventos"];
+    let layout = project.layout_str();
+    let notes = format!("{layout}/notas");
+    let events = format!("{layout}/eventos");
+    let paths = [notes.as_str(), events.as_str()];
     let mut status_args = vec!["-C", root.as_str(), "status", "--porcelain", "--"];
     status_args.extend(paths);
 

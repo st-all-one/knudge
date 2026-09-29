@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use super::*;
-use crate::git::{OnboardOptions, Persistence, onboard};
+use crate::git::{OnboardOptions, Persistence, onboard, onboard_with_layout};
 use crate::ports::Fs;
 
 #[test]
@@ -18,6 +18,26 @@ fn creates_layout_and_default_config_outside_repo() -> Result<()> {
     assert!(fs.exists(Path::new("/work/proj/.knudge/config.toml")));
     assert!(fs.exists(Path::new("/work/proj/AGENTS.md")));
     assert!(!fs.exists(Path::new("/work/proj/.gitattributes")));
+    Ok(())
+}
+
+#[test]
+fn creates_custom_layout_and_points_agents_to_it() -> Result<()> {
+    let fs = MemFs::new();
+    let git = git_with(false, None, None, None);
+    let report = onboard_with_layout(
+        &fs,
+        &git,
+        &env_at("/work/proj"),
+        OnboardOptions::default(),
+        ".a/b",
+    )?;
+    assert_eq!(report.knowledge_dir, Path::new("/work/proj/.a/b"));
+    assert!(fs.is_dir(Path::new("/work/proj/.a/b/notas")));
+    assert!(fs.exists(Path::new("/work/proj/.a/b/config.toml")));
+    assert!(!fs.exists(Path::new("/work/proj/.knudge")));
+    let agents = String::from_utf8(fs.read(Path::new("/work/proj/AGENTS.md"))?).unwrap_or_default();
+    assert!(agents.contains(".a/b/config.toml"));
     Ok(())
 }
 
