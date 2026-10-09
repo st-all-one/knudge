@@ -311,6 +311,7 @@ large_futures               = "warn"
 module_name_repetitions = "allow"
 must_use_candidate      = "allow"
 implicit_hasher         = "allow"
+assert_is_empty         = "allow"   # clippy 1.99: `assert!(x.is_empty())` é o idioma dos testes (MSRV 1.97)
 
 # Documentação (mantidas como warn)
 missing_errors_doc  = "warn"

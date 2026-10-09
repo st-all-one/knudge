@@ -48,7 +48,7 @@ fn weight_scales_channel_contribution() {
     let two = fuse(&[Channel::new(&ids, 2.0)], 60);
     let single = one.first().map(|hit| hit.score).unwrap_or_default();
     let doubled = two.first().map(|hit| hit.score).unwrap_or_default();
-    assert!((doubled - single * 2.0).abs() < f64::EPSILON);
+    assert!(single.mul_add(-2.0, doubled).abs() < f64::EPSILON);
 }
 
 /// As parcelas por canal somam exatamente o score fundido (D151).

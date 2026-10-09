@@ -119,6 +119,9 @@ option_if_let_else = "allow"
 significant_drop_tightening = "allow"
 missing_const_for_fn = "allow"
 excessive_nesting = "allow"
+# Clippy 1.99 (MSRV 1.97): `assert!(x.is_empty())` é o idioma do projeto em testes; a
+# sugestão (`assert_eq!(x, [] as [T; 0])`) é pior. Documentado em 15_clippy_config.md §5.
+assert_is_empty = "allow"
 
 # Documentação
 missing_safety_doc = "warn"
