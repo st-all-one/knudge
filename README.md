@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-2b3a42?style=for-the-badge)](./LICENSE-MIT)
 [![Rust](https://img.shields.io/badge/rust-1.97%2B-DEA584?style=for-the-badge&logo=rust&logoColor=000)](https://www.rust-lang.org/)
 [![MCP](https://img.shields.io/badge/MCP-JSON--RPC%202.0-6E56CF?style=for-the-badge)](wiki/usage/17_mcp.md)
-[![Version](https://img.shields.io/badge/version-0.5.3-009739?style=for-the-badge)](wiki/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.5.4-009739?style=for-the-badge)](wiki/CHANGELOG.md)
 
 </div>
 
@@ -31,7 +31,7 @@ curl --proto '=https' --tlsv1.2 --show-error --fail \
 
 Instala **`kd`** + **`knudge-mcp`** em `~/.local/bin` — release pré-compilado, **verificado por
 SHA-256**, que nunca apaga nada (move o antigo para um lixo recuperável). Versão fixa:
-`... | VERSION=v0.5.3 bash`; outro destino: `... | INSTALL_DIR=/usr/local/bin bash`. Do source:
+`... | VERSION=v0.5.4 bash`; outro destino: `... | INSTALL_DIR=/usr/local/bin bash`. Do source:
 `make install`.
 
 **Embeddings (opcional, recomendado)** — um comando baixa o `llama.cpp` e o modelo GGUF e deixa o

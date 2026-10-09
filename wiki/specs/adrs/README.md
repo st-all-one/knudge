@@ -206,7 +206,7 @@ Total: **200** decisões.
 | [D209](D209-superficie-v3.md) | Superfície v3 | Aceita | 0.5.0 (E16–E19) |
 | [D210](D210-listas-repeticao-virgula.md) | Listas na CLI: repetição + vírgula | Aceita | 0.5.0 (E16–E19) |
 | [D212](D212-conjuntos-fechados-lista-sugestao.md) | Conjuntos fechados: lista + sugestão da mais provável | Aceita | 0.5.0 (E16–E19) |
-| [D215](D215-dreno-em-lotes-limitados-e-digest-honesto.md) | Dreno em lotes limitados e `--digest` honesto | Aceita | 0.5.3 |
+| [D215](D215-dreno-em-lotes-limitados-e-digest-honesto.md) | Dreno em lotes limitados e `--digest` honesto | Aceita | 0.5.4 |
 
 ## Como usar
 

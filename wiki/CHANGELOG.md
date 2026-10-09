@@ -4,7 +4,7 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
-## [0.5.3] - 2026-10-09
+## [0.5.4] - 2026-10-09
 
 ### Corrigido
 - **Dreno em lotes limitados e `--digest` honesto (D215)** — o dreno de embeddings nunca manda a

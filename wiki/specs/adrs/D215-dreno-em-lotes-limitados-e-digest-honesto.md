@@ -1,7 +1,7 @@
 # D215 — Dreno em lotes limitados e `--digest` honesto
 
 - **Status:** Aceita
-- **Categoria:** 0.5.3
+- **Categoria:** 0.5.4
 
 ## Contexto
 
