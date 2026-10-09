@@ -127,7 +127,7 @@ fn batch_limits_drain_when_not_backlogged() -> Result<()> {
 }
 
 #[test]
-fn backpressure_forces_catch_up() -> Result<()> {
+fn backpressure_warns_but_keeps_batch_sized() -> Result<()> {
     let fs = MemFs::new();
     let notes = vec![
         note("a", "corpo a")?,
@@ -137,12 +137,18 @@ fn backpressure_forces_catch_up() -> Result<()> {
     let store = seeded(&fs, &notes)?;
     let embedder = FakeEmbedder::new(8)?;
     let mut config = config();
-    config.set_value("embeddings.batch", ConfigValue::Int(1))?;
+    config.set_value("embeddings.batch", ConfigValue::Int(2))?;
     config.set_value("embeddings.max_pending", ConfigValue::Int(1))?;
 
     let outcome = drain(&input(&store, &embedder, &config))?;
-    assert_eq!(outcome.indexed, 3);
+    assert_eq!(outcome.indexed, 2, "backlog não pode furar o teto do lote");
+    assert_eq!(outcome.pending, 1);
     assert!(outcome.warnings.iter().any(|w| w.contains("max_pending")));
+    assert_eq!(
+        embedder.calls(),
+        vec![2],
+        "uma requisição do tamanho do lote, não de toda a fila"
+    );
     Ok(())
 }
 

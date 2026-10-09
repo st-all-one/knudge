@@ -3127,6 +3127,119 @@ fn drain_digest_force_rebuilds_derived() -> TestResult {
 }
 
 #[test]
+fn drain_digest_chunks_backlog_in_small_batches() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    for (key, value) in [
+        ("embeddings.provider", "lightweight"),
+        ("embeddings.mode", "manual"),
+        ("embeddings.batch", "2"),
+    ] {
+        let out = config_set(&dir, key, value)?;
+        assert!(out.status.success(), "config {key}: {:?}", out.stderr);
+    }
+    for summary in [
+        "o índice vetorial é derivado do body_hash",
+        "a busca lexical usa BM25 com stemming",
+        "o lock advisory evita escritas concorrentes",
+        "o TOON preserva a ordem canônica das chaves",
+        "o rewind monta o contexto com orçamento de tokens",
+    ] {
+        let write = run_in(&dir, &["write", "--summary", summary, "--type", "fact"])?;
+        assert!(
+            write.status.success(),
+            "write {summary}: {:?}",
+            write.stderr
+        );
+    }
+
+    let out = run_in(&dir, &["--json", "drain", "--digest"])?;
+    assert!(out.status.success(), "digest: {:?}", out.stderr);
+    let value = json(&out)?;
+    let data = value.get("data").ok_or("sem data")?;
+    assert_eq!(
+        data.get("indexed").and_then(serde_json::Value::as_u64),
+        Some(5),
+        "digeriu tudo: {value}"
+    );
+    assert_eq!(
+        data.get("pending").and_then(serde_json::Value::as_u64),
+        Some(0)
+    );
+    assert_eq!(
+        data.get("clean").and_then(serde_json::Value::as_bool),
+        Some(false),
+        "indexar agora não é 'fila limpa': {value}"
+    );
+    let batches = data
+        .get("batches")
+        .and_then(serde_json::Value::as_u64)
+        .ok_or("sem batches")?;
+    assert!(batches > 1, "não fatiou o backlog em lotes: {value}");
+    Ok(())
+}
+
+#[test]
+fn drain_digest_reports_pending_when_provider_unreachable() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success());
+    for (key, value) in [
+        ("embeddings.provider", "http"),
+        ("embeddings.endpoint", "http://127.0.0.1:1/v1/embeddings"),
+        ("embeddings.mode", "manual"),
+        ("embeddings.retries", "0"),
+        ("embeddings.timeout_ms", "200"),
+    ] {
+        let out = config_set(&dir, key, value)?;
+        assert!(out.status.success(), "config {key}: {:?}", out.stderr);
+    }
+    let write = run_in(
+        &dir,
+        &["write", "--summary", "nota sem provedor", "--type", "fact"],
+    )?;
+    assert!(write.status.success(), "write: {:?}", write.stderr);
+
+    // `--force` apaga o derivado e tenta redigerir; o provedor fora mantém a nota `pending`
+    // (D83/R33) e o resultado **não** pode ser anunciado como "fila limpa" (D215).
+    let forced = run_in(&dir, &["--json", "drain", "--digest", "--force"])?;
+    assert!(forced.status.success(), "degradação: {:?}", forced.stderr);
+    let value = json(&forced)?;
+    let data = value.get("data").ok_or("sem data")?;
+    assert_eq!(
+        data.get("indexed").and_then(serde_json::Value::as_u64),
+        Some(0)
+    );
+    assert_eq!(
+        data.get("pending").and_then(serde_json::Value::as_u64),
+        Some(1)
+    );
+    assert_eq!(
+        data.get("clean").and_then(serde_json::Value::as_bool),
+        Some(false),
+        "provedor fora não é fila limpa: {value}"
+    );
+    assert_eq!(
+        data.get("rebuilt").and_then(serde_json::Value::as_bool),
+        Some(true)
+    );
+
+    let plain = run_in(&dir, &["drain", "--digest"])?;
+    assert!(plain.status.success(), "digest: {:?}", plain.stderr);
+    let text = String::from_utf8(plain.stdout)?;
+    assert!(
+        !text.contains("fila limpa"),
+        "provedor fora não pode anunciar fila limpa: {text}"
+    );
+    assert!(
+        text.contains("pendente"),
+        "a mensagem deve citar os pendentes: {text}"
+    );
+    Ok(())
+}
+
+#[test]
 fn eager_mode_is_rejected() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;

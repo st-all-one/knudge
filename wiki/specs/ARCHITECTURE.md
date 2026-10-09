@@ -224,7 +224,7 @@ volatilidade, não CAS (D48).
 | Porta | Trait `Embedder` (`ports`); o domínio nunca fala HTTP. `adapters::http::HttpEmbedder` é cliente HTTP/1.1 bloqueante sobre `std::net` (timeout + retry idempotente). |
 | Índice | `.idx/embeddings.jsonl` com cabeçalho `meta` (provider/model/revision/dimensões/similaridade); mudança de modelo **invalida** e força re-embed (D79). Default `granite-embedding-97m-multilingual-r2` (D123). |
 | Cache | `.idx/emb_cache.jsonl` por `body_hash`, com teto e eviction LRU; falha degrada para *pass-through* (D83/R14). |
-| Fila | Estado `indexed\|pending\|stale` **derivado** do `body_hash`; falha do provedor marca `pending`, nunca descarta (D80/D83). `max_pending` é backpressure; acima, catch-up. |
+| Fila | Estado `indexed\|pending\|stale` **derivado** do `body_hash`; falha do provedor marca `pending`, nunca descarta (D80/D83). `max_pending` é backpressure **informativa** (aviso); o dreno sempre respeita `embeddings.batch` e o `--digest` itera em lotes até esvaziar (D215). |
 | Flush | *Dirty flag* + debounce `flush_ms`, com flush forçado na saída (D85). |
 | Purga | Toda remoção passa por `purge_derived`, que apaga registros com `id` do índice vetorial (D84). |
 | Busca | `rank_query` (brute-force cosseno/dot, D102) alimenta o canal vetorial do `ask`; `suggest` classifica pares em `duplicate`/`contradiction`/`link` (advisory, D158). A avaliação de modelo vive na bancada externa `bench/` (o antigo `maintenance eval` foi removido — D145). |

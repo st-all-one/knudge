@@ -3,7 +3,7 @@
 Uma decisão por arquivo, gerada de [`plan/03_decisoes-fechadas.md`](../../../plan/03_decisoes-fechadas.md).
 Cada ADR traz **status**, **categoria**, **contexto mínimo**, a **decisão** e o **impacto obtido**.
 
-Total: **199** decisões.
+Total: **200** decisões.
 
 | # | Título | Status | Categoria |
 |---|---|---|---|
@@ -206,6 +206,7 @@ Total: **199** decisões.
 | [D209](D209-superficie-v3.md) | Superfície v3 | Aceita | 0.5.0 (E16–E19) |
 | [D210](D210-listas-repeticao-virgula.md) | Listas na CLI: repetição + vírgula | Aceita | 0.5.0 (E16–E19) |
 | [D212](D212-conjuntos-fechados-lista-sugestao.md) | Conjuntos fechados: lista + sugestão da mais provável | Aceita | 0.5.0 (E16–E19) |
+| [D215](D215-dreno-em-lotes-limitados-e-digest-honesto.md) | Dreno em lotes limitados e `--digest` honesto | Aceita | 0.5.3 |
 
 ## Como usar
 

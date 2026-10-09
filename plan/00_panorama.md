@@ -148,7 +148,7 @@ similarity = "cosine"
 mode       = "lazy"            # lazy | manual (D131)
 async      = true              # nunca bloqueia write/read
 batch      = 32
-max_pending = 1000             # backpressure; acima, força catch-up
+max_pending = 1000             # backpressure (aviso); o dreno usa `batch` (D215)
 cache      = true              # cache por (body_hash, model) em .idx/ (ou .knudge/ se versionado)
 version_cache = false          # versiona o cache em .knudge/emb_cache.jsonl (merge=union; D148)
 cache_max_bytes = 33554432     # teto com eviction LRU (32 MiB); soft quando versionado

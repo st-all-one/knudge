@@ -190,7 +190,7 @@ kd drain service --status --script .\worker.ps1
 | `embeddings.dimensions` | `384` | Dimensão do vetor |
 | `embeddings.similarity` | `cosine` | Métrica |
 | `embeddings.mode` | `lazy` | `lazy`/`manual` |
-| `embeddings.batch` / `embeddings.max_pending` | `32` / `1000` | Lote e limite da fila |
+| `embeddings.batch` / `embeddings.max_pending` | `32` / `1000` | Lote do dreno; `max_pending` é backpressure (aviso) — o dreno nunca passa de `batch` (D215) |
 | `embeddings.cache` / `version_cache` | `true` / `false` | Cache (versionado ou não) |
 | `embeddings.endpoint` / `timeout_ms` / `retries` | `:8889` / 30000 / `2` | Servidor HTTP |
 | `recall.semantic` / `semantic_weight` | `true` / `30.0` | Canal semântico |

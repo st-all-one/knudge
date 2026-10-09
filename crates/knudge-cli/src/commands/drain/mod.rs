@@ -197,7 +197,7 @@ fn digest(session: &Session, rebuild: Rebuild) -> Result<Output> {
     let mut batches = 0_usize;
     let mut indexed = 0_usize;
     let mut cache_hits = 0_usize;
-    loop {
+    let pending = loop {
         let Some(outcome) = embedder::drain_once(session)? else {
             return Ok(Output::new(
                 "embeddings desligado (provider = none)",
@@ -206,8 +206,10 @@ fn digest(session: &Session, rebuild: Rebuild) -> Result<Output> {
                     "batches": batches,
                     "indexed": indexed,
                     "cache_hits": cache_hits,
+                    "pending": 0,
                     "rebuilt": force,
                     "removed": removed,
+                    "clean": true,
                 }),
             )
             .with_warnings(warnings));
@@ -216,22 +218,32 @@ fn digest(session: &Session, rebuild: Rebuild) -> Result<Output> {
         batches = batches.saturating_add(1);
         indexed = indexed.saturating_add(outcome.indexed);
         cache_hits = cache_hits.saturating_add(outcome.cache_hits);
+        // `pending` é o restante da fila neste lote; na parada reflete o backlog real.
         if outcome.indexed == 0 {
-            break;
+            break outcome.pending;
         }
-    }
+    };
 
-    let clean = indexed == 0 && !force;
+    // `indexed == 0` sozinho **não** é “fila limpa”: também acontece quando o provedor falha
+    // (nada indexado, mas há `pending`). Só é limpa quando nada foi indexado *e* nada restou
+    // (D215/R33); `--force` sempre reporta reconstrução, nunca “limpa”.
+    let stalled = indexed == 0 && pending > 0;
+    let clean = !force && !stalled && indexed == 0;
     let text = if clean {
         "fila limpa: nada pendente (indexed=0)".to_string()
+    } else if stalled {
+        format!("nada indexado; {pending} nota(s) ainda pendente(s) — provedor indisponível?")
+    } else if indexed == 0 {
+        "índice reconstruído: nada a redigir".to_string()
     } else {
-        format!("indexed={indexed} batches={batches} cache_hits={cache_hits}")
+        format!("indexed={indexed} batches={batches} cache_hits={cache_hits} pending={pending}")
     };
     let data = json!({
         "enabled": true,
         "batches": batches,
         "indexed": indexed,
         "cache_hits": cache_hits,
+        "pending": pending,
         "rebuilt": force,
         "removed": removed,
         "clean": clean,

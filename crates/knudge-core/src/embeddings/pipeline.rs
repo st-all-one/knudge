@@ -141,18 +141,16 @@ pub fn drain(input: &DrainInput<'_>) -> Result<DrainOutcome> {
 
     let (mut queue, stale) = pending_queue(input.store, &index, &mut warnings)?;
     let pending_before = queue.len();
-    let backlogged = is_backlogged(pending_before, settings.max_pending);
-    if backlogged {
+    let batch = settings.batch;
+    if is_backlogged(pending_before, settings.max_pending) {
+        // Backpressure é **informativa**: o dreno nunca manda a fila inteira numa requisição; o
+        // `kd drain --digest` itera em lotes de `embeddings.batch` até esvaziar (D215/R33).
         warnings.push(format!(
-            "fila de embeddings acima de max_pending ({pending_before} > {}); catch-up forçado",
+            "fila de embeddings acima de max_pending ({pending_before} > {}); drenando em lotes de {batch}",
             settings.max_pending
         ));
     }
-    queue.truncate(if backlogged {
-        pending_before
-    } else {
-        settings.batch
-    });
+    queue.truncate(batch);
 
     let cache_ref = if settings.cache_enabled {
         Some(&mut cache)

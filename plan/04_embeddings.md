@@ -32,7 +32,7 @@ O embedding **nunca bloqueia** `write`, `recall` ou o rebuild estrutural. Ele é
 - **Dedup no write é lexical.** O score do `recall` pré-`write` (limiares 0.75/0.92) é BM25 enquanto não há vetor. O dedup **semântico é eventual**: quando a fila drena, uma reconciliação (estilo `doctor`/`compact`) propõe merge/supersede dos quase-duplicados.
 - **Estado por nota é derivado**, nunca no frontmatter: `embedded | pending | stale`, em `.idx/`. Trocar de modelo marca **tudo** como `pending`; nesse meio-tempo o retrieval cai para BM25.
 - **Visibilidade:** `prime()` reporta `embeddings_pending: N`; `audit()`/`doctor` sinalizam backlog grande.
-- **Backpressure:** `max_pending` limita a fila; acima disso, força catch-up em lote — **nunca descarta nota**.
+- **Backpressure:** `max_pending` limita a fila; acima disso, **avisa** e o dreno segue em lotes de `embeddings.batch` (nunca a fila inteira numa requisição; D215) — **nunca descarta nota**.
 
 **Modos:** `lazy` (default; o CLI drena **um lote** no fim de cada invocação, ocioso e *best-effort* — E11-T03/D131) e `manual` (só via `kd drain --digest`). Os dois **coexistem**: mesmo em `lazy`, o `--digest` explícito funciona. O worker contínuo (quando você não usa o `kd`) é gerenciado por `kd maintenance watch-service` (`--install`/`--subscribe`/`--unsubscribe`/`--status`/`--uninstall`, multi-projeto — D132).
 
@@ -41,7 +41,7 @@ O embedding **nunca bloqueia** `write`, `recall` ou o rebuild estrutural. Ele é
 mode        = "lazy"     # lazy | manual (D131)
 async       = true       # nunca bloqueia write/read
 batch       = 32
-max_pending = 1000       # backpressure; acima, força catch-up
+max_pending = 1000       # backpressure (aviso); o dreno sempre usa `batch` (D215)
 ```
 
 ---
@@ -133,7 +133,7 @@ device       = "auto"                                     # auto | cpu | cuda | 
 batch        = 32
 mode         = "lazy"                                     # lazy | manual (D131)
 async        = true                                       # nunca bloqueia write/read
-max_pending  = 1000                                       # backpressure; acima, força catch-up
+max_pending  = 1000                                       # backpressure (aviso); o dreno usa `batch` (D215)
 cache        = true                                       # cache por body_hash em .idx/
 cache_max_bytes = 33554432                                # teto com eviction LRU (32 MiB)
 cache_ttl_days  = 30

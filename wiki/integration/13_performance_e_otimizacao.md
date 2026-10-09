@@ -67,7 +67,7 @@ query.working_paths = touched_paths.clone();      // canal de âncoras é determ
 use knudge_core::embeddings::{drain, DrainInput, is_backlogged};
 
 if is_backlogged(pending, max_pending) {
-    // catch-up: drena tudo; senão, drena em lotes off-path
+    // aviso de backpressure; o lote continua limitado a `embeddings.batch` (D215)
 }
 let out = drain(&DrainInput { store, embedder, config, now_ms })?;
 ```
@@ -76,7 +76,8 @@ let out = drain(&DrainInput { store, embedder, config, now_ms })?;
   (`merge=union`).
 - `DEFAULT_FLUSH_MS` (2 s) agrupa gravações do serviço.
 - Rode o drain **fora** do caminho de `ask`/`write` (worker/lote).
-- `pending` acima de `max_pending` força catch-up com aviso.
+- `pending` acima de `max_pending` **avisa**; itere `drain` em lotes de `embeddings.batch` (ou use
+  `kd drain --digest`, que itera sozinho) — nunca mande a fila inteira numa requisição (D215).
 
 ## 6. Handoff com orçamento (D40/D82)
 

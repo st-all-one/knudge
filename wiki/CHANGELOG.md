@@ -4,6 +4,18 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+## [0.5.3] - 2026-10-09
+
+### Corrigido
+- **Dreno em lotes limitados e `--digest` honesto (D215)** — o dreno de embeddings nunca manda a
+  fila inteira numa requisição: acima de `max_pending` o backpressure passa a ser **informativo**
+  (aviso) e o lote segue limitado a `embeddings.batch`; o `kd drain --digest` itera em lotes
+  enfileirados até esvaziar, de modo que `--force` (que apaga `.idx/` e redigere tudo) também
+  redigere em lotes menores. O resultado distingue **fila limpa** (`indexed=0` **e** `pending=0`),
+  **indexado agora** (`indexed>0`) e **provedor indisponível** (`indexed=0` com `pending>0`) via
+  `pending`/`clean` no `--json` — antes `indexed==0` sozinho era anunciado como “fila limpa”
+  mesmo com o provedor fora, embora as notas seguissem `pending` (nunca descartadas; D83/R33).
+
 ## [0.5.2] - 2026-09-29
 
 ### Adicionado

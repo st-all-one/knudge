@@ -58,7 +58,7 @@ for aviso in &out.warnings { eprintln!("aviso: {aviso}"); }
 
 - `drain` carrega o índice (`EmbeddingIndex::load`), usa o cache, embute o lote e regrava.
 - Cache por `(body_hash, modelo)` evita inferência repetida.
-- Fila acima de `max_pending` força *catch-up* com aviso (degradação graciosa).
+- Fila acima de `max_pending` **avisa**; o lote continua limitado a `embeddings.batch` (D215).
 
 ## Índice vetorial
 
@@ -104,7 +104,7 @@ let sugestoes = semantic_suggestions(&embedding_index, &graph, &anchors_of, &pol
 use knudge_core::embeddings::{classify, is_backlogged, EmbeddingState};
 
 let estado: EmbeddingState = classify(Some(true));   // indexed/pending/stale
-if is_backlogged(pending, max_pending) { /* catch-up */ }
+if is_backlogged(pending, max_pending) { /* aviso; lote segue em `batch` (D215) */ }
 ```
 
 ## Recomendações
