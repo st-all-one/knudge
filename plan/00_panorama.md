@@ -140,11 +140,12 @@ prefix_style = "declarative"   # declarative | compact
 [embeddings]
 enabled    = true
 provider   = "http"            # http | lightweight | none (D101)
-model      = "ibm-granite/granite-embedding-97m-multilingual-r2"
-                              # multilíngue (PT explícito); alternativa EN: msmarco-MiniLM-L12-cos-v5
+model      = "google/embeddinggemma-2"
+                              # multimodal (texto/imagem/áudio/vídeo), 768d; D216
 revision   = "main"            # pinada p/ reprodutibilidade
-dimensions = 384
+dimensions = 768
 similarity = "cosine"
+prefix     = "auto"            # auto | none | embeddinggemma (D216)
 mode       = "lazy"            # lazy | manual (D131)
 async      = true              # nunca bloqueia write/read
 batch      = 32
@@ -168,7 +169,7 @@ pre_compact = ""
 timeout_ms  = 30000           # timeout por hook; acima, kill do grupo de processos
 ```
 
-O provedor de embedding é plugável via config (global como template, projeto com precedência). O default **`http`** consome um **servidor local** OpenAI-compatible — o usuário sobe `llama-server -m granite-embedding-97M-multilingual-r2-Q8_0.gguf --embeddings -b 2048 -ub 2048` e o knudge só aponta a URL (D101); **não** há inferência in-process (R16/R43). Detalhes, avaliação do modelo e alternativas multilíngues em **`04_embeddings.md`**. Os vetores são **derivados** (`.idx/embeddings.jsonl`, com cabeçalho `meta`), nunca gravados no frontmatter; trocar de modelo força re-embed. `lightweight` (hash) cobre testes/CI e `none` cai para BM25.
+O provedor de embedding é plugável via config (global como template, projeto com precedência). O default **`http`** consome um **servidor local** OpenAI-compatible — o usuário sobe `llama-server -m embeddinggemma-2-Q8_0.gguf --embeddings --pooling mean -b 2048 -ub 2048` e o knudge só aponta a URL (D101); **não** há inferência in-process (R16/R43). O modelo default é `google/embeddinggemma-2` (768d, prefixos de tarefa — D216). Detalhes, avaliação do modelo e alternativas multilíngues em **`04_embeddings.md`**. Os vetores são **derivados** (`.idx/embeddings.jsonl`, com cabeçalho `meta`), nunca gravados no frontmatter; trocar de modelo força re-embed. `lightweight` (hash) cobre testes/CI e `none` cai para BM25.
 
 Acesso via tool `config get/set/list`. Precedência (quando houver override): flag de CLI > `config.toml`. O LLM **não** altera limiares em runtime — são config, não decisão do agente.
 
@@ -326,7 +327,7 @@ recall(q, type, classification, anchors, container, tags, status)
 ### BM25 / Embeddings / Clusters — veredicto
 
 - **BM25** (`k1=1.5, b=0.75`) é a similaridade de primeira linha, com tokenização **ASCII explícita**, **IDF por campo** (o `statement` domina) e por tipo, e **boost por confirmação** (`score * (1 + 0.1 * (success + partial*0.5))`).
-- **Embeddings** são um **provedor plugável** via config (`.idx/embeddings.jsonl`), justificados por 3 casos: descoberta de links não-declarados, `learn()` e dedup semântico. Default `granite-embedding-97m-multilingual-r2` (384d, cosseno nativo, multilíngue — D123); `none` desliga e cai para BM25 puro. Consumo **assíncrono e lazy**: notas recém-criadas ficam “dark” no espaço vetorial até serem digeridas — **gap tolerado**; `recall` nunca espera. Ver `04_embeddings.md`.
+- **Embeddings** são um **provedor plugável** via config (`.idx/embeddings.jsonl`), justificados por 3 casos: descoberta de links não-declarados, `learn()` e dedup semântico. Default `google/embeddinggemma-2` (768d, prefixos de tarefa — D216); `none` desliga e cai para BM25 puro. Consumo **assíncrono e lazy**: notas recém-criadas ficam “dark” no espaço vetorial até serem digeridas — **gap tolerado**; `recall` nunca espera. Ver `04_embeddings.md`.
 - **Fusão RRF + determinismo:** canais (BM25, âncoras, vetor) fundidos por `1/(k+rank+1)` (k=60) e ordenados por `(score desc, id asc)` — duas execuções idênticas nunca divergem. Canal ausente/falho degrada para o lexical **sem quebrar** a busca (D81).
 - **Âncoras são canal de recall**, não só campo: match determinístico por `path`/`id` antes da estatística.
 - **Similaridade clampada `[0,1]`** e **confiança derivada** (`sim × drift × idade + feedback`) calculada no `recall` — **nunca armazenada** (D87/D142).
@@ -503,7 +504,7 @@ MVP em Rust, com núcleo puro + adaptadores `cli`/`mcp`. Sem eventos, embeddings
 >
 > **Decisões fechadas:** `03_decisoes-fechadas.md` contém as respostas finais e os impactos já propagados neste panorama.
 >
-> **Embeddings:** `04_embeddings.md` avalia os modelos MS MARCO, define o provedor de vetores via `config.toml` e a escolha default (`granite-embedding-97m-multilingual-r2`).
+> **Embeddings:** `04_embeddings.md` avalia os modelos MS MARCO, define o provedor de vetores via `config.toml` e a escolha default (`google/embeddinggemma-2`, 768d — D216).
 >
 > **Referência arags:** `05_refs-agnostic-rag.md` revisa `refs/agnostic-rag-rlm-tool/` (a mesma busca de memória por um caminho servidor-first); as extrações estão fechadas nas decisões **D81–D92**, com simplicidade e localidade como meta.
 >

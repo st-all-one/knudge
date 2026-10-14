@@ -20,13 +20,13 @@ E06, E07.
 
 ### E11-T01 ☑ Provedor plugável
 - **Objetivo:** `config [embeddings]` com `provider = http|lightweight|none`; default
-  **`ibm-granite/granite-embedding-97m-multilingual-r2`** (384d, cosseno, multilíngue — D123),
-  `revision` pinada,
-  `dimensions`/`similarity` no cabeçalho `meta` do `.idx/embeddings.jsonl`.
+  **`google/embeddinggemma-2`** (768d, cosseno, multimod.: texto/imagem/áudio/vídeo — D216,
+  prefixos de tarefa `auto`), `revision` pinada,
+  `dimensions`/`similarity`/`prefix` no cabeçalho `meta` do `.idx/embeddings.jsonl`.
 - **Entregáveis:** trait `Embedder` (port); impls `http` (OpenAI-compatible — o usuário sobe um
   `llama-server`/TEI/Ollama com o GGUF), `lightweight` (hash, D89) e `none` (BM25 puro); meta do
   índice e invalidação por modelo.
-- **Decisões:** D42, D79, D101, D123.
+- **Decisões:** D42, D79, D101, D123, D216.
 - **Aceite:** trocar modelo/revisão **invalida** o índice (força re-embed); `none` cai para
   BM25 sem erro. (A inferência `local` in-process foi recusada — D101/R16/R43.)
 

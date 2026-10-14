@@ -143,12 +143,14 @@ fn recall_weights_defaults() {
 }
 
 #[test]
-fn embeddings_default_model_is_multilingual() {
+fn embeddings_default_model_is_multimodal() {
     let config = Config::defaults();
     assert_eq!(
         config.get_str("embeddings.model"),
-        Some("ibm-granite/granite-embedding-97m-multilingual-r2")
+        Some("google/embeddinggemma-2")
     );
+    assert_eq!(config.get_int("embeddings.dimensions"), Some(768));
+    assert_eq!(config.get_str("embeddings.prefix"), Some("auto"));
 }
 
 /// Testes do schema canônico (movidos de `schema.rs` para respeitar o limite de 300 linhas).

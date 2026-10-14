@@ -3,6 +3,7 @@
 use crate::Result;
 use crate::embeddings::EmbeddingIndex;
 use crate::embeddings::meta::{EmbeddingMeta, Similarity};
+use crate::embeddings::prefix::Prefix;
 use crate::embeddings::semantic::{
     clusters, duplicate_pairs, link_suggestions, neighbors, rank_query, unlinked_ids,
 };
@@ -29,7 +30,7 @@ fn setup() -> Result<Fixture> {
     let b = beta.id()?.to_string();
     let c = gama.id()?.to_string();
     let graph = Graph::from_notes(vec![alfa, beta, gama])?;
-    let meta = EmbeddingMeta::new("http", "modelo", "1", 2, Similarity::Cosine)?;
+    let meta = EmbeddingMeta::new("http", "modelo", "1", 2, Similarity::Cosine, Prefix::None)?;
     let mut index = EmbeddingIndex::new(meta);
     index.insert(&a, "h", vec![1.0, 0.0]);
     index.insert(&b, "h", vec![0.0, 1.0]);

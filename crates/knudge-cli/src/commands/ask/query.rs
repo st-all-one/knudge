@@ -195,7 +195,8 @@ fn semantic_ids(
     if index.is_empty() {
         return Ok(None);
     }
-    let Some(vector) = embedder.embed(&[text.to_string()])?.pop() else {
+    let query = embedder.meta().prefix.query(text);
+    let Some(vector) = embedder.embed(&[query])?.pop() else {
         return Ok(None);
     };
     let top_k = session

@@ -16,6 +16,7 @@ use crate::store::{Note, Store};
 use super::cache::{CACHE_FILE, DEFAULT_MAX_BYTES, EmbeddingCache};
 use super::flush::FlushState;
 use super::index::EmbeddingIndex;
+use super::prefix::Prefix;
 use super::state::{EmbeddingMode, EmbeddingState, is_backlogged};
 use super::vectors::{PendingNote, resolve_vectors};
 
@@ -139,7 +140,7 @@ pub fn drain(input: &DrainInput<'_>) -> Result<DrainOutcome> {
     settings.warn_if_large(&cache, &mut warnings);
     let _pruned = cache.prune_expired(input.now_ms, settings.ttl_ms);
 
-    let (mut queue, stale) = pending_queue(input.store, &index, &mut warnings)?;
+    let (mut queue, stale) = pending_queue(input.store, &index, meta.prefix, &mut warnings)?;
     let pending_before = queue.len();
     let batch = settings.batch;
     if is_backlogged(pending_before, settings.max_pending) {
@@ -191,6 +192,7 @@ pub fn drain(input: &DrainInput<'_>) -> Result<DrainOutcome> {
 fn pending_queue(
     store: &Store<'_>,
     index: &EmbeddingIndex,
+    prefix: Prefix,
     warnings: &mut Vec<String>,
 ) -> Result<(Vec<PendingNote>, usize)> {
     let mut queue = Vec::new();
@@ -221,7 +223,7 @@ fn pending_queue(
         queue.push(PendingNote {
             id: id.clone(),
             body_hash: body_hash.to_string(),
-            text: embedding_text(statement, &note.body),
+            text: prefix.document(statement, &note.body),
         });
     }
     Ok((queue, stale))

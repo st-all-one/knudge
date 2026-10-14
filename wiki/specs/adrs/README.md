@@ -3,7 +3,7 @@
 Uma decisão por arquivo, gerada de [`plan/03_decisoes-fechadas.md`](../../../plan/03_decisoes-fechadas.md).
 Cada ADR traz **status**, **categoria**, **contexto mínimo**, a **decisão** e o **impacto obtido**.
 
-Total: **200** decisões.
+Total: **201** decisões.
 
 | # | Título | Status | Categoria |
 |---|---|---|---|
@@ -207,6 +207,7 @@ Total: **200** decisões.
 | [D210](D210-listas-repeticao-virgula.md) | Listas na CLI: repetição + vírgula | Aceita | 0.5.0 (E16–E19) |
 | [D212](D212-conjuntos-fechados-lista-sugestao.md) | Conjuntos fechados: lista + sugestão da mais provável | Aceita | 0.5.0 (E16–E19) |
 | [D215](D215-dreno-em-lotes-limitados-e-digest-honesto.md) | Dreno em lotes limitados e `--digest` honesto | Aceita | 0.5.4 |
+| [D216](D216-modelo-de-embedding-default-gemma-2.md) | Modelo de embedding default passa a gemma-2 (768d, prefixos de tarefa) | Aceita | Embeddings (D79–D101) |
 
 ## Como usar
 

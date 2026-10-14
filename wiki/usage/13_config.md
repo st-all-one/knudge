@@ -126,7 +126,7 @@ um teto de regras.
 | `decay.anchor_threshold` / `decay.grace_days` | `0.5` / `30` | Detecção de âncora quebrada |
 | `behavior.strict` | `false` | Promove avisos a erro |
 | `embeddings.provider` | `"http"` | `http`/`lightweight`/`none` |
-| `embeddings.model` / `embeddings.dimensions` | granite / `384` | Identidade do modelo |
+| `embeddings.model` / `embeddings.dimensions` / `embeddings.prefix` | gemma-2 / `768` / `auto` | Identidade do modelo e prefixos de tarefa (D216) |
 | `embeddings.mode` | `"lazy"` | `lazy`/`manual` |
 | `embeddings.endpoint` | `:8889` | Endereço do servidor |
 | `mcp.observation_mode` / `mcp.hints_cap` | `true` / `3` | Servidor MCP |

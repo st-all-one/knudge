@@ -63,3 +63,11 @@ calibração da fusão (E16/T09/D179) fica em [`t09_fusao.md`](t09_fusao.md) e o
 | `src/micro.rs` | micromb dos componentes puros e escala por `N` |
 | `src/e2e.rs` | benchmark das ações ponta-a-ponta (spawn do `kd`) |
 | `src/quality.rs` | avaliação de qualidade de retrieval (Recall@k/MRR/nDCG@k) |
+
+## A/B de modelo de embedding (`ab-embeddinggemma2/`)
+
+Bancada **isolada** que compara **modelos de embedding reais** (não o canal vetorial sintético do
+`quality`): lê um projeto (`--root`), embeda com o servidor OpenAI-compatible do modelo, mede o
+canal semântico isolado **e** a fusão real (`recall`) em famílias de consulta derivadas das notas,
+com IC95% por bootstrap. Foi a régua da decisão **D216** (`google/embeddinggemma-2` como default).
+Ver [`ab-embeddinggemma2/RELATORIO.md`](ab-embeddinggemma2/RELATORIO.md).

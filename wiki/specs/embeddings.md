@@ -18,13 +18,23 @@ recém-criadas ficam *dark* até a fila derivada drená-las, e o provedor é plu
 - **`lightweight`**: embedder determinístico por hash (D89) — CI/offline, sem rede.
 - **`none`**: cai para BM25 puro.
 
-Modelo default: `ibm-granite/granite-embedding-97m-multilingual-r2` (384d, D123). `revision`
-pinada; o índice é **invalidado** quando modelo/revisão/dimensão mudam (D79).
+Modelo default: `google/embeddinggemma-2` (768d, D216). `revision` pinada; o índice é
+**invalidado** quando modelo/revisão/dimensão/**prefixo** mudam (D79).
+
+### Prefixos de tarefa (D216)
+
+`embeddings.prefix` ∈ `auto` (default) | `none` | `embeddinggemma`. O `EmbeddingGemma` é treinado
+com prefixos **assimétricos**: o documento vira `title: {statement} | text: {body}` e a consulta
+`task: search result | query: {q}`. `auto` deriva do nome do modelo (`embeddinggemma` ⇒ prefixos;
+qualquer outro ⇒ `none`, de modo que o granite segue sem prefixo). O prefixo **resolvido** faz
+parte da identidade do índice e da chave de cache; trocá-lo invalida o índice e re-embeda. Em
+medição (`bench/ab-embeddinggemma2/RELATORIO.md`) o prefixo rende ~+4 pp de R@1 sozinho.
 
 ## Identidade e álgebra
 
-- `meta.rs`: `EmbeddingMeta { provider, model, revision, dimensions, similarity }` + `Similarity`
-  (cosseno/dot). `from_config` lê `embeddings.*`.
+- `meta.rs`: `EmbeddingMeta { provider, model, revision, dimensions, similarity, prefix }` +
+  `Similarity` (cosseno/dot). `from_config` lê `embeddings.*` (o `prefix` é resolvido pelo modelo).
+- `prefix.rs`: `Prefix` (`none`/`embeddinggemma`) + texto de documento/consulta (D216).
 - `vector.rs`: `cosine`, `dot`, `normalize`, `is_normalized`, `l2_norm`, `similarity`.
 
 ## Índice (D80/D84)

@@ -1,6 +1,7 @@
 //! Testes do escopo `embeddings` (E11).
 
 mod cache;
+mod drain_prefix;
 mod flush;
 mod index;
 mod lightweight;

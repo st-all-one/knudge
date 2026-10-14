@@ -186,10 +186,10 @@
 - **Provedor** `http` (default; OpenAI-compatible local, endpoint `http://127.0.0.1:8889/
   v1/embeddings` — D202) / `lightweight` (hash, CI) / `none` (BM25). Cliente HTTP/1.1 bloqueante
   sobre `std::net` (sem tokio/reqwest); sem inferência in-process. Modelo default
-  `granite-embedding-97m-multilingual-r2` (384d).
-- **Índice** `.idx/embeddings.jsonl` com `meta` (provider/model/revision/dimensões/similaridade);
-  mudança de modelo invalida e re-embeda. **Cache** por `(body_hash, model)` com LRU; versionável
-  em `.knudge/emb_cache.jsonl` (sem eviction, D148).
+  `google/embeddinggemma-2` (768d, prefixos de tarefa — D216).
+- **Índice** `.idx/embeddings.jsonl` com `meta` (provider/model/revision/dimensões/similaridade/
+  prefixo); mudança de modelo/dimensão/prefixo invalida e re-embeda. **Cache** por
+  `(body_hash, identidade)` com LRU; versionável em `.knudge/emb_cache.jsonl` (sem eviction, D148).
 - **Estado** `indexed|pending|stale` derivado; falha marca `pending` (nunca descarta). **Modo**
   `lazy` (default; drena 1 lote best-effort após cada verbo, D131) / `manual` (`eager` rejeitado).
 - **Semântica:** `rank_query` (cosseno/dot) alimenta o canal vetorial; `suggest` classifica pares

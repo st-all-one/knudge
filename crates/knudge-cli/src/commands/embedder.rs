@@ -28,7 +28,7 @@ pub fn build(session: &Session) -> Result<Option<Box<dyn Embedder>>> {
             let dimensions = config
                 .get_int("embeddings.dimensions")
                 .and_then(|raw| usize::try_from(raw).ok())
-                .unwrap_or(384);
+                .unwrap_or(768);
             Ok(Some(Box::new(LightweightEmbedder::new(dimensions)?)))
         }
         "none" => Ok(None),
@@ -48,7 +48,7 @@ pub fn meta(session: &Session) -> Result<EmbeddingMeta> {
         let dimensions = config
             .get_int("embeddings.dimensions")
             .and_then(|raw| usize::try_from(raw).ok())
-            .unwrap_or(384);
+            .unwrap_or(768);
         return Ok(LightweightEmbedder::new(dimensions)?.meta().clone());
     }
     EmbeddingMeta::from_config(config)

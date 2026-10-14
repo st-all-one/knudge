@@ -3,11 +3,11 @@
 use std::path::Path;
 
 use crate::Result;
-use crate::embeddings::{EmbeddingIndex, EmbeddingMeta, EmbeddingState, Similarity};
+use crate::embeddings::{EmbeddingIndex, EmbeddingMeta, EmbeddingState, Prefix, Similarity};
 use crate::ports::fakes::MemFs;
 
 fn meta() -> Result<EmbeddingMeta> {
-    EmbeddingMeta::new("http", "modelo", "1", 3, Similarity::Cosine)
+    EmbeddingMeta::new("http", "modelo", "1", 3, Similarity::Cosine, Prefix::None)
 }
 
 #[test]
@@ -33,7 +33,7 @@ fn model_change_invalidates_index() -> Result<()> {
     let mut index = EmbeddingIndex::new(original.clone());
     index.insert("a", "h1", vec![1.0, 0.0, 0.0]);
     let text = index.serialize()?;
-    let changed = EmbeddingMeta::new("http", "outro", "1", 3, Similarity::Cosine)?;
+    let changed = EmbeddingMeta::new("http", "outro", "1", 3, Similarity::Cosine, Prefix::None)?;
     assert!(EmbeddingIndex::parse(&text, &changed)?.is_none());
     assert!(EmbeddingIndex::parse(&text, &original)?.is_some());
     Ok(())

@@ -3,7 +3,7 @@
 use std::sync::Mutex;
 
 use crate::Result;
-use crate::embeddings::{EmbeddingMeta, Similarity, lightweight_embed};
+use crate::embeddings::{EmbeddingMeta, Prefix, Similarity, lightweight_embed};
 use crate::error::lock_or_recover;
 use crate::ports::Embedder;
 
@@ -31,6 +31,7 @@ impl FakeEmbedder {
                 "test",
                 dimensions,
                 Similarity::Cosine,
+                Prefix::None,
             )?,
             calls: Mutex::new(Vec::new()),
             fail_next: Mutex::new(0),

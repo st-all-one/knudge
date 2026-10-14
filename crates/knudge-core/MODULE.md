@@ -320,10 +320,11 @@ determinístico para testes (D89).
 
 | Arquivo | Papel |
 |---|---|
-| `meta.rs` | Identidade do provedor/índice (`EmbeddingMeta`, `Similarity`). |
+| `meta.rs` | Identidade do provedor/índice (`EmbeddingMeta`, `Similarity`, `Prefix`). |
+| `prefix.rs` | Prefixos de tarefa por modelo (`none`/`embeddinggemma`, D216). |
 | `vector.rs` | Álgebra de vetores (`cosine`, `dot`, `normalize`, `similarity`). |
 | `index.rs` | `EmbeddingIndex` (`.idx/embeddings.jsonl`), invalidação por modelo. |
-| `cache/` | Cache `(body_hash, modelo)` com teto/LRU; persistência JSONL (D148/D153). |
+| `cache/` | Cache `(body_hash, identidade)` com teto/LRU; persistência JSONL (D148/D153/D216). |
 | `pipeline.rs` | `drain` — worker de reconcile da fila. |
 | `vectors.rs` | Resolução de vetores do dreno: cache, lote e isolamento. |
 | `state.rs` | `EmbeddingState`/`EmbeddingMode`/`classify`/`is_backlogged`. |

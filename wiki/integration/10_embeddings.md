@@ -34,7 +34,7 @@ use knudge_core::adapters::HttpEmbedder;          // servidor OpenAI-compatible
 use knudge_core::embeddings::LightweightEmbedder;  // determinístico (testes/CI — D89)
 
 let http = HttpEmbedder::new(kd.config(), kd.env())?; // lê [embeddings]
-let fake = LightweightEmbedder::new(384)?;
+let fake = LightweightEmbedder::new(768)?;
 ```
 
 Em testes do domínio, use `ports::fakes::FakeEmbedder`.

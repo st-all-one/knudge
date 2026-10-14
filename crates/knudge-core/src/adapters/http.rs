@@ -66,7 +66,7 @@ impl HttpEmbedder {
             match self.post_once(&body) {
                 Ok((status, response)) => {
                     if (200..300).contains(&status) {
-                        return parse_vectors(&response);
+                        return parse_vectors(&response, self.meta.dimensions);
                     }
                     let error =
                         Error::internal(format!("HTTP {status}: {}", truncate(&response, 200)));
@@ -199,7 +199,22 @@ fn build_body(model: &str, texts: &[String]) -> Result<String> {
     json::encode(&Value::Map(map))
 }
 
-fn parse_vectors(body: &str) -> Result<Vec<Vec<f32>>> {
+fn parse_vectors(body: &str, dimensions: usize) -> Result<Vec<Vec<f32>>> {
+    let vectors = parse_vectors_raw(body)?;
+    // Dimensão é contrato: um vetor com tamanho diferente do config corromperia o índice e a
+    // similaridade em silêncio (`dot`/`cosine` truncam via `zip`). Falha explícita (R33).
+    for vector in &vectors {
+        if vector.len() != dimensions {
+            return Err(Error::config(format!(
+                "provedor devolveu vetor de {} dimensões, mas embeddings.dimensions={dimensions}; ajuste a config ou o modelo (embeddings.prefix/dimensions)",
+                vector.len()
+            )));
+        }
+    }
+    Ok(vectors)
+}
+
+fn parse_vectors_raw(body: &str) -> Result<Vec<Vec<f32>>> {
     let value = json::decode(body)?;
     let map = value
         .as_map()

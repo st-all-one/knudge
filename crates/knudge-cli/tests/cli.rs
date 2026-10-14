@@ -3424,23 +3424,23 @@ fn drain_service_remote_requires_checksum() -> TestResult {
 const IDLE_SCRIPT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../scripts/knudge-idle.sh");
 
 #[test]
-fn drain_service_reconcile_aligns_endpoint_and_model() -> TestResult {
+fn drain_service_reconcile_aligns_endpoint_model_and_dimensions() -> TestResult {
     let dir = temp_project();
     let init = run_in(&dir, &["init", "--no-prompt"])?;
     assert!(init.status.success(), "init falhou: {:?}", init.stderr);
-    // Endpoint divergente do worker (7777 × 8889).
-    let set = run_in(
+    // Endpoint divergente do worker (7777 × 8889) e dimensão do modelo antigo.
+    let set = config_set(
         &dir,
-        &[
-            "config",
-            "set",
-            "--key",
-            "embeddings.endpoint",
-            "--value",
-            "http://127.0.0.1:7777/v1/embeddings",
-        ],
+        "embeddings.endpoint",
+        "http://127.0.0.1:7777/v1/embeddings",
     )?;
     assert!(set.status.success(), "config set falhou: {:?}", set.stderr);
+    let set_dim = config_set(&dir, "embeddings.dimensions", "384")?;
+    assert!(
+        set_dim.status.success(),
+        "config set falhou: {:?}",
+        set_dim.stderr
+    );
     let out = run_env(
         &dir,
         &["drain", "service", "--reconcile", "--script", IDLE_SCRIPT],
@@ -3461,8 +3461,14 @@ fn drain_service_reconcile_aligns_endpoint_and_model() -> TestResult {
     let get_model = run_in(&dir, &["config", "get", "--key", "embeddings.model"])?;
     let model = String::from_utf8(get_model.stdout)?;
     assert!(
-        model.contains("ibm-granite/granite-embedding-97m-multilingual-r2"),
+        model.contains("google/embeddinggemma-2"),
         "modelo após reconcile: {model}"
+    );
+    let get_dim = run_in(&dir, &["config", "get", "--key", "embeddings.dimensions"])?;
+    let dimensions = String::from_utf8(get_dim.stdout)?;
+    assert!(
+        dimensions.contains("768"),
+        "dimensão após reconcile: {dimensions}"
     );
     Ok(())
 }
@@ -3583,7 +3589,7 @@ fn drain_service_install_aborts_on_bad_model_checksum() -> TestResult {
     );
     let stderr = String::from_utf8(out.stderr)?;
     assert!(stderr.contains("checksum do GGUF"), "stderr: {stderr}");
-    let model = dir.join("local/knudge/granite-97m-r2-Q8_0.gguf");
+    let model = dir.join("local/knudge/embeddinggemma-2-Q8_0.gguf");
     assert!(
         !model.exists(),
         "o GGUF não deveria existir: {}",
@@ -3609,16 +3615,42 @@ fn drain_service_dry_run_shows_model_url_and_hash() -> TestResult {
         .ok_or("envelope sem `plan`")?
         .to_string();
     assert!(
-        plan.contains("45ce642d3fab2033d167ec09641a159010f7d9d9"),
+        plan.contains("bfcd298762cc34d0357ece5ebdd31791a3a374d8"),
         "revisão pinada ausente: {plan}"
     );
     assert!(
-        plan.contains("25155b89638e501ac33495fa278d551d7545e1e2f62722a499bba1f064c080f2"),
+        plan.contains("2188ac1deca4b77dffefd603c2776a9d76d9d74ec01841392982ebb840b09135"),
         "sha256 ausente: {plan}"
     );
     assert!(
         !plan.contains("/resolve/main/"),
         "não deve usar `/resolve/main/`: {plan}"
+    );
+    Ok(())
+}
+
+#[test]
+fn drain_service_install_migrates_old_default_gguf() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    // `idle.conf` de uma instalação anterior apontando para o GGUF default antigo (D216).
+    let conf_dir = dir.join("local/knudge");
+    std::fs::create_dir_all(&conf_dir)?;
+    std::fs::write(
+        conf_dir.join("idle.conf"),
+        b"PORT=8889\nMODEL=/home/u/.config/local/knudge/granite-97m-r2-Q8_0.gguf\nEVERY=1h\n",
+    )?;
+    let out = run_in(&dir, &["drain", "service", "--install", "--dry-run"])?;
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let stdout = String::from_utf8(out.stdout)?;
+    assert!(
+        stdout.contains("embeddinggemma-2-Q8_0.gguf"),
+        "o plano deveria migrar para o GGUF novo: {stdout}"
+    );
+    assert!(
+        !stdout.contains("granite-97m-r2-Q8_0.gguf"),
+        "não deveria manter o GGUF antigo: {stdout}"
     );
     Ok(())
 }

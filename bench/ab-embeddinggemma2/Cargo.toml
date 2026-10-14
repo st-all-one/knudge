@@ -1,0 +1,23 @@
+# Harness A/B de embeddings do knudge (fora do workspace, como `bench/`).
+#
+# Reusa o `knudge-core` real: `Knudge` (leitura do corpus) + `HttpEmbedder` (adaptador HTTP,
+# D101) + `retrieval::recall` (fusão híbrida opcional). Zero deps externas.
+
+[package]
+name = "ab-embeddinggemma2"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.97"
+publish = false
+
+[workspace]
+
+[[bin]]
+name = "ab-embeddinggemma2"
+path = "src/main.rs"
+
+[dependencies]
+knudge-core = { path = "../../crates/knudge-core" }
+
+[profile.release]
+opt-level = 3

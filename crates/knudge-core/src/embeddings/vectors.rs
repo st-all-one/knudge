@@ -42,6 +42,8 @@ struct Resolver<'a> {
     cache: Option<&'a mut EmbeddingCache>,
     embedder: &'a dyn Embedder,
     now_ms: i64,
+    /// Identidade efetiva do vetor (modelo|revisão|dimensão|prefixo) — D153/D216.
+    cache_key: String,
     warnings: &'a mut Vec<String>,
     vectors: Vec<VectorRecord>,
     cache_hits: usize,
@@ -58,6 +60,7 @@ impl<'a> Resolver<'a> {
             cache,
             embedder,
             now_ms,
+            cache_key: embedder.meta().cache_key(),
             warnings,
             vectors: Vec::new(),
             cache_hits: 0,
@@ -66,10 +69,9 @@ impl<'a> Resolver<'a> {
 
     fn resolve(&mut self, queue: &[PendingNote]) {
         let mut misses: Vec<Miss> = Vec::new();
-        let model = self.embedder.meta().model.as_str();
         for note in queue {
             if let Some(cache) = self.cache.as_deref_mut()
-                && let Some(vector) = cache.get(&note.body_hash, model)
+                && let Some(vector) = cache.get(&note.body_hash, &self.cache_key)
             {
                 self.cache_hits = self.cache_hits.saturating_add(1);
                 self.vectors
@@ -105,9 +107,8 @@ impl<'a> Resolver<'a> {
     }
 
     fn record(&mut self, id: &str, body_hash: &str, vector: Vec<f32>) {
-        let model = self.embedder.meta().model.as_str();
         if let Some(cache) = self.cache.as_deref_mut() {
-            let _inserted = cache.insert(body_hash, vector.clone(), model, self.now_ms);
+            let _inserted = cache.insert(body_hash, vector.clone(), &self.cache_key, self.now_ms);
         }
         self.vectors
             .push((id.to_string(), body_hash.to_string(), vector));

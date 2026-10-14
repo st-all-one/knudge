@@ -40,7 +40,7 @@ contrato de bytes de `notas/`.
    porta default (**8889**, D202); antes o worker usava 8999 e o config 8080, e o `--status` dizia
    `servidor: ok` mesmo com o `kd` apontando para outro lugar. T01/T02 detectam e reportam
    qualquer divergência — **no script** (D184).
-3. **Identidade mentirosa do índice.** O modelo do config (msmarco) ≠ modelo servido (granite);
+3. **Identidade mentirosa do índice.** O modelo do config ≠ modelo servido no worker;
    T01 reconcilia e alinha D79.
 4. **Ação explícita = aceite.** D180 remove o prompt e o `--yes`; os testes migram para
    `--dry-run`/`--script`.
@@ -87,10 +87,12 @@ T08 (docs/goldens/matriz/CHANGELOG) — incorpora os pontos em aberto
   com o servidor instalado. Divergência ⇒ `warn` + `próximos:` com o `kd config set --key …
   --value …` exato; `--reconcile` (ou flag explícita) aplica a correção. Alinha o modelo ao GGUF
   baixado (D79). O binário só invoca (wrapper fino).
-- **Feito:** `effective_config` (projeto > global) + `reconcile_config` no script; `install`
-  **avisa** (warn + comando exato) e a ação **`kd drain service --reconcile`** aplica e reindexa
-  (`kd drain --digest`). `MODEL_ID`/endpoint do worker (`http://127.0.0.1:$PORT/v1/embeddings`)
-  são a régua. Teste `cli::drain_service_reconcile_aligns_endpoint_and_model` (script real).
+- **Feito:** `effective_config` (projeto > global) + `reconcile_config` no script; a ação
+  **`kd drain service --install`** **configura** o projeto (endpoint/modelo/dimensão) além de subir
+  o worker, e a ação **`kd drain service --reconcile`** corrige divergência posterior. `MODEL_ID`/
+  `MODEL_DIMENSIONS`/endpoint do worker (`http://127.0.0.1:$PORT/v1/embeddings`) são a régua
+  (D216 acrescentou a dimensão). Teste
+  `cli::drain_service_reconcile_aligns_endpoint_model_and_dimensions` (script real).
 - **Perf:** só roda em `--install`/`--reconcile`; **não** é chamado no caminho quente.
 - **Depende de:** T03 (para o aviso aparecer no stream).
 - **Aceite:** teste de divergência (endpoint e modelo) emite o comando exato; `--reconcile`

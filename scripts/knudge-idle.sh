@@ -45,8 +45,9 @@ BIN_DIR="${KNUDGE_BIN_DIR:-$HOME/.local/bin}"
 TRASH="$XDG_CACHE/knudge/trash"
 KD="${KNUDGE_KD:-$BIN_DIR/kd}"
 LLAMA="${KNUDGE_LLAMA:-$BIN_DIR/llama}"
-DEFAULT_MODEL="$CONF_DIR/granite-97m-r2-Q8_0.gguf"
-MODEL_ID="ibm-granite/granite-embedding-97m-multilingual-r2"
+DEFAULT_MODEL="$CONF_DIR/embeddinggemma-2-Q8_0.gguf"
+MODEL_ID="google/embeddinggemma-2"
+MODEL_DIMENSIONS=768
 DEFAULT_PORT=8889
 DEFAULT_EVERY=1h
 LOG_DIR="$XDG_CACHE/knudge"
@@ -54,12 +55,12 @@ LOG="$LOG_DIR/idle.log"
 SCHEDULER="" # systemd | launchd | none
 # Supply-chain (D183): revisão **pinada** (nunca `/resolve/main/`) e SHA-256 do GGUF;
 # instalador do llama.cpp **verificado** (nunca `curl … | sh` cego).
-MODEL_REVISION="45ce642d3fab2033d167ec09641a159010f7d9d9"
-MODEL_FILE="granite-embedding-97M-multilingual-r2-Q8_0.gguf"
-MODEL_SHA256="25155b89638e501ac33495fa278d551d7545e1e2f62722a499bba1f064c080f2"
+MODEL_REVISION="bfcd298762cc34d0357ece5ebdd31791a3a374d8"
+MODEL_FILE="embeddinggemma-2-Q8_0.gguf"
+MODEL_SHA256="2188ac1deca4b77dffefd603c2776a9d76d9d74ec01841392982ebb840b09135"
 LLAMA_INSTALL_URL="https://llama.app/install.sh"
 LLAMA_INSTALL_SHA256="cccdfcbd1b55bf6003ac3037588c9f5b3b79aa0a75fe991e97bb218ccdb55e4d"
-MODEL_URL="https://huggingface.co/mykor/granite-embedding-97m-multilingual-r2-GGUF/resolve/$MODEL_REVISION/$MODEL_FILE"
+MODEL_URL="https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/$MODEL_REVISION/$MODEL_FILE"
 
 log() { printf '%s: %s\n' "$PROG" "$*" >&2; }
 warn() { printf '%s: aviso: %s\n' "$PROG" "$*" >&2; }
@@ -113,7 +114,7 @@ manual_guide() {
    Windows (Scoop)       : scoop install llama.cpp
    Windows (Chocolatey)  : choco install -y llama.cpp
 
-2) Baixe o modelo GGUF (~110 MB) para $MODEL:
+2) Baixe o modelo GGUF (~296 MB) para $MODEL:
    curl -fL -o "$MODEL" \\
      $MODEL_URL
    (sem curl: wget -O "$MODEL" "$MODEL_URL")
@@ -139,15 +140,16 @@ manual_guide() {
    macOS (launchd): crie ~/Library/LaunchAgents/local.knudge.embed.plist apontando para o llama
      (modelo em wiki/usage/18_embeddings.md) e carregue: launchctl bootstrap gui/\$(id -u) <plist>
    Windows: atalho/.bat no Startup do usuario ou tarefa no Agendador de Tarefas:
-     llama.exe serve -m "%USERPROFILE%\\granite-97m-r2-Q8_0.gguf" --embeddings --pooling mean -b 2048 -ub 2048 --port $PORT
+     llama.exe serve -m "%USERPROFILE%\\embeddinggemma-2-Q8_0.gguf" --embeddings --pooling mean -b 2048 -ub 2048 --port $PORT
    Sem agendador (qualquer SO):
      nohup llama serve -m "$MODEL" --embeddings --pooling mean -b 2048 -ub 2048 --host 127.0.0.1 --port $PORT >> "$LOG_DIR/embed.log" 2>&1 &
 
 5) Aponte o kd e valide:
    kd config set --key embeddings.provider --value http
    kd config set --key embeddings.endpoint --value http://127.0.0.1:$PORT/v1/embeddings
-   kd config set --key embeddings.model --value ibm-granite/granite-embedding-97m-multilingual-r2
-   kd config set --key embeddings.dimensions --value 384
+   kd config set --key embeddings.model --value google/embeddinggemma-2
+   kd config set --key embeddings.dimensions --value 768
+   kd config set --key embeddings.prefix --value auto
    kd drain --digest
    kd drain service --status
 
@@ -228,9 +230,11 @@ effective_config() {
 reconcile_config() {
     local proj=$1 apply=$2
     local want_endpoint="http://127.0.0.1:$PORT/v1/embeddings" want_model="$MODEL_ID"
-    local cur_endpoint cur_model drift=0
+    local want_dimensions="$MODEL_DIMENSIONS"
+    local cur_endpoint cur_model cur_dimensions drift=0
     cur_endpoint="$(effective_config "$proj" embeddings.endpoint)"
     cur_model="$(effective_config "$proj" embeddings.model)"
+    cur_dimensions="$(effective_config "$proj" embeddings.dimensions)"
     if [ "$cur_endpoint" != "$want_endpoint" ]; then
         drift=1
         warn "endpoint do kd difere do worker: config='${cur_endpoint:-<default>}' worker='$want_endpoint'"
@@ -241,13 +245,19 @@ reconcile_config() {
         warn "modelo do kd difere do worker: config='${cur_model:-<default>}' worker='$want_model'"
         next_cmd "kd config set --key embeddings.model --value $want_model"
     fi
+    if [ -n "$cur_dimensions" ] && [ "$cur_dimensions" != "$want_dimensions" ]; then
+        drift=1
+        warn "dimensão do kd difere do worker: config='${cur_dimensions}' worker='$want_dimensions'"
+        next_cmd "kd config set --key embeddings.dimensions --value $want_dimensions"
+    fi
     if [ "$drift" -eq 0 ]; then
-        log "config do kd alinhada ao worker (endpoint e modelo)"
+        log "config do kd alinhada ao worker (endpoint, modelo e dimensão)"
         return 0
     fi
     if [ "$apply" = "1" ]; then
         (cd "$proj" && "$KD" config set --key embeddings.endpoint --value "$want_endpoint") >&2 || true
         (cd "$proj" && "$KD" config set --key embeddings.model --value "$want_model") >&2 || true
+        (cd "$proj" && "$KD" config set --key embeddings.dimensions --value "$want_dimensions") >&2 || true
         log "config reconciliada; rode 'kd drain --force' para reindexar com o modelo novo"
     else
         log "para alinhar agora: kd drain service --install --reconcile"
@@ -630,7 +640,7 @@ install_model() {
     [ -f "$MODEL" ] && return 0
     mkdir -p "$(dirname "$MODEL")"
     local url="${KNUDGE_MODEL_URL:-$MODEL_URL}" expected="${KNUDGE_MODEL_SHA256:-$MODEL_SHA256}"
-    log "baixando modelo GGUF (~110 MB) para $MODEL..."
+    log "baixando modelo GGUF (~296 MB) para $MODEL..."
     log "  url: $url"
     log "  revisão: ${KNUDGE_MODEL_REVISION:-$MODEL_REVISION}"
     log "  sha256 esperado: $expected"
@@ -726,6 +736,12 @@ cmd_install() {
     [ -n "$OPT_PORT" ] && PORT="$OPT_PORT"
     [ -n "$OPT_MODEL" ] && MODEL="$OPT_MODEL"
     [ -n "$OPT_EVERY" ] && EVERY="$OPT_EVERY"
+    # Migra o GGUF default da versão anterior (D216): o `idle.conf` persistido aponta para o
+    # granite antigo, mas o default agora é o gemma-2. Só migra sem `--model` explícito.
+    if [ -z "$OPT_MODEL" ] && [ "$(basename "$MODEL")" = "granite-97m-r2-Q8_0.gguf" ]; then
+        MODEL="$DEFAULT_MODEL"
+        log "migrando GGUF default do worker (D216): $(basename "$MODEL")"
+    fi
     [ -n "$OPT_NO_DEPS" ] && export KNUDGE_SKIP_DEPS=1
     # P8: valida a duração antes de escrever qualquer unit (todos os agendadores).
     duration_seconds "$EVERY" >/dev/null
@@ -752,7 +768,10 @@ cmd_install() {
     [ "$SELF" -ef "$BIN_DIR/$UNIT" ] || cp "$SELF" "$BIN_DIR/$UNIT"
     chmod +x "$BIN_DIR/$UNIT"
     scheduler_install
-    reconcile_config "$OPT_PROJECT" 0
+    # --install configura o projeto (endpoint/modelo/dimensão) além de subir o worker: o worker
+    # serve o gemma-2 768d, então deixar o projeto apontando para outro modelo quebraria o dreno
+    # (validação de dimensão). D182/D216.
+    reconcile_config "$OPT_PROJECT" 1
     log "instalado: ${#PROJECTS[@]} projeto(s), porta=$PORT, timer=$EVERY, agendador=$SCHEDULER"
     case "$SCHEDULER" in
         systemd) log "log: journalctl --user -u $UNIT.service -n 30" ;;

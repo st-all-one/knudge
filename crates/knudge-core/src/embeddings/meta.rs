@@ -2,6 +2,7 @@
 
 use indexmap::IndexMap;
 
+use super::prefix::Prefix;
 use crate::config::Config;
 use crate::schema::{Value, hash};
 use crate::{Error, Result};
@@ -53,6 +54,8 @@ pub struct EmbeddingMeta {
     pub dimensions: usize,
     /// Métrica de similaridade.
     pub similarity: Similarity,
+    /// Prefixo de instrução de tarefa do modelo (D216).
+    pub prefix: Prefix,
 }
 
 impl EmbeddingMeta {
@@ -60,12 +63,17 @@ impl EmbeddingMeta {
     ///
     /// # Errors
     /// Retorna `ErrorKind::Config` se a dimensão for zero.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "identidade tem 6 campos; um struct de parâmetros só adicionaria ruído ao call site"
+    )]
     pub fn new(
         provider: impl Into<String>,
         model: impl Into<String>,
         revision: impl Into<String>,
         dimensions: usize,
         similarity: Similarity,
+        prefix: Prefix,
     ) -> Result<Self> {
         let meta = Self {
             provider: provider.into(),
@@ -73,6 +81,7 @@ impl EmbeddingMeta {
             revision: revision.into(),
             dimensions,
             similarity,
+            prefix,
         };
         meta.validate()?;
         Ok(meta)
@@ -86,15 +95,19 @@ impl EmbeddingMeta {
         let provider = config.get_str("embeddings.provider").unwrap_or("none");
         let model = config
             .get_str("embeddings.model")
-            .unwrap_or("ibm-granite/granite-embedding-97m-multilingual-r2")
+            .unwrap_or("google/embeddinggemma-2")
             .to_string();
         let revision = config.get_str("embeddings.revision").unwrap_or("main");
-        let dimensions = config.get_int("embeddings.dimensions").unwrap_or(384);
+        let dimensions = config.get_int("embeddings.dimensions").unwrap_or(768);
         let dimensions = usize::try_from(dimensions)
             .map_err(|_| Error::config(format!("embeddings.dimensions inválido: {dimensions}")))?;
         let similarity =
             Similarity::parse(config.get_str("embeddings.similarity").unwrap_or("cosine"))?;
-        Self::new(provider, model, revision, dimensions, similarity)
+        let prefix = Prefix::from_config(
+            config.get_str("embeddings.prefix").unwrap_or("auto"),
+            &model,
+        )?;
+        Self::new(provider, model, revision, dimensions, similarity, prefix)
     }
 
     /// Valida a identidade.
@@ -113,14 +126,30 @@ impl EmbeddingMeta {
     pub fn fingerprint(&self) -> String {
         hash::hex8(
             format!(
-                "{}|{}|{}|{}|{}",
+                "{}|{}|{}|{}|{}|{}",
                 self.provider,
                 self.model,
                 self.revision,
                 self.dimensions,
-                self.similarity.as_str()
+                self.similarity.as_str(),
+                self.prefix.as_str()
             )
             .as_bytes(),
+        )
+    }
+
+    /// Chave lógica do cache: identidade **efetiva** do vetor (D153/D216).
+    ///
+    /// Inclui modelo, revisão, dimensão e prefixo: qualquer mudança que altere o vetor de um
+    /// mesmo `body_hash` invalida o *hit*, evitando repovoar um índice novo com vetor antigo.
+    #[must_use]
+    pub fn cache_key(&self) -> String {
+        format!(
+            "{}|{}|{}|{}",
+            self.model,
+            self.revision,
+            self.dimensions,
+            self.prefix.as_str()
         )
     }
 
@@ -145,6 +174,10 @@ pub(crate) fn meta_to_value(meta: &EmbeddingMeta) -> Value {
         "similarity".to_string(),
         Value::Str(meta.similarity.as_str().to_string()),
     );
+    map.insert(
+        "prefix".to_string(),
+        Value::Str(meta.prefix.as_str().to_string()),
+    );
     Value::Map(map)
 }
 
@@ -167,11 +200,18 @@ pub(crate) fn meta_from_value(value: &Value) -> Result<EmbeddingMeta> {
     let dimensions = usize::try_from(dimensions)
         .map_err(|_| Error::schema(format!("dimensão inválida: {dimensions}")))?;
     let similarity = Similarity::parse(text("similarity")?)?;
+    let model = text("model")?;
+    // Cabeçalhos antigos não têm `prefix` (modelos sem instrução) → `none`.
+    let prefix = match map.get("prefix").and_then(Value::as_str) {
+        Some(value) => Prefix::from_config(value, model)?,
+        None => Prefix::None,
+    };
     EmbeddingMeta::new(
         text("provider")?,
-        text("model")?,
+        model,
         text("revision")?,
         dimensions,
         similarity,
+        prefix,
     )
 }

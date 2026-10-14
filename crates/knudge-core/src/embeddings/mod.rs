@@ -12,6 +12,7 @@ pub mod index;
 pub mod lightweight;
 pub mod meta;
 pub mod pipeline;
+pub mod prefix;
 pub mod semantic;
 pub mod state;
 pub mod suggest;
@@ -30,6 +31,7 @@ pub use index::{EmbeddingIndex, INDEX_FILE as EMBEDDINGS_FILE, IndexedVector};
 pub use lightweight::{DEFAULT_DIMENSIONS, LightweightEmbedder, embed as lightweight_embed};
 pub use meta::{EmbeddingMeta, Similarity};
 pub use pipeline::{DrainInput, DrainOutcome, drain, embedding_text};
+pub use prefix::Prefix;
 pub use semantic::{
     DuplicatePair, LinkSuggestion, Neighbor, clusters, duplicate_pairs, link_suggestions,
     neighbors, rank_query, unlinked_ids,

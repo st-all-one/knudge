@@ -247,14 +247,14 @@ dnf install llama.cpp
 
 **b) Baixar o modelo (GGUF)**
 
-Modelo recomendado: `granite-embedding-97m-multilingual-r2` (384 dimensões, multilíngue com PT).
+Modelo recomendado: `google/embeddinggemma-2` (768 dimensões, multilíngue/multimodal — D216).
 
 ```bash
 mkdir -p ~/.config/local/knudge
-wget -O ~/.config/local/knudge/granite-97m-r2-Q8_0.gguf \
-  https://huggingface.co/mykor/granite-embedding-97m-multilingual-r2-GGUF/resolve/45ce642d3fab2033d167ec09641a159010f7d9d9/granite-embedding-97M-multilingual-r2-Q8_0.gguf
-sha256sum ~/.config/local/knudge/granite-97m-r2-Q8_0.gguf
-# esperado: 25155b89638e501ac33495fa278d551d7545e1e2f62722a499bba1f064c080f2
+wget -O ~/.config/local/knudge/embeddinggemma-2-Q8_0.gguf \
+  https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/bfcd298762cc34d0357ece5ebdd31791a3a374d8/embeddinggemma-2-Q8_0.gguf
+sha256sum ~/.config/local/knudge/embeddinggemma-2-Q8_0.gguf
+# esperado: 2188ac1deca4b77dffefd603c2776a9d76d9d74ec01841392982ebb840b09135
 ```
 
 O GGUF fica **ao lado do `config.toml` global** (`~/.config/local/knudge/`).
@@ -263,13 +263,14 @@ O GGUF fica **ao lado do `config.toml` global** (`~/.config/local/knudge/`).
 
 ```bash
 llama serve \
-  -m ~/.config/local/knudge/granite-97m-r2-Q8_0.gguf \
+  -m ~/.config/local/knudge/embeddinggemma-2-Q8_0.gguf \
   --embeddings --pooling mean -b 2048 -ub 2048 \
   --host 127.0.0.1 --port 8889
 
 kd config set --key embeddings.provider --value http
-kd config set --key embeddings.model --value ibm-granite/granite-embedding-97m-multilingual-r2
-kd config set --key embeddings.dimensions --value 384
+kd config set --key embeddings.model --value google/embeddinggemma-2
+kd config set --key embeddings.dimensions --value 768
+kd config set --key embeddings.prefix --value auto
 kd config set --key embeddings.endpoint --value http://127.0.0.1:8889/v1/embeddings
 
 kd drain --digest

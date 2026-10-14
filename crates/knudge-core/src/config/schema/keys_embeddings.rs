@@ -17,7 +17,7 @@ pub(super) const EMBEDDINGS: &[KeySpec] = &[
     KeySpec {
         key: "embeddings.model",
         kind: Kind::Text,
-        default: Default::Text("ibm-granite/granite-embedding-97m-multilingual-r2"),
+        default: Default::Text("google/embeddinggemma-2"),
     },
     KeySpec {
         key: "embeddings.revision",
@@ -27,12 +27,17 @@ pub(super) const EMBEDDINGS: &[KeySpec] = &[
     KeySpec {
         key: "embeddings.dimensions",
         kind: Kind::Int,
-        default: Default::Int(384),
+        default: Default::Int(768),
     },
     KeySpec {
         key: "embeddings.similarity",
         kind: Kind::Text,
         default: Default::Text("cosine"),
+    },
+    KeySpec {
+        key: "embeddings.prefix",
+        kind: Kind::Enum(&["auto", "none", "embeddinggemma"]),
+        default: Default::Text("auto"),
     },
     KeySpec {
         key: "embeddings.normalize",

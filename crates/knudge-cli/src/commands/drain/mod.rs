@@ -84,7 +84,7 @@ fn status(session: &Session) -> Result<Output> {
     let dimensions = session
         .config()
         .get_int("embeddings.dimensions")
-        .unwrap_or(384);
+        .unwrap_or(768);
     if !enabled || provider == "none" {
         return Ok(disabled_status(&provider, &mode, dimensions));
     }

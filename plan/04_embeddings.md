@@ -1,5 +1,12 @@
 # Embeddings — provedor de vetores e escolha de modelo
 
+> **Nota (D216):** o default deixou de ser `granite-embedding-97m-multilingual-r2` (384d) e passou a
+> `google/embeddinggemma-2` (**768d**, prefixos de tarefa). As seções abaixo registram o **A/B
+> histórico** que escolheu o granite e seguem válidas como método; a medição mais recente (corpus
+> real, `_REF/.knudge`) e a decisão atual estão em
+> [`bench/ab-embeddinggemma2/RELATORIO.md`](../bench/ab-embeddinggemma2/RELATORIO.md) e na
+> [`D216`](03_decisoes-fechadas.md).
+
 > Ajuste de escopo: o cálculo dos vetores associados a cada nota (base do cluster e da proximidade semântica) passa a ser feito por um **provedor de embedding conectado via `config.toml`** (global/local), e não por um modelo fixo embutido.
 >
 > Complementa `00_panorama.md` §3 (Configuração) e §6 (Retrieval), e as decisões `D42`/`D79`.
@@ -124,10 +131,11 @@ O provedor vive no `config.toml` (global como template, projeto com precedência
 [embeddings]
 enabled      = true
 provider     = "http"                                     # http | lightweight | none
-model        = "ibm-granite/granite-embedding-97m-multilingual-r2"
+model        = "google/embeddinggemma-2"
 revision     = "main"                                     # pinar commit/tag p/ reprodutibilidade
-dimensions   = 384
+dimensions   = 768
 similarity   = "cosine"                                   # cosine | dot
+prefix       = "auto"                                     # auto | none | embeddinggemma (D216)
 normalize    = true
 device       = "auto"                                     # auto | cpu | cuda | metal
 batch        = 32
@@ -158,7 +166,7 @@ api_key_env  = "KNUDGE_EMBEDDING_API_KEY"
 # llama.cpp; expõe /v1/embeddings (OpenAI-compatible).
 # `-b/-ub 2048` são obrigatórios: o default do llama.cpp (`-ub 512`) rejeita notas longas e o
 # drain fica com `indexed=0` (a nota não-embeddável agora é isolada, mas nunca indexa).
-llama-server -m granite-embedding-97M-multilingual-r2-Q8_0.gguf --embeddings --pooling mean \
+llama-server -m embeddinggemma-2-Q8_0.gguf --embeddings --pooling mean \
     -b 2048 -ub 2048 --port 8889
 ```
 

@@ -16,7 +16,7 @@
 #
 # Uso:
 #   curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/st-all-one/knudge/main/install.sh | bash
-#   curl ... | VERSION=v0.5.4 bash
+#   curl ... | VERSION=v0.6.0 bash
 #   curl ... | INSTALL_DIR=/usr/local/bin bash
 #   ./install.sh --from-source
 #   ./install.sh --uninstall
@@ -307,7 +307,27 @@ setup_global_config() {
     local global_file="${global_dir}/config.toml"
 
     if [ -f "$global_file" ]; then
-        ok "config global já existe em $(tilde "$global_file")"
+        # A config global é o **template** clonado pelo `kd init` (D62/D213). Alinha-a ao default
+        # novo sem sobrescrever o resto: (a) migra o modelo antigo (granite 384d) para o gemma-2
+        # 768d (D216); (b) garante a chave `embeddings.prefix` (adicionada em D216) em configs
+        # criadas por versões anteriores. Sem isso, projetos novos/reiniciados herdam o modelo
+        # velho ou ficam sem o prefixo explícito.
+        local migrated=0
+        if grep -q 'ibm-granite/granite-embedding-97m-multilingual-r2' "$global_file" 2>/dev/null; then
+            info "Migrando modelo de embedding default (D216: granite 384d → gemma-2 768d)…"
+            "${INSTALL_DIR}/kd" config set --key embeddings.model --value google/embeddinggemma-2 --global >/dev/null 2>&1 || true
+            "${INSTALL_DIR}/kd" config set --key embeddings.dimensions --value 768 --global >/dev/null 2>&1 || true
+            migrated=1
+        fi
+        if ! grep -q '^prefix = ' "$global_file" 2>/dev/null; then
+            "${INSTALL_DIR}/kd" config set --key embeddings.prefix --value auto --global >/dev/null 2>&1 || true
+            migrated=1
+        fi
+        if [ "$migrated" = "1" ]; then
+            ok "config global alinhada (google/embeddinggemma-2, 768d, prefix=auto)"
+        else
+            ok "config global já existe em $(tilde "$global_file")"
+        fi
         return 0
     fi
     if "${INSTALL_DIR}/kd" config set --key mcp.hints_cap --value 3 --global >/dev/null 2>&1; then

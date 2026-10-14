@@ -4,6 +4,51 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+## [0.6.0] - 2026-10-14
+
+### Adicionado
+- **Prefixo de instrução de tarefa por modelo (`embeddings.prefix`, D216)** — nova chave
+  `auto`/`none`/`embeddinggemma`. O `EmbeddingGemma` é treinado com prefixos assimétricos
+  (documento `title: {statement} | text: {body}`; consulta `task: search result | query: {q}`);
+  o `auto` deriva do nome do modelo, então modelos que não pedem instrução (ex.: granite) seguem
+  sem prefixo. Módulo `embeddings/prefix.rs` com testes, e o prefixo resolvido entra na
+  identidade do índice/cache.
+- **Bancada A/B de embeddings (`bench/ab-embeddinggemma2/`)** — harness reprodutível (Rust, sem
+  dependências novas) que mede o canal semântico isolado **e** a fusão real (`recall`) sobre um
+  corpus real, com IC95% por bootstrap; inclui o relatório da decisão D216.
+
+### Alterado
+- **Modelo de embedding default passa a `google/embeddinggemma-2` (768d) com prefixos de tarefa
+  (D216)** — medido na bateria A/B sobre corpus real (`bench/ab-embeddinggemma2/RELATORIO.md`,
+  1241 notas): na **fusão de produção** (BM25 + âncoras + RRF + semântico) o R@1 vai de
+  **82,7 % → 95,0 %** (`self`) e **74,0 % → 89,3 %** (consulta por palavras-chave), e o nDCG@10 de
+  **91,7 % → 98,2 %** / **84,7 % → 95,6 %**; no canal semântico isolado o ganho é ainda maior
+  (**85,3 % → 96,1 %** / **75,3 % → 92,9 %**), com IC95% bootstrap excluindo zero. A truncagem MRL
+  768→384 é quase *lossless*. `embeddings.model` → `google/embeddinggemma-2`,
+  `embeddings.dimensions` → `768`. O prefixo resolvido entra na identidade do índice (D79), então
+  cabeçalhos antigos sem `prefix` são lidos como `none` e invalidados.
+- **`kd drain service --install` configura o projeto e o worker migra o GGUF** — instalar o worker
+  passa a **aplicar** `embeddings.endpoint`/`model`/`dimensions` no projeto (antes só avisava e
+  exigia `--reconcile`), de modo que o projeto fica pronto para drenar no modelo que o servidor
+  realmente oferece; `--reconcile` também alinha `dimensions`. O `--install` migra o `idle.conf`
+  persistido (GGUF default antigo → `embeddinggemma-2-Q8_0.gguf`) quando `--model` não é dado
+  (teste `cli::drain_service_install_migrates_old_default_gguf`).
+- **`install.sh` migra o template global** — `kd init` clona o global (D62/D213); o instalador
+  migra o default antigo (`granite` 384d) para `google/embeddinggemma-2` (768d, `prefix=auto`) e
+  garante a chave `embeddings.prefix` em configs antigas, evitando que projetos
+  novos/reiniciados (`kd init --force`) herdem o modelo velho.
+
+### Corrigido
+- **Validação de dimensão do provedor HTTP (D216)** — um vetor devolvido com tamanho diferente de
+  `embeddings.dimensions` agora falha com `invalid_input`/config em vez de ser indexado (`dot` e
+  `cosine` truncavam via `zip`, produzindo scores plausíveis e errados).
+
+### Migração
+- `kd drain --digest --force` re-embeda o corpus com o novo modelo (o índice é invalidado
+  automaticamente pela mudança de identidade; `--force` limpa o cache/índice antigos).
+- `make install` migra o template global e `kd drain service --install` instala/configura o
+  worker; `kd init --force` já entrega os novos defaults.
+
 ## [0.5.4] - 2026-10-09
 
 ### Corrigido

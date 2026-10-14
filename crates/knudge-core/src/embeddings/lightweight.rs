@@ -7,12 +7,13 @@
 use sha2::{Digest, Sha256};
 
 use super::meta::{EmbeddingMeta, Similarity};
+use super::prefix::Prefix;
 use super::vector::{from_f64, normalize};
 use crate::Result;
 use crate::ports::Embedder;
 
-/// Dimensão default (mesma dos modelos MS MARCO — D79).
-pub const DEFAULT_DIMENSIONS: usize = 384;
+/// Dimensão default do embedder de hash (espelha o default do schema — D79/D216).
+pub const DEFAULT_DIMENSIONS: usize = 768;
 
 /// Gera um vetor determinístico e normalizado a partir do texto.
 #[must_use]
@@ -51,6 +52,7 @@ impl LightweightEmbedder {
                 "1",
                 dimensions,
                 Similarity::Cosine,
+                Prefix::None,
             )?,
         })
     }

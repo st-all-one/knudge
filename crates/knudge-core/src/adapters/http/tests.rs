@@ -38,11 +38,20 @@ fn builds_openai_body() -> Result<()> {
 #[test]
 fn parses_openai_and_legacy_responses() -> Result<()> {
     let openai = "{\"data\":[{\"embedding\":[0.5,0.5]},{\"embedding\":[1,0]}]}";
-    assert_eq!(parse_vectors(openai)?.len(), 2);
+    assert_eq!(parse_vectors(openai, 2)?.len(), 2);
     let legacy = "{\"embeddings\":[[0.5,0.5],[1,0]]}";
-    assert_eq!(parse_vectors(legacy)?.len(), 2);
-    assert!(parse_vectors("{\"object\":\"list\"}").is_err());
+    assert_eq!(parse_vectors(legacy, 2)?.len(), 2);
+    assert!(parse_vectors("{\"object\":\"list\"}", 2).is_err());
     Ok(())
+}
+
+#[test]
+fn rejects_vector_with_wrong_dimension() {
+    // 768 nasce no servidor mas a config diz 384 (ex.: modelo trocado sem ajustar a dimensão):
+    // falha explícita em vez de indexar vetor de tamanho errado e degradar a busca em silêncio.
+    let response = "{\"data\":[{\"embedding\":[0.1,0.2,0.3]}]}";
+    assert!(parse_vectors(response, 2).is_err());
+    assert!(parse_vectors(response, 3).is_ok());
 }
 
 #[test]
