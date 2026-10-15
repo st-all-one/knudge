@@ -181,7 +181,7 @@ fn render(report: &OnboardReport, plan: &Plan, prompt: &str) -> String {
     let _ignored = writeln!(text, "AGENTS.md ({})", plan.agents.label());
     let _ignored = writeln!(text, ".agents/skill/kd/SKILL.md ({})", plan.skill.label());
     text.push_str("próximos: kd write \"<afirmação>\" --type fact --anchor <PATH>\n");
-    text.push_str("          kd prime   # protocolo completo com --long\n");
+    text.push_str("          kd prime   # protocolo de uso (--long = completo)\n");
     if !prompt.is_empty() {
         text.push('\n');
         text.push_str(prompt);

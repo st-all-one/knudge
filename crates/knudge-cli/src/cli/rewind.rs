@@ -5,8 +5,8 @@ use clap::Args;
 /// Argumentos de `kd rewind`.
 #[derive(Debug, Args)]
 pub struct RewindArgs {
-    /// Container/domínio de escopo.
-    #[arg(long, value_name = "CONTAINER")]
+    /// Épico/domínio de escopo (id ou nível).
+    #[arg(long, value_name = "ESCOPO")]
     pub scope: Option<String>,
     /// Working set por arquivos (repetível; aceita lista com vírgula: `--files a,b`).
     #[arg(long, value_name = "PATH", value_delimiter = ',')]

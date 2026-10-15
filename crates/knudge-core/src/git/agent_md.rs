@@ -15,7 +15,7 @@ pub const MARKER_END: &str = "<!-- knudge:end -->";
 /// Prefixo do version marker.
 pub const VERSION_PREFIX: &str = "<!-- knudge:version:";
 /// Versão atual do protocolo embutido no `AGENTS.md`.
-pub const VERSION: u32 = 1;
+pub const VERSION: u32 = 2;
 /// Nome do arquivo.
 pub const FILE: &str = "AGENTS.md";
 
@@ -31,17 +31,22 @@ pub fn protocol_block_with_layout(layout: &str) -> String {
     format!(
         "{MARKER_BEGIN}\n\
          {VERSION_PREFIX} {VERSION} -->\n\
-         # knudge — memória do projeto\n\
+         # knudge — project memory\n\
          \n\
-         Este projeto usa **knudge** (`kd`). `notas/` é a fonte da verdade; não edite à mão.\n\
+         `notas/` is the source of truth; index/graph/embeddings are **derived** — never edit `notas/` by hand.\n\
          \n\
-         Antes de implementar:\n\
-         1. `kd prime` — protocolo completo (uma vez por sessão).\n\
-         2. `kd ask \"<pergunta>\"` — consulte antes de criar.\n\
-         3. `kd write \"<afirmação>\"` — registre cada aprendizado (uma afirmação por nota).\n\
-         4. `kd rewind` — situe a próxima sessão ao encerrar.\n\
-         \n\
-         Config: `{layout}/config.toml`. Diagnóstico: `kd doctor`.\n\
+         Loop: `kd prime` (protocol; `--long` = full) → `kd ask \"<q>\"` before acting → `kd write` each\n\
+         learning → `kd rewind` for handoff.\n\
+         - `kd ask` dedups: score <0.75 create · 0.75–0.92 merge · ≥0.92 reject.\n\
+         - One assertion per note; anchor code with `--anchor PATH` (glob `src/**`).\n\
+         - Work lives in `kd task`: `epic ⊃ {{issue ⊃ task | task}}`; `--scope epic|issue|task`,\n\
+           `--kind task|error|question|risk|decision`; `kd task list --ready`; close with `--outcome`.\n\
+         - `kd write --type task` is rejected; `ask` excludes work unless `--with-task`.\n\
+         - Health: `kd doctor` (`--fix`); `kd maintenance learn|compact|prune` propose only.\n\
+         - Embeddings are derived: `kd drain --status` / `--digest`.\n\
+         - stdout = data, stderr = logs; `--json` = {{success, command, data?, error?, warnings?}}.\n\
+         - If `kd` is missing on the host: `curl -fsSL https://raw.githubusercontent.com/st-all-one/knudge/main/install.sh | bash` (installs `~/.local/bin`), then `kd prime`.\n\
+         Config: `{layout}/config.toml`.\n\
          {MARKER_END}\n"
     )
 }

@@ -28,7 +28,7 @@ pub struct DrainArgs {
     /// Mostra o estado rico da fila, sem drenar.
     #[arg(long)]
     pub status: bool,
-    /// Com `--digest`: apaga `.idx/` (derivado) e redigeri tudo do zero (último recurso).
+    /// Com `--digest`: apaga `.idx/` (derivado) e reindexa tudo do zero (último recurso).
     #[arg(long, requires = "digest")]
     pub force: bool,
     /// Subcomando `service`: worker de auto-drain (agendador + servidor de embeddings).

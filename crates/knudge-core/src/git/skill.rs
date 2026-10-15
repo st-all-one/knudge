@@ -13,7 +13,7 @@ pub const DIR: &str = ".agents/skill/kd";
 /// Arquivo da skill.
 pub const FILE: &str = "SKILL.md";
 /// Versão atual do conteúdo.
-pub const VERSION: u32 = 2;
+pub const VERSION: u32 = 3;
 /// Prefixo do version marker gerenciado.
 pub const MARKER: &str = "<!-- knudge:skill:version:";
 
@@ -106,7 +106,7 @@ kd ask → kd write → kd task → kd sync
 ## Essential commands
 
 ```
-kd prime                                   # full protocol (once per session)
+kd prime [--long]                          # usage protocol (--long = full; once per session)
 kd ask "<q>" [--brief] [--limit N]         # search; --brief is id|statement only
 kd ask --id <ID>                           # full body of a note
 kd ask --anchor src/x.rs                   # by file, no query
@@ -117,15 +117,35 @@ kd write --summary "<s>" [<body>|-] --type <fact|decision|error|risk|question>
 kd write --update <ID> --summary "<s>"     # versioned update (new id + supersede)
 kd write --link <FROM:EDGE:TO>             # explicit edge (12 kinds)
 kd write --outcome <success|partial|failure|abandoned> --id <ID> [--note TXT]
-kd task new --summary "<s>" --scope <epic|issue|task> [--parent ID] [--anchor P]
+kd task new --summary "<s>" --scope <epic|issue|task> [--kind K] [--parent ID] [--anchor P]
 kd task list --ready [--sort impact]       # or --blocked [--explain]
+kd task show --id <ID> [--history]         # body/checks/outcomes + epic rollup
 kd task close --id <ID> --outcome S        # only declares with evidence
+kd task flow                               # cycle/lead/throughput + critical path
 kd rewind [--budget N] [--files P...]      # resume context between sessions
 kd doctor [--fix] [--explain]              # base health
 kd map [--axis A] [--communities]          # knowledge map
 kd maintenance <learn|compact|prune>       # proposes only (read-only)
+kd drain [--status | --digest [--force]]   # embedding queue: state / process
 kd sync [--message M]                      # commit notas/ + eventos/
 ```
+
+## Work (tasks)
+
+Work is a derived view: `epic ⊃ { issue ⊃ task | task }` — `epic` is the root (may stand
+alone), `issue` is optional, `task` is the leaf. `--scope` sets the level
+(`epic`/`issue`/`task`); `--kind` sets the species (`task`/`error`/`question`/`risk`/
+`decision`). All work lives in `kd task`; `kd write --type task` is rejected.
+
+Anchoring the root epic is strongly recommended (`kd doctor` warns without it). Parent is any
+ancestor with a strictly lower rank, so `epic → task` directly is valid. Closing requires an
+`--outcome`; `kd task show`/`close` report the epic rollup (`done/total`).
+
+## Embeddings (derived, optional)
+
+Vectors are derived and never block the corpus. `kd drain --status` shows the queue,
+`kd drain --digest` processes it, and `--force` wipes `.idx/` and rebuilds from scratch. A down
+provider degrades gracefully to lexical search (`warnings`, never a hard error).
 
 ## Closed sets (D212)
 

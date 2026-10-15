@@ -92,7 +92,7 @@ fn child_scope(ctx: &WriteContext<'_>, id: &str) -> Result<Scope> {
     let scope = parent
         .frontmatter
         .scope()?
-        .ok_or_else(|| Error::schema(format!("{id} não é container")))?;
+        .ok_or_else(|| Error::schema(format!("{id} não é um item de trabalho (épico/issue)")))?;
     child(scope).ok_or_else(|| Error::schema(format!("{id} ({scope}) não aceita filhos")))
 }
 

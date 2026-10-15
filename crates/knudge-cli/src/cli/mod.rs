@@ -85,7 +85,7 @@ pub enum Command {
     Ask(AskArgs),
     /// Toda escrita (create, update e arestas).
     Write(WriteArgs),
-    /// Gestão de tarefas (`plan`/`epic`/`issue`/`task`).
+    /// Gestão de tarefas (`epic` ⊃ {`issue` ⊃ `task` | `task`}).
     Task {
         /// Subcomando de tarefa.
         #[command(subcommand)]

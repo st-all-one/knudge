@@ -1,14 +1,16 @@
 # AGENTS.md — guia de contribuição do knudge
 
 > Guia para agentes/contribuidores que trabalham **no código deste repositório** (Rust, binário
-> `kd`). **Não** é o `AGENTS.md` de projeto-alvo que o `kd init` emitirá (esse é o protocolo de
-> escrita de notas do usuário). Documentos irmãos: [`ARCHITECTURE.md`](wiki/specs/ARCHITECTURE.md) (camadas),
+> `kd`). **Não** é o bloco de projeto-alvo que o `kd init` emitirá (esse é o protocolo de memória
+> do projeto, gerado em inglês — ver regra 0.1). Documentos irmãos: [`ARCHITECTURE.md`](wiki/specs/ARCHITECTURE.md) (camadas),
 > [`TOON.md`](wiki/specs/TOON.md) (contrato de bytes), [`plan/`](plan/) (decisões `Dxx` e políticas `Rn`).
 
 ## 0. Regras de ouro
 
 1. **Idioma:** documentação, comentários, commits e `CHANGELOG` em **português**; identificadores
-   de código em **inglês**.
+   de código em **inglês**. Artefatos consumidos por LLM no projeto-alvo — o bloco do `AGENTS.md`
+   gerado pelo `init`, a skill `.agents/skill/kd/SKILL.md` e o protocolo `kd prime` — são em
+   **inglês**, token-optimized.
 2. **Vermelho = não terminou.** Rode `make check` e deixe verde antes de concluir qualquer tarefa.
 3. **Simplicidade e localidade** são metas globais. Recuse infraestrutura que o caso local não
    paga (`tokio full`, servidor, DB, ORM). Ver `14_revisao_tecnica.md` §8.
@@ -80,7 +82,7 @@ módulos. Onde mexer:
 | escrita, dedup, update/supersede, forget | `knudge-core/src/write/` |
 | rewind, manifest, orçamento, context_id | `knudge-core/src/handoff/` |
 | diff, learn, compact | `knudge-core/src/maintenance/` |
-| tarefas plan/epic/issue/task | `knudge-core/src/task/` |
+| tarefas (`epic`/`issue`/`task`) | `knudge-core/src/task/` |
 | validação, audit, doctor, validators | `knudge-core/src/health/` |
 | shelf-life, decay, purga, confiança derivada, clusters | `knudge-core/src/lifecycle/` |
 | erros e exit codes | `knudge-core/src/error.rs` |
@@ -200,7 +202,7 @@ módulos. Onde mexer:
 
 ## 10. Referências
 
-- Decisões fechadas: [`plan/03_decisoes-fechadas.md`](plan/03_decisoes-fechadas.md) (`D01–D101`).
+- Decisões fechadas: [`plan/03_decisoes-fechadas.md`](plan/03_decisoes-fechadas.md) (`D01–D216`).
 - Políticas de engenharia: [`plan/implementation/14_revisao_tecnica.md`](plan/implementation/14_revisao_tecnica.md) (`R01–R44`).
 - Lints: [`plan/implementation/15_clippy_config.md`](plan/implementation/15_clippy_config.md) + `clippy.toml`.
 - Superfície `kd`: [`plan/implementation/16_cli_surface.md`](plan/implementation/16_cli_surface.md).
@@ -209,16 +211,21 @@ módulos. Onde mexer:
 - Rust: [`.agents/skill/rust/SKILL.md`](.agents/skill/rust/SKILL.md).
 
 <!-- knudge:start -->
-<!-- knudge:version: 1 -->
-# knudge — memória do projeto
+<!-- knudge:version: 2 -->
+# knudge — project memory
 
-Este projeto usa **knudge** (`kd`). `notas/` é a fonte da verdade; não edite à mão.
+`notas/` is the source of truth; index/graph/embeddings are **derived** — never edit `notas/` by hand.
 
-Antes de implementar:
-1. `kd prime` — protocolo completo (uma vez por sessão).
-2. `kd ask "<pergunta>"` — consulte antes de criar.
-3. `kd write "<afirmação>"` — registre cada aprendizado (uma afirmação por nota).
-4. `kd rewind` — situe a próxima sessão ao encerrar.
-
-Config: `.knudge/config.toml`. Diagnóstico: `kd doctor`.
+Loop: `kd prime` (protocol; `--long` = full) → `kd ask "<q>"` before acting → `kd write` each
+learning → `kd rewind` for handoff.
+- `kd ask` dedups: score <0.75 create · 0.75–0.92 merge · ≥0.92 reject.
+- One assertion per note; anchor code with `--anchor PATH` (glob `src/**`).
+- Work lives in `kd task`: `epic ⊃ {issue ⊃ task | task}`; `--scope epic|issue|task`,
+`--kind task|error|question|risk|decision`; `kd task list --ready`; close with `--outcome`.
+- `kd write --type task` is rejected; `ask` excludes work unless `--with-task`.
+- Health: `kd doctor` (`--fix`); `kd maintenance learn|compact|prune` propose only.
+- Embeddings are derived: `kd drain --status` / `--digest`.
+- stdout = data, stderr = logs; `--json` = {success, command, data?, error?, warnings?}.
+- If `kd` is missing on the host: `curl -fsSL https://raw.githubusercontent.com/st-all-one/knudge/main/install.sh | bash` (installs `~/.local/bin`), then `kd prime`.
+Config: `.knudge/config.toml`.
 <!-- knudge:end -->

@@ -47,7 +47,7 @@ pub fn run(session: &Session, args: &DrainArgs) -> Result<Output> {
 enum Rebuild {
     /// Digere o que falta, mantendo `.idx/`.
     Keep,
-    /// Apaga `.idx/` e redigeri tudo do zero (`--force`).
+    /// Apaga `.idx/` e reindexa tudo do zero (`--force`).
     Wipe,
 }
 
@@ -189,7 +189,7 @@ fn digest(session: &Session, rebuild: Rebuild) -> Result<Output> {
     if force {
         removed = remove_derived(session)?;
         warnings.push(format!(
-            "`.idx/` apagado ({} item(ns)); redigerindo tudo",
+            "`.idx/` apagado ({} item(ns)); reindexando tudo",
             removed.len()
         ));
     }
@@ -232,7 +232,7 @@ fn digest(session: &Session, rebuild: Rebuild) -> Result<Output> {
     let text = if clean {
         "fila limpa: nada pendente (indexed=0)".to_string()
     } else if stalled {
-        format!("nada indexado; {pending} nota(s) ainda pendente(s) — provedor indisponível?")
+        stalled_text(pending)
     } else if indexed == 0 {
         "índice reconstruído: nada a redigir".to_string()
     } else {
@@ -249,6 +249,11 @@ fn digest(session: &Session, rebuild: Rebuild) -> Result<Output> {
         "clean": clean,
     });
     Ok(Output::new(text, data).with_warnings(warnings))
+}
+
+/// Texto do `--digest` quando o provedor está fora do ar e a fila não avançou (D215/R33).
+fn stalled_text(pending: usize) -> String {
+    format!("nada indexado; {pending} pendente(s) — provedor fora do ar? veja `kd drain --status`")
 }
 
 /// Remove `.idx/` (derivado) e devolve o nome dos itens apagados.

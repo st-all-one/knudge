@@ -4,5 +4,5 @@ config.toml (novo)
 AGENTS.md (novo)
 .agents/skill/kd/SKILL.md (novo)
 próximos: kd write "<afirmação>" --type fact --anchor <PATH>
-          kd prime   # protocolo completo com --long
+          kd prime   # protocolo de uso (--long = completo)
 

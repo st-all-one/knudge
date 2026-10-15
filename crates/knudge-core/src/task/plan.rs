@@ -117,7 +117,7 @@ impl PlanSpec {
 pub fn prompt(ctx: &WriteContext<'_>, id: &str, template: &PlanTemplate) -> Result<PlanPrompt> {
     let note = ctx.store().read(id)?;
     if note.frontmatter.note_type()? != NoteType::Epic {
-        return Err(Error::schema(format!("{id} não é container")));
+        return Err(Error::schema(format!("{id} não é um épico (grupo)")));
     }
     Ok(PlanPrompt {
         template: template.name.clone(),
@@ -145,7 +145,7 @@ pub fn submit_plan(
     let parent_scope = parent
         .frontmatter
         .scope()?
-        .ok_or_else(|| Error::schema(format!("{id} não é container")))?;
+        .ok_or_else(|| Error::schema(format!("{id} não é um épico/issue")))?;
     let child_scope = super::child(parent_scope)
         .ok_or_else(|| Error::schema(format!("{id} ({parent_scope}) não aceita filhos")))?;
     let specs = prepare(ctx, child_scope, id, &steps)?;

@@ -1,31 +1,31 @@
-knudge (kd) — memória por projeto, otimizada para LLM.
-TIPOS: fact, decision, question, task, def, error, snippet, link, meta, risk
-CLASSIFICAÇÃO: foundational, tactical, observational
+knudge (kd) — project memory for LLMs.
+TYPES: fact, decision, question, task, def, error, snippet, link, meta, risk
+CLASSIFICATION: foundational, tactical, observational
 STATUS: active, in_progress, blocked, closed, superseded, forgotten
 
-CICLO: kd ask (buscar) → kd write (gravar) → kd task (executar) → kd sync (commit).
-  Sempre busque antes de gravar (evita duplicata); use --limit N e --brief para gastar menos.
+CYCLE: kd ask (search) → kd write (record) → kd task (work) → kd sync (commit).
+  Always search before writing (dedup); use --limit N --brief to save tokens.
 
-GUIA (o que usar, quando e quando NÃO usar):
-  kd ask <QUERY>      RECUPERAR antes de agir (read-only); --anchor/--type/--limit/--brief/--full-content.
-  kd write <...>      GRAVAR fato/decisão/erro/risco/pergunta; ancore o código com --anchor PATH.
-  kd task new <...>   PLANEJAR/EXECUTAR trabalho (epic ⊃ {issue ⊃ task | task}); NÃO use p/ conhecimento.
-  kd rewind           RECONSTRUIR contexto/handoff no início de sessão (orçamento de tokens).
-  kd doctor           SAÚDE do corpus: 13 checks + auditoria (--fix corrige; --explain detalha).
-  kd drain            FILA: --status (estado) | --digest [--force] (digerir); service = worker.
-  kd forget --id <ID>  SOFT-DELETE (--restore; --purge [--force] após retenção).
-  kd sync             COMMIT de notas/ + eventos/ (--message).
-  kd init|config|self|prime|help — fundação, ajustes, binário, protocolo e ajuda.
+WHEN (use / don't):
+  kd ask <QUERY>     recall before acting (read-only); --anchor/--type/--limit/--brief/--full-content.
+  kd write <...>     record fact/decision/error/risk/question; anchor code with --anchor PATH.
+  kd task new <...>  plan/execute work (epic ⊃ {issue ⊃ task | task}); NOT for knowledge.
+  kd rewind          rebuild session context/handoff (token budget).
+  kd doctor          corpus health: 13 checks + audit (--fix repairs; --explain details).
+  kd drain           embedding queue: --status | --digest [--force]; service = worker.
+  kd forget --id <ID> soft-delete (--restore; --purge [--force] after retention).
+  kd sync            commit notas/ + eventos/ (--message).
+  kd init|config|self|prime|help — setup, config, binary, protocol, help.
 
-ESSENCIAL:
+ESSENTIAL:
   kd ask "<QUERY>" [--anchor PATH...] [--type T...] [--limit N] [--brief] [--full-content]
-  kd write --summary "<afirmação>" [<corpo>|-] --type <fact|decision|error|risk|question> [--tag T...] [--anchor PATH...]
-  kd task new --summary "<...>" --scope <epic|issue|task> [--parent ID] [--anchor PATH...]
-  ÂNCORAS: --anchor PATH liga a nota/tarefa ao código (repetível; aceita vírgula; glob `src/**`).
-  CORPO: escreva quando o statement sozinho NÃO permite agir (Por quê / Evidência / Consequência).
+  kd write --summary "<statement>" [<body>|-] --type <fact|decision|error|risk|question> [--tag T...] [--anchor PATH...]
+  kd task new --summary "<...>" --scope <epic|issue|task> [--kind error|question|risk|decision] [--parent ID] [--anchor PATH...]
+  ANCHORS: --anchor PATH ties note/task to code (repeatable/comma; glob `src/**`).
+  BODY: write when the statement alone can't drive action (Why / Evidence / Consequence).
 
-ID: <tipo>_<base36(8)> = hash(type + U+001F + normalize(statement)); reclassificar não reescreve o id.
-REGRAS: nunca invente id; statement curto e autocontido; ancore código com --anchor PATH.
-SAÍDA: stdout = dados, stderr = logs. --json = {success, command, data?, error{code,message,retryable}, warnings?}
+ID: <type>_<base36(8)> = hash(type + U+001F + normalize(statement)); reclassifying never rewrites the id.
+RULES: never invent an id; keep statement short and self-contained; anchor code with --anchor PATH.
+OUTPUT: stdout = data, stderr = logs. --json = {success, command, data?, error{code,message,retryable}, warnings?}
 EXIT: 2 invalid, 3 not_found, 4 conflict, 5 io, 6 timeout, 7 config, 8 schema, 70 internal
 

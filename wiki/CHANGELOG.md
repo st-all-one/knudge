@@ -4,6 +4,31 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+## [0.6.1] - 2026-10-14
+
+### Corrigido
+- **Consistência da superfície pós-D134/D149** — o `--help` de `kd task`, o protocolo `kd prime`
+  (compacto e `--long`) e os `--scope` de `kd rewind`/`kd maintenance` ainda citavam a hierarquia
+  antiga (`plan`/`epic`/`issue`/`task`) e o termo `container`; agora seguem
+  `epic ⊃ {issue ⊃ task | task}` (`--scope` aceita nível ou id de épico). As mensagens de erro de
+  `task plan` deixam de dizer “não é container”.
+- **`kd init` injeta um bloco de `AGENTS.md` melhor** — em inglês, token-optimized e focado no uso
+  prático: loop `prime → ask → write → rewind`, dedup, trabalho (`epic ⊃ {issue ⊃ task | task}`),
+  saúde/manutenção/embeddings e **instrução de instalação** do `kd` caso ele não exista no host
+  (bloco marcado `v2`). A skill `.agents/skill/kd/SKILL.md` ganha as seções *Work (tasks)* e
+  *Embeddings*, `kd task [--kind]`/`kd task flow`/`kd drain` no essencial, e sobe para `v3` — o
+  `init` atualiza projetos já fundados.
+- **Mensagem do `kd drain --digest` com provedor fora do ar** — o texto de estagnação agora é
+  acionável (`… provedor fora do ar? veja kd drain --status`) e os typos
+  `redigeri`/`redigerindo` viraram `reindexa`/`reindexando`.
+
+### Alterado
+- **`kd prime` e `kd prime --long` em inglês, token-optimized** — o protocolo estático (o
+  “help da IA”) foi reescrito em inglês e compactado; a seção anexada pelo `--long` também
+  (`types:`/`canonical keys`). A linha de `kd task new` passa a mostrar
+  `[--kind error|question|risk|decision]`; goldens de `prime`/`prime --long`/`json_prime`
+  regerados.
+
 ## [0.6.0] - 2026-10-14
 
 ### Adicionado

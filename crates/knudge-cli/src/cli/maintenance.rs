@@ -13,8 +13,8 @@ use super::knowledge::PromoteCommand;
 pub enum MaintenanceCommand {
     /// Propõe consolidação (merge/supersede), nunca em silêncio.
     Compact {
-        /// Container/domínio de escopo.
-        #[arg(long, value_name = "CONTAINER")]
+        /// Épico/domínio de escopo (id ou nível).
+        #[arg(long, value_name = "ESCOPO")]
         scope: Option<String>,
         /// Avalia o portão de evidência sobre cada proposta (read-only) — D156.
         #[arg(long)]
@@ -25,8 +25,8 @@ pub enum MaintenanceCommand {
     },
     /// Sugere notas/links/merges a partir de eventos e âncoras.
     Learn {
-        /// Container/domínio de escopo.
-        #[arg(long, value_name = "CONTAINER")]
+        /// Épico/domínio de escopo (id ou nível).
+        #[arg(long, value_name = "ESCOPO")]
         scope: Option<String>,
         /// Avalia o portão de evidência sobre cada proposta (read-only) — D156.
         #[arg(long)]
@@ -37,8 +37,8 @@ pub enum MaintenanceCommand {
     },
     /// Propõe aposentadoria (`forget`) por shelf-life/decay — nunca age (D112).
     Prune {
-        /// Container/domínio de escopo.
-        #[arg(long, value_name = "CONTAINER")]
+        /// Épico/domínio de escopo (id ou nível).
+        #[arg(long, value_name = "ESCOPO")]
         scope: Option<String>,
         /// Proposta é sempre read-only (D47); a flag existe por paridade.
         #[arg(long)]
