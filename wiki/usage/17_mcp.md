@@ -71,7 +71,7 @@ Outros clientes: `kd self setup cursor`, `kd self setup codex`, `kd self setup p
 
 Os hints devolvidos pelo MCP são **ponteiros** (`id` + afirmação + score). O corpo da nota fica no
 `kd`, nunca no contexto do modelo — isso mantém o contexto enxuto. Quando o agente precisa do
-corpo, ele pede [`kd ask --id <ID> --full-content`](05_ask.md).
+corpo, ele pede [`kd ask --id <ID>`](05_ask.md) (o corpo vem completo no modo get).
 
 ## Configuração relacionada
 

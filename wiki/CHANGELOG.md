@@ -23,6 +23,9 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   `redigeri`/`redigerindo` viraram `reindexa`/`reindexando`.
 
 ### Alterado
+- **`README` reescrito** — estrutura title → descrição de uma linha → badges → descrição →
+  instalação → uso (`ask`/`write`/`task`/`rewind`/`doctor`/`prime`/`init`) → documentação →
+  licença; sem emojis e com linguagem objetiva.
 - **Skill do `kd` em `.agents/skills/kd` (plural, D217)** — o `kd init` grava a skill no path
   plural (antes `.agents/skill/kd/SKILL.md`), alinhado às demais skills do agente (ex.:
   `.agents/skills/rust/`). `git/skill.rs::DIR` muda e o `init` usa `SKILL_DIR`/`SKILL_FILE` (fim do

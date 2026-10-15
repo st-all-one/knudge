@@ -2,7 +2,7 @@
 
 # knudge
 
-**Memória por projeto otimizada para LLM — a nota é a verdade, o índice é derivado.**
+Memória durável por projeto para agentes de IA — a nota é a verdade, o índice é derivado.
 
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-2b3a42?style=for-the-badge)](./LICENSE-MIT)
 [![Rust](https://img.shields.io/badge/rust-1.99%2B-DEA584?style=for-the-badge&logo=rust&logoColor=000)](https://www.rust-lang.org/)
@@ -11,132 +11,92 @@
 
 </div>
 
-O **knudge** é uma CLI Rust (binário **`kd`**) que dá **memória durável a agentes de IA por
-projeto**: notas em **Markdown como fonte da verdade**, um **índice derivado reconstruível** e
-**busca híbrida** (BM25 + âncoras + embeddings opcional via RRF). Sem servidor, sem banco, sem
-daemon. O binário **`knudge-mcp`** expõe os gatilhos de memória por **MCP** (JSON-RPC 2.0 sobre
-stdio).
+O knudge é uma CLI em Rust (**`kd`**) que dá memória persistente a agentes de IA por projeto:
+notas em Markdown como fonte da verdade, índice derivado e reconstruível e busca híbrida de BM25,
+âncoras e embeddings opcionais fundida por RRF. Não requer servidor, banco nem daemon, e o binário
+**`knudge-mcp`** expõe os gatilhos de memória via MCP (JSON-RPC 2.0 sobre `stdio`).
 
-O ciclo é **`ask → write → task → sync`**: buscar antes de gravar, registrar conhecimento,
-planejar/executar trabalho e versionar.
+## Instalação
 
-## 🚀 Quick-start
-
-### 1. Instalação
+Release pré-compilado, verificado por SHA-256, que instala `kd` e `knudge-mcp` em `~/.local/bin`:
 
 ```bash
-curl --proto '=https' --tlsv1.2 --show-error --fail \
-  https://raw.githubusercontent.com/st-all-one/knudge/main/install.sh | bash
+curl --proto '=https' \
+  --tlsv1.2 \
+  --show-error \
+  --fail \
+  https://raw.githubusercontent.com/st-all-one/knudge/main/install.sh \
+  | sh
 ```
 
-Instala **`kd`** + **`knudge-mcp`** em `~/.local/bin` — release pré-compilado, **verificado por
-SHA-256**, que nunca apaga nada (move o antigo para um lixo recuperável). Versão fixa:
-`... | VERSION=v0.6.1 bash`; outro destino: `... | INSTALL_DIR=/usr/local/bin bash`. Do source:
-`make install`.
+Versão fixa: `... | VERSION=v0.6.1 bash`. Outro destino: `... | INSTALL_DIR=/usr/local/bin bash`.
+A partir do código-fonte: `make install`.
 
-**Embeddings (opcional, recomendado)** — um comando baixa o `llama.cpp` e o modelo GGUF e deixa o
-servidor persistente + worker de auto-drain de pé:
+Embeddings são opcionais e recomendados; um comando baixa o `llama.cpp` e o modelo GGUF e deixa o
+servidor persistente e o worker de auto-drain em execução:
 
 ```bash
 kd drain service --install
 ```
 
-Passo a passo por SO (Windows, macOS, Ubuntu, Fedora, Arch) em
-[`wiki/usage/18_embeddings.md`](wiki/usage/18_embeddings.md).
+Passo a passo por sistema operacional em [`wiki/usage/18_embeddings.md`](wiki/usage/18_embeddings.md).
 
-### 2. Primeira sessão
+## Uso
 
 ```bash
-kd init                                        # funda .knudge/ e escreve o AGENTS.md
+# init — funda .knudge/, o bloco do AGENTS.md e a skill .agents/skills/kd/SKILL.md
+kd init
+kd init --force                        # recopia a config global
+kd init --git-excluded                 # memória local-only (fora do Git)
 
-kd ask "como o gateway limita requisições" --brief
-kd write --summary "Rate limit é 100 rps por chave" --type decision \
-  --tag gateway --anchor src/gateway.rs
+# prime — protocolo de uso estático e byte-idêntico por versão (o "help para a IA")
+kd prime                               # compacto; --long inclui a gramática TOON + schema
+kd prime --long
 
+# ask — busca híbrida; consulte antes de gravar
+kd ask "como o gateway limita requisições" --brief          # pipe enxuto: id|statement
+kd ask --anchor src/gateway.rs         # por arquivo, sem query textual
+kd ask --id <ID>                       # corpos por id (já completos)
+kd ask "gateway" --full-content        # corpo completo de todos os hits
+# filtros: --type/--class/--tag/--status/--scope/--anchor/--since/--until/--limit
+
+# task — hierarquia epic ⊃ { issue ⊃ task | task }; feche sempre com evidência
 kd task new --summary "Sync offline-first" --scope epic
 kd task list --ready --sort impact
-kd sync --message "notas: rate limit"
+kd task close --id <ID> --outcome success --note "validado em produção"
+
+# write — registra conhecimento; dedup: score <0.75 cria, 0.75–0.92 faz merge, >=0.92 rejeita
+kd write --summary "Rate limit é 100 rps por chave" --type decision \
+  --tag gateway --anchor src/gateway.rs
+kd write --update <ID> --summary "..." # versiona; `--type task` é rejeitado (use kd task)
+
+# doctor — saúde do corpus (13 verificações); --fix corrige, --explain detalha
+kd doctor
+kd doctor --fix --explain
+
+# rewind — reconstrói o contexto/handoff no início da sessão (orçamento de tokens)
+kd rewind
+kd rewind --scope <ID> --budget 4000
 ```
 
-**Sempre busque antes de gravar.** O `write` faz dedup contra o que já existe: score `< 0.75`
-cria, `0.75–0.92` faz **merge**, `≥ 0.92` **rejeita**. `kd` sozinho = `kd help`; o protocolo
-estático (o "help da IA") é `kd prime`.
+## Documentação
 
-## 📖 Documentação
-
-| | |
+| Tema | Referência |
 |---|---|
-| **[Guias de uso](wiki/usage/README.md)** | um guia por comando + [quickstart](wiki/usage/00_quickstart.md) e [filosofia](wiki/usage/01_filosofia.md) |
-| **[Guia para agentes](./SKILL.md)** | o que usar, quando e quando **não** usar |
-| **[Índice para LLM](./llms.txt)** | a descrição canônica, em texto |
-| **[Superfície da CLI](./plan/implementation/16_cli_surface.md)** | o contrato de cada verbo |
-| **[Matriz de aceite](./plan/implementation/17_matriz_aceitacao.md)** | pipe, `--json`, erro e exit por tool |
-| **[Contrato de bytes (TOON)](wiki/specs/TOON.md)** | ordem canônica, hashes e ids |
-| **[Arquitetura](wiki/specs/ARCHITECTURE.md)** · **[Decisões](./plan/03_decisoes-fechadas.md)** · **[Bordas](wiki/specs/DIVERGENCES.md)** | como e por quê |
+| Guias de uso (um por comando) | [`wiki/usage/README.md`](wiki/usage/README.md) |
+| Quickstart e filosofia | [`wiki/usage/00_quickstart.md`](wiki/usage/00_quickstart.md) · [`wiki/usage/01_filosofia.md`](wiki/usage/01_filosofia.md) |
+| Guia para agentes | [`SKILL.md`](./SKILL.md) |
+| Índice para LLM | [`llms.txt`](./llms.txt) |
+| Superfície da CLI (contrato por verbo) | [`plan/implementation/16_cli_surface.md`](plan/implementation/16_cli_surface.md) |
+| Matriz de aceitação (pipe, `--json`, exit) | [`plan/implementation/17_matriz_aceitacao.md`](plan/implementation/17_matriz_aceitacao.md) |
+| Contrato de bytes (TOON) | [`wiki/specs/TOON.md`](wiki/specs/TOON.md) |
+| Arquitetura | [`wiki/specs/ARCHITECTURE.md`](wiki/specs/ARCHITECTURE.md) |
+| Decisões de projeto | [`plan/03_decisoes-fechadas.md`](plan/03_decisoes-fechadas.md) |
+| Bordas e divergências | [`wiki/specs/DIVERGENCES.md`](wiki/specs/DIVERGENCES.md) |
+| Servidor MCP | [`wiki/usage/17_mcp.md`](wiki/usage/17_mcp.md) |
+| Histórico de mudanças | [`wiki/CHANGELOG.md`](wiki/CHANGELOG.md) |
+| Contribuição | [`AGENTS.md`](./AGENTS.md) |
 
-## 🧠 Como funciona
+## Licença
 
-1. **A nota é a verdade.** Cada nota é um arquivo Markdown com frontmatter **TOON** (ordem
-   canônica; opcionais omitidos, nunca `null`) e um `id` **derivado do conteúdo**
-   (`<tipo>_<base36(8)>` = `hash(type + U+001F + normalize(statement))`). Reclassificar o tipo
-   **não** reescreve o id. Aceita **claims SPO**, **proveniência** e arestas de **ontologia leve**
-   (`same_as`/`broader`/`narrower`/`related`).
-2. **O índice é derivado e descartável.** BM25, âncoras, grafo e embeddings vivem em `.idx/` e são
-   reconstruídos a partir de `notas/`; apagar `.idx/` nunca perde conhecimento.
-3. **Busca híbrida e determinística.** Filtros → BM25 → âncoras → RRF (mais os canais vetorial e
-   de autoridade quando há índice), com desempate `(score desc, id asc)`. Sem provedor de
-   embeddings, o `ask` degrada para BM25 com `warnings`.
-
-**Âncoras (`--anchor PATH`) ligam a nota ao código** — repetível, aceitam vírgula e glob
-(`src/**`); `kd ask --anchor PATH` busca sem query textual e `kd doctor` lista âncoras quebradas.
-
-**Tarefas têm hierarquia fechada:** `epic ⊃ { issue ⊃ task | task }` (o épico é a raiz; a issue é
-opcional). Fechar uma tarefa exige **evidência** (`kd task close --outcome success --note "..."`).
-
-## 🔌 MCP
-
-`knudge-mcp` serve 4 gatilhos por JSON-RPC sobre stdio: **`knudge_pre_write`**,
-**`knudge_pre_edit`**, **`knudge_session_end`** e **`knudge_status`**. Configure com
-`kd self setup <claude|cursor|codex|pi>`. Os hints são **ponteiros** (`id + statement + score`) —
-o corpo fica no `kd`, nunca no contexto do modelo. Detalhes em
-[`wiki/usage/17_mcp.md`](wiki/usage/17_mcp.md).
-
-## 🏗️ Arquitetura
-
-```
-knudge-mcp ──┐
-             ├── knudge-core (núcleo puro + portas + adaptadores std)
-knudge-cli ──┘
-```
-
-| Crate | Papel |
-|---|---|
-| **`knudge-core`** | Modelo, schema, retrieval, ciclo de vida e **portas** — lógica pura; `adapters` (std) isolado |
-| **`knudge-cli`** | Binário **`kd`**: monta adaptadores e escreve a saída |
-| **`knudge-mcp`** | Servidor **MCP**: motor de gatilhos + transporte JSON-RPC sobre stdio |
-
-O domínio depende de **portas** (`Clock`, `Rng`, `Env`, `Fs`, `Git`, `HookRunner`, `Logger`), não
-de SO. Veja [`ARCHITECTURE.md`](wiki/specs/ARCHITECTURE.md).
-
-## 🛠️ Desenvolvimento
-
-```bash
-make check     # fmt --check + clippy -D warnings + test + gate de 300 linhas
-make build     # cargo build --workspace
-make dist      # release otimizado + pacote da plataforma atual em dist/
-```
-
-**883 testes** + `proptest` nas funções puras e **goldens** para o contrato de bytes. Regras
-duras: **sem `unwrap`/`expect`/`panic`/`unsafe`**, arquivos de produção com **≤ 300 linhas** e
-iteração determinística (`BTreeMap`/`IndexMap`). Contribuir: [`AGENTS.md`](./AGENTS.md).
-Toolchain: Rust **1.99+** (edição 2024).
-
----
-
-<div align="center">
-
-**A memória que o seu agente consulta antes de decidir — e que você consegue auditar depois.**
-
---- Licenciado sob **MIT OR Apache-2.0** — uso livre ---
-
-</div>
+Licenciado sob **MIT OR Apache-2.0** — uso livre, inclusive comercial, com atribuição.

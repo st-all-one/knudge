@@ -101,9 +101,9 @@ Filtros se somam (interseção). Notas esquecidas/substituídas ficam **fora** p
 # 1. um id
 kd ask --id fact_01m81b6h
 
-# 2. vários ids, com corpo completo (vírgula ou repetindo)
-kd ask --id fact_01m81b6h,decision_01abc123 --full-content
-kd ask --id fact_01m81b6h --id decision_01abc123 --full-content
+# 2. vários ids (vírgula ou repetindo) — o corpo vem completo por padrão no modo get
+kd ask --id fact_01m81b6h,decision_01abc123
+kd ask --id fact_01m81b6h --id decision_01abc123
 
 # 3. id inexistente degrada com aviso (não é erro)
 kd ask --id fact_inexistente
@@ -214,7 +214,7 @@ kd ask "postgres" --as-of 2099-01-01
 | `--via <ARESTA>` | Restringe o expand a uma relação (as 12 arestas de [`kd write`](06_write.md#ligar-notas-arestas)) |
 | `--depth <N>` | Profundidade do expand (default `1`) |
 | `--brief` | Saída mínima `id\|afirmação` |
-| `--full-content` | Inclui o corpo completo dos resultados |
+| `--full-content` | Corpo completo de **todos** os hits do recall; no modo `--id` é inócuo (o corpo já vem) |
 | `--with-task` | Inclui itens de trabalho (notas com escopo) |
 | `--type <T>...` | Filtro por tipo: `fact`, `decision`, `question`, `task`, `def`, `error`, `snippet`, `link`, `meta`, `risk` (repetível; aceita vírgula) |
 | `--class <C>...` | Filtro por classificação: `foundational`, `tactical`, `observational` (repetível; aceita vírgula) |
