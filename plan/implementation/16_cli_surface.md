@@ -436,7 +436,7 @@ usa stdin `{op,before,after}` → stdout `{passed,score_before,score_after}` (D1
 | `kd ask` (padrão) | comportamento | revelação progressiva do corpo: 1º hit completo, 2–5 truncado, resto padrão (D161) |
 | `kd ask --json` | contrato | por hit: `body_match`/`body_snippet` (D161) |
 | `recall.preview_chars` | config | limite de caracteres dos hits parciais (default 280, D161) |
-| `kd init` / `onboard` | artefato | cria `.agents/skill/kd/SKILL.md` idempotente (D162) |
+| `kd init` / `onboard` | artefato | cria `.agents/skills/kd/SKILL.md` idempotente (D162) |
 | `kd prime` | texto | seção **CORPO** com template (D162) |
 | sessão (`run_session`) | comportamento | varredura de resíduos `*.tmp`/`*.stale` no início (D160) |
 

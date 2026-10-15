@@ -2,7 +2,7 @@ projeto <NAME> fundado em <ROOT>/.knudge
 estrutura: notas/ (novo), eventos/ (novo), .idx/ (novo), cache/ (novo)
 config.toml (novo)
 AGENTS.md (novo)
-.agents/skill/kd/SKILL.md (novo)
+.agents/skills/kd/SKILL.md (novo)
 próximos: kd write "<afirmação>" --type fact --anchor <PATH>
           kd prime   # protocolo de uso (--long = completo)
 

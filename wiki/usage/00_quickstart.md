@@ -154,7 +154,7 @@ kd sync --message "notas: decisão do rate limit"
 ```
 
 O `kd init` cria a estrutura em `.knudge/`, escreve um bloco gerenciado no `AGENTS.md` do projeto e
-instala a **skill do agente** em `.agents/skill/kd/SKILL.md` — assim o agente já sabe buscar antes
+instala a **skill do agente** em `.agents/skills/kd/SKILL.md` — assim o agente já sabe buscar antes
 de gravar. Detalhes em [`03 · kd init`](03_init.md).
 
 O ciclo central é sempre:

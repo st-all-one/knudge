@@ -173,7 +173,7 @@ estáveis (diff mínimo, D63). Schema em `schema/keys.rs` + `schema/keys_embeddi
 
 Resolve a raiz no **worktree principal** (D29/D91), escreve `.git/info/exclude` (D30),
 `merge=union` para o log (D31), blocos idempotentes em `AGENTS.md` (D60) e `sync` de
-`notas/`+`eventos/` (D32). `skill.rs` instala a skill do projeto (`.agents/skill/kd/SKILL.md`,
+`notas/`+`eventos/` (D32). `skill.rs` instala a skill do projeto (`.agents/skills/kd/SKILL.md`,
 D162). `onboard` cria/atualiza `.knudge/` de forma idempotente. Nada de shell (R12).
 
 ### `graph` — projeção de arestas

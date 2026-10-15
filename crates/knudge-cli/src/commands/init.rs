@@ -3,7 +3,9 @@
 use std::fmt::Write as _;
 
 use knudge_core::Result;
-use knudge_core::git::{LAYOUT_DIRS, OnboardOptions, OnboardReport, Persistence, onboard};
+use knudge_core::git::{
+    LAYOUT_DIRS, OnboardOptions, OnboardReport, Persistence, SKILL_DIR, SKILL_FILE, onboard,
+};
 use serde_json::json;
 
 use crate::cli::InitArgs;
@@ -49,7 +51,7 @@ struct Plan {
     config: State,
     /// `AGENTS.md`.
     agents: State,
-    /// `.agents/skill/kd/SKILL.md`.
+    /// `.agents/skills/kd/SKILL.md`.
     skill: State,
 }
 
@@ -64,7 +66,7 @@ pub fn run(session: &Session, args: &InitArgs) -> Result<Output> {
     let agents_new = !session.fs_dyn().exists(&root.join("AGENTS.md"));
     let skill_new = !session
         .fs_dyn()
-        .exists(&root.join(".agents/skill/kd/SKILL.md"));
+        .exists(&root.join(SKILL_DIR).join(SKILL_FILE));
 
     let report = onboard(
         session.fs_dyn(),
@@ -179,7 +181,7 @@ fn render(report: &OnboardReport, plan: &Plan, prompt: &str) -> String {
         let _ignored = writeln!(text, ".gitattributes ({})", attributes.label());
     }
     let _ignored = writeln!(text, "AGENTS.md ({})", plan.agents.label());
-    let _ignored = writeln!(text, ".agents/skill/kd/SKILL.md ({})", plan.skill.label());
+    let _ignored = writeln!(text, "{SKILL_DIR}/{SKILL_FILE} ({})", plan.skill.label());
     text.push_str("próximos: kd write \"<afirmação>\" --type fact --anchor <PATH>\n");
     text.push_str("          kd prime   # protocolo de uso (--long = completo)\n");
     if !prompt.is_empty() {

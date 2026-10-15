@@ -28,3 +28,6 @@ fuzz/target
 fuzz/corpus
 fuzz/artifacts
 fuzz/coverage
+
+# knudge deste repositório: memória local-only (não versionamos o nosso `.knudge/`).
+.knudge/

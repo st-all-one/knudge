@@ -9,7 +9,7 @@
 
 1. **Idioma:** documentação, comentários, commits e `CHANGELOG` em **português**; identificadores
    de código em **inglês**. Artefatos consumidos por LLM no projeto-alvo — o bloco do `AGENTS.md`
-   gerado pelo `init`, a skill `.agents/skill/kd/SKILL.md` e o protocolo `kd prime` — são em
+   gerado pelo `init`, a skill `.agents/skills/kd/SKILL.md` e o protocolo `kd prime` — são em
    **inglês**, token-optimized.
 2. **Vermelho = não terminou.** Rode `make check` e deixe verde antes de concluir qualquer tarefa.
 3. **Simplicidade e localidade** são metas globais. Recuse infraestrutura que o caso local não
@@ -49,6 +49,9 @@ cargo clippy -p knudge-core --all-targets -- -D warnings
 - `rustfmt`: largura 100, indent 4, newline Unix, `style_edition = "2024"` e hex minúsculo
   (ver `rustfmt.toml`). Só opções **estáveis** — a toolchain é estável; agrupar imports é manual.
 - Nunca `cargo fmt` só num arquivo isolado de forma que o `check` global reclame.
+- **`.knudge/` deste repositório é local-only** (`persist_in_project = false`): fica no
+  `.git/info/exclude`, não no git. Não faça `git add .knudge/`. O `.gitattributes` descreve o
+  conteúdo real do repo (LF global, `linguist-*`, rede de binários) — sem o bloco gerado.
 
 ## 2. Mapa do repositório
 

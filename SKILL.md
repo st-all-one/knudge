@@ -195,7 +195,7 @@ verb.
 ## Setup
 
 `kd init` creates `.knudge/`, writes the protocol block into `AGENTS.md`, and installs the skill
-`.agents/skill/kd/SKILL.md`. Installer (`install.sh`) drops `kd` + `knudge-mcp` into `~/.local/bin`
+`.agents/skills/kd/SKILL.md`. Installer (`install.sh`) drops `kd` + `knudge-mcp` into `~/.local/bin`
 (SHA-256 checked); needs `git`; embeddings optional.
 
 ## Anti-patterns

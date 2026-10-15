@@ -1,21 +1,46 @@
-# knudge:start
-# Notas canônicas: LF mantém `body_hash`/id estáveis (D06/D95).
-/.knudge/notas/** text eol=lf
+# .gitattributes do knudge — regras para o que o repositório de fato contém.
+#
+# O `.knudge/` DESTE repositório é local-only (D30/D34): fica no `.git/info/exclude` e não é
+# versionado, então não há regras de notas/eventos/cache aqui. O projeto exige newline Unix
+# (rustfmt `newline_style = "Unix"`; `install.sh`/`Makefile` quebram com CRLF).
 
-# Configuração do projeto: texto normalizado.
-/.knudge/config.toml text eol=lf
-/.knudge/templates.toml text eol=lf
-/.knudge/validators.toml text eol=lf
+# Normalização global: texto vira LF no índice e no checkout; binários ficam intactos.
+* text=auto eol=lf
 
-# Log de eventos: append-only; o `id` do conteúdo torna o union seguro (D26/D28/D31).
-/.knudge/eventos/events*.jsonl text eol=lf merge=union
+# Scripts e build: LF explícito (um CRLF quebra `install.sh`/`make`).
+*.sh     text eol=lf
+Makefile text eol=lf
 
-# Cache vetorial versionado: chave `(body_hash, model)`; union + dedup no loader (D148/D153).
-/.knudge/emb_cache.jsonl text eol=lf merge=union
+# Contrato de bytes e dados determinísticos: LF fixo.
+*.rs     text eol=lf
+*.md     text eol=lf
+*.toml   text eol=lf
+*.json   text eol=lf
+*.jsonl  text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+*.tsv    text eol=lf
+*.py     text eol=lf
+*.txt    text eol=lf
+Cargo.lock text eol=lf
 
-# Derivado e runtime (reconstruíveis, nunca versionados): sem diff/merge automático.
-/.knudge/.idx/** binary linguist-generated
-/.knudge/cache/** binary linguist-generated
-/.knudge/.locks/** binary linguist-generated
-/.knudge/**/*.tmp binary linguist-generated
-# knudge:end
+# Binários: nunca normalizar (rede de segurança para artefatos futuros).
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.gguf binary
+*.bin  binary
+
+# Linguist: o projeto é Rust; docs e dados de benchmark não disputam o percentual no GitHub.
+*.md        linguist-documentation
+wiki/**     linguist-documentation
+plan/**     linguist-documentation
+.agents/**  linguist-documentation
+llms.txt    linguist-documentation
+Cargo.lock       linguist-generated
+bench/**/*.json  linguist-generated
+bench/**/*.tsv   linguist-generated
+bench/**/*.lock  linguist-generated

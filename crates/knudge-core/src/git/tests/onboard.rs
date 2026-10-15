@@ -95,7 +95,7 @@ fn applies_git_files_when_in_repo_and_is_idempotent() -> Result<()> {
     assert!(first.attributes_changed);
     assert!(first.agents_changed);
     assert!(first.skill_changed);
-    assert!(fs.exists(Path::new("/repo/.agents/skill/kd/SKILL.md")));
+    assert!(fs.exists(Path::new("/repo/.agents/skills/kd/SKILL.md")));
     assert!(fs.exists(Path::new("/repo/.git/info/exclude")));
     let attributes =
         String::from_utf8(fs.read(Path::new("/repo/.gitattributes"))?).unwrap_or_default();

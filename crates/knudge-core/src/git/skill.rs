@@ -1,4 +1,4 @@
-//! Skill do `kd` para o projeto-alvo (D162): `.agents/skill/kd/SKILL.md`.
+//! Skill do `kd` para o projeto-alvo (D162): `.agents/skills/kd/SKILL.md`.
 //!
 //! Escrita **idempotente e governada**: só cria se ausente ou se o version marker for nosso e
 //! estiver desatualizado. Um arquivo editado pelo usuário (sem o marker) nunca é sobrescrito.
@@ -9,7 +9,7 @@ use crate::Result;
 use crate::ports::Fs;
 
 /// Diretório relativo da skill.
-pub const DIR: &str = ".agents/skill/kd";
+pub const DIR: &str = ".agents/skills/kd";
 /// Arquivo da skill.
 pub const FILE: &str = "SKILL.md";
 /// Versão atual do conteúdo.

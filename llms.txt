@@ -5,12 +5,13 @@
 > âncoras + embeddings opcional via RRF). Sem servidor, sem banco, sem daemon. O binário
 > `knudge-mcp` expõe os gatilhos de memória por MCP (JSON-RPC 2.0 sobre stdio). Ciclo:
 > `ask → write → task → sync`. Fonte de verdade técnica: `wiki/specs/`; uso: `wiki/usage/`;
-> decisões: `wiki/specs/adrs/` (D01–D212) e `plan/03_decisoes-fechadas.md`.
+> decisões: `wiki/specs/adrs/` (D01–D216) e `plan/03_decisoes-fechadas.md`.
 
 ## Regras de ouro
 
 - **`kd` sozinho == `kd help`** (exit 0). O protocolo estático (byte-idêntico por versão) é
-  `kd prime`; `kd prime --long` anexa a gramática TOON + schema. `--json` sem verbo → exit 2.
+  `kd prime` (em **inglês**, token-optimized; compacto por padrão); `kd prime --long` anexa a
+  gramática TOON + schema. `--json` sem verbo → exit 2.
 - **Sempre busque antes de gravar:** `kd ask "<rascunho>"`; score `< 0.75` cria, `0.75–0.92` faz
   merge, `≥ 0.92` rejeita (dedup lexical). Uma afirmação por nota; `id` derivado do conteúdo.
 - **Nunca invente id.** `<prefixo>_<base36(8)>` = `hash(type + U+001F + normalize(statement))`;
@@ -202,7 +203,7 @@
 ## Handoff e manutenção (`handoff.md`, `manutencao.md`)
 
 - **`prime`** = protocolo estático byte-idêntico; **`rewind`** = estado dinâmico. Modos:
-  `Manifest` (~30 tokens), `Scope(container)`, `Files(working set)`, `Auto`. `next:` (tarefas
+  `Manifest` (~30 tokens), `Scope(escopo/épico)`, `Files(working set)`, `Auto`. `next:` (tarefas
   `ready` abertas por impacto) e `fresh:` (stale/expiring/pending); anexa corpo de
   `foundational`/`decision`.
 - **Orçamento** `ceil(len/4)` tokens, `DEFAULT_BUDGET=4000`, `MIN_TAIL=100`; item a item.
@@ -244,7 +245,7 @@
   compartilham; submódulo não conta. Exclusão via `.git/info/exclude` (nunca `.gitignore`, D30):
   versiona `notas/`+`eventos/`, exclui derivados; `persist_in_project=false` exclui tudo.
 - **`AGENTS.md` (D60):** blocos idempotentes `<!-- knudge:start/end -->` + bloco irmão
-  `knudge:rules` (reescrito só por `config promote`). **Skill** `.agents/skill/kd/SKILL.md`
+  `knudge:rules` (reescrito só por `config promote`). **Skill** `.agents/skills/kd/SKILL.md`
   (D162, idempotente, version marker, nunca sobrescreve arquivo do usuário).
 - **`sync` (D32):** comita `notas/`+`eventos/` com guard de worktree; `git -C` sem shell.
   `.gitattributes` com `merge=union` para `events*.jsonl`.
@@ -297,7 +298,7 @@
 `SMOOTHING=1e-9`/`DRIFT_THRESHOLD=0.5`/`MIN_DRIFT_NOTES=4`, `DAMPING=0.85`/`MAX_ITER=32`/
 `TOL=1e-8`, `MAX_LEVELS=8`/`MAX_PASSES=64`, `SIGNATURE=64`/`BANDS=16`/`ROWS=4`/`MIN_LSH=256`.
 
-## Decisões (D01–D212)
+## Decisões (D01–D216)
 
 Índice completo com contexto/impacto: [`wiki/specs/adrs/README.md`](wiki/specs/adrs/README.md);
 contrato canônico: `plan/03_decisoes-fechadas.md`. Grupos:
@@ -380,7 +381,7 @@ superfície v3, listas, enums fechados.
   [`AGENTS.md`](AGENTS.md) — contribuir no código.
 - [`wiki/`](wiki/README.md): [`usage/`](wiki/usage/README.md) (um guia por comando),
   [`specs/`](wiki/specs/README.md) (técnico por subsistema), [`adrs/`](wiki/specs/adrs/README.md)
-  (D01–D212), [`integration/`](wiki/integration/README.md) (embutir o `knudge-core`),
+  (D01–D216), [`integration/`](wiki/integration/README.md) (embutir o `knudge-core`),
   [`CHANGELOG.md`](wiki/CHANGELOG.md).
 - Contratos: [`TOON.md`](wiki/specs/TOON.md) · [`ARCHITECTURE.md`](wiki/specs/ARCHITECTURE.md) ·
   [`matematica.md`](wiki/specs/matematica.md) · [`DIVERGENCES.md`](wiki/specs/DIVERGENCES.md) ·

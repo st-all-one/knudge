@@ -6,7 +6,9 @@ Imprime o **protocolo de uso** do knudge: o "help da IA". É um texto **estátic
 mesma versão do binário), feito para ser colado no início de uma sessão de agente. Ele diz o que
 usar, quando usar e — o mais importante — **quando não usar**.
 
-`kd` sozinho é igual a `kd help`; o protocolo é `kd prime`.
+`kd` sozinho é igual a `kd help`; o protocolo é `kd prime`. O texto é em **inglês** e
+**token-optimized** — é o formato que a IA consome melhor com menos tokens. O `kd init` injeta a
+versão compacta no `AGENTS.md` do projeto.
 
 ## Quando usar
 
@@ -32,11 +34,11 @@ kd prime
 Saída (resumida):
 
 ```
-knudge (kd) — memória por projeto, otimizada para LLM.
-CICLO: kd ask (buscar) → kd write (gravar) → kd task (executar) → kd sync (commit).
-GUIA RÁPIDO (o que usar, quando e quando NÃO usar):
-  kd ask <QUERY>   RECUPERAR antes de agir; ...
-  kd write <...>   GRAVAR fato/decisão/erro/risco/pergunta. ...
+knudge (kd) — project memory for LLMs.
+CYCLE: kd ask (search) → kd write (record) → kd task (work) → kd sync (commit).
+WHEN (use / don't):
+  kd ask <QUERY>     recall before acting (read-only); ...
+  kd write <...>     record fact/decision/error/risk/question; ...
 ```
 
 ### 2. Schema completo para escrita

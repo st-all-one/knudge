@@ -40,7 +40,7 @@ comita o conhecimento com `sync`.
 
 ## Skill do projeto (D162)
 
-`kd init`/`onboard` cria/atualiza `.agents/skill/kd/SKILL.md` (`git/skill.rs`), uma skill
+`kd init`/`onboard` cria/atualiza `.agents/skills/kd/SKILL.md` (`git/skill.rs`), uma skill
 otimizada para uso real (idempotente, com version marker) e referenciada no `AGENTS.md`. O corpo é
 em **inglês** (idioma das skills), token-optimized; o marker governa a versão (`VERSION = 2`).
 

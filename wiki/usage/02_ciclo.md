@@ -134,7 +134,7 @@ kd write --params '{"statement":"Cache expira em 30 dias","type":"fact","tags":[
 kd                 # o mesmo que kd help
 kd --help          # visão geral de todos os comandos
 kd help <verbo>    # ajuda detalhada de um comando
-kd prime           # o protocolo completo ("help da IA")
+kd prime           # o protocolo de uso ("help da IA"; compacto — `--long` = completo)
 ```
 
 ### 5.7 Listas: repita a flag ou use vírgula

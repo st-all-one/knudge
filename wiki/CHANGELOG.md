@@ -15,7 +15,7 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 - **`kd init` injeta um bloco de `AGENTS.md` melhor** — em inglês, token-optimized e focado no uso
   prático: loop `prime → ask → write → rewind`, dedup, trabalho (`epic ⊃ {issue ⊃ task | task}`),
   saúde/manutenção/embeddings e **instrução de instalação** do `kd` caso ele não exista no host
-  (bloco marcado `v2`). A skill `.agents/skill/kd/SKILL.md` ganha as seções *Work (tasks)* e
+  (bloco marcado `v2`). A skill `.agents/skills/kd/SKILL.md` ganha as seções *Work (tasks)* e
   *Embeddings*, `kd task [--kind]`/`kd task flow`/`kd drain` no essencial, e sobe para `v3` — o
   `init` atualiza projetos já fundados.
 - **Mensagem do `kd drain --digest` com provedor fora do ar** — o texto de estagnação agora é
@@ -23,6 +23,16 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   `redigeri`/`redigerindo` viraram `reindexa`/`reindexando`.
 
 ### Alterado
+- **Skill do `kd` em `.agents/skills/kd` (plural, D217)** — o `kd init` grava a skill no path
+  plural (antes `.agents/skill/kd/SKILL.md`), alinhado às demais skills do agente (ex.:
+  `.agents/skills/rust/`). `git/skill.rs::DIR` muda e o `init` usa `SKILL_DIR`/`SKILL_FILE` (fim do
+  path hardcoded); o diretório antigo não é mantido (D14).
+- **Repositório dogfooding em modo local-only** — o `.knudge/` **deste** repositório deixa de ser
+  versionado: `.knudge/` entra no `.gitignore` (regra do repo, não do alvo) e
+  `knowledge.persist_in_project = false` + `/.knudge/` no `.git/info/exclude` (D30/D34). O bloco
+  gerado sai do `.gitattributes`, que passa a descrever o conteúdo real (LF global, LF explícito em
+  scripts/`Makefile`, `linguist-documentation`/`linguist-generated` para docs e dados de benchmark,
+  rede de segurança para binários).
 - **`rustfmt.toml` explícito e só com opções estáveis** — novo `style_edition = "2024"` (evita
   divergência entre `rustfmt` direto, que assume 2015, e `cargo fmt`) e `hex_literal_case =
   "Lower"` (casa com os ids/`body_hash` em hex minúsculo; 4 literais normalizados). Opções

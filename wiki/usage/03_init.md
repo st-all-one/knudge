@@ -4,7 +4,7 @@
 
 Cria a memória do knudge **dentro do projeto atual**. É o primeiro comando que você roda, uma única
 vez por projeto, na raiz do repositório git. Ele prepara a estrutura, **ensina o agente a usar o
-`kd`** (via `AGENTS.md` e a skill `.agents/skill/kd/SKILL.md`) e deixa o git configurado para
+`kd`** (via `AGENTS.md` e a skill `.agents/skills/kd/SKILL.md`) e deixa o git configurado para
 versionar a memória sem versionar o derivado.
 
 ## Quando usar
@@ -104,9 +104,10 @@ knowledge.persist_in_project --value <false|true>` seguido de `kd init`).
 
 Além disso, sempre cria/atualiza:
 
-- **`AGENTS.md`** — bloco `<!-- knudge:start --> … <!-- knudge:end -->` ensinando o agente a usar o
-  `kd` (idempotente: rodar de novo não duplica);
-- **`.agents/skill/kd/SKILL.md`** — a **skill do agente** (frontmatter + guia de ação), com um
+- **`AGENTS.md`** — bloco `<!-- knudge:start --> … <!-- knudge:end -->` (em inglês, token-optimized)
+  ensinando o agente a usar o `kd`, com o loop de uso e uma instrução para **instalar o `kd`** caso
+  ele não exista no host (idempotente: rodar de novo não duplica);
+- **`.agents/skills/kd/SKILL.md`** — a **skill do agente** (frontmatter + guia de ação), com um
   marcador de versão. É **governada**: o `kd init` nunca sobrescreve um arquivo que você editou à
   mão (sem o marcador); só cria se faltar ou atualiza se a versão do knudge for mais nova.
 

@@ -50,7 +50,7 @@ pub struct OnboardReport {
     pub attributes_changed: bool,
     /// `true` se o bloco do `AGENTS.md` foi criado/atualizado.
     pub agents_changed: bool,
-    /// `true` se a skill `.agents/skill/kd/SKILL.md` foi criada/atualizada (D162).
+    /// `true` se a skill `.agents/skills/kd/SKILL.md` foi criada/atualizada (D162).
     pub skill_changed: bool,
 }
 
