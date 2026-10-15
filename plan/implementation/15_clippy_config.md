@@ -4,7 +4,7 @@
 > *“Lint Configuration Options”*, **95 opções** de configuração (chaves de `clippy.toml`).
 > Captura e parsing feitos nesta revisão; cada opção foi analisada individualmente abaixo.
 >
-> **Alvo:** projeto knudge (Rust **1.97.0**, Edition **2024**), com a disciplina de D92 e as
+> **Alvo:** projeto knudge (Rust **1.99.0**, Edition **2024**), com a disciplina de D92 e as
 > políticas `R01–R43` de [`14_revisao_tecnica.md`](14_revisao_tecnica.md). Meta: **rigor e
 > padronização globais**, maximizando **segurança de memória, recursos, logs e tratamento de
 > erros**, sem transformar o código em um campo minado de falsos positivos.
@@ -116,7 +116,7 @@ das duas:
 | `check-grouped-late-init` | `true` | **manter `true`** | est | `let` tardio agrupado → tupla. |
 | `missing-docs-allow-unused` | `false` | **manter `false`** | est | Exige doc mesmo em campo `_x`. |
 | `missing-docs-in-crate-items` | `false` | **manter `false`** | est | Documenta tudo, não só `pub(crate)`. |
-| `msrv` | `current` | **`"1.97"`** | est | **MSRV obrigatório: 1.97+** (Edition 2024); habilita os checks de MSRV. |
+| `msrv` | `current` | **`"1.99"`** | est | **MSRV obrigatório: 1.99+** (Edition 2024); habilita os checks de MSRV. |
 
 ### 2.4 Segurança de memória, recursos e concorrência
 
@@ -206,7 +206,7 @@ max-struct-bools                = 1
 stack-size-threshold            = 65536
 array-size-threshold            = 4096
 future-size-threshold           = 8192
-msrv                            = "1.97"
+msrv                            = "1.99"
 
 await-holding-invalid-types = [
   "std::sync::MutexGuard", "std::sync::RwLockReadGuard",
@@ -246,6 +246,7 @@ variant_size_differences = "warn"
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"
+unused_footnote_definition = "deny"   # novo no rustdoc 1.99
 
 [workspace.lints.clippy]
 # Grupos
@@ -311,7 +312,7 @@ large_futures               = "warn"
 module_name_repetitions = "allow"
 must_use_candidate      = "allow"
 implicit_hasher         = "allow"
-assert_is_empty         = "allow"   # clippy 1.99: `assert!(x.is_empty())` é o idioma dos testes (MSRV 1.97)
+assert_is_empty         = "allow"   # clippy 1.99: `assert!(x.is_empty())` é o idioma dos testes (MSRV 1.99)
 
 # Documentação (mantidas como warn)
 missing_errors_doc  = "warn"
@@ -368,7 +369,8 @@ acrescentam `#![forbid(unsafe_code)]` no topo.
   por desempenho, manter o `allow` local com `reason` e um teste de determinismo.
 - **`max-fn-params-bools = 0`** força modelagem por enums; se doer, relaxar para `1` antes de
   espalhar `#[allow]`.
-- **MSRV**: `msrv = "1.97"` é **obrigatório** neste projeto e precisa casar com o
-  `rust-version = "1.97"` do `Cargo.toml`, senão a lint `incompatible_msrv` fica inconsistente.
+- **MSRV**: `msrv = "1.99"` é **obrigatório** neste projeto e precisa casar com o
+  `rust-version = "1.99"` do `Cargo.toml`, senão a lint `incompatible_msrv` fica inconsistente.
+  O `rust-toolchain.toml` fixa o channel em `1.99` para o build local.
 - **Config mutável = contrato**: `clippy.toml` entra em revisão de código; mudar um limite exige
   justificar no PR.

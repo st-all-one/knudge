@@ -201,8 +201,9 @@ impl Index {
     /// # Errors
     /// Propaga erros de listagem/leitura/parse.
     pub fn from_store(store: &Store<'_>) -> Result<Self> {
-        let mut notes = Vec::new();
-        for id in store.list_ids()? {
+        let ids = store.list_ids()?;
+        let mut notes = Vec::with_capacity(ids.len());
+        for id in ids {
             if let Some(note) = store.read_optional(&id)? {
                 notes.push(note);
             }

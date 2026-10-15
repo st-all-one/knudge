@@ -137,7 +137,7 @@ pub fn rank(
     working_paths: &[String],
     working_ids: &[String],
 ) -> Vec<String> {
-    let mut hits: Vec<(u32, &str)> = Vec::new();
+    let mut hits: Vec<(u32, &str)> = Vec::with_capacity(index.docs.len());
     for doc in &index.docs {
         if !allowed.contains(&doc.meta.id) {
             continue;
@@ -158,7 +158,7 @@ pub fn rank(
 )]
 fn glob_tokens(pattern: &str) -> Vec<Glob> {
     let bytes = pattern.as_bytes();
-    let mut tokens = Vec::new();
+    let mut tokens = Vec::with_capacity(pattern.len());
     let mut index = 0;
     while index < bytes.len() {
         match bytes[index] {

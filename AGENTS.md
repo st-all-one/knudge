@@ -44,8 +44,10 @@ cargo test -p knudge-core toon::tests::round_trip_is_byte_exact
 cargo clippy -p knudge-core --all-targets -- -D warnings
 ```
 
-- Toolchain: Rust **1.97+** (edição 2024). MSRV **obrigatória** = 1.97; não use API mais nova.
-- `rustfmt`: largura 100, indent 4, newline Unix (ver `rustfmt.toml`).
+- Toolchain: Rust **1.99+** (edição 2024). MSRV **obrigatória** = 1.99; não use API mais nova.
+  O `rust-toolchain.toml` fixa o channel em `1.99`; `rust-version`/`clippy.toml::msrv` casam com ele.
+- `rustfmt`: largura 100, indent 4, newline Unix, `style_edition = "2024"` e hex minúsculo
+  (ver `rustfmt.toml`). Só opções **estáveis** — a toolchain é estável; agrupar imports é manual.
 - Nunca `cargo fmt` só num arquivo isolado de forma que o `check` global reclame.
 
 ## 2. Mapa do repositório
@@ -59,7 +61,7 @@ refs/                 # projetos de referência (mulch-rs, seeds-rs, arags) — 
 fuzz/                 # alvos de fuzz (TOON, JSONL) — fora do workspace
 bench/                # bancada de benchmark (fora do workspace; micro + e2e; `make bench`)
 scripts/              # utilitários: bump-version.sh, knudge-idle.sh, package.sh, check_file_length.sh
-.agents/skill/rust/   # skill de Rust (SKILL.md + capítulos)
+.agents/skills/rust/  # skill de Rust (SKILL.md + capítulos + CHANGELOG/VERSION)
 wiki/specs/DIVERGENCES.md  # bordas (Unicode, ordem, lock, atomicidade…) + teste que trava cada uma
 SKILL.md              # guia de uso ativo do knudge para agentes (dos projetos que o adotam)
 wiki/                 # documentação: `CHANGELOG.md` na raiz; `specs/` (técnica) e `usage/` (guias); `specs/adrs/` (decisões)
@@ -208,7 +210,7 @@ módulos. Onde mexer:
 - Superfície `kd`: [`plan/implementation/16_cli_surface.md`](plan/implementation/16_cli_surface.md).
 - Matriz de aceite: [`plan/implementation/17_matriz_aceitacao.md`](plan/implementation/17_matriz_aceitacao.md).
 - Bordas: [`DIVERGENCES.md`](wiki/specs/DIVERGENCES.md).
-- Rust: [`.agents/skill/rust/SKILL.md`](.agents/skill/rust/SKILL.md).
+- Rust: [`.agents/skills/rust/SKILL.md`](.agents/skills/rust/SKILL.md).
 
 <!-- knudge:start -->
 <!-- knudge:version: 2 -->

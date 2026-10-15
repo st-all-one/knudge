@@ -110,7 +110,8 @@ pub fn run(script: &Path, args: &[String]) -> Result<ScriptRun> {
         ));
     }
     Ok(ScriptRun {
-        stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+        // 1.99: consome `output.stdout` sem realloc quando já é UTF-8 válido.
+        stdout: String::from_utf8_lossy_owned(output.stdout),
     })
 }
 
@@ -143,7 +144,7 @@ pub fn run_body(body: &str, args: &[String]) -> Result<ScriptRun> {
         ));
     }
     Ok(ScriptRun {
-        stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+        stdout: String::from_utf8_lossy_owned(output.stdout),
     })
 }
 

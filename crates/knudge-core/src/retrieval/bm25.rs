@@ -93,7 +93,7 @@ impl Index {
         allowed: &BTreeSet<String>,
         boost: &F,
     ) -> Vec<Bm25Hit> {
-        let mut hits = Vec::new();
+        let mut hits = Vec::with_capacity(positions.size_hint().0);
         for position in positions {
             let Ok(position) = usize::try_from(position) else {
                 continue;

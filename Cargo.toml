@@ -1,5 +1,6 @@
 [workspace]
-resolver = "2"
+# Edition 2024 usa o resolver v3 por padrão (MSRV-aware); declarado para ficar explícito (R44).
+resolver = "3"
 members = ["crates/knudge-core", "crates/knudge-cli", "crates/knudge-mcp"]
 default-members = ["crates/knudge-cli"]
 exclude = ["fuzz"]
@@ -7,16 +8,18 @@ exclude = ["fuzz"]
 [workspace.package]
 version = "0.6.1"
 edition = "2024"
-rust-version = "1.97"
+rust-version = "1.99"
 license = "MIT OR Apache-2.0"
 publish = false
+repository = "https://github.com/st-all-one/knudge"
+homepage = "https://github.com/st-all-one/knudge"
 
 [workspace.dependencies]
 # core (puro)
 thiserror = "2"
 indexmap = "2"
 unicode-normalization = "0.1"
-sha2 = "0.10"
+sha2 = "0.11"
 # cli / mcp (adaptadores)
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
@@ -47,6 +50,7 @@ variant_size_differences = "warn"
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"
+unused_footnote_definition = "deny"  # novo no rustdoc 1.99 (nota de rodapé sem referência)
 
 [workspace.lints.clippy]
 # Grupos (prioridade menor para permitir overrides pontuais)
@@ -119,7 +123,7 @@ option_if_let_else = "allow"
 significant_drop_tightening = "allow"
 missing_const_for_fn = "allow"
 excessive_nesting = "allow"
-# Clippy 1.99 (MSRV 1.97): `assert!(x.is_empty())` é o idioma do projeto em testes; a
+# Clippy 1.99 (MSRV 1.99): `assert!(x.is_empty())` é o idioma do projeto em testes; a
 # sugestão (`assert_eq!(x, [] as [T; 0])`) é pior. Documentado em 15_clippy_config.md §5.
 assert_is_empty = "allow"
 

@@ -176,15 +176,15 @@ impl Parser<'_> {
 
     fn parse_unicode(&mut self) -> Result<char> {
         let high = self.parse_hex4()?;
-        if (0xD800..=0xDBFF).contains(&high) {
+        if (0xd800..=0xdbff).contains(&high) {
             self.expect(b'\\')?;
             self.expect(b'u')?;
             let low = self.parse_hex4()?;
-            if !(0xDC00..=0xDFFF).contains(&low) {
+            if !(0xdc00..=0xdfff).contains(&low) {
                 return Err(self.fail("par surrogate inválido"));
             }
             let combined =
-                0x1_0000 + ((u32::from(high) - 0xD800) << 10) + (u32::from(low) - 0xDC00);
+                0x1_0000 + ((u32::from(high) - 0xd800) << 10) + (u32::from(low) - 0xdc00);
             return char::from_u32(combined).ok_or_else(|| self.fail("code point inválido"));
         }
         char::from_u32(u32::from(high)).ok_or_else(|| self.fail("code point inválido"))

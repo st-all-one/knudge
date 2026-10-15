@@ -23,6 +23,27 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   `redigeri`/`redigerindo` viraram `reindexa`/`reindexando`.
 
 ### Alterado
+- **`rustfmt.toml` explícito e só com opções estáveis** — novo `style_edition = "2024"` (evita
+  divergência entre `rustfmt` direto, que assume 2015, e `cargo fmt`) e `hex_literal_case =
+  "Lower"` (casa com os ids/`body_hash` em hex minúsculo; 4 literais normalizados). Opções
+  `unstable` (`imports_granularity`, `group_imports`, `wrap_comments`, …) ficam de fora — a
+  toolchain é estável e o agrupamento de imports é manual.
+- **Manifest enriquecido (spec Cargo)** — `resolver = "3"` (padrão do edition 2024; MSRV-aware),
+  `repository`/`homepage` centralizados em `[workspace.package]` e herdados pelos três crates;
+  `readme = "MODULE.md"` local por crate (o `[workspace.package]` resolve na raiz do workspace) e
+  `keywords`/`categories` nos binários. A `serde_json` em `[dev-dependencies]` do `knudge-cli` foi
+  removida (já era dependência normal).
+- **Dependências atualizadas** — `sha2` 0.10 → **0.11** (major; `finalize()`/`first_chunk` seguem
+  válidos, hashes e IDs estáveis nos testes de contrato) e bump semver do `Cargo.lock`
+  (`thiserror` 2.0.21, `serde_json` 1.0.154, `proptest` 1.12.0 + transitivas). `cargo machete` não
+  aponta dependências não usadas.
+- **Toolchain Rust 1.99 (novo MSRV)** — `rust-toolchain.toml` fixa o channel em `1.99`;
+  `rust-version` (`Cargo.toml`) e `msrv` (`clippy.toml`) sobem para `1.99`; CI e release usam
+  `1.99`. A lint `assert_is_empty` passa a existir de verdade (deixa de ser “lint desconhecida”) e
+  o lint rustdoc `unused_footnote_definition` (novo em 1.99) entra como `deny`.
+- **Otimizações de alocação (1.99)** — `String::from_utf8_lossy_owned` no adaptador HTTP e nos
+  scripts evita a cópia quando a saída já é UTF-8 válido; o `retrieval` pré-aloca em
+  `Index::from_store`, `Bm25::collect_hits`, `anchor::rank` e `glob_tokens`.
 - **`kd prime` e `kd prime --long` em inglês, token-optimized** — o protocolo estático (o
   “help da IA”) foi reescrito em inglês e compactado; a seção anexada pelo `--long` também
   (`types:`/`canonical keys`). A linha de `kd task new` passa a mostrar

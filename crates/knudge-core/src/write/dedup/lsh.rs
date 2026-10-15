@@ -85,7 +85,7 @@ fn fnv1a(bytes: &[u8]) -> u64 {
 /// Deriva a permutação `slot` de um mesmo `base` (splitmix64).
 fn permute(base: u64, slot: usize) -> u64 {
     let slot = u64::try_from(slot).unwrap_or(u64::MAX);
-    mix(base ^ slot.wrapping_mul(0x9E37_79B9_7F4A_7C15))
+    mix(base ^ slot.wrapping_mul(0x9e37_79b9_7f4a_7c15))
 }
 
 /// Finalizador splitmix64: mistura forte e determinística.

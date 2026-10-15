@@ -65,7 +65,7 @@ impl SeqRng {
     pub const fn new(seed: u64) -> Self {
         Self {
             state: if seed == 0 {
-                0x9E37_79B9_7F4A_7C15
+                0x9e37_79b9_7f4a_7c15
             } else {
                 seed
             },

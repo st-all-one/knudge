@@ -22,7 +22,7 @@ de `MAP.md`/hubs, instalação/`self`/scripts e o envelope de saída — são re
 
 ## Pré-requisitos
 
-- **Rust 1.97+** (edição 2024). MSRV é contrato.
+- **Rust 1.99+** (edição 2024). MSRV é contrato.
 - O crate expõe `Result<T> = Result<T, Error>`; trate `ErrorKind` (`wiki/specs/erros.md`).
 - O domínio é **puro**: relógio/RNG/FS/ambiente/Git entram por **portas** (`ports`). A fachada
   `Knudge` monta as implementações `std` (`adapters`); quem quiser determinismo total injeta

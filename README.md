@@ -5,7 +5,7 @@
 **Memória por projeto otimizada para LLM — a nota é a verdade, o índice é derivado.**
 
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-2b3a42?style=for-the-badge)](./LICENSE-MIT)
-[![Rust](https://img.shields.io/badge/rust-1.97%2B-DEA584?style=for-the-badge&logo=rust&logoColor=000)](https://www.rust-lang.org/)
+[![Rust](https://img.shields.io/badge/rust-1.99%2B-DEA584?style=for-the-badge&logo=rust&logoColor=000)](https://www.rust-lang.org/)
 [![MCP](https://img.shields.io/badge/MCP-JSON--RPC%202.0-6E56CF?style=for-the-badge)](wiki/usage/17_mcp.md)
 [![Version](https://img.shields.io/badge/version-0.6.1-009739?style=for-the-badge)](wiki/CHANGELOG.md)
 
@@ -129,7 +129,7 @@ make dist      # release otimizado + pacote da plataforma atual em dist/
 **883 testes** + `proptest` nas funções puras e **goldens** para o contrato de bytes. Regras
 duras: **sem `unwrap`/`expect`/`panic`/`unsafe`**, arquivos de produção com **≤ 300 linhas** e
 iteração determinística (`BTreeMap`/`IndexMap`). Contribuir: [`AGENTS.md`](./AGENTS.md).
-Toolchain: Rust **1.97+** (edição 2024).
+Toolchain: Rust **1.99+** (edição 2024).
 
 ---
 

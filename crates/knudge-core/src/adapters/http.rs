@@ -111,7 +111,8 @@ impl HttpEmbedder {
         stream
             .read_to_end(&mut response)
             .map_err(|error| net_error(&authority, &error))?;
-        let text = String::from_utf8_lossy(&response).into_owned();
+        // 1.99: consome `response` sem realloc quando já é UTF-8 válido (caso comum).
+        let text = String::from_utf8_lossy_owned(response);
         let (status, payload) = split_response(&text)?;
         Ok((status, payload.to_string()))
     }

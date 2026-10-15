@@ -12,7 +12,7 @@ Problemas comuns e como resolver. Se nada aqui ajudar, rode [`kd doctor`](10_doc
 | `kd: command not found` | PATH não atualizado | `export PATH="$HOME/.local/bin:$PATH"` e abra um shell novo |
 | `permission denied` no install | destino sem permissão | `INSTALL_DIR=~/.local/bin` |
 | `checksum mismatch` | download corrompido | rode de novo; confira `VERSION` e rede |
-| `rustc` antigo | MSRV | Rust **1.97+** (`rustup update`) |
+| `rustc` antigo | MSRV | Rust **1.99+** (`rustup update`) |
 | completions não funcionam | shell não recarregado | abra um shell novo ou `source` o arquivo |
 
 ```bash

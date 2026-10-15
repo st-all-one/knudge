@@ -1,6 +1,17 @@
+# Configuração do rustfmt do knudge (apenas opções ESTÁVEIS; ver AGENTS.md §1).
+#
+# A toolchain é estável (1.99), então opções `unstable` (ex.: `imports_granularity`,
+# `group_imports`, `wrap_comments`, `format_code_in_doc_comments`) não são usadas — em estável
+# elas seriam apenas ignoradas com aviso. Agrupar imports (std/externos/crate) é feito à mão.
+
 edition = "2024"
+# Estilo do Style Guide (RFC 3338). O `cargo fmt` infere do `edition`, mas o `rustfmt` direto
+# usa 2015 por padrão; explicitar evita divergência entre `rustfmt` e `cargo fmt`.
+style_edition = "2024"
 max_width = 100
 tab_spaces = 4
 newline_style = "Unix"
+# Casamento com a convenção do projeto: ids/`body_hash` saem em hex minúsculo (`hex8`).
+hex_literal_case = "Lower"
 use_field_init_shorthand = true
 use_try_shorthand = true

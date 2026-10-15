@@ -51,7 +51,7 @@ Adote se você marcar **três ou mais**:
 |---|---|---|
 | `git` | versionar o corpus e ligar âncoras ao código | Sim, no projeto onde você usa |
 | Linux, macOS ou Windows | o `kd` roda nos três | — |
-| Rust 1.97+ | só se você compilar do source | Não (há binário pronto) |
+| Rust 1.99+ | só se você compilar do source | Não (há binário pronto) |
 | `llama.cpp` + um modelo GGUF | busca semântica (paráfrases) | Não — é opcional (§7) |
 
 Se você só quer o essencial, **pule a §7**. O `kd ask` funciona sem embeddings.
@@ -81,7 +81,7 @@ curl ... | VERSION=v0.5.0 bash
 # Instalar em outro diretório
 curl ... | INSTALL_DIR=/usr/local/bin bash
 
-# Compilar do source (precisa de Rust 1.97+)
+# Compilar do source (precisa de Rust 1.99+)
 ./install.sh --from-source
 ```
 
@@ -296,7 +296,7 @@ Detalhes, multi-dev e solução de problemas: [guia de embeddings](18_embeddings
 | `kd: command not found` | PATH não atualizado | `export PATH="$HOME/.local/bin:$PATH"` e abra um shell novo |
 | `permission denied` ao instalar | destino sem permissão | `INSTALL_DIR=~/.local/bin` ou use `sudo` no diretório do sistema |
 | `checksum mismatch` | download corrompido | rode de novo; confirme `VERSION`/rede |
-| `rustc` antigo | MSRV | instale Rust **1.97+** (`rustup update`) |
+| `rustc` antigo | MSRV | instale Rust **1.99+** (`rustup update`) |
 | Completions não funcionam | shell não recarregado | abra um shell novo ou `source` o arquivo de completion |
 | `kd` funciona mas `knudge-mcp` não | só um binário no PATH | confirme `which knudge-mcp`; reinstale |
 | `indexed=0` no `kd drain` | `-ub` pequeno (512) | suba o servidor com `-ub 2048` |

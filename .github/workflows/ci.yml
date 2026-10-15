@@ -17,8 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.99
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       # `cargo test --workspace` já cobre doc-tests.
@@ -29,7 +30,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99
       - uses: Swatinem/rust-cache@v2
       # Smoke cross-platform do wrapper fino: `bash` em Unix, PowerShell em Windows (D185).
       - run: cargo test -p knudge-cli --bin kd commands::script
@@ -39,7 +42,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99
       - uses: Swatinem/rust-cache@v2
       - run: cargo install cargo-deny cargo-audit cargo-machete --locked
       - run: cargo deny check

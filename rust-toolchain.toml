@@ -1,0 +1,6 @@
+# Toolchain do knudge — Rust 1.99 (channel minor: resolve o último patch disponível).
+# A MSRV é contrato (R44): `rust-version` no Cargo.toml e `msrv` no clippy.toml devem casar.
+[toolchain]
+channel = "1.99"
+components = ["clippy", "rustfmt"]
+profile = "minimal"
