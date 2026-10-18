@@ -86,6 +86,15 @@ O worker contínuo fica **fora do binário**, em `scripts/knudge-idle.sh` (fonte
 pinada** + **SHA-256** e o instalador do llama.cpp é verificado antes de executar (D183).
 `--reconcile` alinha `endpoint`/`model` e reindexa (D182).
 
+## Consumidores (uma só verdade)
+
+O `embeddings.*` é **contrato**, não detalhe do knudge: qualquer agente que indexe a sua memória
+usa as mesmas chaves e o mesmo codec de índice, para que as vistas não divirjam. O `ktu`
+(`.agents/memory.toml` + `.agents/memory/.idx/embeddings.jsonl`) consome este schema desde a H8:
+mesmos nomes (`provider`/`endpoint`/`model`/`revision`/`dimensions`/`prefix`/`batch`), mesma
+identidade resolvida (cosseno + prefixo pelo modelo) e o **mesmo** `EmbeddingIndex` do
+`knudge-core` — o índice de um é legível pelo outro quando apontados ao mesmo ficheiro.
+
 ## Onde vive
 
 | Aspecto | Arquivo |

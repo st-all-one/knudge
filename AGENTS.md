@@ -80,6 +80,7 @@ módulos. Onde mexer:
 | parser/emissor TOON | `knudge-core/src/toon/` |
 | notas, eventos, lock, rebuild | `knudge-core/src/store/` |
 | JSONL/JSON | `knudge-core/src/jsonl/` |
+| fontes de corpus (`notas/` ou JSONL) e `kd ai` | `knudge-core/src/corpus/` + `knudge-cli/src/commands/ai.rs` |
 | config TOML em dois níveis | `knudge-core/src/config/` |
 | worktree, exclude, `AGENTS.md`, `sync` | `knudge-core/src/git/` |
 | arestas, integridade, ciclos | `knudge-core/src/graph/` |

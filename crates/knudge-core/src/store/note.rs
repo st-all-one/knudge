@@ -1,7 +1,7 @@
 //! Nota canônica = frontmatter TOON + corpo (a verdade em `notas/<id>.md`).
 
 use crate::schema::{Frontmatter, Value, body};
-use crate::{Error, Result, toon};
+use crate::{Error, Result, jsonl, toon};
 
 /// Fronteira do frontmatter (mesma constante do parser TOON).
 const FENCE: &str = toon::FENCE;
@@ -97,5 +97,44 @@ impl Note {
         let statement = self.frontmatter.statement()?.to_string();
         let hash = body::body_hash(&statement, &self.body);
         self.frontmatter.set("body_hash", Value::Str(hash))
+    }
+
+    /// Serializa a nota numa **linha JSONL**: `{"frontmatter": {…}, "body": "…"}` (D218).
+    ///
+    /// É o codec do *store* de um agente externo (via [`crate::corpus::Source::Jsonl`]); usa o
+    /// JSON canónico do knudge (chaves ordenadas, `null` rejeitado), pelo que o contrato de bytes
+    /// continua a ser o do knudge.
+    ///
+    /// # Errors
+    /// Retorna `ErrorKind::Schema` se o frontmatter não for codificável.
+    pub fn to_jsonl(&self) -> Result<String> {
+        let envelope = Value::map([
+            ("frontmatter".to_string(), self.frontmatter.to_value()),
+            ("body".to_string(), Value::Str(self.body.clone())),
+        ]);
+        jsonl::json::encode(&envelope)
+    }
+
+    /// Reconstrói uma nota de uma linha JSONL de [`Note::to_jsonl`], **validando** o schema.
+    ///
+    /// # Errors
+    /// Retorna `ErrorKind::InvalidInput` se não for objeto JSON e `ErrorKind::Schema` se faltar
+    /// `frontmatter` ou o frontmatter for inválido (D17/D18: quem chama decide skip+warning).
+    pub fn from_jsonl(line: &str) -> Result<Self> {
+        let value = jsonl::json::decode(line)?;
+        let Value::Map(map) = &value else {
+            return Err(Error::schema("linha de notas não é um objeto JSON"));
+        };
+        let frontmatter = map
+            .get("frontmatter")
+            .ok_or_else(|| Error::schema("registo sem `frontmatter`"))?;
+        let (frontmatter, _warnings) = Frontmatter::from_value(frontmatter)?;
+        frontmatter.validate()?;
+        let body = map
+            .get("body")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        Ok(Self::new(frontmatter, body))
     }
 }

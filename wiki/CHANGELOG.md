@@ -4,6 +4,45 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+### Adicionado
+- **`embeddings.*` como contrato de consumidores** (`wiki/specs/embeddings.md` §Consumidores): o
+  schema de configuração e o codec do índice passam a estar documentados como **interface** para
+  outros agentes — o `ktu` (H8) usa as mesmas chaves e o mesmo `EmbeddingIndex`, para que as duas
+  vistas não divirjam.
+
+## [0.6.2] - 2026-10-17
+
+### Adicionado
+- **Fonte JSONL read-only e área `kd ai` — o eixo único de memória, agent-agnostic (D218).** O
+  corpus passa a ser lido de uma **fonte** (`corpus::Source`): `NotesDir` (default, `notas/*.md`)
+  ou `Jsonl(path)` — um store de linhas `{"frontmatter": {…}, "body": "…"}`, com o codec novo
+  `Note::to_jsonl`/`Note::from_jsonl`, dedup-on-read por `id` (D26) e linha malformada = *skip +
+  warning* (D18). A fonte é **read-only**: o knudge **indexa** (derivado), o agente **possui** a
+  fonte — o contrato é o **documento**, nunca o schema interno do agente. Novo verbo
+  `kd ai [memory|session-log] [QUERY...] [--source PATH] [--limit N]` (default `memory`; sem query
+  **lista** a fonte, com query faz **recall** sobre ela) e caminhos convencionais
+  `.agents/memory/notes.jsonl` (memória do agente) e `.agents/memory/session-log.jsonl` (projeção
+  do log de sessão pelo agente, `provenance.activity=derive`).
+- **Filtros de proveniência em `kd ask`** — `--agent`/`--activity` por igualdade com
+  `provenance.agent`/`provenance.activity` (repetível/vírgula; `--params` transporta); o
+  `kd ask --rank` aceita os mesmos. `Meta`/`Filter` e o codec do `.idx/` acompanham (um índice
+  anterior lê `None` e continua válido, D15).
+
+### Alterado
+- **`kd init`** — o bloco de `AGENTS.md` sobe para **v3** (fonte JSONL + filtros de proveniência) e
+  a skill `.agents/skills/kd/SKILL.md` para **v4** (seção *Agent memory*).
+- **`kd prime`** — o protocolo (compacto e `--long`) passa a listar o `kd ai` e os filtros
+  `--agent`/`--activity`; goldens regenerados.
+- **Documentação** — novo `wiki/specs/fontes.md` (fontes de corpus, `kd ai` e contrato de projeção),
+  novo `wiki/usage/20_ai.md`, ADR [`D218`](specs/adrs/D218-fonte-jsonl-read-only-e-area-ai.md),
+  delta em `16_cli_surface.md`, linha em `17_matriz_aceitacao.md` e atualizações de `MODULE.md`,
+  `llms.txt`, `SKILL.md` e `AGENTS.md`.
+
+### Corrigido
+- **Vocabulário pt-BR do `typos`** — `comercial` (no `README`) e `convencional` (novo) entram em
+  `_typos.toml`; a verificação ortográfica é de inglês e o projeto documenta em português
+  (AGENTS.md §0.1).
+
 ## [0.6.1] - 2026-10-14
 
 ### Corrigido

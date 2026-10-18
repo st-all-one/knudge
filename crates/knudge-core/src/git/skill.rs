@@ -13,7 +13,7 @@ pub const DIR: &str = ".agents/skills/kd";
 /// Arquivo da skill.
 pub const FILE: &str = "SKILL.md";
 /// Versão atual do conteúdo.
-pub const VERSION: u32 = 3;
+pub const VERSION: u32 = 4;
 /// Prefixo do version marker gerenciado.
 pub const MARKER: &str = "<!-- knudge:skill:version:";
 
@@ -112,6 +112,7 @@ kd ask --id <ID>                           # full body of a note
 kd ask --anchor src/x.rs                   # by file, no query
 kd ask --around <ID> [--via <EDGE>]        # expand the graph
 kd ask --suggest [--relation R]            # semantic suggestions
+kd ask --agent <name> [--activity A]       # filter by provenance (who produced the note)
 kd write --summary "<s>" [<body>|-] --type <fact|decision|error|risk|question>
         [--tag T] [--anchor P]
 kd write --update <ID> --summary "<s>"     # versioned update (new id + supersede)
@@ -127,6 +128,7 @@ kd doctor [--fix] [--explain]              # base health
 kd map [--axis A] [--communities]          # knowledge map
 kd maintenance <learn|compact|prune>       # proposes only (read-only)
 kd drain [--status | --digest [--force]]   # embedding queue: state / process
+kd ai [memory|session-log] ["<q>"]        # another agent's memory/log (read-only JSONL)
 kd sync [--message M]                      # commit notas/ + eventos/
 ```
 
@@ -140,6 +142,23 @@ alone), `issue` is optional, `task` is the leaf. `--scope` sets the level
 Anchoring the root epic is strongly recommended (`kd doctor` warns without it). Parent is any
 ancestor with a strictly lower rank, so `epic → task` directly is valid. Closing requires an
 `--outcome`; `kd task show`/`close` report the epic rollup (`done/total`).
+
+## Agent memory (`kd ai`, D218)
+
+Another agent's memory/log is consulted **read-only** through a **source**: a JSONL of notes
+(`{"frontmatter": …, "body": …}`, the knudge schema). The agent owns the store; the knudge only
+indexes it — never a second truth.
+
+```
+kd ai                       # list the agent's memory (id|type|statement)
+kd ai memory "<q>"          # recall in .agents/memory/notes.jsonl
+kd ai session-log "<q>"     # recall in the agent's projection of its log (activity=derive)
+kd ai memory --source /tmp/x.jsonl "<q>"   # explicit source
+```
+
+No query lists; with a query it recalls (`[no_results]` when empty). A malformed line is skipped
+with a `warning` (never fails). To filter by **who** produced a note, use `kd ask --agent NAME` /
+`--activity NAME` (equality with `provenance.agent`/`activity`; repeatable or comma).
 
 ## Embeddings (derived, optional)
 

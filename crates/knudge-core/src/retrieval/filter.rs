@@ -5,7 +5,9 @@
 
 use crate::Result;
 use crate::retrieval::anchor::glob_match;
-use crate::schema::{Classification, Frontmatter, NoteType, Scope, Status, Value, outcome_stats};
+use crate::schema::{
+    Classification, Frontmatter, NoteType, Scope, Status, Value, outcome_stats, provenance,
+};
 use crate::time::Timestamp;
 
 /// Metadados de uma nota usados por filtros, `why` e boost.
@@ -25,6 +27,10 @@ pub struct Meta {
     pub tags: Vec<String>,
     /// Âncoras declaradas (paths/globs).
     pub anchors: Vec<String>,
+    /// Agente que produziu a nota (`provenance.agent`, D207) — `None` se ausente.
+    pub agent: Option<String>,
+    /// Atividade que produziu a nota (`provenance.activity`, D207) — `None` se ausente.
+    pub activity: Option<String>,
     /// `created_at` em milissegundos desde a época (0 se ilegível).
     pub created_ms: i64,
     /// Confirmação derivada de `outcomes`: `success + partial*0.5` (D38).
@@ -40,6 +46,7 @@ impl Meta {
     /// Retorna `ErrorKind::Schema` se os campos tipados estiverem malformados.
     pub fn from_frontmatter(frontmatter: &Frontmatter) -> Result<Self> {
         let outcomes = outcome_stats(frontmatter);
+        let provenance = provenance(frontmatter)?;
         Ok(Self {
             id: frontmatter.id()?.to_string(),
             note_type: frontmatter.note_type()?,
@@ -48,6 +55,8 @@ impl Meta {
             status: frontmatter.status()?,
             tags: string_list(frontmatter, "tags"),
             anchors: string_list(frontmatter, "anchors"),
+            agent: provenance.agent,
+            activity: provenance.activity,
             created_ms: created_ms(frontmatter),
             confirmation: outcomes.successes,
             failures: outcomes.failures,
@@ -71,6 +80,10 @@ pub struct Filter {
     /// da nota como glob sobre o valor pedido (`src/**` casa `src/x.rs`) — alinhado ao
     /// canal de âncoras (`retrieval/anchor.rs`) e a `rewind --files`.
     pub anchors: Vec<String>,
+    /// Agentes exigidos (basta um), por igualdade com `provenance.agent` (D218).
+    pub agents: Vec<String>,
+    /// Atividades exigidas (basta uma), por igualdade com `provenance.activity` (D218).
+    pub activities: Vec<String>,
 }
 
 impl Filter {
@@ -88,6 +101,8 @@ impl Filter {
             && self.statuses.is_empty()
             && self.tags.is_empty()
             && self.anchors.is_empty()
+            && self.agents.is_empty()
+            && self.activities.is_empty()
     }
 
     /// `true` se a nota passa por todos os critérios definidos.
@@ -98,6 +113,16 @@ impl Filter {
                 || self.classifications.contains(&meta.classification))
             && (self.statuses.is_empty() || self.statuses.contains(&meta.status))
             && (self.tags.is_empty() || meta.tags.iter().any(|tag| self.tags.contains(tag)))
+            && (self.agents.is_empty()
+                || meta
+                    .agent
+                    .as_ref()
+                    .is_some_and(|agent| self.agents.contains(agent)))
+            && (self.activities.is_empty()
+                || meta
+                    .activity
+                    .as_ref()
+                    .is_some_and(|activity| self.activities.contains(activity)))
             && (self.anchors.is_empty()
                 || meta
                     .anchors

@@ -111,6 +111,8 @@ fn match_note_distinguishes_file_and_id() {
         status: Status::Active,
         tags: Vec::new(),
         anchors: vec!["V2/**".to_string(), "fact_00000009".to_string()],
+        agent: None,
+        activity: None,
         created_ms: 0,
         confirmation: 0.0,
         failures: 0.0,

@@ -57,6 +57,12 @@ pub struct AskArgs {
     /// Filtro por âncora (repetível; aceita lista com vírgula: `--anchor a,b`).
     #[arg(long, value_name = "PATH", value_delimiter = ',')]
     pub anchor: Vec<String>,
+    /// Filtro por proveniência: agente que produziu a nota (`provenance.agent`; repetível/vírgula) — D218.
+    #[arg(long, value_name = "AGENTE", value_delimiter = ',')]
+    pub agent: Vec<String>,
+    /// Filtro por proveniência: atividade (`write|learn|import|derive`; repetível/vírgula) — D218.
+    #[arg(long, value_name = "ATIVIDADE", value_delimiter = ',')]
+    pub activity: Vec<String>,
     /// Início do intervalo.
     #[arg(long, value_name = "TS")]
     pub since: Option<String>,

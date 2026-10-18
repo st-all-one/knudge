@@ -112,6 +112,8 @@ fn build_recall_query(
         statuses: resolve_statuses(args)?,
         tags: args.tags.clone(),
         anchors: args.anchor.clone(),
+        agents: args.agent.clone(),
+        activities: args.activity.clone(),
     };
     query.universe = if args.with_task {
         Universe::All

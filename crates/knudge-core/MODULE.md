@@ -52,8 +52,8 @@ determinístico padrão dos testes do core.
 | `schema` | Contrato de bytes do frontmatter: chaves, enums, IDs, hash. | `Frontmatter`, `NoteType`, `EdgeKind`, `Claim`, `Provenance` |
 | `toon` | Parser/emissor do frontmatter TOON. | `parse`, `emit`, `split_frontmatter` |
 | `jsonl` | JSONL tolerante + codec JSON canônico. | `lines`, `json::{encode, decode}` |
-| `store` | Persistência crash-safe de notas/eventos/lock/rebuild. | `Store`, `Note`, `EventLog`, `LockGuard` |
-| `corpus` | Leitura **única** do store (notas + índice + grafo). | `Corpus`, `load_notes`, `load_fresh` |
+| `store` | Persistência crash-safe de notas/eventos/lock/rebuild + codec JSONL da nota. | `Store`, `Note`, `EventLog`, `LockGuard` |
+| `corpus` | Leitura **única** de uma **fonte** (`notas/` ou JSONL) em notas + índice + grafo. | `Corpus`, `Source`, `load_notes`, `load_fresh` |
 | `config` | Config em dois níveis + codec TOML próprio. | `Config`, `ConfigValue`, `Table` |
 | `git` | Worktree, `info/exclude`, `AGENTS.md`, skill, `sync`. | `Project`, `onboard`, `sync`, `protocol_block` |
 | `graph` | Projeção de arestas: integridade, ciclos, rank, comunidades, ontologia, TMS. | `Graph`, `louvain`, `pagerank`, `equivalence_classes` |
@@ -147,7 +147,7 @@ externa — usado no log de eventos e nos derivados `.idx/`.
 | Arquivo | Papel |
 |---|---|
 | `mod.rs` | `Store` sobre uma `Fs`: `read`/`read_optional`/`write`/`update`/`remove`/`list_ids`, layout `notas/<tipo>/<id>.md` com fallback ao plano legado (D150). |
-| `note.rs` | `Note` = frontmatter TOON + corpo; `parse`/`render`. |
+| `note.rs` | `Note` = frontmatter TOON + corpo; `parse`/`render` e o codec JSONL `to_jsonl`/`from_jsonl` (D218). |
 | `commit.rs` | Ordem multi-arquivo: **nota primeiro, evento depois** (D21). |
 | `events/` | `EventLog` append-only, rotação por tamanho, leitura tolerante e checkpoint. |
 | `lock.rs` | Lock advisory por arquivo-alvo (D23–D25) com liberação RAII. |
@@ -156,12 +156,17 @@ externa — usado no log de eventos e nos derivados `.idx/`.
 | `detach.rs` | Limpeza referencial ao remover nota (D46/D84). |
 | `sweep.rs` | Varredura de resíduos na inicialização (`*.tmp`/`*.stale`, nunca `*.lock`; D160). |
 
-### `corpus` — leitura única
+### `corpus` — leitura única de uma fonte
 
 `Corpus { notes, index, graph }` derivados do **mesmo** vetor, sem clonar (E15-T02). `load_notes`
 para quem só quer frontmatters (paralela por `std::thread::scope`, ordem preservada — E15-T12);
 `load_fresh` reusa o índice de `.idx/` quando fresco (E15-T11). Ordem byte-idêntica à de duas
 leituras separadas.
+
+`source.rs` define **de onde** se lê: `Source::NotesDir` (default, `notas/<tipo>/<id>.md`) ou
+`Source::Jsonl(path)` — um store de linhas `{frontmatter, body}` de outro agente, lido **read-only**
+com dedup-on-read (D26) e *skip + warning* (D18); devolve `Loaded = (Vec<Note>, Vec<String>)`. O
+knudge **indexa**, o agente **possui** a fonte (D218).
 
 ### `config` — dois níveis
 

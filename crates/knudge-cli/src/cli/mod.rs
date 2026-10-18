@@ -1,5 +1,6 @@
 //! Argumentos e subcomandos do `kd` (superfície v3, ver `plan/implementation/16_cli_surface.md`).
 
+mod ai;
 mod ask;
 mod health;
 mod help;
@@ -9,6 +10,7 @@ mod rewind;
 mod task;
 mod write;
 
+pub use ai::{AiArea, AiArgs};
 pub use ask::AskArgs;
 pub use health::{DoctorArgs, DrainArgs, DrainCommand, WatchServiceArgs};
 pub use help::{render_help, subcommand_help};
@@ -83,6 +85,8 @@ pub enum Command {
     Rewind(RewindArgs),
     /// Toda pesquisa (recall, get e expand).
     Ask(AskArgs),
+    /// Memória/log de um agente: consulta read-only de uma fonte JSONL (D218).
+    Ai(AiArgs),
     /// Toda escrita (create, update e arestas).
     Write(WriteArgs),
     /// Gestão de tarefas (`epic` ⊃ {`issue` ⊃ `task` | `task`}).
@@ -131,6 +135,7 @@ impl Command {
             Self::Prime(_) => "prime",
             Self::Rewind(_) => "rewind",
             Self::Ask(_) => "ask",
+            Self::Ai(_) => "ai",
             Self::Write(_) => "write",
             Self::Task { .. } => "task",
             Self::Map(_) => "map",

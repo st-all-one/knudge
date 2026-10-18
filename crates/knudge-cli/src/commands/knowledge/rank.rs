@@ -20,6 +20,8 @@ pub fn run(session: &Session, args: &RankArgs) -> Result<Output> {
         classes: args.classes.clone(),
         tags: args.tags.clone(),
         anchors: args.anchor.clone(),
+        agents: args.agent.clone(),
+        activities: args.activity.clone(),
         around: args.around.clone(),
         depth: args.depth,
         universe: args.universe,

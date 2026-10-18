@@ -112,8 +112,41 @@ fn empty_meta() -> Meta {
         status: Status::Active,
         tags: Vec::new(),
         anchors: Vec::new(),
+        agent: None,
+        activity: None,
         created_ms: 0,
         confirmation: 0.0,
         failures: 0.0,
     }
+}
+
+#[test]
+fn provenance_filters_match_agent_and_activity() {
+    let mut meta = empty_meta();
+    meta.agent = Some("ktu".to_string());
+    meta.activity = Some("derive".to_string());
+
+    let mut filter = Filter::new();
+    assert!(filter.matches(&meta));
+    filter.agents = vec!["ktu".to_string()];
+    filter.activities = vec!["derive".to_string()];
+    assert!(!filter.is_empty());
+    assert!(filter.matches(&meta));
+
+    filter.agents = vec!["goose".to_string()];
+    assert!(!filter.matches(&meta));
+    filter.agents = vec!["ktu".to_string()];
+    filter.activities = vec!["write".to_string()];
+    assert!(!filter.matches(&meta));
+}
+
+#[test]
+fn provenance_filters_exclude_notes_without_provenance() {
+    let meta = empty_meta();
+    let mut filter = Filter::new();
+    filter.agents = vec!["ktu".to_string()];
+    assert!(!filter.matches(&meta));
+    filter.agents.clear();
+    filter.activities = vec!["derive".to_string()];
+    assert!(!filter.matches(&meta));
 }

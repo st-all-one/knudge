@@ -1,5 +1,6 @@
 //! Dispatch dos verbos do `kd` para o domínio (E12-T01).
 
+pub mod ai;
 pub mod ask;
 pub mod config_cmd;
 pub mod corpus;
@@ -72,6 +73,7 @@ fn dispatch(session: &Session, command: &Command) -> Result<Output> {
         Command::Init(args) => init::run(session, args),
         Command::Rewind(args) => rewind::run(session, args),
         Command::Ask(args) => ask::run(session, args),
+        Command::Ai(args) => ai::run(session, args),
         Command::Write(args) => write_cmd::run(session, args),
         Command::Task { command } => task::run(session, command),
         Command::Map(args) => knowledge::map::run(session, args),

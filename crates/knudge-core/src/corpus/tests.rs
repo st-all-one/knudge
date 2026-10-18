@@ -1,8 +1,11 @@
 //! Testes do corpus de leitura única (E15-T02/O1).
 
+use std::path::Path;
+
 use crate::Result;
-use crate::corpus::Corpus;
+use crate::corpus::{Corpus, Source};
 use crate::graph::Graph;
+use crate::ports::Fs;
 use crate::ports::fakes::MemFs;
 use crate::retrieval::Index;
 use crate::schema::NoteType;
@@ -147,5 +150,87 @@ fn load_notes_parallel_matches_sequential_order() -> Result<()> {
         }
     }
     assert_eq!(loaded_ids, sequential);
+    Ok(())
+}
+
+/// JSONL com as notas do store (o codec de `Note::to_jsonl`, D218).
+fn jsonl_of(notes: &[Note]) -> Result<String> {
+    let mut text = String::new();
+    for note in notes {
+        text.push_str(&note.to_jsonl()?);
+        text.push('\n');
+    }
+    Ok(text)
+}
+
+#[test]
+fn jsonl_source_reads_the_same_corpus_as_notas_dir() -> Result<()> {
+    let fs = MemFs::new();
+    let store = Store::new(&fs, "/p/.knudge");
+    seed(&store)?;
+    let notes = Corpus::load_notes(&store)?;
+    let path = "/p/.agents/memory/notes.jsonl";
+    fs.write_atomic(Path::new(path), jsonl_of(&notes)?.as_bytes())?;
+
+    let (from_md, warnings_md) = Source::NotesDir.load(&store)?;
+    let (from_jsonl, warnings_jsonl) = Source::jsonl(path).load(&store)?;
+    assert!(warnings_md.is_empty());
+    assert!(warnings_jsonl.is_empty());
+    // Golden: a mesma memória em `notas/*.md` e em JSONL deriva o mesmo índice e grafo.
+    assert_eq!(from_jsonl.index, from_md.index);
+    assert_eq!(from_jsonl.graph.ids(), from_md.graph.ids());
+    Ok(())
+}
+
+#[test]
+fn jsonl_source_dedups_on_read_last_line_wins() -> Result<()> {
+    let fs = MemFs::new();
+    let store = Store::new(&fs, "/p/.knudge");
+    let first = note(NoteType::Fact, "primeira afirmação")?;
+    let second = note(NoteType::Fact, "segunda afirmação")?;
+    let mut text = jsonl_of(&[first.clone(), second])?;
+    // A primeira reaparece no fim: a última versão vence (D26).
+    text.push_str(&first.to_jsonl()?);
+    text.push('\n');
+    let path = "/p/notes.jsonl";
+    fs.write_atomic(Path::new(path), text.as_bytes())?;
+
+    let (loaded, warnings) = Source::jsonl(path).load_notes(&store)?;
+    assert!(warnings.is_empty());
+    assert_eq!(loaded.len(), 2);
+    let ids: Vec<&str> = loaded.iter().map(|item| item.id().unwrap_or("")).collect();
+    let mut sorted = ids.clone();
+    sorted.sort_unstable();
+    assert_eq!(ids, sorted, "ordem determinística por id");
+    Ok(())
+}
+
+#[test]
+fn jsonl_source_skips_malformed_lines_with_warning() -> Result<()> {
+    let fs = MemFs::new();
+    let store = Store::new(&fs, "/p/.knudge");
+    let good = note(NoteType::Fact, "afirmação válida")?;
+    let text = format!("não é json\n{{}}\n{}\n", good.to_jsonl()?);
+    let path = "/p/notes.jsonl";
+    fs.write_atomic(Path::new(path), text.as_bytes())?;
+
+    let (loaded, warnings) = Source::jsonl(path).load_notes(&store)?;
+    assert_eq!(loaded.len(), 1);
+    assert_eq!(warnings.len(), 2);
+    assert!(
+        warnings
+            .first()
+            .is_some_and(|text| text.contains("linha 1"))
+    );
+    Ok(())
+}
+
+#[test]
+fn jsonl_source_absent_file_is_an_empty_corpus() -> Result<()> {
+    let fs = MemFs::new();
+    let store = Store::new(&fs, "/p/.knudge");
+    let (loaded, warnings) = Source::jsonl("/p/nada.jsonl").load_notes(&store)?;
+    assert!(loaded.is_empty());
+    assert!(warnings.is_empty());
     Ok(())
 }

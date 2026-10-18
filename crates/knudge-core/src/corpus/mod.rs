@@ -15,6 +15,10 @@ use crate::retrieval::Index;
 use crate::store::{Note, Store};
 use std::path::Path;
 
+mod source;
+
+pub use source::{Loaded, Source, parse_jsonl};
+
 #[cfg(test)]
 mod tests;
 

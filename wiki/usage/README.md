@@ -27,6 +27,7 @@ esperar**. Para a referência técnica do código, veja [`../specs/`](../specs/R
 | [`kd init`](03_init.md) | Fundar a memória no projeto (uma vez) |
 | [`kd prime`](04_prime.md) | O protocolo estático ("help da IA") |
 | [`kd ask`](05_ask.md) | Toda a **pesquisa**: recall, get, expand, rank, tags, suggest |
+| [`kd ai`](20_ai.md) | A **memória/log de um agente**: consulta read-only de uma fonte JSONL |
 | [`kd write`](06_write.md) | Toda a **escrita**: criar, atualizar, ligar, evidência, lote |
 | [`kd task`](07_task.md) | Planejar e executar trabalho (épico → issue → tarefa) |
 | [`kd rewind`](08_rewind.md) | Retomar o contexto entre sessões |

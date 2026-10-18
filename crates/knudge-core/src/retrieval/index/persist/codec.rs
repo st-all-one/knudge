@@ -29,6 +29,12 @@ pub(super) fn doc_to_value(doc: &NoteDoc) -> Value {
     );
     map.insert("tags".to_string(), string_list(&doc.meta.tags));
     map.insert("anchors".to_string(), string_list(&doc.meta.anchors));
+    if let Some(agent) = &doc.meta.agent {
+        map.insert("agent".to_string(), Value::Str(agent.clone()));
+    }
+    if let Some(activity) = &doc.meta.activity {
+        map.insert("activity".to_string(), Value::Str(activity.clone()));
+    }
     map.insert("created".to_string(), Value::Int(doc.meta.created_ms));
     map.insert(
         "confirmation".to_string(),
@@ -71,6 +77,8 @@ pub(super) fn doc_from_value(value: &Value) -> Result<NoteDoc> {
         status: str_field(map, "status")?.parse::<Status>()?,
         tags: str_list(map, "tags"),
         anchors: str_list(map, "anchors"),
+        agent: opt_str(map, "agent"),
+        activity: opt_str(map, "activity"),
         created_ms: int_field(map, "created")?,
         confirmation: map
             .get("confirmation")
@@ -117,6 +125,11 @@ fn opt_scope(map: &IndexMap<String, Value>) -> Result<Option<Scope>> {
         Some(text) => text.parse::<Scope>().map(Some),
         None => Ok(None),
     }
+}
+
+/// String opcional (índices anteriores a D218 não a têm — derivado, D15).
+fn opt_str(map: &IndexMap<String, Value>, key: &str) -> Option<String> {
+    map.get(key).and_then(Value::as_str).map(str::to_string)
 }
 
 fn int_field(map: &IndexMap<String, Value>, key: &str) -> Result<i64> {

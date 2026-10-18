@@ -154,5 +154,6 @@ fn corpus_of(args: &RewindArgs) -> CorpusScope {
         around: args.around.clone(),
         depth: args.depth,
         universe: false,
+        ..CorpusScope::default()
     }
 }

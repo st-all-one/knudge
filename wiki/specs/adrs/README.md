@@ -3,7 +3,7 @@
 Uma decisão por arquivo, gerada de [`plan/03_decisoes-fechadas.md`](../../../plan/03_decisoes-fechadas.md).
 Cada ADR traz **status**, **categoria**, **contexto mínimo**, a **decisão** e o **impacto obtido**.
 
-Total: **201** decisões.
+Total: **203** decisões.
 
 | # | Título | Status | Categoria |
 |---|---|---|---|
@@ -209,6 +209,7 @@ Total: **201** decisões.
 | [D215](D215-dreno-em-lotes-limitados-e-digest-honesto.md) | Dreno em lotes limitados e `--digest` honesto | Aceita | 0.5.4 |
 | [D216](D216-modelo-de-embedding-default-gemma-2.md) | Modelo de embedding default passa a gemma-2 (768d, prefixos de tarefa) | Aceita | Embeddings (D79–D101) |
 | [D217](D217-skill-do-kd-em-plural.md) | Skill do `kd` passa para `.agents/skills/kd` (plural) | Aceita | Git e artefatos gerados (D60/D162) |
+| [D218](D218-fonte-jsonl-read-only-e-area-ai.md) | Fonte JSONL read-only (`Source`) + área `kd ai` | Aceita | Eixo de memória / integração de agentes (D207/D214) |
 
 ## Como usar
 

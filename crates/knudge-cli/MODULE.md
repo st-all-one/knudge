@@ -34,7 +34,8 @@ Fonte da verdade: [`plan/implementation/16_cli_surface.md`](../../plan/implement
 | `init` | funda `.knudge/` e emite o prompt inicial (D57/D60/D165). | `commands/init.rs` |
 | `prime` | protocolo estático, byte-idêntico por versão (D57). | `commands/prime.rs` |
 | `rewind` | estado/handoff ponto-no-tempo (D57/D88). | `commands/rewind.rs` |
-| `ask` | **toda** pesquisa: recall, `--id`, `--around`, `--rank`, `--tags`, `--suggest`. | `commands/ask/{mod,query,render}.rs` |
+| `ask` | **toda** pesquisa: recall, `--id`, `--around`, `--rank`, `--tags`, `--suggest`; filtros de proveniência `--agent`/`--activity` (D218). | `commands/ask/{mod,params,query,render}.rs` |
+| `ai` | memória/log de um **agente**: consulta **read-only** de uma **fonte** JSONL (`memory\|session-log`, D218). | `commands/ai.rs` |
 | `write` | **toda** escrita: create, `--update`, `--link`, `--batch`. | `commands/write_cmd/`, `write_batch.rs` |
 | `task` | hierarquia `epic ⊃ {issue ⊃ task \| task}`. | `commands/task/` |
 | `map` | mapa de conhecimento (clusters + comunidades GraphRAG, D193). | `commands/knowledge/map.rs` |
@@ -47,7 +48,8 @@ Fonte da verdade: [`plan/implementation/16_cli_surface.md`](../../plan/implement
 | `self` | version, completions, setup, upgrade (D69/D187). | `commands/self_cmd/` |
 
 **Domínio (8):** `ask`, `write`, `task`, `rewind`, `map`, `doctor`, `drain`, `forget`.
-**Fundação/meta (5):** `init`, `prime`, `sync`, `config`, `self`. O verbo `knowledge` não existe
+**Fundação/meta (5):** `init`, `prime`, `sync`, `config`, `self`.
+**Integração (1):** `ai` (fonte JSONL de um agente, D218). O verbo `knowledge` não existe
 mais (D209): `ask --rank|--tags|--suggest`, `map`, `config promote`.
 
 ## Estrutura
@@ -67,8 +69,9 @@ mais (D209): `ask --rank|--tags|--suggest`, `map`, `config promote`.
 
 | Arquivo | Papel |
 |---|---|
-| `mod.rs` | `Cli`, `enum Command` (14 verbos), flags globais (`--json`, `--verbose`, `--root`). |
-| `ask.rs` | `AskArgs` — recall/`--id`/`--around` + modos `--rank`/`--tags`/`--suggest`. |
+| `mod.rs` | `Cli`, `enum Command` (15 verbos), flags globais (`--json`, `--verbose`, `--root`). |
+| `ask.rs` | `AskArgs` — recall/`--id`/`--around` + modos `--rank`/`--tags`/`--suggest` + filtros de proveniência (D218). |
+| `ai.rs` | `AiArgs`/`AiArea` — área (`memory`/`session-log`), query, `--source`, `--limit` (D218). |
 | `write.rs` | `WriteArgs`/`ForgetArgs`/`SyncArgs`. |
 | `task.rs` | Subcomandos de `kd task`. |
 | `rewind.rs` | `RewindArgs` (modos, escopo, `--files`). |
@@ -82,7 +85,7 @@ mais (D209): `ask --rank|--tags|--suggest`, `map`, `config promote`.
 | Área | Arquivos |
 |---|---|
 | Núcleo | `prime.rs`, `init.rs`, `rewind.rs` |
-| Busca | `ask/{mod,query,render}.rs`, `corpus.rs` (escopo compartilhado D143/D144) |
+| Busca | `ask/{mod,params,query,render}.rs`, `corpus.rs` (escopo compartilhado D143/D144), `ai.rs` (fonte JSONL de um agente, D218) |
 | Escrita | `write_cmd/{mod,contract}.rs` (data contract soft D191), `write_batch.rs`, `input.rs` (posicional/stdin) |
 | Tarefas | `task/{mod,create,mutate,query,show,render,graph,plan,flow,batch}.rs` |
 | Conhecimento | `knowledge/{mod,map,clusters,community,hub,rank,tags,suggest,promote}.rs` |

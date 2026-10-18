@@ -24,12 +24,13 @@ CYCLE: kd ask (search) → kd write (record) → kd task (work) → kd sync (com
   Always search before writing (dedup); use --limit N --brief to save tokens.
 
 WHEN (use / don't):
-  kd ask <QUERY>     recall before acting (read-only); --anchor/--type/--limit/--brief/--full-content.
+  kd ask <QUERY>     recall before acting (read-only); --anchor/--type/--agent/--activity/--limit/--brief/--full-content.
   kd write <...>     record fact/decision/error/risk/question; anchor code with --anchor PATH.
   kd task new <...>  plan/execute work (epic ⊃ {issue ⊃ task | task}); NOT for knowledge.
   kd rewind          rebuild session context/handoff (token budget).
   kd doctor          corpus health: 13 checks + audit (--fix repairs; --explain details).
   kd drain           embedding queue: --status | --digest [--force]; service = worker.
+  kd ai [memory|session-log] [<QUERY>]  agent memory/log: read-only JSONL source (--source PATH).
   kd forget --id <ID> soft-delete (--restore; --purge [--force] after retention).
   kd sync            commit notas/ + eventos/ (--message).
   kd init|config|self|prime|help — setup, config, binary, protocol, help.
@@ -71,6 +72,8 @@ WHEN (use / don't):
   kd doctor          corpus health (13 checks + audit; --fix repairs, --explain details).
   kd maintenance ..  cleanup (compact/learn/prune; only PROPOSE, need scope or --universe).
   kd forget --id <ID> soft-delete (--restore; --purge only after retention, [--force]).
+  kd ai [memory|session-log] [<QUERY>]  another agent's memory/log: read-only JSONL source (D218).
+                     NOT a second truth — the agent owns the store, kd only indexes it.
   kd sync            commit notas/ + eventos/ (--message).
   kd init|config|self|prime — setup, config, binary, this protocol.
 
@@ -105,7 +108,7 @@ BODY (when and why) — the \"why\" the statement can't carry:
 
 SEARCH (kd ask — knowledge only by default; --with-task includes work):
   kd ask <QUERY> [--type T...] [--class C...] [--tag T...] [--status S...] [--scope ID]
-        [--anchor PATH...] [--since TS] [--until TS] [--limit N] [--brief] [--full-content]
+        [--anchor PATH...] [--agent NAME...] [--activity NAME...] [--since TS] [--until TS] [--limit N] [--brief] [--full-content]
   kd ask --params '<json>'                # query + filters (D147); '-' reads query from stdin
   kd ask --id <ID>...                     # bodies by id (includes work)
   kd ask --around <ID> [--via EDGE] [--depth N]   # expand the graph
@@ -114,6 +117,14 @@ SEARCH (kd ask — knowledge only by default; --with-task includes work):
   Empty search → stdout [no_results] (D152); --json has channels per hit (D151).
   forgotten/superseded are out of ask by default; use --status to include them.
   Rank (`kd ask --rank`) and tag vocabulary (`kd ask --tags`) — D146/D209.
+  Provenance filters: --agent/--activity match provenance.agent/activity (who produced the note).
+
+AI (kd ai — another agent's memory/log, read-only; D218):
+  kd ai [memory|session-log] [<QUERY>] [--source PATH] [--limit N]
+  memory = .agents/memory/notes.jsonl; session-log = the agent's projection of its log
+  into derived notes (provenance.activity=derive). No query → list id|type|statement;
+  with query → recall (id|statement|score; [no_results] if empty). The source is NEVER
+  written: the agent owns the store, kd only indexes it (never learn an agent's own schema).
 
 WORK (kd task — epic ⊃ { issue ⊃ task | task }; epic is the root, anchor it):
   kd task new --summary \"<...>\" [<body>|-] --scope <epic|issue|task> [--kind error|question|risk|decision]

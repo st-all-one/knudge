@@ -11,6 +11,7 @@ sustenta e onde o comportamento vive no código.
 | [`TOON.md`](TOON.md) | gramática do frontmatter e contrato de bytes. |
 | [`DIVERGENCES.md`](DIVERGENCES.md) | bordas conhecidas (Unicode, ordem, lock, atomicidade…) + teste que trava cada uma. |
 | [`modelo-de-dados.md`](modelo-de-dados.md) | schema, IDs, hash, chaves canônicas, enums, claims e proveniência. |
+| [`fontes.md`](fontes.md) | fontes de corpus (`notas/` ou JSONL read-only), `kd ai`, filtros de proveniência e o contrato de projeção. |
 | [`matematica.md`](matematica.md) | derivação dos modelos quantitativos: BM25, RRF, Beta/Wilson, FSRS, KL/JS, PageRank/PPR, Louvain, MinHash/LSH, PERT/CPM. |
 | [`persistencia.md`](persistencia.md) | `notas/`/`eventos/`/`.idx/`, escrita atômica, lock, rebuild, crash. |
 | [`configuracao.md`](configuracao.md) | config em dois níveis e codec TOML próprio. |

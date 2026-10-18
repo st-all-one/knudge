@@ -29,7 +29,7 @@ curl --proto '=https' \
   | sh
 ```
 
-Versão fixa: `... | VERSION=v0.6.1 bash`. Outro destino: `... | INSTALL_DIR=/usr/local/bin bash`.
+Versão fixa: `... | VERSION=v0.6.2 bash`. Outro destino: `... | INSTALL_DIR=/usr/local/bin bash`.
 A partir do código-fonte: `make install`.
 
 Embeddings são opcionais e recomendados; um comando baixa o `llama.cpp` e o modelo GGUF e deixa o

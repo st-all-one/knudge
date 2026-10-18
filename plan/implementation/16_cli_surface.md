@@ -31,6 +31,7 @@
 | `kd prime` | — | protocolo de uso, byte-idêntico |
 | `kd rewind` | `prime(scope)`, `get_context`, `diff` | estado/handoff ponto-no-tempo |
 | `kd ask` | `recall`, `get`, `expand`, `rank`, `tags`, `suggest` | toda pesquisa (inclui os modos `--rank`/`--tags`/`--suggest`, D209) |
+| `kd ai` | — | memória/log de um **agente**: consulta read-only de uma fonte JSONL (`memory\|session-log`; D218) |
 | `kd write` | `write`, `update`, `link` | toda escrita |
 | `kd task` | `epic`, grupos de tarefa | epic/issue/task |
 | `kd map` | `clusters` | mapa/ranking/vocabulário de conhecimento (D128/D146; superfície D209) |
@@ -62,6 +63,8 @@ kd ask [QUERY|-]
   --status <S>...
   --scope <ID>
   --anchor <PATH>...      # repetível; aceita vírgula (`--anchor a,b`)
+  --agent <NOME>...       # filtro por proveniência: agente (repetível; aceita vírgula) — D218
+  --activity <NOME>...    # filtro por proveniência: atividade (repetível; aceita vírgula) — D218
   --since <TS> / --until <TS>
   --limit <N>             # default: config recall.default_limit (5 — D121)
   --rank                  # modo ranking (sem query); exige escopo ou --universe (D146/D209)
@@ -441,3 +444,26 @@ usa stdin `{op,before,after}` → stdout `{passed,score_before,score_after}` (D1
 | sessão (`run_session`) | comportamento | varredura de resíduos `*.tmp`/`*.stale` no início (D160) |
 
 Nenhum verbo novo; nenhuma chave TOON nova.
+
+## 17. Delta v0.6.2 (D218)
+
+Um verbo novo e dois filtros — nenhuma chave TOON nova, nenhum motor novo.
+
+| Superfície | Forma | Papel |
+|---|---|---|
+| `kd ai [memory\|session-log] [QUERY...] [--source PATH] [--limit N]` | verbo | memória/log de um **agente**: consulta **read-only** de uma **fonte** JSONL (`{frontmatter, body}`); sem query **lista**, com query faz **recall** (D218) |
+| `kd ask --agent <NOME>...` / `--activity <NOME>...` | flags de `ask` | filtros de **proveniência** por igualdade com `provenance.agent`/`activity` (repetível/vírgula; `--params` transporta) — D218 |
+| `kd ask --rank --agent/--activity` | flags | os mesmos filtros no modo `--rank` — D218 |
+| `Source::NotesDir \| Jsonl(path)` | core | fonte do corpus: `notas/*.md` (default) ou um JSONL read-only, com dedup-on-read (D26) e *skip + warning* (D18) — D218 |
+| `Note::to_jsonl` / `Note::from_jsonl` | core | codec JSONL de uma nota (`{frontmatter, body}`), JSON canónico do knudge — D218 |
+
+Convenções de `kd ai`: a área é **posicional** e o default é `memory`; os caminhos convencionais são
+`.agents/memory/notes.jsonl` (memória) e `.agents/memory/session-log.jsonl` (projeção do log de
+sessão pelo agente, `provenance.activity=derive`). A área fora do conjunto ⇒ `invalid_input` (2) com
+a lista das opções (D212); fonte ausente ⇒ lista vazia e exit `0`; linha malformada ⇒ *skip +
+warning* (D18). A fonte **nunca** é escrita (não há `--add`): o agente possui o store, o knudge
+indexa-o.
+
+O `session-log` entra **só** por projeção do agente — o knudge **não** conhece o schema de eventos de
+nenhum agente (o contrato é o **documento**, não o evento). O registo de agentes
+(`.knudge/agents.toml`) fica adiado até haver ≥2 consumidores (YAGNI).

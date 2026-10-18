@@ -27,6 +27,10 @@ pub struct CorpusScope {
     pub tags: Vec<String>,
     /// Âncoras (path/glob) exigidas (`--anchor`; basta uma).
     pub anchors: Vec<String>,
+    /// Agentes exigidos (`--agent`; basta um) — D218.
+    pub agents: Vec<String>,
+    /// Atividades exigidas (`--activity`; basta uma) — D218.
+    pub activities: Vec<String>,
     /// Nota central da vizinhança (`--around`).
     pub around: Option<String>,
     /// Profundidade da vizinhança (`--depth`).
@@ -43,6 +47,8 @@ impl CorpusScope {
             || !self.classes.is_empty()
             || !self.tags.is_empty()
             || !self.anchors.is_empty()
+            || !self.agents.is_empty()
+            || !self.activities.is_empty()
             || self.around.is_some()
     }
 
@@ -78,6 +84,8 @@ impl CorpusScope {
             statuses: Status::VISIBLE.to_vec(),
             tags: self.tags.clone(),
             anchors: self.anchors.clone(),
+            agents: self.agents.clone(),
+            activities: self.activities.clone(),
         };
         let allowed = self.allowed(graph)?;
         let metas = index
@@ -122,6 +130,7 @@ impl From<&CorpusArgs> for CorpusScope {
             around: args.around.clone(),
             depth: args.depth,
             universe: args.universe,
+            ..Self::default()
         }
     }
 }

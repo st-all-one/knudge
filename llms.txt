@@ -1,11 +1,11 @@
 # knudge
 
-> knudge é uma CLI Rust (binário `kd`, 14 verbos) de **memória por projeto otimizada para LLM**:
+> knudge é uma CLI Rust (binário `kd`, 15 verbos) de **memória por projeto otimizada para LLM**:
 > notas em **Markdown como verdade**, índice derivado reconstruível e busca híbrida (BM25 +
 > âncoras + embeddings opcional via RRF). Sem servidor, sem banco, sem daemon. O binário
 > `knudge-mcp` expõe os gatilhos de memória por MCP (JSON-RPC 2.0 sobre stdio). Ciclo:
 > `ask → write → task → sync`. Fonte de verdade técnica: `wiki/specs/`; uso: `wiki/usage/`;
-> decisões: `wiki/specs/adrs/` (D01–D216) e `plan/03_decisoes-fechadas.md`.
+> decisões: `wiki/specs/adrs/` (D01–D218) e `plan/03_decisoes-fechadas.md`.
 
 ## Regras de ouro
 
@@ -104,6 +104,23 @@
 - **Saída:** pipe `id|statement|score|why` (ou `id|statement|confidence|why` no `--rank`).
   Revelação progressiva (D161): 1º hit corpo completo, 2–5 truncado a `preview_chars=280`, resto
   `id|statement|score|why`; `--brief` desliga, `--full-content` mostra tudo. `default_limit=5`.
+
+## Fontes de corpus e memória de agente (`fontes.md`, D218)
+
+- **`Source`** (`corpus::Source`): `NotesDir` (default, `notas/<tipo>/<id>.md`) ou `Jsonl(path)` —
+  um store de linhas `{"frontmatter": {…}, "body": "…"}` (`Note::to_jsonl`/`from_jsonl`), lido
+  **read-only** com dedup-on-read por `id` (D26) e linha malformada = *skip + warning* (D18).
+- **Regra de ouro:** o knudge **indexa** (derivado); o agente **possui** a fonte. O contrato é o
+  **documento** (o schema do knudge), **nunca** o schema interno do agente.
+- **`kd ai [memory|session-log] [QUERY...] [--source PATH] [--limit N]`** — área fina e read-only
+  sobre a fonte; sem query lista (`id|tipo|statement`), com query faz recall (`id|statement|score`;
+  `[no_results]` se vazio, D152). Área inválida → exit 2 (D212); fonte ausente → vazio, exit 0.
+- **`session-log`** só por **projeção do agente** em notas derivadas (`provenance.activity=derive`)
+  — o knudge não conhece o schema de eventos de ninguém.
+- **Filtros de proveniência:** `kd ask --agent NAME` / `--activity NAME` (igualdade com
+  `provenance.agent`/`activity`; repetível/vírgula; `--params` transporta). `Meta`/`Filter` e o
+  codec do `.idx/` acompanham (índice antigo lê `None`, D15).
+- **Adiado:** registo de agentes (`.knudge/agents.toml`) só com ≥2 consumidores (YAGNI).
 
 ## Escrita e dedup (`escrita-e-dedup.md`)
 
@@ -268,14 +285,18 @@
 - **Convenções (D140/D147):** o **posicional é conteúdo** (corpo/query), nunca metadado; ids vão em
   `--id`; `--params -` lê de stdin.
 
-## Superfície da CLI (14 verbos, D209)
+## Superfície da CLI (15 verbos, D209/D218)
 
-`kd init|prime|rewind|ask|write|task|map|maintenance|doctor|drain|config|forget|sync|self`
+`kd init|prime|rewind|ask|ai|write|task|map|maintenance|doctor|drain|config|forget|sync|self`
 (+ `help`; `kd` = `help`). **Domínio (8):** ask/write/task/rewind/map/doctor/drain/forget.
 
 - **`ask`:** modos `--rank`/`--tags`/`--suggest` (+ `--universe`/`--top-k`/`--relation`); `--id`
   (get), `--around --via --depth` (expand); filtros `--type/--class/--tag/--status/--scope/
-  --anchor/--since/--until/--as-of`; `--limit/--brief/--full-content/--with-task/--params`.
+  --anchor/--agent/--activity/--since/--until/--as-of`; `--limit/--brief/--full-content/--with-task/--params`.
+- **`ai` (D218):** `kd ai [memory|session-log] [QUERY...] [--source PATH] [--limit N]` — consulta
+  **read-only** de uma **fonte** JSONL de notas (`{frontmatter, body}`) de outro agente; sem query
+  lista, com query faz recall. Convenções: `.agents/memory/notes.jsonl` (memória) e
+  `.agents/memory/session-log.jsonl` (projeção do log pelo agente, `activity=derive`).
 - **`write`:** `--summary [body] --type --tag --anchor --class --status`; `--update`/`--id`;
   `--link FROM:EDGE:TO`; `--edge EDGE:ID`; `--claim S:R:O`/`--agent`/`--activity`; `--outcome`;
   `--batch`/`--params`/`--dry-run`.
@@ -380,8 +401,9 @@ superfície v3, listas, enums fechados.
 - [`README.md`](README.md) — instalação + quickstart. [`SKILL.md`](SKILL.md) — guia para agentes.
   [`AGENTS.md`](AGENTS.md) — contribuir no código.
 - [`wiki/`](wiki/README.md): [`usage/`](wiki/usage/README.md) (um guia por comando),
-  [`specs/`](wiki/specs/README.md) (técnico por subsistema), [`adrs/`](wiki/specs/adrs/README.md)
-  (D01–D216), [`integration/`](wiki/integration/README.md) (embutir o `knudge-core`),
+  [`specs/`](wiki/specs/README.md) (técnico por subsistema; `fontes.md` = fontes de corpus e
+  `kd ai`), [`adrs/`](wiki/specs/adrs/README.md)
+  (D01–D218), [`integration/`](wiki/integration/README.md) (embutir o `knudge-core`),
   [`CHANGELOG.md`](wiki/CHANGELOG.md).
 - Contratos: [`TOON.md`](wiki/specs/TOON.md) · [`ARCHITECTURE.md`](wiki/specs/ARCHITECTURE.md) ·
   [`matematica.md`](wiki/specs/matematica.md) · [`DIVERGENCES.md`](wiki/specs/DIVERGENCES.md) ·

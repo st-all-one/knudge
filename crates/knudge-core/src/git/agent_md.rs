@@ -15,7 +15,7 @@ pub const MARKER_END: &str = "<!-- knudge:end -->";
 /// Prefixo do version marker.
 pub const VERSION_PREFIX: &str = "<!-- knudge:version:";
 /// Versão atual do protocolo embutido no `AGENTS.md`.
-pub const VERSION: u32 = 2;
+pub const VERSION: u32 = 3;
 /// Nome do arquivo.
 pub const FILE: &str = "AGENTS.md";
 
@@ -44,6 +44,8 @@ pub fn protocol_block_with_layout(layout: &str) -> String {
          - `kd write --type task` is rejected; `ask` excludes work unless `--with-task`.\n\
          - Health: `kd doctor` (`--fix`); `kd maintenance learn|compact|prune` propose only.\n\
          - Embeddings are derived: `kd drain --status` / `--digest`.\n\
+         - Another agent's memory/log: `kd ai [memory|session-log] \"<q>\"` (read-only JSONL source);\n\
+           filter provenance with `ask --agent/--activity`.\n\
          - stdout = data, stderr = logs; `--json` = {{success, command, data?, error?, warnings?}}.\n\
          - If `kd` is missing on the host: `curl -fsSL https://raw.githubusercontent.com/st-all-one/knudge/main/install.sh | bash` (installs `~/.local/bin`), then `kd prime`.\n\
          Config: `{layout}/config.toml`.\n\

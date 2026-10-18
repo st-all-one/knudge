@@ -26,6 +26,7 @@ pub(super) fn corpus_scope(args: &MapArgs) -> CorpusScope {
         around: args.around.clone(),
         depth: args.depth,
         universe: args.universe,
+        ..CorpusScope::default()
     }
 }
 

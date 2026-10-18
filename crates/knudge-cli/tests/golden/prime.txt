@@ -7,12 +7,13 @@ CYCLE: kd ask (search) → kd write (record) → kd task (work) → kd sync (com
   Always search before writing (dedup); use --limit N --brief to save tokens.
 
 WHEN (use / don't):
-  kd ask <QUERY>     recall before acting (read-only); --anchor/--type/--limit/--brief/--full-content.
+  kd ask <QUERY>     recall before acting (read-only); --anchor/--type/--agent/--activity/--limit/--brief/--full-content.
   kd write <...>     record fact/decision/error/risk/question; anchor code with --anchor PATH.
   kd task new <...>  plan/execute work (epic ⊃ {issue ⊃ task | task}); NOT for knowledge.
   kd rewind          rebuild session context/handoff (token budget).
   kd doctor          corpus health: 13 checks + audit (--fix repairs; --explain details).
   kd drain           embedding queue: --status | --digest [--force]; service = worker.
+  kd ai [memory|session-log] [<QUERY>]  agent memory/log: read-only JSONL source (--source PATH).
   kd forget --id <ID> soft-delete (--restore; --purge [--force] after retention).
   kd sync            commit notas/ + eventos/ (--message).
   kd init|config|self|prime|help — setup, config, binary, protocol, help.

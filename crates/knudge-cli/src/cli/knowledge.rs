@@ -114,6 +114,12 @@ pub struct RankArgs {
     /// Filtro por âncora (repetível; aceita lista com vírgula).
     #[arg(long, value_name = "PATH", value_delimiter = ',')]
     pub anchor: Vec<String>,
+    /// Filtro por agente de proveniência (repetível; aceita lista com vírgula) — D218.
+    #[arg(long, value_name = "AGENTE", value_delimiter = ',')]
+    pub agent: Vec<String>,
+    /// Filtro por atividade de proveniência (repetível; aceita lista com vírgula) — D218.
+    #[arg(long, value_name = "ATIVIDADE", value_delimiter = ',')]
+    pub activity: Vec<String>,
     /// Ponto de partida: vizinhança de uma nota pelo grafo.
     #[arg(long, value_name = "ID")]
     pub around: Option<String>,

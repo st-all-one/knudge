@@ -54,3 +54,19 @@ fn update_increments_revision() -> Result<()> {
     assert_eq!(second, 3);
     Ok(())
 }
+
+#[test]
+fn note_round_trips_through_one_jsonl_line() -> Result<()> {
+    let note = sample_note("a memória vive num jsonl")?;
+    let line = note.to_jsonl()?;
+    assert!(!line.contains('\n'));
+    assert_eq!(Note::from_jsonl(&line)?, note);
+    Ok(())
+}
+
+#[test]
+fn jsonl_line_rejects_non_records() {
+    assert!(Note::from_jsonl("42").is_err());
+    assert!(Note::from_jsonl("{}").is_err());
+    assert!(Note::from_jsonl("{\"frontmatter\": 3}").is_err());
+}
