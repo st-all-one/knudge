@@ -36,7 +36,7 @@ pub fn protocol_block_with_layout(layout: &str) -> String {
          `notas/` is the source of truth; index/graph/embeddings are **derived** — never edit `notas/` by hand.\n\
          \n\
          Loop: `kd prime` (protocol; `--long` = full) → `kd ask \"<q>\"` before acting → `kd write` each\n\
-         learning → `kd rewind` for handoff.\n\
+         learning → `kd rewind` for handoff (`--with-activity` adds recent agent activity).\n\
          - `kd ask` dedups: score <0.75 create · 0.75–0.92 merge · ≥0.92 reject.\n\
          - One assertion per note; anchor code with `--anchor PATH` (glob `src/**`).\n\
          - Work lives in `kd task`: `epic ⊃ {{issue ⊃ task | task}}`; `--scope epic|issue|task`,\n\
@@ -44,9 +44,9 @@ pub fn protocol_block_with_layout(layout: &str) -> String {
          - `kd write --type task` is rejected; `ask` excludes work unless `--with-task`.\n\
          - Health: `kd doctor` (`--fix`); `kd maintenance learn|compact|prune` propose only.\n\
          - Embeddings are derived: `kd drain --status` / `--digest`.\n\
-         - Agent memory shards: `kd ai [memory|session-log] \"<q>\"` (read-only NDJSON,\n\
-           `.knudge/ai/<area>/<agent_id>.jsonl`); `--sort time`, `--agent-id/--agent-role`; filter\n\
-           `ask` with `--agent/--activity/--agent-id/--agent-role`.\n\
+         - Agent memory shards: `kd ai --memory|--session \"<q>\"` (read-only NDJSON,\n\
+           `.knudge/ai/<area>/<agent_id>.jsonl`); `--sort time`, `--agent-id/--agent-role`,\n\
+           `--recap` (compact recap); filter `ask` with `--agent/--activity/--agent-id/--agent-role`.\n\
          - stdout = data, stderr = logs; `--json` = {{success, command, data?, error?, warnings?}}.\n\
          - If `kd` is missing on the host: `curl -fsSL https://raw.githubusercontent.com/st-all-one/knudge/main/install.sh | bash` (installs `~/.local/bin`), then `kd prime`.\n\
          Config: `{layout}/config.toml`.\n\

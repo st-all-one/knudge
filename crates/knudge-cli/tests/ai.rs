@@ -105,18 +105,18 @@ fn ai_lists_and_recalls_a_jsonl_source() -> TestResult {
     )?;
 
     // Sem query: lista a fonte (`id|tipo|statement`), na ordem determinística.
-    let listed = ok(&dir, &["ai", "memory"])?;
+    let listed = ok(&dir, &["ai", "--memory"])?;
     assert!(listed.contains(&ktu), "{listed}");
     assert!(listed.contains(&goose), "{listed}");
     assert!(listed.contains("|fact|"), "{listed}");
 
     // Com query: recall sobre a fonte.
-    let hits = ok(&dir, &["ai", "memory", "jsonl"])?;
+    let hits = ok(&dir, &["ai", "--memory", "jsonl"])?;
     assert!(hits.contains(&ktu), "{hits}");
     assert!(!hits.contains(&goose), "{hits}");
 
     // Envelope `--json` válido e com a proveniência da área.
-    let data = ok_json(&dir, &["ai", "memory", "jsonl"])?;
+    let data = ok_json(&dir, &["ai", "--memory", "jsonl"])?;
     assert_eq!(data.get("area").and_then(|v| v.as_str()), Some("memory"));
     assert!(
         data.get("source")
@@ -140,7 +140,7 @@ fn ai_session_log_area_reads_its_own_convention() -> TestResult {
     )?;
     seed_source(&dir, "session-log", "log", &[jsonl_line(&dir, &note)?])?;
 
-    let listed = ok(&dir, &["ai", "session-log"])?;
+    let listed = ok(&dir, &["ai", "--session"])?;
     assert!(listed.contains(&note), "{listed}");
     // A área `memory` (default) não vê o session-log.
     seed_source(
@@ -168,7 +168,7 @@ fn ai_source_flag_overrides_the_convention() -> TestResult {
 
     let listed = ok(
         &dir,
-        &["ai", "memory", "--source", custom.to_str().unwrap_or("")],
+        &["ai", "--memory", "--source", custom.to_str().unwrap_or("")],
     )?;
     assert!(listed.contains(&note), "{listed}");
     let _ignored = fs::remove_dir_all(&dir);
@@ -187,7 +187,7 @@ fn ai_tolerates_malformed_lines_with_warning() -> TestResult {
         &["isto nao e json".to_string(), jsonl_line(&dir, &note)?],
     )?;
 
-    let out = run_in(&dir, &["ai", "memory"])?;
+    let out = run_in(&dir, &["ai", "--memory"])?;
     assert!(out.status.success(), "{}", stderr(&out)?);
     let listed = String::from_utf8(out.stdout.clone())?;
     assert!(listed.contains(&note), "{listed}");
@@ -204,7 +204,7 @@ fn ai_tolerates_malformed_lines_with_warning() -> TestResult {
 fn ai_absent_source_is_an_empty_success() -> TestResult {
     let dir = temp_project();
     init(&dir)?;
-    let out = run_in(&dir, &["ai", "memory"])?;
+    let out = run_in(&dir, &["ai", "--memory"])?;
     assert!(out.status.success(), "{}", stderr(&out)?);
     assert!(
         String::from_utf8(out.stdout)?.trim().is_empty(),
@@ -214,15 +214,7 @@ fn ai_absent_source_is_an_empty_success() -> TestResult {
     Ok(())
 }
 
-#[test]
-fn ai_rejects_an_unknown_area() -> TestResult {
-    let dir = temp_project();
-    init(&dir)?;
-    let out = run_in(&dir, &["ai", "memoria"])?;
-    assert_eq!(out.status.code(), Some(2), "{}", stderr(&out)?);
-    let _ignored = fs::remove_dir_all(&dir);
-    Ok(())
-}
+// (removido: área desconhecida agora exibe help com exit 0)
 
 #[test]
 fn ai_exposes_identity_and_sorts_by_time() -> TestResult {
@@ -247,7 +239,7 @@ fn ai_exposes_identity_and_sorts_by_time() -> TestResult {
     seed_source(&dir, "memory", "a-sub", &[early_line])?;
     seed_source(&dir, "memory", "b-main", &[late_line])?;
 
-    let data = ok_json(&dir, &["ai", "memory"])?;
+    let data = ok_json(&dir, &["ai", "--memory"])?;
     let notes = notes_of(&data)?;
     assert_eq!(notes.len(), 2, "{data}");
     let sub = notes
@@ -272,7 +264,7 @@ fn ai_exposes_identity_and_sorts_by_time() -> TestResult {
         Some(1_000)
     );
 
-    let timed = ok_json(&dir, &["ai", "memory", "--sort", "time"])?;
+    let timed = ok_json(&dir, &["ai", "--memory", "--sort", "time"])?;
     let timed_notes = notes_of(&timed)?;
     let ids: Vec<&str> = timed_notes
         .iter()
@@ -306,12 +298,12 @@ fn ai_filters_identity_and_reads_params() -> TestResult {
     seed_source(&dir, "memory", "a-sub", &[early_line])?;
     seed_source(&dir, "memory", "b-main", &[late_line])?;
 
-    let only_sub = ok(&dir, &["ai", "memory", "--agent-id", "omp:sub"])?;
+    let only_sub = ok(&dir, &["ai", "--memory", "--agent-id", "omp:sub"])?;
     assert!(
         only_sub.contains(&early) && !only_sub.contains(&late),
         "{only_sub}"
     );
-    let only_main = ok(&dir, &["ai", "memory", "--agent-role", "main"])?;
+    let only_main = ok(&dir, &["ai", "--memory", "--agent-role", "main"])?;
     assert!(
         only_main.contains(&late) && !only_main.contains(&early),
         "{only_main}"
@@ -320,6 +312,7 @@ fn ai_filters_identity_and_reads_params() -> TestResult {
         &dir,
         &[
             "ai",
+            "--memory",
             "--params",
             "{\"agent_id\":[\"omp:sub\"],\"sort\":\"time\"}",
         ],
@@ -346,7 +339,7 @@ fn ai_recall_json_includes_created_at_and_identity() -> TestResult {
     )?;
     seed_source(&dir, "memory", "main", &[line])?;
 
-    let data = ok_json(&dir, &["ai", "memory", "identidade"])?;
+    let data = ok_json(&dir, &["ai", "--memory", "identidade"])?;
     let hits = hits_of(&data)?;
     let hit = hits.first().ok_or("hit ausente")?;
     assert_eq!(
@@ -379,7 +372,7 @@ fn ai_multiple_shards_merge_deterministically() -> TestResult {
     seed_source(&dir, "memory", "a", &[jsonl_line(&dir, &first)?])?;
     seed_source(&dir, "memory", "b", &[jsonl_line(&dir, &second)?])?;
 
-    let listed = ok(&dir, &["ai", "memory"])?;
+    let listed = ok(&dir, &["ai", "--memory"])?;
     assert!(
         listed.contains(&first) && listed.contains(&second),
         "{listed}"

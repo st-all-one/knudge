@@ -109,9 +109,15 @@ impl fmt::Display for AiSort {
 /// Argumentos de `kd ai`.
 #[derive(Debug, Clone, Default, Args)]
 pub struct AiArgs {
-    /// Área consultada (`memory` | `session-log`; default `memory`).
-    #[arg(value_name = "AREA", value_enum, default_value_t = AiArea::Memory)]
+    /// Área consultada (via `--memory` ou `--session`).
+    #[arg(skip)]
     pub area: AiArea,
+    /// Consulta a memória durável (`.knudge/ai/memory/*.jsonl`).
+    #[arg(long)]
+    pub memory: bool,
+    /// Consulta a projeção do log de sessão (`.knudge/ai/session-log/*.jsonl`).
+    #[arg(long)]
+    pub session: bool,
     /// Consulta textual; sem ela, lista as notas da fonte (`id|tipo|statement`).
     #[arg(value_name = "QUERY")]
     pub query: Vec<String>,

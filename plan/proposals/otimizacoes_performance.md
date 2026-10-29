@@ -7,7 +7,7 @@
 > justificada** — R43; sem `unwrap/expect/panic/unsafe`; `src/` ≤ 300 linhas;
 > `BTreeMap`/`IndexMap` para determinismo; sem indexação/slicing direto).
 
-## 0. Princípios aplicados (`.agents/skill/rust/`)
+## 0. Princípios aplicados (`.agents/skills/rust/`)
 
 | Princípio (cap.) | Aplicação |
 |---|---|
@@ -288,7 +288,7 @@ sem mudar bytes:
 
 ## Onda 9 — revisão de coleções (fecho)
 
-Varrimento final pelos padrões de [`.agents/skill/rust/05-collections.md`](../../.agents/skill/rust/05-collections.md),
+Varrimento final pelos padrões de [`.agents/skills/rust/05-collections.md`](../../.agents/skills/rust/05-collections.md),
 incorporando só o que **não muda bytes** e registrando o que é rejeitado por princípio.
 
 - **O9.1 — `entry` (uma busca).** Trocar `contains_key` + `insert`/`get_mut` por `entry` nos

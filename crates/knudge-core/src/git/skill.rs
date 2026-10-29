@@ -13,7 +13,7 @@ pub const DIR: &str = ".agents/skills/kd";
 /// Arquivo da skill.
 pub const FILE: &str = "SKILL.md";
 /// Versão atual do conteúdo.
-pub const VERSION: u32 = 5;
+pub const VERSION: u32 = 6;
 /// Prefixo do version marker gerenciado.
 pub const MARKER: &str = "<!-- knudge:skill:version:";
 
@@ -128,7 +128,7 @@ kd doctor [--fix] [--explain]              # base health
 kd map [--axis A] [--communities]          # knowledge map
 kd maintenance <learn|compact|prune>       # proposes only (read-only)
 kd drain [--status | --digest [--force]]   # embedding queue: state / process
-kd ai [memory|session-log] ["<q>"]        # another agent's memory/log (read-only JSONL)
+kd ai --memory|--session ["<q>"]  # another agent's memory/log (read-only JSONL)
 kd sync [--message M]                      # commit notas/ + eventos/
 ```
 
@@ -149,13 +149,13 @@ Another agent's memory/log is consulted **read-only** through a **source**: NDJS
 (`{"frontmatter": …, "body": …}`, the knudge schema), one `<agent_id>.jsonl` per writer. The agent
 owns the store; the knudge only indexes it — never a second truth.
 
-```
-kd ai                       # list the agent's memory (id|type|statement)
-kd ai memory "<q>"          # recall in .knudge/ai/memory/<agent_id>.jsonl
-kd ai session-log "<q>"     # recall in the agent's projection of its log (activity=derive)
-kd ai memory --source /tmp/shards "<q>"    # explicit file or directory
-kd ai memory --sort time --agent-role subagent "<q>"   # temporal order / identity filter
-```
+kd ai --memory              # list the agent's memory (id|type|statement)
+kd ai --memory "<q>"        # recall in .knudge/ai/memory/<agent_id>.jsonl
+kd ai --session "<q>"       # recall in the agent's projection of its log (activity=derive)
+kd ai --memory --source /tmp/shards "<q>"    # explicit file or directory
+kd ai --memory --sort time --agent-role subagent "<q>"   # temporal order / identity filter
+kd ai --session --recap     # compact recap (last decision/verification/error, files, commands)
+kd rewind --with-activity   # handoff + recent agent activity appendix
 
 No query lists; with a query it recalls (`[no_results]` when empty). A malformed line is skipped
 with a `warning` naming the shard (never fails). JSON exposes `created_at` and

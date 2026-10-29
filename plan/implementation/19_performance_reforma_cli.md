@@ -286,7 +286,7 @@ binário do `.idx/`. Cada item foi medido um por vez, com recorte em `bench/`.
   sem argumentos = `prime` vazio; `make check` verde.
 
 ### E15-T21 ☑ O9 — revisão de coleções (fecho)
-- **Objetivo:** varrer o código pelos padrões de `.agents/skill/rust/05-collections.md` e
+- **Objetivo:** varrer o código pelos padrões de `.agents/skills/rust/05-collections.md` e
   incorporar só o que dá ganho **sem mudar bytes**; registrar o que é rejeitado.
 - **Resultado:**
   - **O9.1 `entry` — INCORPORADO:** `toon::flow::insert` e `config::toml::parse::insert_leaf`

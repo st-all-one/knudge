@@ -27,10 +27,10 @@ WHEN (use / don't):
   kd ask <QUERY>     recall before acting (read-only); --anchor/--type/--agent/--activity/--limit/--brief/--full-content.
   kd write <...>     record fact/decision/error/risk/question; anchor code with --anchor PATH.
   kd task new <...>  plan/execute work (epic ⊃ {issue ⊃ task | task}); NOT for knowledge.
-  kd rewind          rebuild session context/handoff (token budget).
+  kd rewind [--with-activity]  rebuild session context/handoff (token budget); --with-activity adds recent agent activity.
   kd doctor          corpus health: 13 checks + audit (--fix repairs; --explain details).
   kd drain           embedding queue: --status | --digest [--force]; service = worker.
-  kd ai [memory|session-log] [<QUERY>]  agent memory shards: read-only .knudge/ai/<area>/<agent_id>.jsonl; --sort/--agent-id.
+  kd ai --memory|--session [<QUERY>]  agent memory shards: read-only .knudge/ai/<area>/<agent_id>.jsonl; --sort/--agent-id.
   kd forget --id <ID> soft-delete (--restore; --purge [--force] after retention).
   kd sync            commit notas/ + eventos/ (--message).
   kd init|config|self|prime|help — setup, config, binary, protocol, help.
@@ -72,7 +72,7 @@ WHEN (use / don't):
   kd doctor          corpus health (13 checks + audit; --fix repairs, --explain details).
   kd maintenance ..  cleanup (compact/learn/prune; only PROPOSE, need scope or --universe).
   kd forget --id <ID> soft-delete (--restore; --purge only after retention, [--force]).
-  kd ai [memory|session-log] [<QUERY>]  another agent's memory/log: read-only JSONL source (D218).
+  kd ai --memory|--session [<QUERY>]  another agent's memory/log: read-only JSONL source (D218).
                      NOT a second truth — the agent owns the store, kd only indexes it.
   kd sync            commit notas/ + eventos/ (--message).
   kd init|config|self|prime — setup, config, binary, this protocol.
@@ -120,7 +120,7 @@ SEARCH (kd ask — knowledge only by default; --with-task includes work):
   Provenance filters: --agent/--activity/--agent-id/--agent-role match provenance fields.
 
 AI (kd ai — agent memory shards, read-only; D220/D221/D222):
-  kd ai [memory|session-log] [<QUERY>] [--source PATH] [--limit N] [--sort id|time]
+  kd ai --memory|--session [<QUERY>] [--source PATH] [--limit N] [--sort id|time]
         [--agent-id ID...] [--agent-role main|subagent...] [--params '<json>']
   memory = .knudge/ai/memory/<agent_id>.jsonl; session-log = .knudge/ai/session-log/
   (agent projection, provenance.activity=derive). One NDJSON shard per agent_id; the

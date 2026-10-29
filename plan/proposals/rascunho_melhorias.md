@@ -87,7 +87,7 @@ não abrem sessão (byte-a-byte, D57). Testes: `store::tests::sweep::*`,
   `recall.preview_chars`, resto padrão; `--json` com `body_match`/`body_snippet`; snippet puro no
   core) **+ parcela do body** nos `channels` (`channels.body`, informativo).
 - **D162** seção **CORPO** no `prime` com template; `init`/`onboard` cria
-  `.agents/skill/kd/SKILL.md` (idempotente, governada); `rewind` anexa o corpo de
+  `.agents/skills/kd/SKILL.md` (idempotente, governada); `rewind` anexa o corpo de
   `foundational`/`decision` (respeitando o orçamento); check advisório do `doctor`
   (`body`: notas sem corpo / sem lastro); gate de corpo para `decision` suportado via
   `validators.toml kind="gate"` (exemplo + teste).

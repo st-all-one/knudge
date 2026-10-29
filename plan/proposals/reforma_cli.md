@@ -172,7 +172,7 @@ contrato. Cada verbo abaixo ganha texto explícito e, onde couber, `próximos:`.
 
 | Comando | Texto explícito novo |
 |---|---|
-| `kd init` | lista do que foi criado/alterado: `notas/`, `eventos/`, `.idx/`, `.locks/`, `config.toml`, `AGENTS.md`, `.gitattributes`, `.git/info/exclude`, `.agents/skill/kd/SKILL.md` (marcando novo vs. já existia) |
+| `kd init` | lista do que foi criado/alterado: `notas/`, `eventos/`, `.idx/`, `.locks/`, `config.toml`, `AGENTS.md`, `.gitattributes`, `.git/info/exclude`, `.agents/skills/kd/SKILL.md` (marcando novo vs. já existia) |
 | `kd self version` | `kd <versão> (<commit/target?>)` + nota de onde achar help |
 | `kd self completions` | `completions <shell> geradas (N bytes)`; onde instalar |
 | `kd self setup` | `recipe <cliente> gravada em <path>` + próximo passo |

@@ -31,7 +31,7 @@
 | Performance (baseline) | [`../../bench/RELATORIO.md`](../../bench/RELATORIO.md) | números de v0.4.0 |
 | Performance (harness) | [`../../bench/README.md`](../../bench/README.md) | `make bench`, micro/e2e |
 | Qualidade (baseline) | `bench/qualidade.md` *(novo, E16/T01)* | Recall@k/MRR/nDCG@k |
-| Padrões Rust | [`../../.agents/skill/rust/SKILL.md`](../../.agents/skill/rust/SKILL.md) | hot path, coleções, testes |
+| Padrões Rust | [`../../.agents/skills/rust/SKILL.md`](../../.agents/skills/rust/SKILL.md) | hot path, coleções, testes |
 | Bordas | [`../../DIVERGENCES.md`](../../wiki/specs/DIVERGENCES.md) | 1 linha + teste por borda |
 | Revisão integrada | [`../proposals/revisao_integrada.md`](../proposals/revisao_integrada.md) | conflitos C1–C20 resolvidos |
 | Índice dos épicos | [`README.md`](README.md) | fases, grafo e status |

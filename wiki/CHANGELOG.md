@@ -132,7 +132,7 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   instalação → uso (`ask`/`write`/`task`/`rewind`/`doctor`/`prime`/`init`) → documentação →
   licença; sem emojis e com linguagem objetiva.
 - **Skill do `kd` em `.agents/skills/kd` (plural, D217)** — o `kd init` grava a skill no path
-  plural (antes `.agents/skill/kd/SKILL.md`), alinhado às demais skills do agente (ex.:
+  plural (antes `.agents/skills/kd/SKILL.md`), alinhado às demais skills do agente (ex.:
   `.agents/skills/rust/`). `git/skill.rs::DIR` muda e o `init` usa `SKILL_DIR`/`SKILL_FILE` (fim do
   path hardcoded); o diretório antigo não é mantido (D14).
 - **Repositório dogfooding em modo local-only** — o `.knudge/` **deste** repositório deixa de ser
@@ -403,7 +403,7 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   `--step`) não é dividido. `DIVERGENCES.md` #113; teste `crates/knudge-cli/tests/list_args.rs`.
 - **Skill do agente em inglês, versão 2 (D162)** — o corpo embutido (`git/skill.rs`) e o
   `SKILL.md` do repositório passam a guiar em **inglês** (idioma das skills, ex.
-  `.agents/skill/rust/SKILL.md`), token-optimized, e ganham as convenções recentes: conjuntos
+  `.agents/skills/rust/SKILL.md`), token-optimized, e ganham as convenções recentes: conjuntos
   fechados (D212), listas repetição+vírgula (D210), códigos de saída e âncora × aresta. O
   *version marker* sobe `1 → 2`, então projetos já inicializados recebem a skill atualizada no
   próximo `kd init` (arquivo editado pelo usuário, sem o marker, nunca é sobrescrito).
@@ -541,7 +541,7 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   `--brief` desliga, `--full-content` mostra tudo); o `--json` ganha `body_match`/`body_snippet`
   (snippet puro no core) e `channels.body` (parcela do body, informativa). O `prime` ganha a
   seção **CORPO** com template (`Por quê`/`Evidência`/`Consequência`); o `kd init`/`onboard`
-  cria a skill `.agents/skill/kd/SKILL.md` (idempotente, governada por version marker); o
+  cria a skill `.agents/skills/kd/SKILL.md` (idempotente, governada por version marker); o
   `rewind` anexa o corpo de `foundational`/`decision` (respeitando o orçamento); o `doctor`
   ganha o check advisório `body` (notas sem corpo / sem lastro); e o gate de corpo para
   `decision` fica disponível via `validators.toml kind="gate"`.

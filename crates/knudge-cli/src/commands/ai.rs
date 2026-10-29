@@ -18,11 +18,10 @@ use knudge_core::schema::{AgentRole, NoteType, Status, provenance};
 use knudge_core::store::Note;
 use serde_json::json;
 
-use crate::cli::{AiArgs, AiSort};
+use crate::cli::{AiArea, AiArgs, AiSort};
 use crate::commands::parse;
 use crate::output::Output;
 use crate::session::Session;
-
 mod params;
 mod recap;
 
@@ -39,7 +38,21 @@ const NO_RESULTS: &str = "[no_results]";
 /// # Errors
 /// Propaga erros de leitura da fonte e de derivação do índice/grafo; `strict` promove avisos a erro.
 pub fn run(session: &Session, args: &AiArgs) -> Result<Output> {
+    let has_params = args.params.is_some();
     let args = resolve_params(args)?;
+    if !has_params && args.memory == args.session {
+        let help = "kd ai - memoria de agentes (read-only shards NDJSON)\nUso: kd ai --memory|--session [QUERY] [flags]\n  --memory        memoria duravel (.knudge/ai/memory/*.jsonl)\n  --session       projecao do log (.knudge/ai/session-log/*.jsonl)\nFlags: --limit N --sort id|time --agent-id ID --agent-role PAPEL --since TS --until TS --recap --all-agents --source PATH --params JSON\nEx.: kd ai --memory decisao embedding --limit 5\n     kd ai --session --recap\n";
+        let data = json!({"help": help});
+        return Ok(Output::new(help, data));
+    }
+    let mut args = args;
+    if !has_params {
+        args.area = if args.memory {
+            AiArea::Memory
+        } else {
+            AiArea::SessionLog
+        };
+    }
     let source = resolve_source(session, &args);
     let source_label = source
         .path()
