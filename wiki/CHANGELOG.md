@@ -12,6 +12,9 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
   janela por quantidade (default 30), agente atual por padrão, `--all-agents`, `--since`/`--until`
   em `kd ai`; degradação graciosa quando a fonte está ausente.
 
+### Alterado
+- Refatoração idiomática de `current_agent` (max_by + tie-break), heurística de verificação ampliada (tags).
+
 ### Corrigido
 - **`kd ai` limita a saída por default a 20 notas/hits** (listagem e recall), mesmo sem `--limit`;
   com `--limit <n>` explícito o valor passado prevalece. Evita dump completo (e explosão de
