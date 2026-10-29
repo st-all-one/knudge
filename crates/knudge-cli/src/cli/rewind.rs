@@ -41,4 +41,13 @@ pub struct RewindArgs {
     /// Profundidade da vizinhança de `--around` — D143.
     #[arg(long, value_name = "N", default_value_t = 1)]
     pub depth: u8,
+    /// Anexa recap de atividade de IA ao handoff.
+    #[arg(long)]
+    pub with_activity: bool,
+    /// Agente da atividade (default: mais recente).
+    #[arg(long, value_name = "ID")]
+    pub activity_agent: Option<String>,
+    /// Limite de entradas na recap de atividade.
+    #[arg(long, value_name = "N", default_value_t = 30)]
+    pub activity_limit: usize,
 }

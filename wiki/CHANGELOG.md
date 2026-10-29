@@ -4,6 +4,19 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+## [0.6.4] - 2026-10-29
+
+### Adicionado
+- **Recap de atividade de IA** (`kd ai ... --recap`, `kd rewind --with-activity`): agrega o
+  `session-log` em resumo compacto (última decisão/verificação/erro, arquivos e comandos recentes),
+  janela por quantidade (default 30), agente atual por padrão, `--all-agents`, `--since`/`--until`
+  em `kd ai`; degradação graciosa quando a fonte está ausente.
+
+### Corrigido
+- **`kd ai` limita a saída por default a 20 notas/hits** (listagem e recall), mesmo sem `--limit`;
+  com `--limit <n>` explícito o valor passado prevalece. Evita dump completo (e explosão de
+  tokens) em projetos com grande volume de shards.
+
 ## [0.6.3] - 2026-10-29
 
 ### Adicionado

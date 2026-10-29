@@ -88,6 +88,7 @@ impl CorpusScope {
             agent_ids: Vec::new(),
             agent_roles: Vec::new(),
             activities: self.activities.clone(),
+            ..Filter::default()
         };
         let allowed = self.allowed(graph)?;
         let metas = index

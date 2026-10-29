@@ -13,9 +13,7 @@ use std::collections::BTreeMap;
 
 use knudge_core::Result;
 use knudge_core::corpus::{Corpus, Source};
-use knudge_core::retrieval::{
-    DEFAULT_LIMIT, Filter, Meta, RecallHit, RecallQuery, Universe, recall,
-};
+use knudge_core::retrieval::{Filter, Meta, RecallHit, RecallQuery, Universe, recall};
 use knudge_core::schema::{AgentRole, NoteType, Status, provenance};
 use knudge_core::store::Note;
 use serde_json::json;
@@ -26,6 +24,7 @@ use crate::output::Output;
 use crate::session::Session;
 
 mod params;
+mod recap;
 
 use params::resolve_params;
 
@@ -48,6 +47,17 @@ pub fn run(session: &Session, args: &AiArgs) -> Result<Output> {
         .unwrap_or_default();
     let (corpus, mut warnings) = source.load(&session.store())?;
     let query = args.query.join(" ");
+    if args.recap {
+        let (text, recap_json) = recap::run(&args, &corpus)?;
+        let data = json!({
+            "area": args.area.as_str(),
+            "source": source_label,
+            "sort": args.sort.as_str(),
+            "query": query,
+            "data": { "recap": recap_json },
+        });
+        return Ok(Output::new(text, data).with_warnings(warnings));
+    }
     let (text, data) = if query.is_empty() {
         (list(&args, &corpus)?, list_json(&args, &corpus)?)
     } else {
@@ -64,9 +74,13 @@ pub fn run(session: &Session, args: &AiArgs) -> Result<Output> {
     });
     Ok(Output::new(text, data).with_warnings(warnings))
 }
+/// Recap derivada (reusado pelo `rewind --with-activity`).
+pub fn run_recap(args: &AiArgs, corpus: &Corpus) -> Result<(String, serde_json::Value)> {
+    recap::run(args, corpus)
+}
 
 /// Fonte: o `--source` explícito (ficheiro ou diretório) ou o diretório convencional da área.
-fn resolve_source(session: &Session, args: &AiArgs) -> Source {
+pub fn resolve_source(session: &Session, args: &AiArgs) -> Source {
     match &args.source {
         Some(path) => Source::at(session.fs_dyn(), path),
         None => Source::jsonl_dir(session.project_root().join(args.area.default_path())),
@@ -75,8 +89,10 @@ fn resolve_source(session: &Session, args: &AiArgs) -> Source {
 
 /// Lista as notas da fonte (`id|tipo|statement`), aplicando os filtros de identidade e a ordem.
 fn list(args: &AiArgs, corpus: &Corpus) -> Result<String> {
+    let limit = args.limit.unwrap_or(20);
     Ok(ordered_notes(args, corpus)?
         .iter()
+        .take(limit)
         .map(|note| {
             let id = note.frontmatter.id().unwrap_or_default();
             let kind = note
@@ -98,10 +114,16 @@ fn ordered_notes<'a>(args: &AiArgs, corpus: &'a Corpus) -> Result<Vec<&'a Note>>
         .notes
         .iter()
         .filter(|note| identity_matches(&args.agent_id, &roles, note))
+        .filter(|note| {
+            let created = note.frontmatter.created_at().unwrap_or(0);
+            args.since.is_none_or(|s| created >= s) && args.until.is_none_or(|u| created <= u)
+        })
         .collect();
     if args.sort == AiSort::Time {
         notes.sort_by_key(|note| note_key(note));
     }
+    let limit = args.limit.unwrap_or(20);
+    notes.truncate(limit);
     Ok(notes)
 }
 
@@ -154,18 +176,14 @@ fn note_json(note: &Note) -> serde_json::Value {
 /// Recall sobre a fonte: mesma cascata do `ask`, com o universo **inteiro** (a fonte é a memória
 /// do agente — não há separação conhecimento/trabalho) e os estados visíveis por default (D43).
 fn search(session: &Session, args: &AiArgs, corpus: &Corpus, text: &str) -> Result<Found> {
-    let limit = args.limit.unwrap_or_else(|| {
-        session
-            .config()
-            .get_int("recall.default_limit")
-            .and_then(|raw| usize::try_from(raw).ok())
-            .unwrap_or(DEFAULT_LIMIT)
-    });
+    let limit = args.limit.unwrap_or(20);
     let mut query = RecallQuery::new(text.to_string());
     query.limit = limit;
     query.filter = Filter {
         agent_ids: args.agent_id.clone(),
         agent_roles: parse::agent_roles(&args.agent_role)?,
+        created_since: args.since,
+        created_until: args.until,
         ..Filter::default()
     };
     query.filter.statuses = Status::VISIBLE.to_vec();

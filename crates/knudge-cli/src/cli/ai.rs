@@ -104,6 +104,8 @@ impl fmt::Display for AiSort {
     }
 }
 
+#[allow(clippy::struct_excessive_bools, reason = "CLI flags")]
+#[allow(clippy::absolute_paths, reason = "enum variant in attribute")]
 /// Argumentos de `kd ai`.
 #[derive(Debug, Clone, Default, Args)]
 pub struct AiArgs {
@@ -122,6 +124,18 @@ pub struct AiArgs {
     /// Limite de resultados do recall (default: config `recall.default_limit`).
     #[arg(long, value_name = "N")]
     pub limit: Option<usize>,
+    /// Filtra notas com `created_at >= TS` (ms).
+    #[arg(long, value_name = "TS")]
+    pub since: Option<i64>,
+    /// Filtra notas com `created_at <= TS` (ms).
+    #[arg(long, value_name = "TS")]
+    pub until: Option<i64>,
+    /// Inclui todos os agentes (default: agente mais recente).
+    #[arg(long)]
+    pub all_agents: bool,
+    /// Modo recap: agrega em vez de listar.
+    #[arg(long)]
+    pub recap: bool,
     /// Ordem da lista/hits (`id` compatível; `time` por `created_at, agent_id, id`) — D222.
     #[arg(long, value_enum, default_value_t = AiSort::Id)]
     pub sort: AiSort,

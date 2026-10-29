@@ -102,6 +102,7 @@ fn build_filter(args: &AskArgs) -> Result<Filter> {
         agent_ids: args.agent_id.clone(),
         agent_roles: parse::agent_roles(&args.agent_role)?,
         activities: args.activity.clone(),
+        ..Filter::default()
     })
 }
 

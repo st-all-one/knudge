@@ -98,6 +98,10 @@ pub struct Filter {
     pub agent_roles: Vec<AgentRole>,
     /// Atividades exigidas (basta uma), por igualdade com `provenance.activity` (D218).
     pub activities: Vec<String>,
+    /// `created_at >=` (ms), se definido.
+    pub created_since: Option<i64>,
+    /// `created_at <=` (ms), se definido.
+    pub created_until: Option<i64>,
 }
 
 impl Filter {
@@ -119,8 +123,9 @@ impl Filter {
             && self.agent_ids.is_empty()
             && self.agent_roles.is_empty()
             && self.activities.is_empty()
+            && self.created_since.is_none()
+            && self.created_until.is_none()
     }
-
     /// `true` se a nota passa por todos os critérios definidos.
     #[must_use]
     pub fn matches(&self, meta: &Meta) -> bool {
@@ -151,6 +156,8 @@ impl Filter {
                     .anchors
                     .iter()
                     .any(|anchor| self.anchors.iter().any(|req| anchor_matches(req, anchor))))
+            && self.created_since.is_none_or(|s| meta.created_ms >= s)
+            && self.created_until.is_none_or(|u| meta.created_ms <= u)
     }
 }
 

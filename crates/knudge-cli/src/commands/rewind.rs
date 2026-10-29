@@ -14,21 +14,25 @@ use knudge_core::task::{critical_path, durations_from_flows, task_flows, through
 use knudge_core::time::Timestamp;
 use serde_json::json;
 
-use crate::cli::RewindArgs;
+use crate::cli::{AiArea, AiArgs, RewindArgs};
+use crate::commands::ai;
 use crate::commands::corpus::CorpusScope;
 use crate::commands::parse;
 use crate::output::Output;
 use crate::session::Session;
 
 use super::embedder;
-
-/// Milissegundos em um dia (janela de throughput do `flow`).
 const DAY_MS: i64 = 86_400_000;
 
 /// Executa `kd rewind`.
 ///
 /// # Errors
 /// Propaga erros de índice/eventos e de `context_id` inválido.
+#[allow(
+    clippy::too_many_lines,
+    clippy::unnecessary_wraps,
+    reason = "handoff assembly"
+)]
 pub fn run(session: &Session, args: &RewindArgs) -> Result<Output> {
     let loaded = session.corpus()?;
     let index = &loaded.index;
@@ -72,9 +76,44 @@ pub fn run(session: &Session, args: &RewindArgs) -> Result<Output> {
     warnings.extend(out.warnings.iter().cloned());
     let ids: Vec<String> = out.items.iter().map(|item| item.id.clone()).collect();
     warnings.extend(record_usage(session, &policy, &ids));
+    // Atividade de IA (opt-in)
+    let mut activity_text = String::new();
+    let mut activity_json: Option<serde_json::Value> = None;
+    if args.with_activity {
+        let ai_args = AiArgs {
+            area: AiArea::SessionLog,
+            recap: true,
+            limit: Some(args.activity_limit),
+            agent_id: if let Some(a) = &args.activity_agent {
+                vec![a.clone()]
+            } else {
+                Vec::new()
+            },
+            ..AiArgs::default()
+        };
+        let source = ai::resolve_source(session, &ai_args);
+        match source.load(&session.store()) {
+            Ok((corpus, mut w)) => {
+                warnings.append(&mut w);
+                match ai::run_recap(&ai_args, &corpus) {
+                    Ok((t, j)) => {
+                        activity_text = format!("\n\n## Atividade recente\n{t}");
+                        activity_json = Some(j);
+                    }
+                    Err(e) => warnings.push(e.to_string()),
+                }
+            }
+            Err(e) => warnings.push(e.to_string()),
+        }
+    }
+    let text = if activity_text.is_empty() {
+        out.text.clone()
+    } else {
+        format!("{}{activity_text}", out.text)
+    };
     let data = json!({
         "context_id": out.context_id,
-        "text": out.text,
+        "text": text,
         "items": out.items.iter().map(|item| json!({
             "id": item.id,
             "statement": item.statement,
@@ -85,8 +124,9 @@ pub fn run(session: &Session, args: &RewindArgs) -> Result<Output> {
         "dropped": out.dropped,
         "embeddings_pending": out.embeddings_pending,
         "flow": flow_json(&events, graph, session.now_ms()),
+        "activity": activity_json,
     });
-    Ok(Output::new(out.text, data).with_warnings(warnings))
+    Ok(Output::new(text, data).with_warnings(warnings))
 }
 
 /// Bloco `flow` aditivo do `rewind --json` (E19/T11/D205): throughput + caminho crítico.
