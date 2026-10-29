@@ -65,14 +65,18 @@ SEARCH (kd ask — knowledge only by default; --with-task includes work):
   Empty search → stdout [no_results] (D152); --json has channels per hit (D151).
   forgotten/superseded are out of ask by default; use --status to include them.
   Rank (`kd ask --rank`) and tag vocabulary (`kd ask --tags`) — D146/D209.
-  Provenance filters: --agent/--activity match provenance.agent/activity (who produced the note).
+  Provenance filters: --agent/--activity/--agent-id/--agent-role match provenance fields.
 
-AI (kd ai — another agent's memory/log, read-only; D218):
-  kd ai [memory|session-log] [<QUERY>] [--source PATH] [--limit N]
-  memory = .agents/memory/notes.jsonl; session-log = the agent's projection of its log
-  into derived notes (provenance.activity=derive). No query → list id|type|statement;
-  with query → recall (id|statement|score; [no_results] if empty). The source is NEVER
-  written: the agent owns the store, kd only indexes it (never learn an agent's own schema).
+AI (kd ai — agent memory shards, read-only; D220/D221/D222):
+  kd ai [memory|session-log] [<QUERY>] [--source PATH] [--limit N] [--sort id|time]
+        [--agent-id ID...] [--agent-role main|subagent...] [--params '<json>']
+  memory = .knudge/ai/memory/<agent_id>.jsonl; session-log = .knudge/ai/session-log/
+  (agent projection, provenance.activity=derive). One NDJSON shard per agent_id; the
+  writer keeps created_at monotonic (ms) and appends one complete JSON line per event.
+  --sort time = (created_at, agent_id, id). No query → list id|type|statement; with
+  query → recall (id|statement|score; [no_results]). JSON adds created_at + agent/
+  agent_id/agent_role/parent_agent_id. The source is NEVER written: the agent owns the
+  store, kd only indexes it (never learn an agent's own schema).
 
 WORK (kd task — epic ⊃ { issue ⊃ task | task }; epic is the root, anchor it):
   kd task new --summary "<...>" [<body>|-] --scope <epic|issue|task> [--kind error|question|risk|decision]

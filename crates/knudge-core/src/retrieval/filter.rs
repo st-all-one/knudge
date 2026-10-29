@@ -6,7 +6,8 @@
 use crate::Result;
 use crate::retrieval::anchor::glob_match;
 use crate::schema::{
-    Classification, Frontmatter, NoteType, Scope, Status, Value, outcome_stats, provenance,
+    AgentRole, Classification, Frontmatter, NoteType, Scope, Status, Value, outcome_stats,
+    provenance,
 };
 use crate::time::Timestamp;
 
@@ -29,6 +30,12 @@ pub struct Meta {
     pub anchors: Vec<String>,
     /// Agente que produziu a nota (`provenance.agent`, D207) — `None` se ausente.
     pub agent: Option<String>,
+    /// Instância do agente (`provenance.agent_id`, D221) — `None` se ausente.
+    pub agent_id: Option<String>,
+    /// Papel da instância (`provenance.agent_role`, D221) — `None` se ausente.
+    pub agent_role: Option<AgentRole>,
+    /// Agente que criou o subagente (`provenance.parent_agent_id`, D221).
+    pub parent_agent_id: Option<String>,
     /// Atividade que produziu a nota (`provenance.activity`, D207) — `None` se ausente.
     pub activity: Option<String>,
     /// `created_at` em milissegundos desde a época (0 se ilegível).
@@ -56,6 +63,9 @@ impl Meta {
             tags: string_list(frontmatter, "tags"),
             anchors: string_list(frontmatter, "anchors"),
             agent: provenance.agent,
+            agent_id: provenance.agent_id,
+            agent_role: provenance.agent_role,
+            parent_agent_id: provenance.parent_agent_id,
             activity: provenance.activity,
             created_ms: created_ms(frontmatter),
             confirmation: outcomes.successes,
@@ -82,6 +92,10 @@ pub struct Filter {
     pub anchors: Vec<String>,
     /// Agentes exigidos (basta um), por igualdade com `provenance.agent` (D218).
     pub agents: Vec<String>,
+    /// Instâncias exigidas (basta uma), por igualdade com `provenance.agent_id` (D221).
+    pub agent_ids: Vec<String>,
+    /// Papéis exigidos (basta um), por igualdade com `provenance.agent_role` (D221).
+    pub agent_roles: Vec<AgentRole>,
     /// Atividades exigidas (basta uma), por igualdade com `provenance.activity` (D218).
     pub activities: Vec<String>,
 }
@@ -102,6 +116,8 @@ impl Filter {
             && self.tags.is_empty()
             && self.anchors.is_empty()
             && self.agents.is_empty()
+            && self.agent_ids.is_empty()
+            && self.agent_roles.is_empty()
             && self.activities.is_empty()
     }
 
@@ -118,6 +134,13 @@ impl Filter {
                     .agent
                     .as_ref()
                     .is_some_and(|agent| self.agents.contains(agent)))
+            && (self.agent_ids.is_empty()
+                || self
+                    .agent_ids
+                    .iter()
+                    .any(|id| id == effective_agent_id(meta)))
+            && (self.agent_roles.is_empty()
+                || self.agent_roles.contains(&effective_agent_role(meta)))
             && (self.activities.is_empty()
                 || meta
                     .activity
@@ -129,6 +152,19 @@ impl Filter {
                     .iter()
                     .any(|anchor| self.anchors.iter().any(|req| anchor_matches(req, anchor))))
     }
+}
+
+/// `agent_id` efetivo nos filtros: instância, nome lógico ou `legacy` (D221).
+fn effective_agent_id(meta: &Meta) -> &str {
+    meta.agent_id
+        .as_deref()
+        .or(meta.agent.as_deref())
+        .unwrap_or("legacy")
+}
+
+/// `agent_role` efetivo nos filtros: ausente ⇒ `main` (D221).
+fn effective_agent_role(meta: &Meta) -> AgentRole {
+    meta.agent_role.unwrap_or_default()
 }
 
 /// `true` se o valor pedido casa a âncora da nota em qualquer direção (D81).

@@ -1,5 +1,7 @@
 //! Testes do corpus de leitura única (E15-T02/O1).
 
+mod jsonl_dir;
+
 use std::path::Path;
 
 use crate::Result;
@@ -16,6 +18,11 @@ const NOW: i64 = 1_700_000_000_000;
 
 fn note(note_type: NoteType, statement: &str) -> Result<Note> {
     Draft::new(note_type, statement).to_note(NOW)
+}
+
+/// Nota com `created_at` explícito (conflitos temporais entre shards).
+fn note_at(note_type: NoteType, statement: &str, created_ms: i64) -> Result<Note> {
+    Draft::new(note_type, statement).to_note(created_ms)
 }
 
 /// Semeia o store com um corpus pequeno e variado.
@@ -169,7 +176,7 @@ fn jsonl_source_reads_the_same_corpus_as_notas_dir() -> Result<()> {
     let store = Store::new(&fs, "/p/.knudge");
     seed(&store)?;
     let notes = Corpus::load_notes(&store)?;
-    let path = "/p/.agents/memory/notes.jsonl";
+    let path = "/p/ai/memory/a.jsonl";
     fs.write_atomic(Path::new(path), jsonl_of(&notes)?.as_bytes())?;
 
     let (from_md, warnings_md) = Source::NotesDir.load(&store)?;

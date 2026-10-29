@@ -17,7 +17,7 @@ use std::path::Path;
 
 mod source;
 
-pub use source::{Loaded, Source, parse_jsonl};
+pub use source::{Loaded, Source, parse_jsonl, shard_file_name};
 
 #[cfg(test)]
 mod tests;

@@ -6,7 +6,7 @@ use indexmap::IndexMap;
 
 use crate::retrieval::filter::Meta;
 use crate::retrieval::index::{Field, FieldTf, NoteDoc};
-use crate::schema::{Classification, NoteType, Scope, Status, Value};
+use crate::schema::{AgentRole, Classification, NoteType, Scope, Status, Value};
 use crate::{Error, Result};
 
 pub(super) fn doc_to_value(doc: &NoteDoc) -> Value {
@@ -31,6 +31,18 @@ pub(super) fn doc_to_value(doc: &NoteDoc) -> Value {
     map.insert("anchors".to_string(), string_list(&doc.meta.anchors));
     if let Some(agent) = &doc.meta.agent {
         map.insert("agent".to_string(), Value::Str(agent.clone()));
+    }
+    if let Some(agent_id) = &doc.meta.agent_id {
+        map.insert("agent_id".to_string(), Value::Str(agent_id.clone()));
+    }
+    if let Some(role) = doc.meta.agent_role {
+        map.insert(
+            "agent_role".to_string(),
+            Value::Str(role.as_str().to_string()),
+        );
+    }
+    if let Some(parent) = &doc.meta.parent_agent_id {
+        map.insert("parent_agent_id".to_string(), Value::Str(parent.clone()));
     }
     if let Some(activity) = &doc.meta.activity {
         map.insert("activity".to_string(), Value::Str(activity.clone()));
@@ -78,6 +90,9 @@ pub(super) fn doc_from_value(value: &Value) -> Result<NoteDoc> {
         tags: str_list(map, "tags"),
         anchors: str_list(map, "anchors"),
         agent: opt_str(map, "agent"),
+        agent_id: opt_str(map, "agent_id"),
+        agent_role: opt_role(map)?,
+        parent_agent_id: opt_str(map, "parent_agent_id"),
         activity: opt_str(map, "activity"),
         created_ms: int_field(map, "created")?,
         confirmation: map
@@ -123,6 +138,14 @@ fn str_field<'a>(map: &'a IndexMap<String, Value>, key: &str) -> Result<&'a str>
 fn opt_scope(map: &IndexMap<String, Value>) -> Result<Option<Scope>> {
     match map.get("scope").and_then(Value::as_str) {
         Some(text) => text.parse::<Scope>().map(Some),
+        None => Ok(None),
+    }
+}
+
+/// Papel opcional (índices anteriores a D221 não o têm — derivado, D15).
+fn opt_role(map: &IndexMap<String, Value>) -> Result<Option<AgentRole>> {
+    match map.get("agent_role").and_then(Value::as_str) {
+        Some(text) => text.parse::<AgentRole>().map(Some),
         None => Ok(None),
     }
 }

@@ -8,7 +8,8 @@
 //!
 //! Adotado por medição (E16/T11): +25 % de nDCG@5 na bancada de qualidade (`bench/t11_stemming.md`),
 //! com a família `morfologia` (consulta plural × nota singular) de 0 % para 100 %. Muda só o
-//! derivado `.idx/` (`INDEX_FORMAT` → `retrieval-v4`), nunca os bytes de `notas/`.
+//! derivado `.idx/` (`INDEX_FORMAT` mudou para `retrieval-v4` em D206; atual `retrieval-v5`
+//! desde D221), nunca os bytes de `notas/`.
 
 use std::borrow::Cow;
 

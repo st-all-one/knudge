@@ -10,7 +10,7 @@ mod rewind;
 mod task;
 mod write;
 
-pub use ai::{AiArea, AiArgs};
+pub use ai::{AiArea, AiArgs, AiSort};
 pub use ask::AskArgs;
 pub use health::{DoctorArgs, DrainArgs, DrainCommand, WatchServiceArgs};
 pub use help::{render_help, subcommand_help};
@@ -85,7 +85,7 @@ pub enum Command {
     Rewind(RewindArgs),
     /// Toda pesquisa (recall, get e expand).
     Ask(AskArgs),
-    /// Memória/log de um agente: consulta read-only de uma fonte JSONL (D218).
+    /// Memória de agentes: consulta read-only de shards NDJSON (D220–D222).
     Ai(AiArgs),
     /// Toda escrita (create, update e arestas).
     Write(WriteArgs),

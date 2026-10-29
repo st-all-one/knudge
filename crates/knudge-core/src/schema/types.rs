@@ -181,6 +181,39 @@ impl fmt::Display for Classification {
     }
 }
 
+/// Papel de um agente na proveniência (`provenance.agent_role`, D221) — enum fechado.
+///
+/// Distingue o **agente principal** (`main`) do **subagente** (`subagent`) que ele criou. O
+/// `agent_id` identifica a instância (processo/sessão); o papel diz a posição na árvore.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+pub enum AgentRole {
+    /// Agente principal — dono da sessão (default na leitura de notas antigas).
+    #[default]
+    Main,
+    /// Subagente — criado por outro agente (`parent_agent_id`).
+    Subagent,
+}
+
+impl AgentRole {
+    /// Todos os papéis, na ordem canônica.
+    pub const ALL: [Self; 2] = [Self::Main, Self::Subagent];
+
+    /// Rótulo canônico.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Main => "main",
+            Self::Subagent => "subagent",
+        }
+    }
+}
+
+impl fmt::Display for AgentRole {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// Estado da nota — enum fechado.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum Status {

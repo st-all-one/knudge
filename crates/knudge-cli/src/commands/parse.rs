@@ -2,7 +2,7 @@
 
 use knudge_core::Error;
 use knudge_core::Result;
-use knudge_core::schema::{Claim, Classification, EdgeKind, NoteType, Status};
+use knudge_core::schema::{AgentRole, Claim, Classification, EdgeKind, NoteType, Status};
 use knudge_core::time::Timestamp;
 
 /// Converte uma lista de tipos fechados.
@@ -18,6 +18,14 @@ pub fn types(values: &[String]) -> Result<Vec<NoteType>> {
 /// # Errors
 /// Retorna `ErrorKind::Schema` para classificação desconhecida.
 pub fn classifications(values: &[String]) -> Result<Vec<Classification>> {
+    values.iter().map(|value| value.parse()).collect()
+}
+
+/// Converte uma lista de papéis de agente fechados (D221).
+///
+/// # Errors
+/// Retorna `ErrorKind::Schema` para papel desconhecido.
+pub fn agent_roles(values: &[String]) -> Result<Vec<AgentRole>> {
     values.iter().map(|value| value.parse()).collect()
 }
 

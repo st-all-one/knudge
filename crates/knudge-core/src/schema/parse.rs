@@ -6,7 +6,7 @@
 use std::str::FromStr;
 
 use super::suggest;
-use super::types::{Classification, NoteType, Scope, Status};
+use super::types::{AgentRole, Classification, NoteType, Scope, Status};
 use crate::{Error, Result};
 
 /// Erro de valor desconhecido com a lista de possibilidades e a mais provável (D212).
@@ -35,6 +35,18 @@ impl FromStr for Scope {
             .copied()
             .find(|scope| scope.as_str() == s)
             .ok_or_else(|| unknown("scope desconhecido", s, &Self::ALL.map(Self::as_str)))
+    }
+}
+
+impl FromStr for AgentRole {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|role| role.as_str() == s)
+            .ok_or_else(|| unknown("agent_role desconhecido", s, &Self::ALL.map(Self::as_str)))
     }
 }
 

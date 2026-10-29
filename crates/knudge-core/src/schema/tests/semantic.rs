@@ -2,7 +2,7 @@
 
 use crate::Result;
 use crate::schema::{
-    CANONICAL_KEYS, Claim, Classification, EDGE_KEYS, EdgeKind, NoteType, Provenance,
+    AgentRole, CANONICAL_KEYS, Claim, Classification, EDGE_KEYS, EdgeKind, NoteType, Provenance,
     SCHEMA_VERSION, Status, Value, claims, provenance,
 };
 
@@ -64,6 +64,7 @@ fn provenance_round_trips_and_is_empty_by_default() -> Result<()> {
             entity: None,
             activity: Some("write".to_string()),
             agent: Some("agente".to_string()),
+            ..Provenance::default()
         }
         .to_value(),
     )?;
@@ -83,5 +84,67 @@ fn frontmatter_optional_defaults() -> Result<()> {
     assert_eq!(fm.scope()?, None);
     assert_eq!(fm.note_type()?, NoteType::Fact);
     assert_eq!(fm.schema_version()?, SCHEMA_VERSION);
+    Ok(())
+}
+
+#[test]
+fn provenance_round_trips_agent_identity() -> Result<()> {
+    let mut fm = valid_frontmatter()?;
+    let written = Provenance {
+        entity: None,
+        activity: Some("derive".to_string()),
+        agent: Some("omp".to_string()),
+        agent_id: Some("omp:01j".to_string()),
+        agent_role: Some(AgentRole::Subagent),
+        parent_agent_id: Some("omp:01h".to_string()),
+    };
+    fm.set("provenance", written.to_value())?;
+    fm.validate()?;
+    let read = provenance(&fm)?;
+    assert_eq!(read, written);
+    assert_eq!(read.agent_id_or_legacy(), "omp:01j");
+    assert_eq!(read.agent_role_or_main(), AgentRole::Subagent);
+    let value = read.to_value();
+    assert_eq!(fm.get("provenance"), Some(&value));
+    Ok(())
+}
+
+#[test]
+fn old_note_defaults_identity_without_rewriting_bytes() -> Result<()> {
+    let mut fm = valid_frontmatter()?;
+    fm.set("schema_version", Value::Int(2))?;
+    fm.set(
+        "provenance",
+        Provenance {
+            agent: Some("ktu".to_string()),
+            ..Provenance::default()
+        }
+        .to_value(),
+    )?;
+    fm.validate()?;
+    let read = provenance(&fm)?;
+    assert_eq!(read.agent_id_or_legacy(), "ktu");
+    assert_eq!(read.agent_role_or_main(), AgentRole::Main);
+    assert_eq!(read.parent_agent_id, None);
+    let value = read.to_value();
+    let map = value
+        .as_map()
+        .ok_or_else(|| crate::Error::internal("provenance não é mapa"))?;
+    assert!(!map.contains_key("agent_id"), "bytes v2 preservados");
+    assert!(!map.contains_key("agent_role"), "bytes v2 preservados");
+    Ok(())
+}
+
+#[test]
+fn malformed_agent_identity_is_rejected() -> Result<()> {
+    let mut fm = valid_frontmatter()?;
+    for (key, value) in [
+        ("agent_role", Value::Str("chefe".to_string())),
+        ("agent_id", Value::Int(3)),
+        ("parent_agent_id", Value::Str("com\ncontrolo".to_string())),
+    ] {
+        fm.set("provenance", Value::map([(key.to_string(), value)]))?;
+        assert!(fm.validate().is_err(), "{key} deveria falhar");
+    }
     Ok(())
 }

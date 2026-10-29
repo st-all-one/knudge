@@ -47,6 +47,10 @@ Flags: `--sizes A,B`, `--samples N`, `--kd PATH`, `--out rel.md`, `--json out.js
 `min/mediana/p95/máx/desvio` por operação. O relatório com a análise e os gargalos está em
 [`RELATORIO.md`](RELATORIO.md); o A/B do auto-drain em [`e2e-noidle.md`](e2e-noidle.md).
 
+A **memória de agentes v2** tem uma seção própria na micromb (`micro/ai` e `micro/ai-legacy`):
+`parse_jsonl` com `BTreeMap` vs o `upsert` linear anterior, em shards de 1k/10k/100k. O recorte
+versionado está em [`ai-memory-v2.md`](ai-memory-v2.md) / [`ai-memory-v2.json`](ai-memory-v2.json).
+
 A **qualidade** de retrieval (E16/T01) sai em `bench/qualidade.md`/`bench/qualidade.json`:
 Recall@k/MRR/nDCG@k sobre um corpus PT-BR sintético e rotulado (tópicos × consultas). É a régua
 para D172/D173/D179 e para a fusão — o baseline fica versionado no repositório. O recorte da

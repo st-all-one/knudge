@@ -237,6 +237,7 @@ fn draft_of(args: &WriteArgs) -> Result<Draft> {
         entity: None,
         activity: args.activity.clone(),
         agent: args.agent.clone(),
+        ..Provenance::default()
     };
     Ok(draft)
 }

@@ -7,8 +7,8 @@ use knudge_core::embeddings::{EmbeddingIndex, rank_query};
 use knudge_core::lifecycle::{DEFAULT_TASK_CONFIRMATION, DriftStore};
 use knudge_core::retrieval::{
     DEFAULT_ANCHOR_WEIGHT, DEFAULT_LEXICAL_WEIGHT, DEFAULT_LIMIT, DEFAULT_MAX_TERM_RATIO,
-    DEFAULT_PPR_WEIGHT, DEFAULT_RRF_K, DEFAULT_SEMANTIC_WEIGHT, Filter, FusionWeights, Index,
-    RecallQuery, Universe, active_ids, recall,
+    DEFAULT_PPR_WEIGHT, DEFAULT_RRF_K, DEFAULT_SEMANTIC_WEIGHT, Filter, FusionWeights, Index, Meta,
+    RecallHit, RecallQuery, Universe, active_ids, recall,
 };
 use knudge_core::schema::Status;
 use serde_json::json;
@@ -19,7 +19,7 @@ use crate::commands::parse;
 use crate::output::Output;
 use crate::session::Session;
 
-use super::render::{HitFormat, hit_format, hit_json, load_bodies, preview_chars, render_hit};
+use super::render::{HitFormat, HitJson, hit_format, load_bodies, preview_chars, render_hit};
 
 /// Sentinela de busca vazia (D152): distingue "sem resultado" de erro sem parsing ambíguo.
 const NO_RESULTS: &str = "[no_results]";
@@ -46,31 +46,72 @@ pub(super) fn recall_query(session: &Session, args: &AskArgs) -> Result<Output> 
     } else {
         load_bodies(session, &out.hits)?
     };
-    let body = if out.hits.is_empty() {
-        NO_RESULTS.to_string()
-    } else {
-        out.hits
-            .iter()
-            .enumerate()
-            .map(|(position, hit)| render_hit(hit, position, format, &bodies, preview_chars))
-            .collect::<Vec<_>>()
-            .join("\n")
-    };
+    let body = render_body(&out.hits, format, &bodies, preview_chars);
     let body = if let Some(as_of) = &args.as_of {
         format!("as_of={as_of}\n{body}")
     } else {
         body
     };
+    let metas = metas_by_id(index);
+    let json_hit = HitJson {
+        format,
+        bodies: &bodies,
+        as_of: args.as_of.as_deref(),
+        query: &text,
+    };
     let data = json!({
         "query": text,
         "as_of": args.as_of,
-        "hits": out.hits.iter().map(|hit| hit_json(hit, format, &bodies, args.as_of.as_deref(), &text)).collect::<Vec<_>>(),
+        "hits": out.hits.iter()
+            .map(|hit| json_hit.render(hit, metas.get(hit.id.as_str()).copied()))
+            .collect::<Vec<_>>(),
     });
     let hit_ids: Vec<String> = out.hits.iter().map(|hit| hit.id.clone()).collect();
     if let Some(warning) = super::record_usage(session, &hit_ids) {
         warnings.push(warning);
     }
     Ok(Output::new(body, data).with_warnings(warnings))
+}
+
+/// Corpo do pipe: `[no_results]` ou uma linha por hit (revelação progressiva).
+fn render_body(
+    hits: &[RecallHit],
+    format: HitFormat,
+    bodies: &BTreeMap<String, String>,
+    preview_chars: usize,
+) -> String {
+    if hits.is_empty() {
+        return NO_RESULTS.to_string();
+    }
+    hits.iter()
+        .enumerate()
+        .map(|(position, hit)| render_hit(hit, position, format, bodies, preview_chars))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Filtros estruturais da consulta, incluindo identidade de agente (D218/D221).
+fn build_filter(args: &AskArgs) -> Result<Filter> {
+    Ok(Filter {
+        types: parse::types(&args.types)?,
+        classifications: parse::classifications(&args.classes)?,
+        statuses: resolve_statuses(args)?,
+        tags: args.tags.clone(),
+        anchors: args.anchor.clone(),
+        agents: args.agent.clone(),
+        agent_ids: args.agent_id.clone(),
+        agent_roles: parse::agent_roles(&args.agent_role)?,
+        activities: args.activity.clone(),
+    })
+}
+
+/// Metadados do índice por id (identidade/`created_at` nos hits — D221/D222).
+fn metas_by_id(index: &Index) -> BTreeMap<&str, &Meta> {
+    index
+        .docs
+        .iter()
+        .map(|doc| (doc.meta.id.as_str(), &doc.meta))
+        .collect()
 }
 
 /// Monta a `RecallQuery` a partir da config, dos filtros e do universo (D94/D102/D146).
@@ -106,15 +147,7 @@ fn build_recall_query(
             .get_float("recall.ppr_weight")
             .unwrap_or(DEFAULT_PPR_WEIGHT),
     };
-    query.filter = Filter {
-        types: parse::types(&args.types)?,
-        classifications: parse::classifications(&args.classes)?,
-        statuses: resolve_statuses(args)?,
-        tags: args.tags.clone(),
-        anchors: args.anchor.clone(),
-        agents: args.agent.clone(),
-        activities: args.activity.clone(),
-    };
+    query.filter = build_filter(args)?;
     query.universe = if args.with_task {
         Universe::All
     } else {

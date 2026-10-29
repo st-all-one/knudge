@@ -60,6 +60,12 @@ pub struct AskArgs {
     /// Filtro por proveniência: agente que produziu a nota (`provenance.agent`; repetível/vírgula) — D218.
     #[arg(long, value_name = "AGENTE", value_delimiter = ',')]
     pub agent: Vec<String>,
+    /// Filtro por proveniência: instância do agente (`provenance.agent_id`; repetível/vírgula) — D221.
+    #[arg(long = "agent-id", value_name = "ID", value_delimiter = ',')]
+    pub agent_id: Vec<String>,
+    /// Filtro por proveniência: papel (`main|subagent`; repetível/vírgula) — D221.
+    #[arg(long = "agent-role", value_name = "PAPEL", value_delimiter = ',')]
+    pub agent_role: Vec<String>,
     /// Filtro por proveniência: atividade (`write|learn|import|derive`; repetível/vírgula) — D218.
     #[arg(long, value_name = "ATIVIDADE", value_delimiter = ',')]
     pub activity: Vec<String>,

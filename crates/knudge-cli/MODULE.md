@@ -35,7 +35,7 @@ Fonte da verdade: [`plan/implementation/16_cli_surface.md`](../../plan/implement
 | `prime` | protocolo estático, byte-idêntico por versão (D57). | `commands/prime.rs` |
 | `rewind` | estado/handoff ponto-no-tempo (D57/D88). | `commands/rewind.rs` |
 | `ask` | **toda** pesquisa: recall, `--id`, `--around`, `--rank`, `--tags`, `--suggest`; filtros de proveniência `--agent`/`--activity` (D218). | `commands/ask/{mod,params,query,render}.rs` |
-| `ai` | memória/log de um **agente**: consulta **read-only** de uma **fonte** JSONL (`memory\|session-log`, D218). | `commands/ai.rs` |
+| `ai` | memória de um **agente**: consulta **read-only** de shards NDJSON (`.knudge/ai/<area>/<agent_id>.jsonl`), identidade e ordem temporal (D220–D222). | `commands/ai/` |
 | `write` | **toda** escrita: create, `--update`, `--link`, `--batch`. | `commands/write_cmd/`, `write_batch.rs` |
 | `task` | hierarquia `epic ⊃ {issue ⊃ task \| task}`. | `commands/task/` |
 | `map` | mapa de conhecimento (clusters + comunidades GraphRAG, D193). | `commands/knowledge/map.rs` |
@@ -49,7 +49,7 @@ Fonte da verdade: [`plan/implementation/16_cli_surface.md`](../../plan/implement
 
 **Domínio (8):** `ask`, `write`, `task`, `rewind`, `map`, `doctor`, `drain`, `forget`.
 **Fundação/meta (5):** `init`, `prime`, `sync`, `config`, `self`.
-**Integração (1):** `ai` (fonte JSONL de um agente, D218). O verbo `knowledge` não existe
+**Integração (1):** `ai` (shards NDJSON de um agente, D220–D222). O verbo `knowledge` não existe
 mais (D209): `ask --rank|--tags|--suggest`, `map`, `config promote`.
 
 ## Estrutura

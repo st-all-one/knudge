@@ -25,7 +25,7 @@ mod parse;
 mod tests;
 
 /// Versão atual do schema (D15/D207).
-pub const SCHEMA_VERSION: u32 = 2;
+pub const SCHEMA_VERSION: u32 = 3;
 
 pub use claims::{Claim, claims, claims_from_value, claims_to_value};
 pub use edge::{EDGE_KEYS, Edge, EdgeKind};
@@ -34,5 +34,5 @@ pub use keys::{CANONICAL_KEYS, REQUIRED_KEYS};
 pub use outcomes::{OutcomeStats, outcome_stats};
 pub use provenance::{Provenance, provenance, provenance_from_value};
 pub use slots::{Slot, expected_slots, missing_slots};
-pub use types::{Classification, NoteType, Scope, Status};
+pub use types::{AgentRole, Classification, NoteType, Scope, Status};
 pub use value::Value;

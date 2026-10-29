@@ -59,6 +59,8 @@ pub(super) fn parse_ask_params(value: &Value) -> Result<AskArgs> {
     args.scope = map.get("scope").and_then(Value::as_str).map(str::to_string);
     args.anchor = string_list(map.get("anchor"))?;
     args.agent = string_list(map.get("agent"))?;
+    args.agent_id = string_list(map.get("agent_id"))?;
+    args.agent_role = string_list(map.get("agent_role"))?;
     args.activity = string_list(map.get("activity"))?;
     args.since = map.get("since").and_then(Value::as_str).map(str::to_string);
     args.until = map.get("until").and_then(Value::as_str).map(str::to_string);

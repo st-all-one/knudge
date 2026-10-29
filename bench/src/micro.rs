@@ -27,6 +27,8 @@ use knudge_core::retrieval::{
     rank as composite_rank, recall,
 };
 use knudge_core::schema::{NoteType, body, hash, id};
+use knudge_core::corpus::parse_jsonl;
+use knudge_core::store::Note;
 use knudge_core::task::{impact, impacts};
 use knudge_core::toon;
 use knudge_core::write::{DedupThresholds, Draft, propose_merges};
@@ -46,6 +48,63 @@ const SAMPLE_TOML: &str = "[recall]\ndefault_limit = 5\nrrf_k = 60\nlexical_weig
 pub fn run(harness: &mut Harness, sizes: &[usize]) {
     fixed(harness);
     scaling(harness, sizes);
+    agent_memory(harness);
+}
+
+/// Memória de agentes v2 (D219/D223): `parse_jsonl` com `BTreeMap` vs o `upsert` linear antigo.
+///
+/// Tamanhos fixos (1k/10k/100k) independentes de `--sizes`: é o contrato de escala do shard.
+fn agent_memory(harness: &mut Harness) {
+    let sizes = [1_000_usize, 10_000, 100_000];
+    for size in sizes {
+        let notes = fixture::generate_notes(size);
+        let mut text = String::new();
+        for note in &notes {
+            if let Ok(line) = note.to_jsonl() {
+                text.push_str(&line);
+                text.push('\n');
+            }
+        }
+        let lines: Vec<&str> = text.lines().collect();
+        harness.measure(
+            "micro/ai",
+            &format!("corpus::parse_jsonl (shard N={size})"),
+            3,
+            1,
+            || {
+                let _ = black_box(parse_jsonl(black_box(&text)));
+            },
+        );
+        // Referência do algoritmo anterior (busca linear por linha): O(N²).
+        if size <= 10_000 {
+            harness.measure(
+                "micro/ai-legacy",
+                &format!("upsert linear (referência N={size})"),
+                3,
+                1,
+                || {
+                    legacy_upsert(black_box(&lines));
+                },
+            );
+        }
+    }
+}
+
+/// `upsert` linear da versão anterior, mantido **só** como referência de regressão na bancada.
+fn legacy_upsert(lines: &[&str]) {
+    let mut notes: Vec<Note> = Vec::new();
+    for line in lines {
+        let Ok(note) = Note::from_jsonl(line) else {
+            continue;
+        };
+        let id = note.id().unwrap_or_default().to_string();
+        if let Some(slot) = notes.iter_mut().find(|item| item.id().unwrap_or_default() == id) {
+            *slot = note;
+        } else {
+            notes.push(note);
+        }
+    }
+    let _ = black_box(notes.len());
 }
 
 fn fixed(harness: &mut Harness) {

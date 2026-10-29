@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use knudge_core::Result;
 use knudge_core::retrieval::{
-    RecallHit, body_matches, body_snippet, format_brief, format_hit, get,
+    Meta, RecallHit, body_matches, body_snippet, format_brief, format_hit, get,
 };
 use serde_json::json;
 
@@ -102,51 +102,91 @@ pub(super) fn render_hit(
     }
 }
 
-/// Envelope JSON de um hit (completo; `body_match`/`body_snippet` quando há corpo).
-pub(super) fn hit_json(
-    hit: &RecallHit,
-    format: HitFormat,
-    bodies: &BTreeMap<String, String>,
-    as_of: Option<&str>,
-    query: &str,
-) -> serde_json::Value {
-    let mut value = if format == HitFormat::Brief {
-        json!({ "id": hit.id, "statement": hit.statement })
-    } else {
-        json!({
-            "id": hit.id,
-            "statement": hit.statement,
-            "score": hit.score,
-            "confidence": hit.confidence,
-            "why": hit.why.as_str(),
-            "channels": {
-                "lexical": hit.channels.lexical,
-                "anchor": hit.channels.anchor,
-                "semantic": hit.channels.semantic,
-                "ppr": hit.channels.ppr,
-                "recent": hit.channels.recent,
-                "stars": hit.channels.stars,
-                "body": hit.channels.body,
-            },
-        })
-    };
-    if as_of.is_some()
-        && let Some(object) = value.as_object_mut()
-    {
-        let _ignored = object.insert("historical".to_string(), json!(true));
-    }
-    if let Some(text) = bodies.get(hit.id.as_str())
-        && let Some(object) = value.as_object_mut()
-    {
-        let matched = body_matches(text, query);
-        let _ignored = object.insert("body".to_string(), json!(text));
-        let _ignored = object.insert("body_match".to_string(), json!(matched));
-        if matched {
-            let _ignored = object.insert(
-                "body_snippet".to_string(),
-                json!(body_snippet(text, query, 240)),
-            );
+/// Contexto de renderização JSON de um hit (formato, corpos e consulta).
+pub(super) struct HitJson<'a> {
+    /// Formato pedido no pipe (`--brief`/`--full-content`/progressivo).
+    pub format: HitFormat,
+    /// Corpos carregados por id (vazio em `--brief`).
+    pub bodies: &'a BTreeMap<String, String>,
+    /// Instante reconstruído (`--as-of`), se houver.
+    pub as_of: Option<&'a str>,
+    /// Texto da consulta (para `body_match`/`body_snippet`).
+    pub query: &'a str,
+}
+
+impl HitJson<'_> {
+    /// Envelope JSON de um hit (completo; `body_match`/`body_snippet` quando há corpo).
+    pub(super) fn render(&self, hit: &RecallHit, meta: Option<&Meta>) -> serde_json::Value {
+        let format = self.format;
+        let bodies = self.bodies;
+        let as_of = self.as_of;
+        let query = self.query;
+        let mut value = if format == HitFormat::Brief {
+            json!({ "id": hit.id, "statement": hit.statement })
+        } else {
+            json!({
+                "id": hit.id,
+                "statement": hit.statement,
+                "score": hit.score,
+                "confidence": hit.confidence,
+                "why": hit.why.as_str(),
+                "channels": {
+                    "lexical": hit.channels.lexical,
+                    "anchor": hit.channels.anchor,
+                    "semantic": hit.channels.semantic,
+                    "ppr": hit.channels.ppr,
+                    "recent": hit.channels.recent,
+                    "stars": hit.channels.stars,
+                    "body": hit.channels.body,
+                },
+            })
+        };
+        insert_identity(&mut value, meta);
+        if as_of.is_some()
+            && let Some(object) = value.as_object_mut()
+        {
+            let _ignored = object.insert("historical".to_string(), json!(true));
         }
+        if let Some(text) = bodies.get(hit.id.as_str())
+            && let Some(object) = value.as_object_mut()
+        {
+            let matched = body_matches(text, query);
+            let _ignored = object.insert("body".to_string(), json!(text));
+            let _ignored = object.insert("body_match".to_string(), json!(matched));
+            if matched {
+                let _ignored = object.insert(
+                    "body_snippet".to_string(),
+                    json!(body_snippet(text, query, 240)),
+                );
+            }
+        }
+        value
     }
-    value
+}
+
+/// Anexa a identidade do agente e `created_at` ao hit (D221/D222).
+fn insert_identity(value: &mut serde_json::Value, meta: Option<&Meta>) {
+    let Some(object) = value.as_object_mut() else {
+        return;
+    };
+    let (created_at, agent, agent_id, role, parent) = match meta {
+        Some(meta) => (
+            meta.created_ms,
+            meta.agent.clone(),
+            Some(
+                meta.agent_id
+                    .clone()
+                    .or_else(|| meta.agent.clone())
+                    .unwrap_or_else(|| "legacy".to_string()),
+            ),
+            meta.agent_role.unwrap_or_default().as_str(),
+            meta.parent_agent_id.clone(),
+        ),
+        None => (0, None, None, "main", None),
+    };
+    let _ignored = object.insert("created_at".to_string(), json!(created_at));
+    let _ignored = object.insert("agent".to_string(), json!(agent));
+    let _ignored = object.insert("agent_id".to_string(), json!(agent_id));
+    let _ignored = object.insert("agent_role".to_string(), json!(role));
+    let _ignored = object.insert("parent_agent_id".to_string(), json!(parent));
 }

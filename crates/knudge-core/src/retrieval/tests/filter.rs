@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 
 use crate::Result;
 use crate::retrieval::{Filter, Index, Meta};
-use crate::schema::{Classification, NoteType, Status};
+use crate::schema::{AgentRole, Classification, NoteType, Status};
 use crate::store::Note;
 
 use super::{base, note, tagged, with_status};
@@ -113,6 +113,9 @@ fn empty_meta() -> Meta {
         tags: Vec::new(),
         anchors: Vec::new(),
         agent: None,
+        agent_id: None,
+        agent_role: None,
+        parent_agent_id: None,
         activity: None,
         created_ms: 0,
         confirmation: 0.0,
@@ -149,4 +152,64 @@ fn provenance_filters_exclude_notes_without_provenance() {
     filter.agents.clear();
     filter.activities = vec!["derive".to_string()];
     assert!(!filter.matches(&meta));
+}
+
+#[test]
+fn provenance_filters_match_agent_identity_and_role() {
+    let mut meta = empty_meta();
+    meta.agent = Some("omp".to_string());
+    meta.agent_id = Some("omp:main".to_string());
+    meta.agent_role = Some(AgentRole::Main);
+    meta.parent_agent_id = None;
+
+    let mut filter = Filter::new();
+    filter.agent_ids = vec!["omp:main".to_string()];
+    filter.agent_roles = vec![AgentRole::Main];
+    assert!(filter.matches(&meta));
+
+    filter.agent_ids = vec!["omp:sub".to_string()];
+    assert!(!filter.matches(&meta));
+    filter.agent_ids = vec!["omp:main".to_string()];
+    filter.agent_roles = vec![AgentRole::Subagent];
+    assert!(!filter.matches(&meta));
+
+    let mut bare = empty_meta();
+    bare.agent_id = None;
+    bare.agent_role = None;
+    let mut filter = Filter::new();
+    filter.agent_ids = vec!["omp:main".to_string()];
+    assert!(!filter.matches(&bare));
+    filter.agent_ids.clear();
+    filter.agent_roles = vec![AgentRole::Main];
+    assert!(
+        filter.matches(&bare),
+        "agent_role ausente aplica o default `main` (D221)"
+    );
+}
+
+#[test]
+fn provenance_identity_filters_apply_read_defaults() {
+    let mut meta = empty_meta();
+    meta.agent = Some("ktu".to_string());
+    let mut filter = Filter::new();
+    filter.agent_ids = vec!["ktu".to_string()];
+    assert!(
+        filter.matches(&meta),
+        "agent_id ausente cai para agent (D221)"
+    );
+    filter.agent_ids = vec!["legacy".to_string()];
+    assert!(!filter.matches(&meta));
+    filter.agent_ids.clear();
+    filter.agent_roles = vec![AgentRole::Main];
+    assert!(
+        filter.matches(&meta),
+        "agent_role ausente cai para main (D221)"
+    );
+    filter.agent_roles = vec![AgentRole::Subagent];
+    assert!(!filter.matches(&meta));
+
+    let bare = empty_meta();
+    let mut filter = Filter::new();
+    filter.agent_ids = vec!["legacy".to_string()];
+    assert!(filter.matches(&bare), "sem proveniência cai para legacy");
 }

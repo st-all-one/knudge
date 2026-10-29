@@ -122,7 +122,7 @@ fn statement_limit_counts_scalars() {
 
 #[test]
 fn schema_version_is_frozen() {
-    assert_eq!(SCHEMA_VERSION, 2);
+    assert_eq!(SCHEMA_VERSION, 3);
 }
 
 #[test]

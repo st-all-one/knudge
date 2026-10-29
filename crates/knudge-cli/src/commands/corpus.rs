@@ -85,6 +85,8 @@ impl CorpusScope {
             tags: self.tags.clone(),
             anchors: self.anchors.clone(),
             agents: self.agents.clone(),
+            agent_ids: Vec::new(),
+            agent_roles: Vec::new(),
             activities: self.activities.clone(),
         };
         let allowed = self.allowed(graph)?;

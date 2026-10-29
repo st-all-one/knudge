@@ -27,7 +27,7 @@ pub use persist::size_warning;
 pub const INDEX_FILE: &str = "retrieval.jsonl";
 
 /// Cabeçalho de formato do índice (D172) — muda quando a tokenização muda.
-pub const INDEX_FORMAT: &str = "retrieval-v4";
+pub const INDEX_FORMAT: &str = "retrieval-v5";
 
 /// Acima deste tamanho (bytes) o índice emite aviso (E06-T07).
 pub const INDEX_WARN_BYTES: u64 = 8_388_608;

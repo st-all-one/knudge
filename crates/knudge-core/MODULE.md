@@ -53,7 +53,7 @@ determinístico padrão dos testes do core.
 | `toon` | Parser/emissor do frontmatter TOON. | `parse`, `emit`, `split_frontmatter` |
 | `jsonl` | JSONL tolerante + codec JSON canônico. | `lines`, `json::{encode, decode}` |
 | `store` | Persistência crash-safe de notas/eventos/lock/rebuild + codec JSONL da nota. | `Store`, `Note`, `EventLog`, `LockGuard` |
-| `corpus` | Leitura **única** de uma **fonte** (`notas/` ou JSONL) em notas + índice + grafo. | `Corpus`, `Source`, `load_notes`, `load_fresh` |
+| `corpus` | Leitura **única** de uma **fonte** (`notas/`, JSONL ou diretório de shards NDJSON) em notas + índice + grafo; merge determinístico. | `Corpus`, `Source`, `parse_jsonl`, `shard_file_name` |
 | `config` | Config em dois níveis + codec TOML próprio. | `Config`, `ConfigValue`, `Table` |
 | `git` | Worktree, `info/exclude`, `AGENTS.md`, skill, `sync`. | `Project`, `onboard`, `sync`, `protocol_block` |
 | `graph` | Projeção de arestas: integridade, ciclos, rank, comunidades, ontologia, TMS. | `Graph`, `louvain`, `pagerank`, `equivalence_classes` |
@@ -106,7 +106,7 @@ Fixa ordem de chaves (D04/D13), enums fechados, normalização/hash (D06/D95) e 
 
 | Arquivo | Papel |
 |---|---|
-| `mod.rs` | Reexports; `SCHEMA_VERSION = 2`. |
+| `mod.rs` | Reexports; `SCHEMA_VERSION = 3`. |
 | `keys.rs` | `CANONICAL_KEYS` (**31**, ordem canônica), `REQUIRED_KEYS` (5; `type` derivado em `epic`). |
 | `types.rs` | Enums fechados: `NoteType` (**10** armazenáveis + `Epic` **derivado** de `scope=epic`, D149), `Scope` (`epic`/`issue`/`task`), `Classification` (`foundational`/`tactical`/`observational`), `Status` (`active`/`in_progress`/`blocked`/`closed`/`superseded`/`forgotten`). |
 | `parse.rs` | `FromStr` dos enums fechados com "did-you-mean" (D212). |
@@ -206,7 +206,7 @@ Cascata do mais barato ao mais caro: filtros → BM25 no resíduo → âncoras �
 | Arquivo | Papel |
 |---|---|
 | `mod.rs` | `recall`/`get`; `RecallQuery`/`RecallHit`/`HitChannels`; consts (`DEFAULT_RRF_K=60`, `DEFAULT_LIMIT=5`, `DEFAULT_MAX_TERM_RATIO=0.9`). |
-| `index/` | `Index` derivado, persistência canônica e carga tolerante; `INDEX_FORMAT = "retrieval-v4"`. |
+| `index/` | `Index` derivado, persistência canônica e carga tolerante; `INDEX_FORMAT = "retrieval-v5"`. |
 | `postings.rs` | Índice invertido em memória (peneira do BM25, nunca persistido). |
 | `bm25.rs` | BM25 com IDF por campo e boost por confirmação. |
 | `token.rs` | Tokenização com fold de diacríticos (D172). |
@@ -361,7 +361,7 @@ determinístico para testes (D89).
 - Ordem canônica de **31 chaves** (`CANONICAL_KEYS`); opcionais **omitidos**, nunca `null`.
 - `type` é enum fechado de **10** armazenáveis (`epic` é derivado de `scope=epic`, D149); `EdgeKind` de **12**; `scope`/`classification`/`status` fechados.
 - `normalize` = NFC + trim + colapso; `body_hash` e `id` derivam dele (D95).
-- `SCHEMA_VERSION = 2` (claims/proveniência, D207); `INDEX_FORMAT = "retrieval-v4"` (D206).
+- `SCHEMA_VERSION = 3` (identidade de agente, D221; claims/proveniência desde D207); `INDEX_FORMAT = "retrieval-v5"` (D221).
 - Chave desconhecida: rejeita no write, warning no read. Tipo desconhecido: rejeita a nota.
 
 ## Testes
