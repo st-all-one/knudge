@@ -3,7 +3,7 @@
 Uma decisão por arquivo, gerada de [`plan/03_decisoes-fechadas.md`](../../../plan/03_decisoes-fechadas.md).
 Cada ADR traz **status**, **categoria**, **contexto mínimo**, a **decisão** e o **impacto obtido**.
 
-Total: **203** decisões.
+Total: **209** decisões.
 
 | # | Título | Status | Categoria |
 |---|---|---|---|
@@ -210,6 +210,12 @@ Total: **203** decisões.
 | [D216](D216-modelo-de-embedding-default-gemma-2.md) | Modelo de embedding default passa a gemma-2 (768d, prefixos de tarefa) | Aceita | Embeddings (D79–D101) |
 | [D217](D217-skill-do-kd-em-plural.md) | Skill do `kd` passa para `.agents/skills/kd` (plural) | Aceita | Git e artefatos gerados (D60/D162) |
 | [D218](D218-fonte-jsonl-read-only-e-area-ai.md) | Fonte JSONL read-only (`Source`) + área `kd ai` | Aceita | Eixo de memória / integração de agentes (D207/D214) |
+| [D219](D219-ndjson-formato-canonico.md) | NDJSON/JSONL é o formato canônico de escrita; JSON-LD fica para export futuro | Aceita | Eixo de memória v2 (D219–D224) |
+| [D220](D220-knudge-ai-shards-por-agente.md) | Memória em shards por agente (`.knudge/ai/<area>/<agent_id>.jsonl`) | Aceita | Eixo de memória v2 (D219–D224) |
+| [D221](D221-identidade-de-agente-na-proveniencia.md) | Identidade de agente na proveniência (schema 3) | Aceita | Eixo de memória v2 (D219–D224) |
+| [D222](D222-created-at-eixo-temporal-sort.md) | `created_at` é o eixo temporal; `--sort id\|time` | Aceita | Eixo de memória v2 (D219–D224) |
+| [D223](D223-dedup-btree-e-conflito-entre-shards.md) | Dedup por `BTreeMap` e conflito determinístico entre shards | Aceita | Eixo de memória v2 (D219–D224) |
+| [D224](D224-sem-migracao-e-sem-retrocompatibilidade.md) | Sem migração e sem retrocompatibilidade: o agente reescreve a memória | Aceita | Eixo de memória v2 (D219–D224) |
 
 ## Como usar
 

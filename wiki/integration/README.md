@@ -3,6 +3,8 @@
 Esta pasta documenta como usar o **`knudge-core`** como **biblioteca** dentro de outro projeto
 Rust: dependência, montagem da sessão, cada subsistema (modelo, store, busca, escrita, tarefas,
 grafo, saúde, ciclo de vida, embeddings, git/config) e como **manter o funcionamento otimizado**.
+O guia [`ai-memory.md`](ai-memory.md) é a exceção: cobre a integração de um **agente de IA** com a
+área `kd ai`, em qualquer linguagem.
 
 > **Escopo.** A CLI `kd` e o servidor `knudge-mcp` são **bordas** (parsing, saída, gatilhos MCP,
 > instalação). O núcleo contém o **domínio**: tudo que é memória, busca, escrita, tarefas,
@@ -77,6 +79,7 @@ let kd = Knudge::builder().knowledge_dir(".a/b").open()?;
 | [11](11_git_e_config.md) | Git e configuração | `Project`, `onboard`, exclude/attributes, `sync`, config 2 níveis, segredos |
 | [12](12_erros_logs_e_determinismo.md) | Erros, logs e determinismo | `Error`/exit codes, `warnings`/`strict`, `Logger`/redação, fakes |
 | [13](13_performance_e_otimizacao.md) | Performance | playbook de otimização e checklist de produção |
+| [ai-memory](ai-memory.md) | Memória de agentes (`kd ai`) | guia resumido, language-agnostic, para o **escritor**: shards NDJSON por `agent_id`, identidade, `created_at` monotónico e consulta determinística (D219–D224) |
 
 ## Convenções
 

@@ -111,7 +111,7 @@ miri:
 ## Fuzz smoke dos parsers (E13-T08).
 fuzz:
 	@if command -v cargo-fuzz >/dev/null 2>&1; then \
-		$(CARGO) fuzz build; \
+		$(CARGO) +nightly fuzz build; \
 	else \
 		echo "cargo-fuzz ausente; pule (cargo install cargo-fuzz --locked)"; \
 	fi

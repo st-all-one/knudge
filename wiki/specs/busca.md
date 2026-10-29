@@ -52,7 +52,7 @@ A cadeia do canal lexical (índice + consulta) aplica, nesta ordem:
    4 bytes, normalização de plural antes do corte derivacional.
 
 O índice persiste o **radical**; o snippet continua com **termos crus** (`content_terms`).
-`INDEX_FORMAT = "retrieval-v4"` invalida índices antigos (rebuild por `mtime`).
+`INDEX_FORMAT = "retrieval-v5"` invalida índices antigos (rebuild por `mtime`).
 
 ## Âncoras (D81/D86/D135)
 

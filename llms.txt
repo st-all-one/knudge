@@ -90,7 +90,7 @@
   índice invertido em memória (não persistido).
 - **Tokenização:** ASCII → fold de diacríticos (NFD, `café≡cafe`, termo inteiro — D172) →
   stopwords PT+EN + fragmentos de 1 char → stemming PT conservador (radical ≥4 bytes — D206).
-  `normalize`/`id`/`body_hash` seguem NFC. `INDEX_FORMAT = "retrieval-v4"`.
+  `normalize`/`id`/`body_hash` seguem NFC. `INDEX_FORMAT = "retrieval-v5"` (D221).
 - **RRF:** `Σ peso_c/(k+rank+1)`, `k=60`; pesos `lexical 1.0`, `anchor 2.0`, `semantic 30.0`,
   `ppr 0.0`; desempate `(score desc, id asc)`.
 - **Âncoras:** canal por path/glob (`GlobPattern` DP); só entra quando intersecta o working set.
@@ -105,21 +105,32 @@
   Revelação progressiva (D161): 1º hit corpo completo, 2–5 truncado a `preview_chars=280`, resto
   `id|statement|score|why`; `--brief` desliga, `--full-content` mostra tudo. `default_limit=5`.
 
-## Fontes de corpus e memória de agente (`fontes.md`, D218)
+## Fontes de corpus e memória de agente (`fontes.md`, D218–D224)
 
-- **`Source`** (`corpus::Source`): `NotesDir` (default, `notas/<tipo>/<id>.md`) ou `Jsonl(path)` —
-  um store de linhas `{"frontmatter": {…}, "body": "…"}` (`Note::to_jsonl`/`from_jsonl`), lido
-  **read-only** com dedup-on-read por `id` (D26) e linha malformada = *skip + warning* (D18).
+- **`Source`** (`corpus::Source`): `NotesDir` (default, `notas/<tipo>/<id>.md`), `Jsonl(path)` ou
+  `JsonlDir(dir)` — NDJSON `{"frontmatter": {…}, "body": "…"}` (`Note::to_jsonl`/`from_jsonl`),
+  lido **read-only**. `Source::at` escolhe ficheiro/diretório.
+- **Layout:** `.knudge/ai/<area>/<agent_id>.jsonl` — um shard por escritor (`memory`,
+  `session-log`; `events/` reservado). Sem manifesto mutável; `*.jsonl` em ordem lexicográfica.
+- **Dedup:** `BTreeMap`, O(N log N); dentro do shard vence a última linha (D26); entre shards vence
+  `(created_at, agent_id, caminho do shard)` (D223). Linha malformada = *skip + warning* com o
+  shard; ausente = vazio; leitura concorrente sem lock.
 - **Regra de ouro:** o knudge **indexa** (derivado); o agente **possui** a fonte. O contrato é o
   **documento** (o schema do knudge), **nunca** o schema interno do agente.
-- **`kd ai [memory|session-log] [QUERY...] [--source PATH] [--limit N]`** — área fina e read-only
-  sobre a fonte; sem query lista (`id|tipo|statement`), com query faz recall (`id|statement|score`;
-  `[no_results]` se vazio, D152). Área inválida → exit 2 (D212); fonte ausente → vazio, exit 0.
+- **`kd ai [memory|session-log] [QUERY...] [--source PATH] [--limit N] [--sort id|time]
+  [--agent-id ID...] [--agent-role main|subagent...] [--params JSON|-]`** — sem query lista
+  (`id|tipo|statement`); com query faz recall (`id|statement|score`; `[no_results]` se vazio,
+  D152). Área inválida → exit 2 (D212); fonte ausente → vazio, exit 0. `--sort time` ordena por
+  `(created_at, agent_id, id)`; o JSON inclui `created_at` e a identidade.
+- **Sem retrocompatibilidade:** `.agents/memory` não é lido e não existe `kd ai migrate` (D224).
+- **Identidade (schema 3, D221):** `provenance.agent` (nome), `agent_id` (instância),
+  `agent_role` (`main|subagent`), `parent_agent_id`. Defaults de leitura: `agent_id`=agent ou
+  `legacy`, role=`main`, parent ausente — sem reescrever bytes v2.
 - **`session-log`** só por **projeção do agente** em notas derivadas (`provenance.activity=derive`)
   — o knudge não conhece o schema de eventos de ninguém.
-- **Filtros de proveniência:** `kd ask --agent NAME` / `--activity NAME` (igualdade com
-  `provenance.agent`/`activity`; repetível/vírgula; `--params` transporta). `Meta`/`Filter` e o
-  codec do `.idx/` acompanham (índice antigo lê `None`, D15).
+- **Filtros de proveniência:** `kd ask --agent`/`--activity`/`--agent-id`/`--agent-role`
+  (igualdade; repetível/vírgula; `--params` transporta). `Meta`/`Filter` e o codec do `.idx/`
+  (`retrieval-v5`) acompanham.
 - **Adiado:** registo de agentes (`.knudge/agents.toml`) só com ≥2 consumidores (YAGNI).
 
 ## Escrita e dedup (`escrita-e-dedup.md`)
@@ -292,11 +303,12 @@
 
 - **`ask`:** modos `--rank`/`--tags`/`--suggest` (+ `--universe`/`--top-k`/`--relation`); `--id`
   (get), `--around --via --depth` (expand); filtros `--type/--class/--tag/--status/--scope/
-  --anchor/--agent/--activity/--since/--until/--as-of`; `--limit/--brief/--full-content/--with-task/--params`.
-- **`ai` (D218):** `kd ai [memory|session-log] [QUERY...] [--source PATH] [--limit N]` — consulta
-  **read-only** de uma **fonte** JSONL de notas (`{frontmatter, body}`) de outro agente; sem query
-  lista, com query faz recall. Convenções: `.agents/memory/notes.jsonl` (memória) e
-  `.agents/memory/session-log.jsonl` (projeção do log pelo agente, `activity=derive`).
+  --anchor/--agent/--activity/--agent-id/--agent-role/--since/--until/--as-of`; `--limit/--brief/--full-content/--with-task/--params`.
+- **`ai` (D218–D224):** `kd ai [memory|session-log] [QUERY...] [--source PATH] [--limit N]
+  [--sort id|time] [--agent-id ID...] [--agent-role main|subagent...] [--params JSON|-]` — consulta
+  **read-only** de shards NDJSON de notas (`{frontmatter, body}`) de outro agente; sem query lista,
+  com query faz recall. Defaults: `.knudge/ai/memory` e `.knudge/ai/session-log`. Sem
+  `.agents/memory` e sem `migrate`.
 - **`write`:** `--summary [body] --type --tag --anchor --class --status`; `--update`/`--id`;
   `--link FROM:EDGE:TO`; `--edge EDGE:ID`; `--claim S:R:O`/`--agent`/`--activity`; `--outcome`;
   `--batch`/`--params`/`--dry-run`.

@@ -1,12 +1,12 @@
 # Modelo de dados
 
 Como o knudge representa conhecimento: o **frontmatter canônico**, a **identidade endereçada por
-conteúdo**, os **enums fechados** e as extensões semânticas (claims e proveniência). É o contrato
-de bytes (D04/D06/D95) — mudar isto exige golden e, se for decisão, um `Dxx`.
+conteúdo**, os **enums fechados** e as extensões semânticas (claims, proveniência e identidade de
+agente). É o contrato de bytes (D04/D06/D95) — mudar isto exige golden e, se for decisão, um `Dxx`.
 
 - Código: `crates/knudge-core/src/schema/`
 - Gramática/serialização: [`TOON.md`](TOON.md)
-- Decisões: D01–D13, D95, D98, D100, D135, D142, D149, D207
+- Decisões: D01–D13, D95, D98, D100, D135, D142, D149, D207, D218–D224
 
 ## A nota
 
@@ -70,6 +70,7 @@ exige bump de `schema_version` (D14).
 | `Classification` | `foundational`, `tactical`, `observational` | rege shelf-life (D44). |
 | `Status` | `active`, `in_progress`, `blocked`, `closed`, `superseded`, `forgotten` | `VISIBLE` = `active`/`in_progress`/`blocked`/`closed` (D176). |
 | `EdgeKind` | `references`, `depends_on`, `contradicts`, `supports`, `extends`, `replaces`, `rejects`, `results_in`, `same_as`, `broader`, `narrower`, `related` (**12**) | `is_ontology`/`is_symmetric`/`inverse`/`is_supersession` (D207). |
+| `AgentRole` | `main`, `subagent` | papel da instância em `provenance` (D221). |
 
 ## Extensões semânticas (D207)
 
@@ -78,10 +79,36 @@ exige bump de `schema_version` (D14).
   (classes de equivalência, clausura, ciclo).
 - **`claims`:** lista de mapas `{subject, relation, object}` (SPO), strings trimadas, ≤120
   escalares, relação de mundo aberto. Permite contradição **precisa** (`claim_conflicts`).
-- **`provenance`:** mapa PROV-lite `{entity, activity, agent}`.
+- **`provenance`:** mapa PROV-lite `{entity, activity, agent, agent_id, agent_role,
+  parent_agent_id}`. `agent` é o nome lógico; `agent_id`/`agent_role`/`parent_agent_id` são a
+  identidade de instância (schema 3, D221).
 
-Ambos são **aditivos** (`schema_version` 1→2); notas v1 seguem válidas e o rebuild é
-byte-idêntico.
+As extensões são **aditivas**: `claims` e `provenance` entraram no bump 1→2 (D207); a identidade
+de agente entrou no bump 2→3 (D221). Notas v1/v2 seguem válidas e o rebuild é byte-idêntico — os
+campos novos só aparecem quando usados.
+
+## Identidade de agente (schema 3, D221)
+
+A identidade vive em `provenance`, **sem novas chaves de topo**:
+
+| Campo | Papel | Regra |
+|---|---|---|
+| `agent` | nome lógico (`omp`, `ktu`, …) | inalterado; filtro histórico |
+| `agent_id` | instância (sessão/processo) | ≤ 128 caracteres, sem caracteres de controlo |
+| `agent_role` | papel da instância | enum **fechado** `main` \| `subagent` |
+| `parent_agent_id` | criador do subagente | recomendado só em `subagent`; ≤ 128, sem controlo |
+
+- **Defaults de leitura** (nunca reescrevem a nota): `agent_id` = `agent_id` ou `agent` ou
+  `"legacy"`; `agent_role` = `main`; `parent_agent_id` = ausente.
+- **Ordem de serialização**: `entity`, `activity`, `agent`, `agent_id`, `agent_role`,
+  `parent_agent_id` — campos ausentes omitidos, nunca `null` (D13). O emissor só inclui identidade
+  **presente**, pelo que uma nota v2 faz round-trip byte-idêntico.
+- **Validação**: `agent_id`/`parent_agent_id` acima de 128 caracteres ou com caracteres de
+  controlo rejeitam a nota; `agent_role` fora do enum é erro; strings vazias após trim são
+  rejeitadas.
+- **`agent_id` não entra no `id`**: o id continua content-addressed por `type + statement`
+  (D01–D03). A mesma afirmação escrita por outra instância mantém o id do conteúdo, não o do
+  escritor.
 
 ## `outcomes`, `anchors`, `checks`, `evidence`
 
@@ -102,15 +129,17 @@ casados por cabeçalho/rótulo com fold de diacríticos. **Sem chave nova e sem 
 ## Validação
 
 `Frontmatter::validate()` (`schema/frontmatter.rs`) checa chaves conhecidas, tipos, limites
-(`statement ≤ 120` escalares Unicode — D08) e a forma de `claims`/`provenance`. O `doctor` usa o
-mesmo núcleo via o check `integrity`/`body`.
+(`statement ≤ 120` escalares Unicode — D08), a forma de `claims`/`provenance` e, no schema 3, os
+limites da identidade de agente (`agent_id`/`parent_agent_id` ≤ 128 caracteres, sem controlo;
+`agent_role` no enum). O `doctor` usa o mesmo núcleo via o check `integrity`/`body`.
 
 ## Contrato de bytes (resumo)
 
 - Ordem canônica sempre (nota nova insere na ordem — D13); opcionais omitidos, nunca `null`.
 - Inteiros normalizados na decodificação; nunca emitir `.0` (D09).
 - Raw UTF-8; escapar só `"`, `\` e controles (D10). Lista vazia → arquivo zero bytes (D11).
-- `SCHEMA_VERSION = 2` (D207).
+- `SCHEMA_VERSION = 3` (D221); `validate` aceita notas v2 e v3, e a leitura é tolerante a versões
+  anteriores — notas antigas continuam válidas e byte-idênticas no rebuild.
 
 ## Onde vive
 
@@ -129,4 +158,6 @@ mesmo núcleo via o check `integrity`/`body`.
 ## Testes
 
 `schema/tests.rs` e `schema/tests/semantic.rs`; proptest em normalize/IDs; golden de bytes em
-`crates/knudge-cli/tests/golden/`. `DIVERGENCES.md` #96 (fold), #110 (claims/ontologia).
+`crates/knudge-cli/tests/golden/`. Identidade: `provenance_round_trips_agent_identity`,
+`old_note_defaults_identity_without_rewriting_bytes`, `malformed_agent_identity_is_rejected`.
+`DIVERGENCES.md` #96 (fold), #110 (claims/ontologia), #120 (schema 3).

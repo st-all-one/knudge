@@ -8,7 +8,7 @@ Documentação organizada em três camadas:
 | [`specs/`](specs/README.md) | **documentação técnica**: arquitetura, contrato de bytes, bordas e um documento por subsistema. |
 | [`specs/adrs/`](specs/adrs/README.md) | **decisões** (`D01`–`D209`), uma por arquivo, com contexto e impacto. |
 | [`usage/`](usage/README.md) | **guias de uso** práticos: um documento por comando, com exemplos e resultados esperados. |
-| [`integration/`](integration/README.md) | **integração do `knudge-core`** em outro projeto Rust: fachada, cada subsistema e otimização. |
+| [`integration/`](integration/README.md) | **integração**: do `knudge-core` em outro projeto Rust e da memória de agentes (`kd ai`) no escritor do agente. |
 
 ## Por onde começar
 

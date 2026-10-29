@@ -7,7 +7,7 @@ Memória durável por projeto para agentes de IA — a nota é a verdade, o índ
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-2b3a42?style=for-the-badge)](./LICENSE-MIT)
 [![Rust](https://img.shields.io/badge/rust-1.99%2B-DEA584?style=for-the-badge&logo=rust&logoColor=000)](https://www.rust-lang.org/)
 [![MCP](https://img.shields.io/badge/MCP-JSON--RPC%202.0-6E56CF?style=for-the-badge)](wiki/usage/17_mcp.md)
-[![Version](https://img.shields.io/badge/version-0.6.1-009739?style=for-the-badge)](wiki/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.6.3-009739?style=for-the-badge)](wiki/CHANGELOG.md)
 
 </div>
 
@@ -29,7 +29,7 @@ curl --proto '=https' \
   | sh
 ```
 
-Versão fixa: `... | VERSION=v0.6.2 bash`. Outro destino: `... | INSTALL_DIR=/usr/local/bin bash`.
+Versão fixa: `... | VERSION=v0.6.3 bash`. Outro destino: `... | INSTALL_DIR=/usr/local/bin bash`.
 A partir do código-fonte: `make install`.
 
 Embeddings são opcionais e recomendados; um comando baixa o `llama.cpp` e o modelo GGUF e deixa o
@@ -78,6 +78,24 @@ kd doctor --fix --explain
 kd rewind
 kd rewind --scope <ID> --budget 4000
 ```
+
+## Memória de agentes
+
+A memória dos agentes vive em shards NDJSON dentro do projeto — um `<agent_id>.jsonl` por escritor,
+em `.knudge/ai/memory/` (memória) e `.knudge/ai/session-log/` (projeção do log). O agente escreve;
+o `kd` só lê e indexa.
+
+```bash
+kd ai                                    # lista a memória (id|tipo|statement)
+kd ai memory "rate limit do gateway"     # recall nos shards
+kd ai session-log --sort time --json     # projeção do log, em ordem temporal
+kd ai memory --agent-role subagent --limit 5 "parser TOON"
+```
+
+Flags, saída JSON e o contrato do escritor (um shard por `agent_id`, append com `O_APPEND`,
+`created_at` monotónico em ms, identidade em `provenance`) em
+[`wiki/usage/20_ai.md`](wiki/usage/20_ai.md); checklist de integração em
+[`wiki/integration/ai-memory.md`](wiki/integration/ai-memory.md).
 
 ## Documentação
 

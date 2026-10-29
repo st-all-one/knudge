@@ -4,11 +4,64 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+## [0.6.3] - 2026-10-29
+
 ### Adicionado
+- **Memória de agentes v2 em shards por agente (D219/D220).** O layout canônico passa a
+  `.knudge/ai/<area>/<agent_id>.jsonl` — **um shard por escritor** (`memory` e `session-log`),
+  append-only em NDJSON/JSONL, com `events/` reservado. `Source::JsonlDir(path)` varre os `*.jsonl`
+  em ordem lexicográfica sem manifesto mutável e `--source PATH` aceita **ficheiro ou diretório**;
+  `Source::at` escolhe pelo FS. O nome do shard é derivado por `shard_file_name` (ids seguros →
+  `<agent_id>.jsonl`; os demais → `<prefixo>-<hex8>.jsonl`, SHA-256 truncado). `.knudge/ai` segue
+  `knowledge.persist_in_project`.
+- **Identidade de agente na proveniência (schema 3, D221).** `provenance` ganha `agent_id`
+  (instância), `agent_role` (`main`/`subagent`) e `parent_agent_id`, com validação (≤128, sem
+  caracteres de controlo, enum fechado) e defaults de leitura (`agent_id` =
+  `agent_id`/`agent`/`"legacy"`; `agent_role` = `main`; `parent_agent_id` ausente). Notas v2
+  continuam válidas e byte-idênticas: a serialização só emite identidade presente.
+- **`created_at` como eixo temporal e `--sort id|time` (D222).** `kd ai` aceita `--sort`
+  (default `id`; `time` ordena por `(created_at, agent_id, id)`) e, no recall, `--sort time`
+  reordena os hits já limitados sem mudar o conjunto. `created_at` e a identidade aparecem no
+  `--json` de `kd ai` (topo `{area, source, sort, query, data}` + `warnings[]`) e nos hits de
+  `kd ask --json`.
+- **Filtros de identidade em `kd ai` e `kd ask`** — `--agent-id`/`--agent-role` (repetível ou
+  vírgula, D210) e os mesmos campos em `--params`, que define a consulta inteira.
 - **`embeddings.*` como contrato de consumidores** (`wiki/specs/embeddings.md` §Consumidores): o
   schema de configuração e o codec do índice passam a estar documentados como **interface** para
   outros agentes — o `ktu` (H8) usa as mesmas chaves e o mesmo `EmbeddingIndex`, para que as duas
   vistas não divirjam.
+
+### Alterado
+- **Índice derivado `retrieval-v5`** — o codec persiste `agent_id`, `agent_role` e
+  `parent_agent_id` (opcionais) no `Meta`; um índice `retrieval-v4` é rejeitado e reconstruído
+  (derivado, sem perda).
+- **Dedup e merge da fonte JSONL** — `BTreeMap<String, Note>` (O(N log N)) com saída ordenada por
+  `id`; dentro do shard vence a última linha (D26) e, entre shards, o maior
+  `(created_at, agent_id, caminho do shard)` (D223). A leitura pode correr durante um append, sem
+  lock.
+- **Documentação** — ADRs [`D219`](specs/adrs/D219-ndjson-formato-canonico.md),
+  [`D220`](specs/adrs/D220-knudge-ai-shards-por-agente.md),
+  [`D221`](specs/adrs/D221-identidade-de-agente-na-proveniencia.md),
+  [`D222`](specs/adrs/D222-created-at-eixo-temporal-sort.md),
+  [`D223`](specs/adrs/D223-dedup-btree-e-conflito-entre-shards.md) e
+  [`D224`](specs/adrs/D224-sem-migracao-e-sem-retrocompatibilidade.md); índices de ADRs e
+  `plan/03_decisoes-fechadas.md`; linhas novas em `DIVERGENCES.md` (#118–#121).
+
+### Removido
+- **Caminho legado `.agents/memory` (breaking, D224).** Os defaults `notes.jsonl`/
+  `session-log.jsonl` deixam de existir: a área default é `.knudge/ai/memory` e
+  `.knudge/ai/session-log`, e `.agents/memory` **não é lido** — sem fallback, sem deteção de
+  layout antigo e sem alias. Quem quiser consultar um ficheiro antigo usa `--source` explícito.
+- **A migração do plano v2** — **não existe `kd ai migrate`** (verbo não registado; comando
+  desconhecido, exit 2). O agente reescreve a sua memória no layout novo; o knudge não move,
+  copia nem apaga a fonte.
+
+### Corrigido
+- **Linha inválida na fonte JSONL agora é localizável** — o warning nomeia o **shard** e o número
+  da linha, e uma linha parcial no fim do ficheiro é ignorada nessa condição (D219/D223), em vez
+  de um aviso anônimo.
+- **Nomes de shard perigosos** — `agent_id` com `/`, `..`, controlo ou excesso de tamanho deixa de
+  poder escapar do diretório da área: o fallback saneado + hash é determinístico e confinado.
 
 ## [0.6.2] - 2026-10-17
 

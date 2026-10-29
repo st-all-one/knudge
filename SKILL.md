@@ -60,8 +60,8 @@ Top-level: `init prime rewind ask ai write task map maintenance doctor drain con
 | Most trusted | `kd ask --rank --universe` |
 | Tag vocabulary | `kd ask --tags` |
 | Semantic suggestions | `kd ask --suggest [--top-k N] [--relation duplicate\|contradiction\|link]` |
-| Filters | `--type --class --tag --status --scope --anchor --agent --activity --since --until --as-of` |
-| Another agent's memory/log | `kd ai [memory\|session-log] ["<q>"] [--source PATH] [--limit N]` (read-only JSONL source; D218) |
+| Filters | `--type --class --tag --status --scope --anchor --agent --activity --agent-id --agent-role --since --until --as-of` |
+| Agent memory shards | `kd ai [memory\|session-log] ["<q>"] [--source PATH] [--limit N] [--sort id\|time] [--agent-id ID] [--agent-role ROLE]` (read-only NDJSON; D220–D224) |
 | Record | `kd write --summary "<s>" [<body>\|-] [--type T] [--tag T] [--anchor P] [--class C] [--status S]` |
 | Version | `kd write --update <ID> --summary "<s>" [--clear-anchors]` |
 | Edge (existing) | `kd write --link <FROM:EDGE:TO>` |

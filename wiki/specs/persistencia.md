@@ -4,7 +4,7 @@ Como o knudge grava, lê e repara dados sem perder conhecimento em crash ou conc
 CLI (`kd`) e o MCP (`knudge-mcp`).
 
 - Código: `crates/knudge-core/src/store/`, `crates/knudge-core/src/corpus/`
-- Decisões: D20–D28, D84, D150, D160
+- Decisões: D20–D28, D84, D150, D160, D218–D224
 - Bordas: [`DIVERGENCES.md`](DIVERGENCES.md) (lock, atomicidade, ordem)
 
 ## Hierarquia de verdade
@@ -13,6 +13,7 @@ CLI (`kd`) e o MCP (`knudge-mcp`).
 |---|---|---|
 | `notas/<tipo>/<id>.md` | **verdade** (conteúdo canônico) | versionado |
 | `eventos/events.jsonl` (+ `events-NNNN.jsonl`) | auditoria append-only | `merge=union` |
+| `.knudge/ai/<área>/<agent_id>.jsonl` | memória/log do agente (NDJSON append-only; escrita do agente) | conforme `knowledge.persist_in_project` |
 | `.idx/` | **derivado** (índice, âncoras, drift, uso, sugestões, checkpoint) | descartável, reconstruível |
 | `.knudge/emb_cache.jsonl` | cache vetorial (opt-in versionado, D148) | reconstruível |
 | `.locks/` / `*.lock` | lock advisory | efêmero |
@@ -20,6 +21,23 @@ CLI (`kd`) e o MCP (`knudge-mcp`).
 Regra: **`notas/` é a verdade; eventos são auditoria; `.idx/` é derivado e nunca fonte da
 verdade** (D20/D21/D84). O layout `notas/<tipo>/<id>.md` é derivável do prefixo do id (D150);
 há leitura tolerante ao layout plano legado.
+
+## Memória de agentes (`.knudge/ai`)
+
+`.knudge/ai/` segue `knowledge.persist_in_project`, como o resto de `.knudge/`: com `true` os
+shards acompanham o repositório e só o derivado (`.idx/`, `cache/`, `.locks/`) fica excluído; com
+`false` todo o `.knudge/` é local-only. A **memória é do agente** — o knudge só a **lê** e indexa
+(uma só verdade, D218/D220).
+
+- Layout: `memory/<agent_id>.jsonl`, `session-log/<agent_id>.jsonl`; `events/` reservado.
+- Um shard por escritor, NDJSON **append-only**: o agente faz append de uma linha completa por
+  evento; o knudge nunca escreve, nunca trunca e **não toma lock de leitura**.
+- Leitura concorrente é segura: cada linha é completa e uma linha parcial no fim é ignorada com
+  warning naquela leitura. Linha malformada é *skip + warning*.
+- Entre shards, o mesmo `id` resolve por `(created_at, agent_id, caminho)`; dentro do shard vence
+  a última linha. O índice derivado (`retrieval-v5`) é reconstruível e nunca fonte da verdade.
+
+Detalhes em [`fontes.md`](fontes.md) e no guia [`../usage/20_ai.md`](../usage/20_ai.md).
 
 ## Escrita atômica (D20)
 
@@ -64,7 +82,7 @@ evento — o `doctor`/rebuild reconciliam; o inverso (evento sem nota) seria pio
 O índice derivado vive em `.idx/`; a reconstrução escreve em `.idx.new/` e **troca os diretórios
 por `rename`** (atômico). Um leitor concorrente vê o índice **antigo ou o novo, nunca pela
 metade** (`Staging` em `store/rebuild.rs`). O rebuild é acionado quando `INDEX_FORMAT` muda
-(ex.: `retrieval-v4`, D206) ou por `doctor --fix`.
+(ex.: `retrieval-v5`, D221) ou por `doctor --fix`.
 
 ## Purga, detach e sweep
 

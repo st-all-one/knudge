@@ -3,6 +3,12 @@
 - **Status:** Aceita
 - **Categoria:** Eixo de memória / integração de agentes (D207/D214)
 
+> **Revisada na 0.6.3 por D219–D224.** Os defaults passam a ser `.knudge/ai/<area>/` com um shard
+> NDJSON por `agent_id` (D220); a identidade ganha `agent_id`/`agent_role`/`parent_agent_id` e o
+> schema sobe para 3 (D221); `created_at` vira eixo temporal com `--sort time` (D222); o dedup passa
+> a `BTreeMap` e o conflito entre shards tem desempate determinístico (D223). Não há leitura de
+> `.agents/memory` nem comando de migração (D224).
+
 ## Contexto
 
 O knudge já é, na prática, o eixo de memória de um projeto: `notas/` é a verdade, o índice/grafo

@@ -467,3 +467,24 @@ indexa-o.
 O `session-log` entra **só** por projeção do agente — o knudge **não** conhece o schema de eventos de
 nenhum agente (o contrato é o **documento**, não o evento). O registo de agentes
 (`.knudge/agents.toml`) fica adiado até haver ≥2 consumidores (YAGNI).
+
+## 18. Delta v0.6.3 (D219–D224)
+
+Memória de agentes v2: shards NDJSON, identidade e tempo. Sem verbo novo de manutenção e **sem
+retrocompatibilidade** (não há `kd ai migrate`; `.agents/memory` deixa de ser lido).
+
+| Superfície | Forma | Papel |
+|---|---|---|
+| `kd ai [memory\|session-log] [QUERY...] [--source PATH] [--limit N] [--sort id\|time] [--agent-id ID...] [--agent-role main\|subagent...] [--params JSON\|-]` | verbo | consulta **read-only** de shards NDJSON `.knudge/ai/<area>/<agent_id>.jsonl`; `--source` aceita ficheiro ou diretório; `--sort time` = `(created_at, agent_id, id)`; identidade filtrável (D220–D222) |
+| `kd ask --agent-id <ID>...` / `--agent-role <PAPEL>...` | flags de `ask` | filtros de proveniência por igualdade com `provenance.agent_id`/`agent_role` (repetível/vírgula; `--params` transporta) — D221 |
+| `Source::JsonlDir(dir)` / `Source::at(fs, path)` | core | diretório de shards lido em ordem lexicográfica; merge determinístico `(created_at, agent_id, shard)` — D220/D223 |
+| `BTreeMap` em `parse_jsonl` | core | dedup O(N log N) e ordem final por `id` — D223 |
+| `provenance.agent_id` / `agent_role` / `parent_agent_id` | schema 3 | identidade de instância e posição na árvore de agentes — D221 |
+| `created_at` + identidade em `--json` | contrato | `kd ai` (notas/hits) e `kd ask` (hits); ordem default preservada — D222 |
+| `Meta`/`Filter` + `INDEX_FORMAT=retrieval-v5` | core | novos campos persistidos; índice anterior é reconstruído (D15) — D221 |
+
+Convenções: `kd ai` mantém a área posicional (`memory` default) e a saída de texto
+`id|tipo|statement` (lista) / `id|statement|score` (recall). O JSON de topo passa a
+`{area, source, sort, query, data}` + `warnings[]`, e cada nota/hit inclui `created_at`, `agent`,
+`agent_id`, `agent_role`, `parent_agent_id`. Sem ficheiro/diretório ⇒ corpus vazio, exit 0; linha
+malformada ⇒ *skip + warning* com o shard. O knudge nunca escreve nos shards.

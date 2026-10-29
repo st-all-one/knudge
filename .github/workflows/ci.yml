@@ -55,6 +55,9 @@ jobs:
   miri:
     name: miri (núcleo puro, smoke)
     runs-on: ubuntu-latest
+    env:
+      # `rust-toolchain.toml` fixa 1.99; miri só existe no nightly.
+      RUSTUP_TOOLCHAIN: nightly
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
@@ -73,6 +76,9 @@ jobs:
   fuzz:
     name: fuzz (TOON + JSONL, smoke)
     runs-on: ubuntu-latest
+    env:
+      # `rust-toolchain.toml` fixa 1.99; os sanitizers do cargo-fuzz exigem nightly.
+      RUSTUP_TOOLCHAIN: nightly
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
