@@ -1,4 +1,3 @@
-#![allow(clippy::format_push_string, reason = "compact recap text")]
 //! Recap derivada da memória de agente (atividade recente).
 
 use std::collections::BTreeSet;
@@ -13,19 +12,16 @@ use serde_json::json;
 
 /// Agente "atual": o com maior `created_at` (empate → lexicograficamente menor).
 pub(super) fn current_agent(corpus: &Corpus) -> Option<String> {
-    let mut best: Option<(i64, String)> = None;
-    for note in &corpus.notes {
-        let created = note.frontmatter.created_at().unwrap_or(0);
-        let agent = effective_agent_id(note);
-        match &best {
-            Some((c, a)) if created > *c || (created == *c && agent.as_str() < a.as_str()) => {
-                best = Some((created, agent));
-            }
-            None => best = Some((created, agent)),
-            _ => {}
-        }
-    }
-    best.map(|(_, a)| a)
+    corpus
+        .notes
+        .iter()
+        .max_by(|a, b| {
+            let ca = a.frontmatter.created_at().unwrap_or(0);
+            let cb = b.frontmatter.created_at().unwrap_or(0);
+            ca.cmp(&cb)
+                .then_with(|| effective_agent_id(b).cmp(&effective_agent_id(a)))
+        })
+        .map(effective_agent_id)
 }
 
 fn effective_agent_id(note: &Note) -> String {
@@ -47,6 +43,7 @@ pub(super) fn available_agents(corpus: &Corpus) -> Vec<String> {
 #[allow(
     clippy::too_many_lines,
     clippy::unnecessary_wraps,
+    clippy::format_push_string,
     reason = "recap aggregation"
 )]
 /// Executa o recap; devolve (texto, json).
@@ -117,11 +114,15 @@ pub(super) fn run(args: &AiArgs, corpus: &Corpus) -> Result<(String, serde_json:
         }
         // verificação heurística
         let lower = stmt.to_lowercase();
-        if lower.starts_with("verifica")
+        let is_verify = lower.starts_with("verifica")
             || lower.starts_with("teste")
             || lower.starts_with("check")
             || lower.contains("verific")
-        {
+            || n.frontmatter
+                .string_list("tags")
+                .ok()
+                .is_none_or(|t| t.contains(&"verify"));
+        if is_verify {
             last_verification = Some(n);
         }
         // anchors → arquivos
