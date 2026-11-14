@@ -6,13 +6,12 @@ default-members = ["crates/knudge-cli"]
 exclude = ["fuzz"]
 
 [workspace.package]
-version = "0.6.4"
+version = "0.6.5"
 edition = "2024"
-rust-version = "1.99"
+rust-version = "1.100"
 license = "MIT OR Apache-2.0"
 publish = false
 repository = "https://github.com/st-all-one/knudge"
-homepage = "https://github.com/st-all-one/knudge"
 
 [workspace.dependencies]
 # core (puro)
@@ -47,6 +46,12 @@ non_ascii_idents = "deny"
 noop_method_call = "deny"
 unused_import_braces = "deny"
 variant_size_differences = "warn"
+
+[workspace.lints.cargo]
+# Cargo 1.100: dependência declarada e nunca usada é erro de rigor (R43).
+unused_dependencies = "deny"
+# Cargo 1.100: homepage == repository é ruído no manifesto.
+redundant_homepage = "deny"
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"
@@ -123,7 +128,7 @@ option_if_let_else = "allow"
 significant_drop_tightening = "allow"
 missing_const_for_fn = "allow"
 excessive_nesting = "allow"
-# Clippy 1.99 (MSRV 1.99): `assert!(x.is_empty())` é o idioma do projeto em testes; a
+# Clippy 1.100 (MSRV 1.100): `assert!(x.is_empty())` é o idioma do projeto em testes; a
 # sugestão (`assert_eq!(x, [] as [T; 0])`) é pior. Documentado em 15_clippy_config.md §5.
 assert_is_empty = "allow"
 

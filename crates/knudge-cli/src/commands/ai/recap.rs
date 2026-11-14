@@ -101,11 +101,7 @@ pub(super) fn run(args: &AiArgs, corpus: &Corpus) -> Result<(String, serde_json:
 
     for n in window_notes {
         let stmt = n.frontmatter.statement().unwrap_or_default().to_string();
-        let kind = n
-            .frontmatter
-            .note_type()
-            .map(NoteType::as_str)
-            .unwrap_or_default();
+        let kind = n.frontmatter.note_type().map_or_default(NoteType::as_str);
         if kind == "decision" {
             last_decision = Some(n);
         }

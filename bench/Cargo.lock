@@ -92,7 +92,7 @@ dependencies = [
 
 [[package]]
 name = "knudge-core"
-version = "0.6.3"
+version = "0.6.5"
 dependencies = [
  "indexmap",
  "sha2",

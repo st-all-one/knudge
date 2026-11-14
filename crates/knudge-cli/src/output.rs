@@ -53,7 +53,6 @@ impl Output {
 /// Escreve bytes em stdout.
 ///
 /// Retorna `SUCCESS` em caso de `EPIPE`; `ErrorKind::Io` para outras falhas.
-#[must_use]
 pub fn emit_stdout(bytes: &[u8]) -> ExitCode {
     let mut stdout = std::io::stdout().lock();
     match stdout.write_all(bytes).and_then(|()| stdout.flush()) {

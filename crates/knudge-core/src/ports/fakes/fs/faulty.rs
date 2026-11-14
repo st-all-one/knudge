@@ -16,6 +16,8 @@ pub struct FaultyFs {
     inner: MemFs,
     /// Marcador; escritas cujo caminho o contém falham enquanto definido.
     needle: Mutex<Option<String>>,
+    /// Marcador de origem; `rename` cujo caminho de origem o contém falha enquanto definido.
+    rename_needle: Mutex<Option<String>>,
 }
 
 impl FaultyFs {
@@ -25,6 +27,7 @@ impl FaultyFs {
         Self {
             inner,
             needle: Mutex::new(None),
+            rename_needle: Mutex::new(None),
         }
     }
 
@@ -33,9 +36,15 @@ impl FaultyFs {
         *lock_or_recover(&self.needle) = Some(needle.into());
     }
 
-    /// Volta a permitir escritas.
+    /// Passa a falhar `rename` cuja **origem** contenha `needle`.
+    pub fn fail_renames_from_containing(&self, needle: impl Into<String>) {
+        *lock_or_recover(&self.rename_needle) = Some(needle.into());
+    }
+
+    /// Volta a permitir escritas **e** renames (limpa os dois marcadores).
     pub fn clear(&self) {
         *lock_or_recover(&self.needle) = None;
+        *lock_or_recover(&self.rename_needle) = None;
     }
 
     /// Acesso ao FS subjacente (inspeção em teste).
@@ -48,6 +57,12 @@ impl FaultyFs {
         lock_or_recover(&self.needle)
             .as_ref()
             .is_some_and(|needle| path.to_string_lossy().contains(needle.as_str()))
+    }
+
+    fn fails_rename(&self, from: &Path) -> bool {
+        lock_or_recover(&self.rename_needle)
+            .as_ref()
+            .is_some_and(|needle| from.to_string_lossy().contains(needle.as_str()))
     }
 }
 
@@ -79,6 +94,9 @@ impl Fs for FaultyFs {
     }
 
     fn rename(&self, from: &Path, to: &Path) -> Result<()> {
+        if self.fails_rename(from) {
+            return Err(Error::io(from, std::io::Error::other("falha injetada")));
+        }
         self.inner.rename(from, to)
     }
 

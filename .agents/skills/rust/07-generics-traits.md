@@ -234,22 +234,41 @@ type Result<T> = std::result::Result<T, std::io::Error>;
 pub type IoResult<T> = Result<T, io::Error>;
 ```
 
-## Never Type (!)
+## Never Type (`!`) — nomeável em qualquer posição (1.100)
 
 ```rust
-// ! = never type — "nunca retorna"
+// Sempre funcionou em retorno
 fn forever() -> ! {
     loop { println!("forever"); }
 }
 
-// Útil em match com arms de tipos diferentes
-let guess: u32 = match guess.trim().parse() {
-    Ok(num) => num,
-    Err(_) => continue,  // continue é !
+// 1.100: nomeável em argumentos, campos e tipos genéricos
+fn absurd<T>(x: !) -> T { x }
+fn infallible<T>(res: Result<T, !>) -> T {
+    let Ok(v) = res;              // Err é inabitado
+    v
+}
+
+// Coerção never-to-any em match/if
+let guess: u32 = match input.parse() {
+    Ok(n) => n,
+    Err(_) => continue,           // `!` → u32
 };
 
-// panic! e loop infinito também são !
+// `!` satisfaz bounds genéricos
+fn needs_clone<T: Clone>(_: &T) {}
+// Result<u32, !> implementa Clone, Debug, Eq, Hash, Ord, ...
 ```
+
+Impls estáveis para `!`: `Clone`, `Copy`, `Debug`, `Display`, `Eq`,
+`PartialEq`, `Ord`, `PartialOrd`, `Hash`, `Error`, `Not`,
+`Termination`, `AsRef<T>` e `AsMut<T>` (as duas últimas em 1.100).
+Não existe `Default` — um tipo sem valores não tem valor default.
+
+`!` em `impl Trait`: o tipo oculto é concreto, então
+`fn f() -> impl Iterator<Item = f32> { todo!() }` **não** compila
+(`!` não implementa `Iterator`). Faça cast:
+`todo!() as std::iter::Empty<_>`.
 
 ## Dynamically Sized Types (DSTs)
 

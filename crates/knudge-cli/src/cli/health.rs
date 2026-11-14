@@ -112,7 +112,7 @@ fn parse_every(raw: &str) -> Result<String, String> {
         if !matches!(last, 's' | 'm' | 'h' | 'd') {
             return Err(format!("duração inválida: `{raw}` (use 30m, 1h, 1d)"));
         }
-        raw.strip_suffix(last).unwrap_or(raw)
+        raw.trim_suffix(last)
     } else {
         raw
     };

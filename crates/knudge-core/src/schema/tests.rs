@@ -142,8 +142,7 @@ fn value_map_preserves_order() {
     ]);
     let keys: Vec<&str> = value
         .as_map()
-        .map(|map| map.keys().map(String::as_str).collect())
-        .unwrap_or_default();
+        .map_or_default(|map| map.keys().map(String::as_str).collect());
     assert_eq!(keys, ["a", "b"]);
 }
 
@@ -169,8 +168,7 @@ fn frontmatter_orders_canonically() -> Result<()> {
     let keys: Vec<String> = fm
         .to_value()
         .as_map()
-        .map(|map| map.keys().cloned().collect())
-        .unwrap_or_default();
+        .map_or_default(|map| map.keys().cloned().collect());
     assert_eq!(keys, ["id", "schema_version"]);
     Ok(())
 }

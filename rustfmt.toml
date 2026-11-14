@@ -1,6 +1,6 @@
 # Configuração do rustfmt do knudge (apenas opções ESTÁVEIS; ver AGENTS.md §1).
 #
-# A toolchain é estável (1.99), então opções `unstable` (ex.: `imports_granularity`,
+# A toolchain é estável (1.100), então opções `unstable` (ex.: `imports_granularity`,
 # `group_imports`, `wrap_comments`, `format_code_in_doc_comments`) não são usadas — em estável
 # elas seriam apenas ignoradas com aviso. Agrupar imports (std/externos/crate) é feito à mão.
 

@@ -4,6 +4,29 @@ Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](h
 
 ## [Não publicado]
 
+## [0.6.5] - 2026-11-13
+
+### Adicionado
+- **Política de supply chain do Cargo 1.100** (`.cargo/config.toml`): `min-publish-age = "7 days"`
+  em `[registries.crates-io]` — versões publicadas há menos de 7 dias não entram em resoluções
+  novas; o `Cargo.lock` continua autoritativo.
+
+### Alterado
+- **MSRV única Rust 1.100 (D225).** `rust-toolchain.toml`, `rust-version`, `clippy.toml::msrv`,
+  CI (1.100) e README sobem juntos; edition 2024 e contrato de bytes inalterados.
+- **Idiomas da std 1.100:** `Option`/`Result::map_or_default` substituem
+  `map(..).unwrap_or_default`; `str::trim_prefix`/`trim_suffix` substituem
+  `strip_x(..).unwrap_or(original)` sem alocação; `Vec::from_fn` na inicialização por índice.
+- **Rebuild transacional do índice:** `Staging::commit` usa `mem::DropGuard`; se o swap
+  `.new`→`.idx` falhar, o índice antigo é restaurado em vez de ficar ausente. `FaultyFs` ganha
+  injeção de falha por origem de `rename` e o teste cobre o rollback.
+- **Rigor de manifesto:** `[workspace.lints.cargo]` com `unused_dependencies` e
+  `redundant_homepage` em `deny`; `homepage` redundante removido dos manifests.
+- **Clippy 1.100:** correções de `map_unwrap_or`, `must_use_without_message` e guarda `if`
+  redundante; sem mudança de mensagens ou saída.
+- **Gate de documentação:** novo alvo `make doc` (`RUSTDOCFLAGS="-D warnings"`) entra no
+  `make ci`; links intra-doc ambíguos/redundantes em `toon`, `schema` e `write` corrigidos.
+
 ## [0.6.4] - 2026-10-29
 
 ### Adicionado

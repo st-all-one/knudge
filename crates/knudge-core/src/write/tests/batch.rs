@@ -79,11 +79,7 @@ fn batch_dry_run_does_not_write() -> Result<()> {
         out.items.first().map(|item| item.action),
         Some(WriteAction::Created)
     );
-    let id = out
-        .items
-        .first()
-        .map(|item| item.id.clone())
-        .unwrap_or_default();
+    let id = out.items.first().map_or_default(|item| item.id.clone());
     assert!(!ctx.store().exists(&id), "dry-run gravou {id}");
     Ok(())
 }

@@ -126,10 +126,7 @@ pub(super) fn passes_filters(
         return Ok(false);
     }
     let meta = Meta::from_frontmatter(&note.frontmatter)?;
-    if !filters.structural.matches(&meta) {
-        return Ok(false);
-    }
-    Ok(true)
+    Ok(filters.structural.matches(&meta))
 }
 
 /// Linha de pipe + objeto JSON de uma tarefa (o `impact` só vem com `--sort impact`).

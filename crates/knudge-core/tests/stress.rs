@@ -164,7 +164,7 @@ fn reader_never_sees_partial_index() -> TestResult {
         Ok(())
     })?;
 
-    let observed = seen.lock().map(|guard| guard.clone()).unwrap_or_default();
+    let observed = seen.lock().map_or_default(|guard| guard.clone());
     assert!(!observed.is_empty(), "o leitor deveria ter lido o índice");
     assert!(observed.iter().all(|text| text == "v1\n" || text == "v2\n"));
     Ok(())

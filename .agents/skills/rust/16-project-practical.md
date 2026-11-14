@@ -99,6 +99,16 @@ opt-level = 3
 lto = "fat"
 codegen-units = 1
 strip = "symbols"
+
+[lints.cargo]
+unused_dependencies = "warn"
+```
+
+E o cooldown de dependências no `.cargo/config.toml`:
+
+```toml
+[registry]
+global-min-publish-age = "3 days"
 ```
 
 ### Entry Point (main.rs)
@@ -316,6 +326,36 @@ info!(
 );
 ```
 
+## Processos externos
+
+```rust
+use std::process::{Command, Stdio};
+
+let mut child = Command::new("git")
+    .args(["status", "--short"])
+    .stdout(Stdio::piped())
+    .spawn()?;
+
+// Windows (1.100): handle da thread principal, sem tomar ownership.
+#[cfg(windows)]
+{
+    use std::os::windows::process::ChildExt;
+    let handle = child.main_thread_handle();   // BorrowedHandle<'_>
+    // use `handle` aqui (ex.: GetThreadId) antes de `wait()`
+    let _ = &handle;
+}
+
+let status = child.wait()?;         // ou try_wait() para polling
+let output = Command::new("git").arg("--version").output()?;
+
+#[cfg(windows)]
+{
+    use std::os::windows::process::CommandExt;
+    // wShowWindow do STARTUPINFO; valores são os SW_* de winuser.h
+    Command::new("notepad.exe").show_window(0 /* SW_HIDE */);
+}
+```
+
 ## Performance
 
 ```rust
@@ -338,6 +378,10 @@ fn process(data: &[u8]) { /* ... */ }  // borrow instead of &Vec<u8>
 use tikv_jemallocator::Jemalloc;
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
+
+// 1.100+: alocadores por container (Vec/Box) via `Allocator` —
+// ideal para arena/bump allocator em parsing/serialização.
+// Ver 10-smart-pointers.md.
 
 // Cache-friendly data layout
 // AoS → SoA para acesso sequencial
@@ -423,6 +467,7 @@ jobs:
 9. **Benchmarks via criterion** para código crítico
 10. **Perfil de release otimizado** antes de deploy
 
-> **Rust 1.99+**: Em CI (env var `CI`), a compilação incremental
-> é desabilitada por default. O profile `debug` built-in foi adicionado
-> como preparação para a transição do profile `dev`.
+> **Rust 1.100+**: Em CI (env var `CI`), a compilação incremental é
+> desabilitada por default (desde 1.99) e o profile `debug` built-in
+> existe como preparação para a transição do profile `dev`. Rode
+> `cargo check --all-targets` e mantenha `[lints.cargo]` no workspace.

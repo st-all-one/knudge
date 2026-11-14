@@ -41,7 +41,7 @@ pub const CANONICAL_KEYS: [&str; 31] = [
 /// Chaves obrigatórias: ou a nota é válida, ou não existe (D05).
 ///
 /// `type` **não** entra: é obrigatório para espécies, mas **omitido** quando `scope=epic`
-/// (o tipo efetivo é derivado — D149). [`Frontmatter::note_type`] cobra a presença.
+/// (o tipo efetivo é derivado — D149). [`Frontmatter::note_type`](super::frontmatter::Frontmatter::note_type) cobra a presença.
 pub const REQUIRED_KEYS: [&str; 5] = [
     "id",
     "statement",

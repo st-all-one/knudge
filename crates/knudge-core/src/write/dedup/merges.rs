@@ -201,6 +201,5 @@ fn term_set(doc: &NoteDoc) -> BTreeSet<&str> {
 fn term_set_field(doc: &NoteDoc, field: Field) -> BTreeSet<&str> {
     doc.fields
         .get(&field)
-        .map(|entry| entry.tf.keys().map(String::as_str).collect())
-        .unwrap_or_default()
+        .map_or_default(|entry| entry.tf.keys().map(String::as_str).collect())
 }

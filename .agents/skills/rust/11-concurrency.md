@@ -174,6 +174,21 @@ while !*started {
 }
 ```
 
+### Once (1.100: `Default`)
+
+`Once` agora implementa `Default`, o que simplifica structs com
+`#[derive(Default)]`:
+
+```rust
+use std::sync::Once;
+
+#[derive(Default)]
+struct Registry {
+    init: Once,              // Once::default() == Once::new()
+    // ...
+}
+```
+
 ## Send e Sync (Marker Traits)
 
 ```rust

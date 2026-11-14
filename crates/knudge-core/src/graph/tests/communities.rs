@@ -50,8 +50,7 @@ fn two_cliques_with_a_bridge_split_in_two() {
     assert!(partition.iter().all(|community| community.len() == 3));
     let first: BTreeSet<&str> = partition
         .first()
-        .map(|community| community.iter().map(String::as_str).collect())
-        .unwrap_or_default();
+        .map_or_default(|community| community.iter().map(String::as_str).collect());
     assert!(
         first.contains("a") && first.contains("b") && first.contains("c")
             || first.contains("d") && first.contains("e") && first.contains("f"),

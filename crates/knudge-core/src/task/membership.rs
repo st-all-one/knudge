@@ -33,7 +33,7 @@ pub fn parse(body: &str) -> Option<Marker> {
         let Some(rest) = trimmed.strip_prefix(MARKER_PREFIX) else {
             continue;
         };
-        let rest = rest.strip_suffix("-->").unwrap_or(rest).trim();
+        let rest = rest.trim_suffix("-->").trim();
         let mut tokens = rest.split_whitespace();
         let parent = tokens.next()?.to_string();
         let mut blocks = None;

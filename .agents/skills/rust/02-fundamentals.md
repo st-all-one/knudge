@@ -41,6 +41,7 @@ static mut COUNTER: u32 = 0;  // unsafe para acessar
 | `char` | 32 bits | Unicode scalar (4 bytes!) |
 | `bool` | 8 bits | `true`/`false` |
 | `()` | 0 bytes | unit type |
+| `!` | 0 bytes | never type — inabitado (nenhum valor) |
 
 ```rust
 let decimal = 98_222;       // underscore separador
@@ -48,6 +49,11 @@ let hex = 0xff;             // base 16
 let octal = 0o77;           // base 8
 let binary = 0b1111_0000;   // base 2
 let byte = b'A';            // u8 literal (ASCII)
+
+// bool::toggle (1.100) — in-place, equivalente a `b = !b`
+let mut running = false;
+running.toggle();
+assert!(running);
 ```
 
 ### Floating-Point: Métodos Algébricos (Rust 1.98+)
@@ -148,16 +154,39 @@ fn greet(name: &str) {
 }
 ```
 
-### Diverging Functions (never type)
+### Never type (`!`)
+
+`!` é o tipo canônico **inabitado**: nenhum valor existe, então qualquer
+código depois de uma expressão `!` é inalcançável. Desde a 1.100 ele pode
+ser **nomeado em qualquer posição** (antes, só no retorno de funções).
 
 ```rust
 fn panic_forever() -> ! {
-    loop {
-        println!("forever");
+    loop { println!("forever"); }     // loop infinito tem tipo !
+}
+
+// `return`, `break`, `continue`, `panic!` e `process::exit` são `!`
+fn pick(opt: Option<u32>) -> u32 {
+    match opt {
+        Some(x) => x,
+        None => return 0,             // `!` coage para u32
     }
-    // ! significa "nunca retorna"
+}
+
+// Nomeável em argumentos e tipos genéricos (1.100)
+fn absurd<T>(x: !) -> T { x }         // nunca chamável, mas type-checka
+fn infallible<T>(res: Result<T, !>) -> T {
+    let Ok(v) = res;                  // Err é inabitado: match exaustivo
+    v
 }
 ```
+
+`!` também marca operações infalíveis: `Result<T, !>` dispensa tratar
+`Err`, e `Infallible` agora é `type Infallible = !`.
+
+> **Rust 1.100+**: o *fallback* de `!` mudou de `()` para `!` em todas as
+> editions. Código que dependia de `!` virar `()` (ex.: `f()?;` com `f`
+> genérico) pode precisar de anotação de tipo. Ver `06-error-handling.md`.
 
 ## Controle de Fluxo
 

@@ -56,8 +56,7 @@ pub fn run(session: &Session, args: &AiArgs) -> Result<Output> {
     let source = resolve_source(session, &args);
     let source_label = source
         .path()
-        .map(|path| path.display().to_string())
-        .unwrap_or_default();
+        .map_or_default(|path| path.display().to_string());
     let (corpus, mut warnings) = source.load(&session.store())?;
     let query = args.query.join(" ");
     if args.recap {
@@ -111,8 +110,7 @@ fn list(args: &AiArgs, corpus: &Corpus) -> Result<String> {
             let kind = note
                 .frontmatter
                 .note_type()
-                .map(NoteType::as_str)
-                .unwrap_or_default();
+                .map_or_default(NoteType::as_str);
             let statement = note.frontmatter.statement().unwrap_or_default();
             format!("{id}|{kind}|{statement}")
         })
@@ -176,7 +174,7 @@ fn note_json(note: &Note) -> serde_json::Value {
     let role = prov.agent_role_or_main().as_str();
     json!({
         "id": note.frontmatter.id().unwrap_or_default(),
-        "type": note.frontmatter.note_type().map(NoteType::as_str).unwrap_or_default(),
+        "type": note.frontmatter.note_type().map_or_default(NoteType::as_str),
         "statement": note.frontmatter.statement().unwrap_or_default(),
         "created_at": note.frontmatter.created_at().unwrap_or(0),
         "agent": agent,

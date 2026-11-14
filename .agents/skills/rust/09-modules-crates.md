@@ -183,6 +183,10 @@ edition = "2024"
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
 tokio = "1"
+
+# 1.100: lints do Cargo herdáveis (ver 15-cargo-deep.md)
+[workspace.lints.cargo]
+unused_dependencies = "warn"
 ```
 
 ```toml

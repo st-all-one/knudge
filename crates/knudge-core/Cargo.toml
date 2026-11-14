@@ -7,7 +7,6 @@ license.workspace = true
 publish = true
 description = "Núcleo puro do knudge: modelo, portas, contrato de bytes e retrieval."
 repository.workspace = true
-homepage.workspace = true
 readme = "MODULE.md"
 keywords = ["memory", "llm", "knowledge", "search", "notes"]
 categories = ["development-tools", "text-processing"]

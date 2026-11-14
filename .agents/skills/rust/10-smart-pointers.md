@@ -17,6 +17,36 @@ enum List<T> {
 let trait_obj: Box<dyn Iterator<Item = i32>> = Box::new(0..10);
 ```
 
+### Box: reuso de alocação e allocators (1.100+)
+
+```rust
+// Box::take extrai o valor e devolve o slot não inicializado
+let (value, slot) = Box::take(Box::new(5));
+assert_eq!(value, 5);
+let b = Box::write(slot, 6);        // reusa a MESMA alocação
+assert_eq!(*b, 6);
+
+// Box::map transforma o valor, reusando a alocação quando possível
+let b = Box::map(Box::new(7), |i| i + 7);
+assert_eq!(*b, 14);
+
+// Box com allocator explícito (não é o #[global_allocator])
+use std::alloc::System;
+let b: Box<u32, System> = Box::new_in(5, System);
+let (ptr, alloc) = Box::into_raw_with_allocator(b);
+let b = unsafe { Box::from_raw_in(ptr, alloc) };
+
+// Variante NonNull
+let b: Box<u32, System> = Box::new_in(9, System);
+let (nn, alloc) = Box::into_non_null_with_allocator(b);
+let b = unsafe { Box::from_non_null_in(nn, alloc) };
+let a: &System = Box::allocator(&b);
+```
+
+`Box::take`, `Box::map` e `Box::allocator` são **funções associativas**
+(`Box::map(b, f)`, não `b.map(f)`) para não colidir com métodos do `T`
+interno.
+
 ## Deref Trait — Deref Coercion
 
 ```rust
@@ -77,6 +107,10 @@ use List::{Cons, Nil};
 let a = Rc::new(Cons(5, Rc::new(Cons(10, Rc::new(Nil)))));
 let b = Cons(3, Rc::clone(&a));
 let c = Cons(4, Rc::clone(&a));
+
+// Rc::map (1.100): transforma o valor reusando a alocação
+let r = Rc::map(Rc::new(7), |x| x + 1);
+assert_eq!(*r, 8);
 ```
 
 ## Arc<T> — Atomic Reference Counting (threaded)
@@ -94,6 +128,10 @@ for _ in 0..3 {
         println!("{data:?}");
     }));
 }
+
+// Arc::map (1.100): transforma o valor reusando a alocação
+let a = Arc::map(Arc::new(7), |x| x * 2);
+assert_eq!(*a, 14);
 ```
 
 ## RefCell<T> — Interior Mutability
@@ -140,6 +178,31 @@ println!("{b:?}");  // 15
 - Mock objects em testes
 - Quando o compilador não entende que a mutação é segura
 - Caches, contadores, estados internos
+
+### UnsafeCell: acesso unchecked (1.100)
+
+`UnsafeCell` é a primitiva por trás de `Cell`, `RefCell` e `Mutex`. A
+1.100 estabilizou três operações `const` sem nenhuma checagem:
+
+```rust
+use std::cell::UnsafeCell;
+
+let uc = UnsafeCell::new(5);
+
+let old = unsafe { uc.replace(10) };          // devolve o valor antigo
+assert_eq!(old, 5);
+
+unsafe {
+    *uc.as_mut_unchecked() += 1;              // &mut T direto
+    assert_eq!(*uc.as_ref_unchecked(), 11);   // &T direto
+}
+assert_eq!(uc.into_inner(), 11);
+```
+
+**Safety**: `as_ref_unchecked`/`as_mut_unchecked` não checam nada (nem
+em debug). É UB manter outra referência viva, mutar por fora enquanto a
+referência existe, ou correr com outro acesso. Use só quando o aliasing
+já for garantido por uma camada superior (ex.: `Mutex`, `RefCell`).
 
 ## Weak<T> — Prevenindo Reference Cycles
 
@@ -237,6 +300,103 @@ let ptr: NonNull<i32> = Box::into_non_null(boxed);
 let boxed = unsafe { Box::from_non_null(ptr) };
 ```
 
+## Allocators customizados (`Allocator`) — 1.100+
+
+A 1.100 estabiliza o núcleo de `allocator_api`: `Vec` e `Box` ganham um
+parâmetro de tipo `A: Allocator`. `Global` delega ao alocador global
+(`#[global_allocator]` ou o default do `std`); `System` usa
+`malloc`/`HeapAlloc`.
+
+```rust
+use std::alloc::{AllocError, Allocator, Layout, System};
+use std::ptr::NonNull;
+
+/// Wrapper que delega ao `System` (ex.: para instrumentar alocações).
+#[derive(Clone, Copy, Default)]
+struct Counting;
+
+unsafe impl Allocator for Counting {
+    fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        System.allocate(layout)
+    }
+    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: Layout) {
+        unsafe { System.deallocate(ptr, layout) }
+    }
+    // grow / grow_zeroed / shrink têm default (aloca, copia, libera)
+}
+
+let mut v: Vec<u8, Counting> = Vec::with_capacity_in(16, Counting);
+v.extend(b"abc");
+
+let b: Box<u32, Counting> = Box::new_in(9, Counting);
+assert_eq!(*b, 9);
+
+// Vec e Box expõem o alocador usado
+let _: &Counting = v.allocator();
+let _: &Counting = Box::allocator(&b);
+```
+
+| Método | Obrigatório | Contrato |
+|---|---|---|
+| `allocate(&self, Layout)` | sim | devolve `NonNull<[u8]>`; pode ser maior que o pedido |
+| `deallocate(&self, NonNull<u8>, Layout)` | sim | `unsafe`; o layout deve *caber* no bloco |
+| `allocate_zeroed` | default | aloca e zera |
+| `grow` / `grow_zeroed` / `shrink` | default | copiam + realocam se preciso |
+
+Pontos que importam:
+
+- `Allocator` é `unsafe trait`: o bloco fica *currently allocated* até
+  `deallocate`/`grow`/`shrink`, o alocador não pode tocar na memória do
+  usuário nem fazer unwind. `&A`, `&mut A`, `Box<A>`, `Rc<A>` e `Arc<A>`
+  também implementam `Allocator` e são *equivalentes* ao `A` interno.
+- ZSTs podem ser alocadas (diferente de `GlobalAlloc`), então
+  implementações sobre `malloc`/jemalloc precisam tratar `size == 0` e
+  ponteiro nulo.
+- `Allocator` **não** substitui `#[global_allocator]`: o global continua
+  sendo um `GlobalAlloc`, definido uma vez por programa.
+- Escopo atual: `Vec` e `Box`. `String`, `HashMap`, `VecDeque` e
+  `Rc`/`Arc` como containers ainda não aceitam `A` — é o próximo passo
+  do projeto "Allocators 1.0".
+
+Para mover um `Vec` alocado por `A` entre camadas sem copiar:
+
+```rust
+let (ptr, len, cap, alloc) = v.into_parts_with_allocator();
+let v = unsafe { Vec::from_parts_in(ptr, len, cap, alloc) };
+```
+
+## Cow<'_, T> — clone-on-write
+
+Evita alocar quando o dado pode ser emprestado:
+
+```rust
+use std::borrow::Cow;
+
+fn normalize(input: &str) -> Cow<'_, str> {
+    if input.contains(' ') {
+        Cow::Owned(input.replace(' ', "_"))
+    } else {
+        Cow::Borrowed(input)     // zero alloc
+    }
+}
+```
+
+### Comparação com Vec/slice (1.100)
+
+`Vec<T>` e slices comparam com `Cow<'_, [U]>` sem alocar nem converter:
+
+```rust
+let owned = vec![1, 2, 3];
+let cow: Cow<'_, [i32]> = Cow::Borrowed(&[1, 2, 3]);
+
+assert_eq!(owned, cow);        // PartialEq<Cow<[U]>> for Vec<T, A>
+assert_eq!(&owned[..], cow);   // ... e para &[T] / &mut [T]
+```
+
+> **Rust 1.100**: `dropping_references`, `dropping_copy_types` e
+> `undropped_manually_drops` agora também disparam em
+> `ptr::drop_in_place`, não só em `mem::drop`.
+
 ## Resumo
 
 | Smart Pointer | Multi-Owner | Mutável | Thread-Safe | Overhead |
@@ -249,6 +409,10 @@ let boxed = unsafe { Box::from_non_null(ptr) };
 | `Mutex<T>` | Não | Sim | Sim | Lock |
 | `RwLock<T>` | Não | Sim | Sim | Lock |
 | `OnceCell<T>` | 1x | Sim (1x) | Não (Cell) / Sim (Lock) | Option |
+
+> `Box<T, A>` e `Vec<T, A>` armazenam o alocador (salvo quando `A` é um
+> ZST, como `Global`/`System`), então o tamanho do container pode
+> aumentar em relação ao default.
 
 > **Rust 1.99**: `Pin::new_unchecked` teve seus safety invariants
 > levemente alterados. `Box::leak` agora avisa sobre evitar unleaking.
@@ -264,3 +428,5 @@ let boxed = unsafe { Box::from_non_null(ptr) };
 6. **Cell para Copy types** — mais leve que RefCell
 7. **OnceCell para lazy statics** — melhor que `lazy_static!` ou
    `once_cell` (agora na std)
+8. **Allocator customizado** só com perfil que justifique — comece com
+   `System`/`Global` e meça antes de implementar `allocate`/`deallocate`

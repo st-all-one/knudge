@@ -5,7 +5,7 @@
 Memória durável por projeto para agentes de IA — a nota é a verdade, o índice é derivado.
 
 [![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-2b3a42?style=for-the-badge)](./LICENSE-MIT)
-[![Rust](https://img.shields.io/badge/rust-1.99%2B-DEA584?style=for-the-badge&logo=rust&logoColor=000)](https://www.rust-lang.org/)
+[![Rust](https://img.shields.io/badge/rust-1.100%2B-DEA584?style=for-the-badge&logo=rust&logoColor=000)](https://www.rust-lang.org/)
 [![MCP](https://img.shields.io/badge/MCP-JSON--RPC%202.0-6E56CF?style=for-the-badge)](wiki/usage/17_mcp.md)
 [![Version](https://img.shields.io/badge/version-0.6.3-009739?style=for-the-badge)](wiki/CHANGELOG.md)
 
@@ -29,7 +29,7 @@ curl --proto '=https' \
   | sh
 ```
 
-Versão fixa: `... | VERSION=v0.6.4 bash`. Outro destino: `... | INSTALL_DIR=/usr/local/bin bash`.
+Versão fixa: `... | VERSION=v0.6.5 bash`. Outro destino: `... | INSTALL_DIR=/usr/local/bin bash`.
 A partir do código-fonte: `make install`.
 
 Embeddings são opcionais e recomendados; um comando baixa o `llama.cpp` e o modelo GGUF e deixa o

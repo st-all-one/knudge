@@ -933,8 +933,7 @@ fn task_flow_reports_critical_path() -> TestResult {
     let ids: Vec<&str> = path
         .get("ids")
         .and_then(|ids| ids.as_array())
-        .map(|ids| ids.iter().filter_map(|id| id.as_str()).collect())
-        .unwrap_or_default();
+        .map_or_default(|ids| ids.iter().filter_map(|id| id.as_str()).collect());
     assert_eq!(ids, vec![leaf.as_str(), middle.as_str(), base.as_str()]);
     assert!(
         path.get("total_ms")

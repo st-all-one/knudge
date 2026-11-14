@@ -5,6 +5,7 @@
 //! nunca pela metade.
 
 use std::ffi::OsStr;
+use std::mem::DropGuard;
 use std::path::{Path, PathBuf};
 
 use crate::Result;
@@ -56,19 +57,29 @@ impl<'a> Staging<'a> {
 
     /// Troca o buffer novo pelo índice atual (rename + limpeza do antigo).
     ///
-    /// Força os bytes novos ao disco **antes** do rename (D22).
+    /// Força os bytes novos ao disco **antes** do rename (D22). Se o rename do buffer novo
+    /// falhar, o índice antigo é restaurado de `.old` (rollback via [`DropGuard`]).
     ///
     /// # Errors
-    /// Retorna `ErrorKind::Io` se algum `fsync`/`rename` falhar.
+    /// Retorna `ErrorKind::Io` se algum `fsync`/`rename` falhar; o índice canônico permanece
+    /// o antigo.
     pub fn commit(self) -> Result<()> {
-        sync_tree(self.fs, &self.new_dir)?;
-        let old_dir = with_suffix(&self.dir, ".old");
-        self.fs.remove_dir_all(&old_dir)?;
-        if self.fs.exists(&self.dir) {
-            self.fs.rename(&self.dir, &old_dir)?;
+        let Self { fs, dir, new_dir } = self;
+        sync_tree(fs, &new_dir)?;
+        let old_dir = with_suffix(&dir, ".old");
+        fs.remove_dir_all(&old_dir)?;
+        let had_old = fs.exists(&dir);
+        if had_old {
+            fs.rename(&dir, &old_dir)?;
         }
-        self.fs.rename(&self.new_dir, &self.dir)?;
-        self.fs.remove_dir_all(&old_dir)
+        let guard = DropGuard::new(had_old, |had_old| {
+            if had_old {
+                let _ignored = fs.rename(&old_dir, &dir);
+            }
+        });
+        fs.rename(&new_dir, &dir)?;
+        DropGuard::dismiss(guard);
+        fs.remove_dir_all(&old_dir)
     }
 }
 
@@ -85,7 +96,7 @@ fn sync_tree(fs: &dyn Fs, dir: &Path) -> Result<()> {
 }
 
 fn with_suffix(dir: &Path, suffix: &str) -> PathBuf {
-    let mut name = dir.file_name().map(OsStr::to_os_string).unwrap_or_default();
+    let mut name = dir.file_name().map_or_default(OsStr::to_os_string);
     name.push(suffix);
     dir.with_file_name(name)
 }

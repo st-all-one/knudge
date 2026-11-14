@@ -28,6 +28,14 @@ let mut move_x = || { x += 1; };
 let consume_x = || { drop(x); };
 ```
 
+> **Rust 1.100+**: closures capturam com mais precisão as variáveis
+> usadas em `if let`. O compilador agora olha para os lugares realmente
+> lidos dentro do `if let` em vez de capturar o valor inteiro. Isso
+> reduz borrows desnecessários, mas pode expor erros de move/borrow em
+> código que dependia da captura ampla. Se precisar forçar a captura
+> completa, use `let _ = &var;` dentro da closure; se precisar mover,
+> use `move`.
+
 ### Closure Traits (Fn, FnMut, FnOnce)
 
 | Trait | Captura | Chama | Usado para |
@@ -256,3 +264,8 @@ for x in 0..1000 {
 
 > **Rust 1.99+**: `StepBy<I>` agora implementa `FusedIterator`,
 > permitindo uso seguro em contextos que exigem este trait.
+
+> **Rust 1.100+**: `min`, `max`, `min_by_key` e `max_by_key` passaram a
+> usar outros métodos de `Ord` internamente (geralmente mais rápidos).
+> Só muda comportamento para tipos cujo `Ord` viola as regras de
+> consistência com `PartialOrd`/`Eq`.

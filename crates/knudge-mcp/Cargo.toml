@@ -7,7 +7,6 @@ license.workspace = true
 publish.workspace = true
 description = "Servidor MCP do knudge (reativo a comportamento)."
 repository.workspace = true
-homepage.workspace = true
 readme = "MODULE.md"
 keywords = ["memory", "llm", "mcp", "knowledge", "json-rpc"]
 categories = ["development-tools"]

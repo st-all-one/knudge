@@ -236,6 +236,10 @@ cargo test -p my_crate  # workspace: só um crate
 -- --include-ignored    # todos (incluindo ignored)
 ```
 
+> **Rust 1.100**: `--test-threads` e `--color` podem ser passados
+> várias vezes; o último valor vence (útil quando um wrapper de CI
+> adiciona flags por cima das do desenvolvedor).
+
 ## Para onde vão os testes
 
 ```
@@ -269,3 +273,8 @@ benches/
 > doctests. Attributes não aplicáveis são agora error em code blocks
 > de doc comments. O lint `unused_footnote_definition` foi adicionado
 > ao rustdoc.
+
+> **Rust 1.100+**: novo lint do rustdoc `invalid_markdown_table`
+> (warn-by-default) detecta `|` não escapado em tabelas de doc
+> comments — o resto da linha é descartado silenciosamente. Escape com
+> `\|` (ex.: `` `code_with(\|x\| x)` ``).

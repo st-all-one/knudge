@@ -39,7 +39,7 @@ fn body_check_is_advisory_and_counts_missing_body() -> Result<()> {
         body.is_some_and(DoctorCheck::is_warning),
         "check do corpo deve ser advisório"
     );
-    let detail = body.map(|check| check.detail.as_str()).unwrap_or_default();
+    let detail = body.map_or_default(|check| check.detail.as_str());
     assert!(detail.contains("2 sem corpo"), "detalhe: {detail}");
     assert!(detail.contains("1 sem lastro"), "detalhe: {detail}");
     assert!(detail.contains("1 com slots ausentes"), "detalhe: {detail}");

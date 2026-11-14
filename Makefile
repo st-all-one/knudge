@@ -124,8 +124,12 @@ coverage:
 		echo "cargo-llvm-cov ausente; pule (cargo install cargo-llvm-cov --locked)"; \
 	fi
 
-## Portão do CI: check + doc-tests + extras disponíveis.
-ci: check miri deny audit machete typos
+## Portão do CI: check + docs (links intra-doc) + extras disponíveis.
+ci: check doc miri deny audit machete typos
+
+## Documentação com links intra-doc verificados (rustdoc lints = deny).
+doc:
+	RUSTDOCFLAGS="-D warnings" $(CARGO) doc --workspace --no-deps
 
 # --- Bancada de benchmark (fora do workspace, observação — E13-T09) ---
 

@@ -15,6 +15,6 @@ pub use json::{decode, encode};
 pub fn lines(source: &str) -> impl Iterator<Item = &str> {
     source
         .split('\n')
-        .map(|line| line.strip_suffix('\r').unwrap_or(line))
+        .map(|line| line.trim_suffix('\r'))
         .filter(|line| !line.trim().is_empty())
 }

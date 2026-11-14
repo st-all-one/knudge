@@ -142,10 +142,7 @@ fn read_lock_at(fs: &dyn Fs, path: &Path) -> Result<Option<i64>> {
 }
 
 fn sidecar_path(path: &Path) -> PathBuf {
-    let mut name = path
-        .file_name()
-        .map(OsStr::to_os_string)
-        .unwrap_or_default();
+    let mut name = path.file_name().map_or_default(OsStr::to_os_string);
     name.push(".stale");
     path.with_file_name(name)
 }

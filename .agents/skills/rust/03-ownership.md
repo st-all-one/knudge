@@ -208,7 +208,18 @@ impl Drop for MyResource {
 
 // Liberação manual antecipada
 std::mem::drop(my_resource);
+
+// 1.100: DropGuard — closure executada em toda saída de escopo
+use std::mem::DropGuard;
+
+let mut buf = DropGuard::new(String::from("log"), |b| println!("flush: {b}"));
+buf.push_str(": evento");    // Deref/DerefMut para o valor interno
+// drop aqui (return, `?` ou panic) → imprime "flush: log: evento"
 ```
+
+`DropGuard::dismiss(guard)` devolve o valor **sem** executar a closure —
+diferente de `mem::forget`, que vazaria as capturas da closure. Para
+rollback de transações com `?`, veja `06-error-handling.md`.
 
 ## Boas Práticas
 

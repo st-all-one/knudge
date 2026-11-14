@@ -152,8 +152,7 @@ fn positional_query_keeps_its_commas() -> TestResult {
     let query = data(&out)?
         .get("query")
         .and_then(|value| value.as_str())
-        .map(str::to_string)
-        .unwrap_or_default();
+        .map_or_default(str::to_string);
     assert_eq!(query, "a,b", "a query textual não é dividida por vírgula");
     Ok(())
 }

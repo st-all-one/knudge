@@ -31,6 +31,37 @@ fn reader_sees_old_or_new_never_partial() -> Result<()> {
 }
 
 #[test]
+fn failed_publish_rename_rolls_back_old_index() -> Result<()> {
+    use crate::ports::fakes::FaultyFs;
+
+    let fs = FaultyFs::new(MemFs::new());
+    fs.inner().insert("/p/.knudge/.idx/index.json", b"old");
+
+    let staging = Staging::begin(&fs, "/p/.knudge/.idx")?;
+    staging.write("index.json", b"new")?;
+    // O `rename` que publicaria o buffer novo falha.
+    fs.fail_renames_from_containing(".idx.new");
+    let failed = staging.commit();
+    assert!(failed.is_err(), "o rename do buffer novo deve falhar");
+
+    // Rollback: o índice canônico volta a ser o antigo, fora de `.old`.
+    assert_eq!(read_index(fs.inner()).as_deref(), Some(b"old".as_slice()));
+    assert!(!fs.exists(Path::new("/p/.knudge/.idx.old")));
+    // `.new` pode sobrar: o próximo `begin` limpa.
+    assert!(fs.exists(Path::new("/p/.knudge/.idx.new")));
+
+    // Sem falha injetada, um novo rebuild publica o buffer novo.
+    fs.clear();
+    let staging = Staging::begin(&fs, "/p/.knudge/.idx")?;
+    staging.write("index.json", b"new")?;
+    staging.commit()?;
+    assert_eq!(read_index(fs.inner()).as_deref(), Some(b"new".as_slice()));
+    assert!(!fs.exists(Path::new("/p/.knudge/.idx.new")));
+    assert!(!fs.exists(Path::new("/p/.knudge/.idx.old")));
+    Ok(())
+}
+
+#[test]
 fn crash_during_rebuild_keeps_old_index() -> Result<()> {
     use crate::ports::fakes::FaultyFs;
 

@@ -214,16 +214,12 @@ pub(super) fn ppr_channel(
 /// As views/filtros determinísticos são contrato e não podem ser furados por uma nota só
 /// semanticamente próxima.
 pub(super) fn semantic_channel(query: &RecallQuery, allowed: &BTreeSet<String>) -> Vec<String> {
-    query
-        .vector
-        .as_ref()
-        .map(|ids| {
-            ids.iter()
-                .filter(|id| allowed.contains(id.as_str()))
-                .cloned()
-                .collect()
-        })
-        .unwrap_or_default()
+    query.vector.as_ref().map_or_default(|ids| {
+        ids.iter()
+            .filter(|id| allowed.contains(id.as_str()))
+            .cloned()
+            .collect()
+    })
 }
 
 fn belongs_to(graph: &Graph, id: &str, scope: &str) -> bool {

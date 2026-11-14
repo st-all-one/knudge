@@ -162,6 +162,34 @@ opt-level = 3
 > **Rust 1.99+**: Em CI (detectado pela env var `CI`), a compilação
 > incremental é desabilitada por default para builds mais confiáveis.
 
+## Build-dir e cache (1.100+)
+
+Cargo separa **artefatos finais** (`target-dir`: bins, libs, docs) de
+**intermediários** (`build-dir`: incremental, saídas de build scripts).
+Por default ambos apontam para `target/`; para separar:
+
+```toml
+[build]
+build-dir = "/tmp/build-cache"   # ou CARGO_BUILD_BUILD_DIR
+target-dir = "target"
+```
+
+Na 1.100 o `build-dir` passou a aplicar o hash de configuração
+(`--features`, profile, rustflags) no **diretório pai**, organizando por
+etapa de build em vez de tipo de arquivo. Efeitos:
+
+- builds com features diferentes não colidem mais no `build-dir`;
+- compartilhar `build-dir` entre worktrees deixa de causar rebuilds
+  espúrios;
+- o layout é **interno e instável**: ferramentas devem localizar
+  artefatos via `cargo build --message-format=json`, não assumindo
+  `target/debug/deps/...`;
+- scripts/CI que dependiam de workarounds antigos podem quebrar — ver
+  `cargo#17287`.
+
+Isso desbloqueia GC de cache, deduplicação/caching cross-workspace e
+locking mais fino.
+
 ## Workspaces
 
 ```toml
@@ -286,6 +314,40 @@ cargo yank --version 1.0.3 --undo        # desfaz yank
 cargo owner --add github:myorg:myrepo    # add owner
 ```
 
+> **Rust 1.100**: `cargo install` usa por default o `Cargo.lock`
+> embutido no `.crate`; `--locked` virou no-op.
+
+## Dependency cooldowns (`min-publish-age`, 1.100+)
+
+Versões maliciosas costumam ser detectadas em horas/dias. O resolver
+pode ignorar versões novas por um período:
+
+```toml
+# .cargo/config.toml
+[registry]
+global-min-publish-age = "3 days"
+```
+
+```console
+$ cargo update
+     Locking 2 packages to highest compatible version as of min-publish-age
+      Adding cc v1.11.0 (available: v1.18.0, published 3 hours ago)
+```
+
+- Só afeta versões **novas**: o que já está no `Cargo.lock` é mantido.
+- `resolver.incompatible-publish-age` controla o comportamento
+  (`deny` default; `allow` ignora o cooldown).
+- Override pontual:
+  `CARGO_RESOLVER_INCOMPATIBLE_PUBLISH_AGE=allow cargo update clap --precise 4.6.9`
+  (a versão fica gravada no lock).
+- Por registry: `registries.<name>.min-publish-age`; aceita `"0"` e
+  `"N seconds|minutes|hours|days|weeks|months"`.
+- `cargo install` **ignora** o cooldown (crate e dependências); pine
+  `cargo install foo@1.2.3` se precisar.
+- Registries sem `pubtime` no índice nunca são seguradas.
+- É redução de janela, não defesa completa: continue revisando updates
+  e usando `cargo audit`/`cargo deny`.
+
 ## Config (.cargo/config.toml)
 
 ```toml
@@ -338,6 +400,12 @@ replace-with = "mirror"
 registry = "https://mirror.example.com/cargo"
 ```
 
+> **Rust 1.100**: chaves `[target]` com `.` no nome (ex.:
+> `thumbv8m.main-none-eabihf`) precisam de aspas:
+> `[target."thumbv8m.main-none-eabihf"]`. A forma sem aspas ainda
+> funciona para os targets atuais, mas emite future-incompatibility
+> warning.
+
 ### Config via CLI
 
 ```bash
@@ -386,6 +454,47 @@ clippy::panic = "deny"
 # Workspace-level
 [workspace.lints]
 rust.unsafe_code = "forbid"
+
+# Lints do próprio Cargo (1.100+)
+[lints.cargo]
+unused_dependencies = "deny"
+```
+
+### Cargo lints (1.100+)
+
+Além de `rustc`/Clippy, o Cargo tem lints próprios, controlados por
+`[lints.cargo]` (mesmas prioridades de `[lints]`):
+
+| Lint | Grupo | Default | O que faz |
+|---|---|---|---|
+| `unused_dependencies` | style | warn | dependência que nenhum target usa |
+| `unused_workspace_dependencies` | suspicious | warn | entrada de `[workspace.dependencies]` não usada |
+| `unused_workspace_package_fields` | suspicious | warn | campo de `[workspace.package]` não herdado |
+| `missing_lints_inheritance` | suspicious | warn | workspace tem `workspace.lints` mas o crate não usa `[lints] workspace = true` |
+| `blanket_hint_mostly_unused` | suspicious | warn | `hint-mostly-unused` aplicado a `package."*"` |
+| `manual_readme` | pedantic | allow | `package.readme` redundante |
+
+Limitações de `unused_dependencies` (evita caçar falso positivo):
+
+- só roda quando todos os targets que podem usar aquela tabela são
+  compilados;
+- `cargo check` cobre `[dependencies]` e `[build-dependencies]`;
+- `cargo check --bin foo` **não** checa `[dependencies]` (outro bin pode
+  usá-las); `[dev-dependencies]` nunca é checada;
+- `path` dependencies só são checadas quando são o pacote selecionado;
+- depender de uma transitiva só para ativar feature gera falso positivo
+  — mova para `[target."cfg(false)".dependencies]`.
+
+Herança em workspace:
+
+```toml
+# raiz
+[workspace.lints.cargo]
+unused_dependencies = "warn"
+
+# membro
+[lints]
+workspace = true
 ```
 
 ## Boas Práticas (Cargo)
@@ -400,3 +509,5 @@ rust.unsafe_code = "forbid"
 8. **`[lints]` no workspace** para consistência
 9. **`cargo deny`** para auditoria de licenças e segurança
 10. **`[profile.release]` otimizado** — LTO, strip, codegen-units=1
+11. **`[lints.cargo]`** para pegar dependências não usadas sem `cargo-udeps`
+12. **`min-publish-age`** para cooldown de supply chain

@@ -86,6 +86,47 @@ let ok = result.is_ok();
 let err = result.is_err();
 ```
 
+### Never type e erros infalíveis (1.100)
+
+Com `Infallible` virando alias de `!` e `!` nomeável em qualquer posição,
+o tipo de erro `!` expressa "esta operação nunca falha":
+
+```rust
+use std::convert::Infallible;
+
+// API infalível: nenhum Err é construível
+fn parse_len(s: &str) -> Result<u32, !> {
+    Ok(s.len() as u32)
+}
+
+// `let Ok` é um match exaustivo — Err é inabitado
+let Ok(n) = parse_len("abc");
+assert_eq!(n, 3);
+
+// Infallible e ! são o mesmo tipo
+fn same<T>(r: Result<T, Infallible>) -> Result<T, !> { r }
+```
+
+`!` implementa `Error`, `Debug`, `Display`, `Clone`, `Copy`, `Eq`,
+`Hash`, `Ord`, `PartialEq`, `PartialOrd`, `Not`, `Termination`,
+`AsRef<T>` e `AsMut<T>` — logo `Result<T, !>` herda essas impls.
+
+**Fallback mudou em todas as editions.** O caso clássico de quebra:
+
+```rust
+fn f<T: Default>() -> Result<T, ()> { Ok(T::default()) }
+
+fn outer<T>(x: T) -> Result<T, ()> {
+    f()?;   // 1.100: T é inferido como `!` (antes: `()`), então
+            // `!: Default` não existe → erro de compilação
+    Ok(x)
+}
+```
+
+Anote o tipo para não depender do fallback: `f::<T>()?;` ou
+`let _: T = f()?;`. O lint de migração
+`dependency_on_unit_never_type_fallback` foi removido.
+
 ## Error Types
 
 ### Box<dyn Error> (simples)
@@ -204,6 +245,33 @@ fn main() -> anyhow::Result<()> {
 }
 ```
 
+## Rollback com `DropGuard` (1.100)
+
+`core::mem::DropGuard` executa uma closure em **qualquer** saída de
+escopo (`return`, `?`, panic) e implementa `Deref`/`DerefMut`. Permite
+rollback all-or-nothing sem escrever um `impl Drop`:
+
+```rust
+use std::mem::DropGuard;
+use std::num::ParseIntError;
+
+/// Se algum parse falhar, `nums` fica inalterado.
+fn parse_all(nums: &mut Vec<u32>, strings: &[&str]) -> Result<(), ParseIntError> {
+    let len = nums.len();
+    let mut nums = DropGuard::new(nums, move |nums| nums.truncate(len));
+
+    for s in strings {
+        nums.push(s.parse()?);   // erro → drop do guard → truncate
+    }
+
+    DropGuard::dismiss(nums);    // sucesso → não roda a closure
+    Ok(())
+}
+```
+
+`DropGuard::dismiss` é preferível a `mem::forget`: devolve o valor e
+ainda dropa as capturas da closure.
+
 ## Padrão: Tipos de Validação
 
 ```rust
@@ -248,3 +316,6 @@ fn play(guess: Guess) {
 > **Rust 1.98+**: O lint `c_void_returns` (warn-by-default) detecta
 > `core::ffi::c_void` como tipo de retorno. Use `()` em vez de `c_void`
 > em funções FFI quando possível.
+
+> **Rust 1.100+**: `ENOTSUP` agora é mapeado para
+> `ErrorKind::Unsupported` (antes podia cair em `Uncategorized`).

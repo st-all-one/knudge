@@ -1,10 +1,177 @@
-# Rust — Changelog 1.97.0 → 1.99.1
+# Rust — Changelog 1.97.0 → 1.100.0
 
 Síntese das mudanças relevantes entre a versão base do guia (1.97.0) e a
-atual (1.99.1). Fontes: [releases.rs](https://releases.rs/) e os anúncios
-oficiais do Rust Release Team.
+atual (1.100.0). Fontes: [releases.rs](https://releases.rs/), os anúncios
+oficiais do Rust Release Team e a documentação de `std`/`cargo`/`rustc`.
 
 ---
+
+## 1.100.0 — 12 Nov 2026 (minor)
+
+### Never type (`!`) — estável
+
+- `!` pode ser **nomeado em qualquer posição** (antes só no retorno de
+  funções): `Result<T, !>`, campos de struct, argumentos genéricos.
+- Coerção **never-to-any** (`!` → qualquer `T`) mantida. `return`,
+  `break`, `continue`, `panic!`, `process::exit` e `loop {}` têm tipo `!`.
+- **`Infallible` virou `pub type Infallible = !`** — APIs que usavam
+  `Infallible` passam a interoperar com `!`.
+- **Breaking (todas as editions)**: o *fallback* de `!` mudou de `()`
+  para `!` também em 2015/2018/2021 (2024 já era `!`). O caso clássico é
+  `f()?;` com `f` genérico: `T` passa a ser inferido como `!`
+  (`!: Default`), exigindo anotação (`f::<T>()?`). O lint de migração
+  `dependency_on_unit_never_type_fallback` foi removido.
+- Impls estáveis para `!`: `Clone`, `Copy`, `Debug`, `Display`, `Eq`,
+  `Hash`, `Ord`, `PartialEq`, `PartialOrd`, `Not`, `Error`,
+  `Termination`, `AsRef<T>`, `AsMut<T>` (as duas últimas novas).
+- Um `match` é exaustivo sem cobrir variantes com campo inabitado
+  (`Miu(!)`, `Nya(u32, !)`, `Mjau(Void)`), mas `Option<!>` continua
+  habitado por `None`.
+- Clippy: `unused_async_trait_impl` ignora impls para `!`.
+
+### `Allocator` API (`allocator_api`) — núcleo estável
+
+- Trait `std::alloc::Allocator` (`unsafe trait`): `allocate` e
+  `deallocate` obrigatórios; `allocate_zeroed`, `grow`, `grow_zeroed`,
+  `shrink` com default. `AllocError` estável.
+- `Global` (delega ao `#[global_allocator]` ou ao default do `std`) e
+  `System` (`malloc`/`HeapAlloc`) implementam o trait.
+- Impls de `Allocator` para `&A`, `&mut A`, `Box<T, A>`, `Rc<T, A>` e
+  `Arc<T, A>`; esses wrappers são *equivalentes* ao alocador interno.
+- `Box`: `new_in`, `from_raw_in`, `from_non_null_in`,
+  `into_raw_with_allocator`, `into_non_null_with_allocator`, `allocator`.
+- `Vec`: `new_in`, `with_capacity_in`, `from_raw_parts_in`,
+  `from_parts_in`, `into_raw_parts_with_allocator`,
+  `into_parts_with_allocator`, `allocator`.
+- Só `Vec` e `Box` aceitam `A` por enquanto; `String`, `HashMap`,
+  `VecDeque` etc. ficam para o projeto "Allocators 1.0".
+- `Allocator` permite alocação ZST (≠ `GlobalAlloc`), não pode fazer
+  unwind e exige que o bloco permaneça *currently allocated* até
+  desalocar/realocar.
+- **Compatibilidade**: algumas impls de `Box` foram generalizadas para
+  `A: Allocator`, o que pode causar novos erros de inferência.
+
+### Reuso de alocação em `Box`/`Rc`/`Arc`
+
+- `Box::take(Box<T>) -> (T, Box<MaybeUninit<T>>)` e `Box::write` reusam
+  o slot (sem realocar).
+- `Box::map`, `Rc::map`, `Arc::map` transformam o valor reusando a
+  alocação quando possível. São funções associativas para não colidir
+  com métodos do tipo interno.
+
+### `DropGuard` (`core::mem`)
+
+- `DropGuard::new(value, f)` roda `f` no drop, em qualquer saída
+  (`return`, `?`, panic); `Deref`/`DerefMut` para o valor.
+- `DropGuard::dismiss(guard)` devolve o valor sem rodar a closure —
+  preferível a `mem::forget`, que vazaria as capturas.
+- Habilita rollback all-or-nothing sem `impl Drop` dedicado.
+
+### `conjure_zst` (`core::mem`)
+
+- `unsafe fn conjure_zst<T>() -> T` cria um ZST **inhabited** sem
+  `Default`/`Clone`.
+- Substitui `transmute(())` e `MaybeUninit::uninit().assume_init()`.
+- Panics se `size_of::<T>() != 0`; UB para `!`, enums vazios e tokens
+  com invariantes (ex.: `Python<'py>` do PyO3).
+
+### Bibliotecas — demais estabilizações
+
+- `bool::toggle`.
+- `str::trim_prefix`/`trim_suffix`; `[T]::trim_prefix`/`trim_suffix`;
+  `Path::trim_prefix` (não há `Path::trim_suffix`).
+- `Vec::from_fn`.
+- `UnsafeCell::replace`, `UnsafeCell::as_ref_unchecked`,
+  `UnsafeCell::as_mut_unchecked` (as duas últimas `const`).
+- `impl PartialEq<Cow<'_, [U]>> for Vec<T, A>`, `&[T]` e `&mut [T]`.
+- `impl Default for std::sync::Once`.
+- `ChildExt::main_thread_handle` (Windows).
+- `os::windows::process::CommandExt::show_window`.
+- Mapeamento de `ENOTSUP` para `ErrorKind::Unsupported`.
+- Unicode 18.0.0 na biblioteca padrão.
+
+### Linguagem / compiler
+
+- `extern "custom"`: ABI desconhecida; função `unsafe`, sem parâmetros,
+  retorno `()` explícito e `#[unsafe(naked)]`; chamável só via `asm!`.
+- Lint `repeated_reprs` (warn) para `#[repr(..)]` duplicado.
+- `aligned_fields_in_packed` (deny): campo `repr(align)` dentro de
+  `repr(packed)` virou lint (antes erro rígido).
+- `dropping_references`, `dropping_copy_types` e
+  `undropped_manually_drops` estendidos a `ptr::drop_in_place`.
+- Closures capturam com mais precisão variáveis usadas em `if let`
+  (pode quebrar código que dependia da captura ampla).
+- Checagem de *dyn-compatibility* em mais posições.
+- Padrões `box x` não são mais aceitos sintaticamente.
+- `let-else` respeita o agrupamento de `expr` de `macro_rules`.
+- `str::escape_debug` sempre escapa grapheme extenders.
+- `Iterator::{min,max,min_by_key,max_by_key}` usam outros métodos de
+  `Ord` (só afeta impls inconsistentes).
+- Test harness aceita `--test-threads`/`--color` repetidos (o último
+  vence).
+- `-Cprofile-sample-use=<.prof>` estável (SPGO).
+- SSE/AVX em target x86 softfloat viram erro; ARMv7-A hardfloat perdeu
+  `d32` do baseline (use `-Ctarget-feature=+d32`).
+- ABI "Rust" em x86 usa registradores SSE quando sempre disponíveis;
+  `windows-gnullvm` linka libunwind estaticamente.
+
+### Platform support
+
+- `i686-pc-windows-gnu`: Tier 2 **sem host tools**.
+- `wasm32-wasip3`: promovido a **Tier 2**.
+- `powerpc64-sony-ps3`: novo **Tier 3**.
+
+### Cargo
+
+- **Sistema de lints próprio** (`[lints.cargo]`): `unused_dependencies`
+  (style/warn), `unused_workspace_dependencies`,
+  `unused_workspace_package_fields`, `missing_lints_inheritance`,
+  `blanket_hint_mostly_unused`, `manual_readme`; grupos
+  `cargo::{default,correctness,style,suspicious,pedantic,restriction}`.
+- **`min-publish-age`** (RFC 3923): `[registry]
+  global-min-publish-age`, override por registry e
+  `resolver.incompatible-publish-age` (`deny` default, `allow` desliga);
+  `CARGO_RESOLVER_INCOMPATIBLE_PUBLISH_AGE=allow` para um update
+  pontual; `cargo install` ignora o cooldown.
+- **Novo layout do `build-dir`**: hash de configuração aplicado no
+  diretório pai e organização por etapa de build. Layout é interno e
+  instável — ferramentas devem usar `--message-format=json`; ver
+  cargo#17287.
+- `cargo install` usa o `Cargo.lock` embutido no `.crate`; `--locked`
+  virou no-op.
+- Chaves `[target]` com `.` no nome precisam de aspas
+  (`[target."thumbv8m.main-none-eabihf"]`).
+- `cargo add` respeita symlink relativo do `Cargo.toml`.
+- `cargo clean` considera hardlinks no tamanho; `cargo run` no Windows
+  não sobrescreve erro quando a saída termina em `\r`.
+- `build.warnings='deny'` mostra contagem de erros no resumo.
+
+### Rustdoc / Clippy
+
+- Rustdoc: novo lint `invalid_markdown_table` (warn) para `|` não
+  escapado em tabelas de doc comments.
+- Clippy: novos `option_zip_none` (suspicious) e
+  `needless_nonzero_get` (complexity).
+- Clippy (melhorias): `map_unwrap_or` sugere `map_or_default`;
+  `unnecessary_fold` em `Option` sugere `map_or`; `unnecessary_map_or`
+  sugere `Result::is_ok`/`is_err`; `redundant_clone` detecta loops sem
+  alias; `imprecise_flops` sugere `hypot`; `manual_swap` e
+  `suboptimal_flops` em const; `unwrap_used` com
+  `allow-unwrap-in-tests` cobre testes de integração.
+- Clippy: correções de falso positivo e ICE (`map_clone`,
+  `regex_creation_in_loops`, `let_and_return`, `large_futures`, etc.).
+
+### Compatibilidade (seleção)
+
+- Fallback de `!` em todas as editions e `Infallible = !`.
+- Captura de closures em `if let`.
+- Mais checagens de dyn-compatibility.
+- Padrões `box` removidos.
+- Impls de `Box` generalizadas para allocators (inferência).
+- `Iterator::min/max` mudam métodos de `Ord`.
+- ARMv7-A hardfloat sem `d32` no baseline; SSE/AVX rejeitados em x86
+  softfloat.
+- Unicode 18.0.0.
 
 ## 1.97.1 — 16 Jul 2026 (patch)
 
@@ -167,18 +334,20 @@ oficiais do Rust Release Team.
 
 | Arquivo | Mudanças |
 |---|---|
-| `00-introduction.md` | Versão 1.99.1 |
-| `01-toolchain.md` | LLVM 23, lints unsafe |
-| `02-fundamentals.md` | Métodos algébricos de float, `format_into`/`NumBuffer` |
-| `03-ownership.md` | Lifetime shortening em posições invariantes |
-| `04-structs-enums.md` | `repr(transparent)` mais estrito |
-| `05-collections.md` | `from_utf16*`, `strip_circumfix`, `IntoIterator` Box, `retain_back`, `into_parts`/`from_parts` |
-| `06-error-handling.md` | lint `c_void_returns` |
-| `07-generics-traits.md` | Resolução em never type, coerção de inference vars |
-| `08-closures-iterators.md` | `FusedIterator` para `StepBy` |
-| `10-smart-pointers.md` | `ManuallyDrop`/`Box`, `Box::into_non_null`/`from_non_null`, `Pin::new_unchecked` |
-| `11-concurrency.md` | `Atomic::from_mut`/slices, `Send`/`Sync` de `CommandArgs` |
-| `13-testing.md` | `doc(cfg())` em doctests, `unused_footnote_definition` |
-| `14-unsafe-macros-ffi.md` | C-variadics (`VaList`/`VaArgSafe`), layout de raw pointers, lints de runtime symbols |
-| `15-cargo-deep.md` | Profile `debug`, override de `default-features`, incremental em CI |
-| `16-project-practical.md` | CI, profile `debug` |
+| `00-introduction.md` | Versão 1.100.0, destaques |
+| `01-toolchain.md` | SPGO (`-Cprofile-sample-use`), Tier 2/3, LLVM 23, lints unsafe |
+| `02-fundamentals.md` | Never type nomeável, `bool::toggle`, métodos algébricos, `format_into` |
+| `03-ownership.md` | `DropGuard`, lifetime shortening |
+| `04-structs-enums.md` | Variantes inabitadas (`!`), lints de `repr`, `box` patterns removidos |
+| `05-collections.md` | `Vec::from_fn`, `trim_prefix`/`trim_suffix`, constructors de allocator, `Cow`, Unicode 18 |
+| `06-error-handling.md` | `Result<T, !>`/`Infallible`, fallback de `!`, `DropGuard`, `ENOTSUP` |
+| `07-generics-traits.md` | `!` em genéricos e impls, caveat de `impl Trait` |
+| `08-closures-iterators.md` | Captura em `if let`, `min`/`max` e `Ord`, `StepBy` |
+| `09-modules-crates.md` | `[workspace.lints.cargo]` |
+| `10-smart-pointers.md` | `Allocator` API, `Box`/`Rc`/`Arc` map/take, `UnsafeCell`, `Cow`, lints de drop |
+| `11-concurrency.md` | `Once: Default`, `Atomic<T>::*` |
+| `12-async.md` | Sem mudanças na 1.100 |
+| `13-testing.md` | `invalid_markdown_table`, flags repetíveis, `doc(cfg())` |
+| `14-unsafe-macros-ffi.md` | `extern "custom"`, `conjure_zst`, C-variadics, layout de raw pointers |
+| `15-cargo-deep.md` | Cargo lints, `min-publish-age`, build-dir, `cargo install` |
+| `16-project-practical.md` | CI, cooldowns, processos (Windows), allocators |

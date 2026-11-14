@@ -224,8 +224,8 @@
 
 ## 5. Estrutura, build e supply chain
 
-- **R40 🟠 Workspace disciplinado:** `edition = "2024"`, `rust-version = "1.97"` (**MSRV
-  mínimo obrigatório**), `resolver = "2"`,
+- **R40 🟠 Workspace disciplinado:** `edition = "2024"`, `rust-version = "1.100"` (**MSRV
+  mínimo obrigatório**), `resolver = "3"`,
   `[workspace.lints]`, `Cargo.lock` commitado, `publish = false`, `default-members`.
 - **R41 🟠 Perfis:** release `lto = "fat"`, `codegen-units = 1`, `strip = "symbols"`,
   `overflow-checks = true`, `panic = "abort"`; dev com `debug-assertions`/`overflow-checks`.

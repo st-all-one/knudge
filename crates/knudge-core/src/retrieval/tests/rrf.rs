@@ -46,8 +46,8 @@ fn weight_scales_channel_contribution() {
     let ids = vec!["a".to_string()];
     let one = fuse(&[Channel::new(&ids, 1.0)], 60);
     let two = fuse(&[Channel::new(&ids, 2.0)], 60);
-    let single = one.first().map(|hit| hit.score).unwrap_or_default();
-    let doubled = two.first().map(|hit| hit.score).unwrap_or_default();
+    let single = one.first().map_or_default(|hit| hit.score);
+    let doubled = two.first().map_or_default(|hit| hit.score);
     assert!(single.mul_add(-2.0, doubled).abs() < f64::EPSILON);
 }
 

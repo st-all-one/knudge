@@ -185,8 +185,7 @@ pub(crate) fn anchor_matches(requested: &str, anchor: &str) -> bool {
 fn string_list(frontmatter: &Frontmatter, key: &str) -> Vec<String> {
     frontmatter
         .string_list(key)
-        .map(|items| items.into_iter().map(str::to_string).collect())
-        .unwrap_or_default()
+        .map_or_default(|items| items.into_iter().map(str::to_string).collect())
 }
 
 fn created_ms(frontmatter: &Frontmatter) -> i64 {

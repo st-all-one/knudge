@@ -8,6 +8,15 @@ let mut v: Vec<i32> = Vec::new();
 let v = vec![1, 2, 3];
 let v = (0..10).collect::<Vec<_>>();
 
+// Por índice (1.100) — evita `collect()` intermediário
+let squares = Vec::from_fn(5, |i| i * i);   // [0, 1, 4, 9, 16]
+
+// Com alocador explícito (1.100) — ver 10-smart-pointers.md
+use std::alloc::System;
+let mut v: Vec<u8, System> = Vec::new_in(System);
+let v: Vec<u8, System> = Vec::with_capacity_in(1024, System);
+let alloc: &System = v.allocator();
+
 // Escrita
 v.push(1);
 v.extend([2, 3, 4]);
@@ -95,9 +104,24 @@ let s = String::from_utf16be(&bytes)?;
 let s = String::from_utf16be_lossy(&bytes);
 ```
 
-### Novas APIs estabilizadas (1.98–1.99)
+### Novas APIs estabilizadas (1.98–1.100)
 
 ```rust
+// str/slice trim (1.100): removem o prefixo/sufixo SE presente,
+// sempre retornando o valor (sem Option, para encadear)
+"user:alice".trim_prefix("user:")   // "alice"
+"user:alice".trim_prefix("id:")     // "user:alice" (inalterado)
+"file.rs".trim_suffix(".rs")        // "file"
+[10, 40, 30].trim_prefix(&[10])     // [40, 30]
+[10, 40, 30].trim_suffix(&[30])     // [10, 40]
+
+// Compare com strip_prefix/strip_suffix, que retornam Option
+let rest: Option<&str> = "user:alice".strip_prefix("user:");
+
+// Path::trim_prefix (1.100) — só prefixo; não há trim_suffix para Path
+use std::path::Path;
+Path::new("/test/haha/foo.txt").trim_prefix("/test") // "haha/foo.txt"
+
 // str::substr_range / [T]::subslice_range
 let range = s.substr_range("hello"..);
 
@@ -116,6 +140,18 @@ dq.retain_back(|&x| x % 2 == 0); // mantém apenas do fim
 // Vec::into_parts / Vec::from_parts (1.99)
 let (ptr, len, cap) = v.into_parts();
 let v = unsafe { Vec::from_parts(ptr, len, cap) };
+
+// Variantes com alocador (1.100)
+let (ptr, len, cap, alloc) = v.into_parts_with_allocator();
+let v = unsafe { Vec::from_parts_in(ptr, len, cap, alloc) };
+let (ptr, len, cap, alloc) = v.into_raw_parts_with_allocator();
+let v = unsafe { Vec::from_raw_parts_in(ptr, len, cap, alloc) };
+
+// Vec<T> == Cow<[U]> (1.100), sem alocar
+use std::borrow::Cow;
+let cow: Cow<'_, [i32]> = Cow::Borrowed(&[1, 2, 3]);
+assert_eq!(vec![1, 2, 3], cow);
+assert_eq!(&[1, 2, 3][..], cow);
 
 // String::from_utf8_lossy_owned (1.99)
 let s = String::from_utf8_lossy_owned(bytes);

@@ -1,7 +1,7 @@
 //! Transições de `status` permitidas (D52).
 //!
 //! O ciclo de vida é **soft**: `forget`/`restore` mudam o estado, nunca apagam a nota. Alguns
-//! estados são protegidos — `superseded` só é atribuído por [`crate::write::update`] (nunca à
+//! estados são protegidos — `superseded` só é atribuído por [`mod@crate::write::update`] (nunca à
 //! mão) e uma nota `forgotten` só volta via `restore` para `active`.
 
 use crate::schema::Status;

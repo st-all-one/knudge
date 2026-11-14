@@ -136,9 +136,38 @@ enum Color {
 let color = Color::Red as i32; // cast explícito
 ```
 
+### Variantes inabitadas (`!`) — 1.100
+
+Uma variante com ao menos um campo inabitado não pode ser construída e
+**não precisa ser coberta** no `match`:
+
+```rust
+enum Void {}                     // enum sem variantes = inabitado
+
+enum Event {
+    Ping,
+    Crash(!),                    // inconstruível
+    Data(u32, Void),             // inconstruível
+    Maybe(Option<!>),            // habitado: None é construível
+}
+
+fn handle(e: Event) -> u8 {
+    match e {
+        Event::Ping => 0,
+        Event::Maybe(None) => 1,
+        // Crash/Data não são exigidas — não há valor possível
+    }
+}
+```
+
 > **Rust 1.98+**: `repr(transparent)` é mais estrito sobre quais campos
 > têm layout "trivial" e podem ser ignorados. `repr(C)`, tipos com campos
 > privados, e `#[non_exhaustive]` não são mais considerados "triviais".
+
+> **Rust 1.100+**: `#[repr(C, packed)]` que contém (transitivamente) um
+> tipo `#[repr(align)]` agora é o lint **deny** `aligned_fields_in_packed`
+> (antes era erro imediato, agora pode ser `allow`ado com justificativa).
+> `#[repr(..)]` repetido dispara o lint **warn** `repeated_reprs`.
 
 ## Pattern Matching
 
@@ -188,6 +217,9 @@ match &val {
     &val => println!("referência para {val}"),
 }
 ```
+
+> **Rust 1.100**: padrões `box x` não são mais aceitos sintaticamente
+> (eram instáveis havia anos). Use `Box::new`/deref normalmente.
 
 ### Combinators (Option/Result)
 

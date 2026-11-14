@@ -172,9 +172,9 @@ fn expand(session: &Session, args: &AskArgs, around: &str) -> Result<Output> {
 fn note_json(note: &Note) -> serde_json::Value {
     json!({
         "id": note.frontmatter.id().unwrap_or_default(),
-        "type": note.frontmatter.note_type().map(NoteType::as_str).unwrap_or_default(),
+        "type": note.frontmatter.note_type().map_or_default(NoteType::as_str),
         "statement": note.frontmatter.statement().unwrap_or_default(),
-        "status": note.frontmatter.status().map(Status::as_str).unwrap_or_default(),
+        "status": note.frontmatter.status().map_or_default(Status::as_str),
         "body": note.body,
     })
 }

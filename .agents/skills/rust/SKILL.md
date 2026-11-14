@@ -1,17 +1,17 @@
 ---
 name: rust
 description: >
-  Rust 1.99.1 / Edition 2024: ownership, borrowing, lifetimes, structs/enums,
+  Rust 1.100.0 / Edition 2024: ownership, borrowing, lifetimes, structs/enums,
   traits/generics, error handling, iterators, smart pointers, concurrency,
   async/Tokio, macros, unsafe/FFI, testing, Cargo. Load when writing,
   reviewing, or debugging Rust or structuring a crate/workspace.
 category: languages
-version: "1.99.1 (Edition 2024)"
+version: "1.100.0 (Edition 2024)"
 tags: [rust, ownership, borrowing, async, tokio, concurrency, cargo, macros, ffi, testing]
 license: MIT
 ---
 
-# Rust 1.99.1 (Edition 2024)
+# Rust 1.100.0 (Edition 2024)
 
 ## Use When
 - Writing/reviewing/debugging Rust (systems, CLI, web, libraries)
@@ -29,6 +29,12 @@ license: MIT
 - Edition 2024: `gen` blocks, `async` closures, `unsafe extern`, RPIT lifetime capture changes.
 - Rust 1.98+: `f32`/`f64` `algebraic_*` methods relaxam ordem/precisão (estilo `-ffast-math`); use só em hot loops numéricos, nunca quando reprodutibilidade importa.
 - Rust 1.99+: defina variádicas `extern "C"` com `...`/`VaList`/`next_arg`; `#[my_macro] mod foo;`; `Box::into_non_null`.
+- Rust 1.100+: `!` é nomeável em qualquer posição; `Infallible = !`; o fallback de `!` é `!` em todas as editions (anote tipos em `f()?;` genéricos).
+- Rust 1.100+: `Result<T, !>` para APIs infalíveis (`let Ok(v) = ...` é exaustivo, não use `unwrap`).
+- Rust 1.100+: alocadores customizados só com perfil que justifique; `Vec`/`Box` aceitam `A: Allocator` (`*_in`, `*_with_allocator`, `allocator()`).
+- Rust 1.100+: `mem::DropGuard` para cleanup/rollback em toda saída de escopo; `dismiss` em vez de `mem::forget`.
+- Rust 1.100+: `conjure_zst` só para ZST inhabited; nunca para tokens de invariante (ex.: guardas de GIL).
+- Rust 1.100: `[lints.cargo]` (`unused_dependencies`) e `min-publish-age` em `.cargo/config.toml`.
 - No `mem::transmute` unless unavoidable; no leaking abstractions across modules.
 - Test: doc tests + unit tests in-module + integration tests in `tests/`.
 
@@ -63,6 +69,15 @@ async fn main() -> anyhow::Result<()> {
 let b: Box<dyn std::error::Error> = Box::new(std::io::Error::other("x"));
 let rc = Arc::new(vec![1,2,3]);            // shared, atomic
 let cell = std::cell::RefCell::new(0);     // interior mutability (single thread)
+
+// Never type / API infalível (1.100)
+fn infallible_unwrap<T>(res: Result<T, !>) -> T { let Ok(v) = res; v }
+
+// Rollback em qualquer saída de escopo (1.100)
+let mut v = std::mem::DropGuard::new(v, |v| v.truncate(len));
+
+// Alocador customizado (1.100): Vec<T, A> / Box<T, A>
+let mut v: Vec<u8, MyAlloc> = Vec::with_capacity_in(1024, MyAlloc);
 ```
 
 ## File Map
@@ -85,10 +100,10 @@ let cell = std::cell::RefCell::new(0);     // interior mutability (single thread
 | `14-unsafe-macros-ffi.md` | unsafe, macros, FFI, `extern "C"` |
 | `15-cargo-deep.md` | features, profiles, workspaces, publishing |
 | `16-project-practical.md` | project structure and patterns |
-| `CHANGELOG.md` | mudanças 1.97.0 → 1.99.1 |
+| `CHANGELOG.md` | mudanças 1.97.0 → 1.100.0 |
 
 ## Read Order
 Linear for learning (`00`→`16`); for reference jump to the topic. Start at `03-ownership.md` for correctness issues.
 
 ## Prereqs
-Basic programming; no prior Rust required. Rust 1.99+ / Edition 2024.
+Basic programming; no prior Rust required. Rust 1.100+ / Edition 2024.

@@ -23,7 +23,7 @@ cargo +nightly build            # shorthand
 ```rust
 // hello.rs
 fn main() {
-    println!("Hello, Rust 1.99.1!");
+    println!("Hello, Rust 1.100.0!");
 }
 ```
 
@@ -35,6 +35,26 @@ rustc --edition 2024 hello.rs   # edição específica
 
 > **Rust 1.99+**: Atualizado para LLVM 23. O lint `unsafe_code`
 > é agora consistentemente emitido para todos os atributos unsafe.
+
+> **Rust 1.100+**: `-Cprofile-sample-use=<arquivo.prof>` está estável —
+> PGO baseado em amostras (SPGO), útil quando instrumentar o binário é
+> inviável. Gere o `.prof` com `perf`/`llvm-profdata` e compile:
+>
+> ```bash
+> rustc -O -Cprofile-sample-use=app.prof src/main.rs
+> ```
+>
+> Para PGO instrumentado tradicional use `-Cprofile-generate` +
+> `-Cprofile-use=<.profdata>`. Nightly tem `-Zdebuginfo-for-profiling`
+> para melhorar a qualidade das amostras.
+
+### Platform support (1.100)
+
+| Target | Mudança |
+|---|---|
+| `wasm32-wasip3` | promovido a **Tier 2** |
+| `i686-pc-windows-gnu` | Tier 2 **sem host tools** |
+| `powerpc64-sony-ps3` | novo **Tier 3** |
 
 ## Cargo (package manager + build system)
 
@@ -132,13 +152,13 @@ cargo fmt -- --check         # CI: verificar formatação
 | `cargo-tarpaulin` | `cargo install cargo-tarpaulin` | Cobertura de código |
 | `cargo-audit` | `cargo install cargo-audit` | Auditoria de segurança |
 | `cargo-deny` | `cargo install cargo-deny` | Licenças + segurança |
-| `cargo-udeps` | `cargo install cargo-udeps` | Dependências não usadas |
+| `cargo-udeps` | `cargo install cargo-udeps` | Deps não usadas (nightly; desde 1.100 há `cargo::unused_dependencies`) |
 | `cargo-expand` | `cargo install cargo-expand` | Expandir macros |
 | `criterion` | `cargo add criterion --dev` | Benchmarks |
 | `nextest` | `cargo install cargo-nextest` | Test runner mais rápido |
 | `sccache` | `cargo install sccache` | Cache de compilação shared |
 | `typos` | `cargo install typos-cli` | Spell checker |
-| `cargo-machete` | `cargo install cargo-machete` | Deps não usadas |
+| `cargo-machete` | `cargo install cargo-machete` | Deps não usadas (desde 1.100 há `cargo::unused_dependencies`) |
 | `cargo-outdated` | `cargo install cargo-outdated` | Deps desatualizadas |
 
 ## CI básico (GitHub Actions)

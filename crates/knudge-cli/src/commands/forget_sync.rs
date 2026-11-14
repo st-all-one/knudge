@@ -118,8 +118,7 @@ pub fn sync(session: &Session, args: &SyncArgs) -> Result<Output> {
         let branch = branch.as_deref().unwrap_or("?");
         let short = hash
             .as_deref()
-            .map(|value| format!(" ({value})"))
-            .unwrap_or_default();
+            .map_or_default(|value| format!(" ({value})"));
         format!(
             "sync {branch}: {} arquivo(s) commitados{short}",
             report.files.len()

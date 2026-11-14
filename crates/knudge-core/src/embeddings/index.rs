@@ -181,14 +181,13 @@ impl EmbeddingIndex {
             let vector = map
                 .get("vector")
                 .and_then(Value::as_list)
-                .map(|items| {
+                .map_or_default(|items| {
                     items
                         .iter()
                         .filter_map(Value::as_f64)
                         .map(from_f64)
                         .collect()
-                })
-                .unwrap_or_default();
+                });
             index.insert(id, &body_hash, vector);
         }
         Ok(Some(index))

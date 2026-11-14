@@ -123,7 +123,7 @@ impl Fs for MemFs {
                 .collect();
             for key in keys {
                 dirs.remove(&key);
-                let rest = key.strip_prefix(from).unwrap_or(&key);
+                let rest = key.trim_prefix(from);
                 dirs.insert(to.join(rest));
             }
         }
@@ -143,7 +143,7 @@ impl Fs for MemFs {
         }
         for key in keys {
             if let Some(entry) = files.remove(&key) {
-                let rest = key.strip_prefix(from).unwrap_or(&key);
+                let rest = key.trim_prefix(from);
                 files.insert(to.join(rest), entry);
             }
         }
@@ -212,10 +212,7 @@ impl Fs for MemFs {
 
 /// Caminho `*.tmp` usado na escrita atômica (mesmo diretório do destino — D20).
 pub(super) fn staging_path(path: &Path) -> PathBuf {
-    let mut name = path
-        .file_name()
-        .map(OsStr::to_os_string)
-        .unwrap_or_default();
+    let mut name = path.file_name().map_or_default(OsStr::to_os_string);
     name.push(".tmp");
     path.with_file_name(name)
 }

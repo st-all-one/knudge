@@ -60,6 +60,9 @@ unsafe trait MyUnsafeTrait {}
 unsafe impl MyUnsafeTrait for MyType {}
 ```
 
+> **Rust 1.100**: `std::alloc::Allocator` é um `unsafe trait` — o
+> contrato de alocação/desalocação está em `10-smart-pointers.md`.
+
 ### 5. Acessar Campos de Union
 
 ```rust
@@ -94,6 +97,30 @@ fn split_at_mut<T>(values: &mut [T], mid: usize) -> (&mut [T], &mut [T]) {
     }
 }
 ```
+
+## `conjure_zst` — criar ZSTs inhabited (1.100)
+
+`core::mem::conjure_zst::<T>()` cria um valor de um ZST **inhabited**
+sem exigir `Default`, `Clone` ou um construtor:
+
+```rust
+#[derive(Debug, PartialEq)]
+struct Token;   // ZST sem Default/Clone
+
+let t: Token = unsafe { std::mem::conjure_zst() };
+assert_eq!(t, Token);
+
+// Substitui estas incantações:
+// unsafe { std::mem::transmute(()) }
+// unsafe { std::mem::MaybeUninit::<Token>::uninit().assume_init() }
+```
+
+- **Unsafe**: `T` precisa ser *inhabited*. Para `!`, enums sem variantes
+  ou tokens com invariantes (ex.: `Python<'py>` do PyO3, que representa
+  segurar o GIL), conjurar quebra a API e é UB.
+- **Panics** se `size_of::<T>() != 0`.
+- Se não tem certeza de que `T` é um ZST inhabited, use `MaybeUninit` —
+  não esta função.
 
 ### Miri (UB Detector)
 
@@ -140,6 +167,35 @@ pub extern "C" fn call_from_c() -> i32 {
 // Previne otimização (mingw / cdylib)
 // Cargo.toml: crate-type = ["cdylib"]
 ```
+
+### ABI customizada: `extern "custom"` (1.100+)
+
+ABIs desconhecidas pelo compilador podem ser declaradas; a função só
+pode ser chamada via `asm!`, e a convenção é sua responsabilidade:
+
+```rust
+#[cfg(target_arch = "x86_64")]
+mod custom_abi {
+    use core::arch::{asm, naked_asm};
+
+    /// Convenção própria: argumento em `rax`, resultado em `rax`.
+    #[unsafe(naked)]
+    pub unsafe extern "custom" fn increment() {
+        naked_asm!("add rax, 1", "ret");
+    }
+
+    pub fn run() {
+        let mut x: u64 = 41;
+        // SAFETY: respeita a convenção de `increment`.
+        unsafe { asm!("call {}", sym increment, inout("rax") x); }
+        assert_eq!(x, 42);
+    }
+}
+```
+
+Regras: a função precisa ser `unsafe`, **sem parâmetros**, retornar
+`()` (escrito explicitamente) e ser `#[unsafe(naked)]`. `safe` não é
+permitido em blocos `extern "custom"`.
 
 ### Bindgen (auto-generate bindings)
 

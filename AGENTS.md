@@ -34,7 +34,7 @@ make uninstall # invalida os binários (move para o lixo)
 make update-version VERSION=v0.2.1  # bump em Cargo.toml/lock/goldens/install.sh/README/CHANGELOG
 
 # alvos extras (E13) — pulam se a ferramenta não estiver instalada
-make ci        # check + miri + deny + audit + machete + typos
+make ci        # check + doc + miri + deny + audit + machete + typos
 make miri      # verificação dinâmica de UB no core puro
 make fuzz      # build dos alvos de fuzz (TOON, JSONL)
 make bench     # bancada de benchmark (micro + e2e) → bench/ULTIMO.md (observação, E13-T09)
@@ -44,8 +44,8 @@ cargo test -p knudge-core toon::tests::round_trip_is_byte_exact
 cargo clippy -p knudge-core --all-targets -- -D warnings
 ```
 
-- Toolchain: Rust **1.99+** (edição 2024). MSRV **obrigatória** = 1.99; não use API mais nova.
-  O `rust-toolchain.toml` fixa o channel em `1.99`; `rust-version`/`clippy.toml::msrv` casam com ele.
+- Toolchain: Rust **1.100+** (edição 2024). MSRV **obrigatória** = 1.100; não use API mais nova.
+  O `rust-toolchain.toml` fixa o channel em `1.100`; `rust-version`/`clippy.toml::msrv` casam com ele.
 - `rustfmt`: largura 100, indent 4, newline Unix, `style_edition = "2024"` e hex minúsculo
   (ver `rustfmt.toml`). Só opções **estáveis** — a toolchain é estável; agrupar imports é manual.
 - Nunca `cargo fmt` só num arquivo isolado de forma que o `check` global reclame.

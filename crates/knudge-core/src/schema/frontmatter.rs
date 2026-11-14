@@ -1,7 +1,7 @@
 //! Frontmatter canônico (E02-T01/T07).
 //!
 //! A ordem das chaves é **contrato** (D04/D13): [`Frontmatter::to_value`] sempre emite na
-//! [`CANONICAL_KEYS`](super::keys::CANONICAL_KEYS), independentemente da ordem de inserção.
+//! [`CANONICAL_KEYS`], independentemente da ordem de inserção.
 //! Campos opcionais são **omitidos**, nunca `null`/vazio (D05). Chave desconhecida é rejeitada
 //! no write e **ignorada com warning** no read (D16).
 

@@ -221,7 +221,7 @@ fn pending_queue(
             stale = stale.saturating_add(1);
         }
         queue.push(PendingNote {
-            id: id.clone(),
+            id,
             body_hash: body_hash.to_string(),
             text: prefix.document(statement, &note.body),
         });

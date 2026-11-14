@@ -27,7 +27,6 @@ use crate::envelope::Envelope;
 use crate::output::{Output, emit_stderr, emit_stdout};
 
 /// Ponto de entrada do binário.
-#[must_use]
 pub fn run() -> ExitCode {
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,

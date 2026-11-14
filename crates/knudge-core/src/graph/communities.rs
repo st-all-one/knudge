@@ -81,7 +81,7 @@ pub fn louvain(graph: &WeightedGraph) -> Vec<Vec<String>> {
     }
     let mut adj = graph.adj.clone();
     // `members[new_idx]` = nós originais daquele super-nó.
-    let mut members: Vec<Vec<usize>> = (0..n).map(|i| vec![i]).collect();
+    let mut members: Vec<Vec<usize>> = Vec::from_fn(n, |i| vec![i]);
     let mut levels = 0;
     loop {
         let labels = local_moving(&adj);
