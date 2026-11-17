@@ -30,10 +30,12 @@ kd ask → kd write → kd task → kd sync
    `kd ask` shows the body: 1st hit full, 2–5 truncated; read with `--id`/`--full-content`.
 4. **Anchor code.** Every note/task about a file gets `--anchor PATH` (glob `src/**` matches
    subtrees). `kd ask --anchor PATH` finds by file.
+   A nonexistent literal anchor warns on write; `strict` promotes the warning to an error.
 5. **Evidence ≠ body.** Task completion uses `--outcome`; facts/decisions get anchors. Body never
    replaces evidence.
 6. **Nothing changes without acceptance.** `doctor`/`learn`/`compact`/`prune` only propose; apply
    via `write`/`write --link`/`forget`.
+   `prune --json` reports `anchor_coverage` and a `review`/`forget` plan; `forget` needs structural evidence.
 7. **stdout = data, stderr = logs.** In `--json`, stdout is only the envelope. EPIPE → exit 0.
 
 ## Essential commands
@@ -45,6 +47,7 @@ kd ask --id <ID>                           # full body of a note
 kd ask --anchor src/x.rs                   # by file, no query
 kd ask --around <ID> [--via <EDGE>]        # expand the graph
 kd ask --suggest [--relation R]            # semantic suggestions
+kd ask --agent <name> [--activity A]       # filter by provenance (who produced the note)
 kd write --summary "<s>" [<body>|-] --type <fact|decision|error|risk|question>
         [--tag T] [--anchor P]
 kd write --update <ID> --summary "<s>"     # versioned update (new id + supersede)
@@ -55,11 +58,12 @@ kd task list --ready [--sort impact]       # or --blocked [--explain]
 kd task show --id <ID> [--history]         # body/checks/outcomes + epic rollup
 kd task close --id <ID> --outcome S        # only declares with evidence
 kd task flow                               # cycle/lead/throughput + critical path
-kd rewind [--budget N] [--files P...]      # resume context between sessions
-kd doctor [--fix] [--explain]              # base health
-kd map [--axis A] [--communities]          # knowledge map
-kd maintenance <learn|compact|prune>       # proposes only (read-only)
+kd rewind [--budget N] [--files P...] [--json]  # + freshness/pending_proposals in JSON
+kd doctor [--fix] [--explain] [--json]         # JSON: freshness
+kd map [--axis A] [--communities]               # knowledge map
+kd maintenance <learn|compact|prune> [--json]   # proposes only; prune: anchor_coverage
 kd drain [--status | --digest [--force]]   # embedding queue: state / process
+kd ai --memory|--session ["<q>"]  # another agent's memory/log (read-only JSONL)
 kd sync [--message M]                      # commit notas/ + eventos/
 ```
 
@@ -73,6 +77,27 @@ alone), `issue` is optional, `task` is the leaf. `--scope` sets the level
 Anchoring the root epic is strongly recommended (`kd doctor` warns without it). Parent is any
 ancestor with a strictly lower rank, so `epic → task` directly is valid. Closing requires an
 `--outcome`; `kd task show`/`close` report the epic rollup (`done/total`).
+
+## Agent memory (`kd ai`, D220/D221/D222)
+
+Another agent's memory/log is consulted **read-only** through a **source**: NDJSON shards of notes
+(`{"frontmatter": …, "body": …}`, the knudge schema), one `<agent_id>.jsonl` per writer. The agent
+owns the store; the knudge only indexes it — never a second truth.
+
+kd ai --memory              # list the agent's memory (id|type|statement)
+kd ai --memory "<q>"        # recall in .knudge/ai/memory/<agent_id>.jsonl
+kd ai --session "<q>"       # recall in the agent's projection of its log (activity=derive)
+kd ai --memory --source /tmp/shards "<q>"    # explicit file or directory
+kd ai --memory --sort time --agent-role subagent "<q>"   # temporal order / identity filter
+kd ai --session --recap     # compact recap (last decision/verification/error, files, commands)
+kd rewind --with-activity   # handoff + recent agent activity appendix
+
+No query lists; with a query it recalls (`[no_results]` when empty). A malformed line is skipped
+with a `warning` naming the shard (never fails). JSON exposes `created_at` and
+`agent`/`agent_id`/`agent_role`/`parent_agent_id`. Writers append one complete JSON line per event
+(`O_APPEND`) and keep `created_at` monotonic per agent; identity lives in `provenance`. The knudge
+never reads `.agents/memory` and there is no migration command. To filter notes already in
+`notas/`, use `kd ask --agent NAME` / `--activity NAME` / `--agent-id ID` / `--agent-role ROLE`.
 
 ## Embeddings (derived, optional)
 
@@ -104,6 +129,15 @@ List flags accept repetition or comma: `--tag a --tag b` ≡ `--tag a,b`. The sp
 - **Anchor** (`--anchor PATH`): ties the note to a file/glob — the only link to code.
 - **Edge** (`--link`): ties the note to another note, with a type (12, closed).
 
+## Maintenance plan (D230)
+
+`kd maintenance prune --json` reports `anchor_coverage` and persists a derived plan in
+`.idx/proposals.jsonl` (purged with the note). Drift/contradiction/defeat become `review`;
+`forget` requires expired/decayed anchors, derived confidence < 0.5 and non-`foundational`.
+Below 0.5 coverage or a truncated walk, `anchor_decay` is suppressed with a warning.
+`kd rewind --json` counts pending proposals; `kd doctor --json` and `kd rewind --json` expose
+`freshness`.
+
 ## Output
 
 stdout = data, stderr = logs. `--json` =
@@ -119,4 +153,4 @@ stdout = data, stderr = logs. `--json` =
 - Editing `notas/` by hand — use `kd write --update`.
 - Expecting `learn`/`compact`/`prune` to change the corpus — they only propose.
 
-<!-- knudge:skill:version: 3 -->
+<!-- knudge:skill:version: 7 -->

@@ -34,6 +34,7 @@ pub use update::{Patch, UpdateOutcome, history, update};
 use crate::config::Config;
 use crate::retrieval::Index;
 use crate::schema::{Frontmatter, NoteType, Value};
+use crate::store::paths::{DENIED_PATTERNS, is_denied};
 use crate::store::{Event, EventLog, Note, Store, commit};
 use crate::{Error, Result};
 
@@ -273,11 +274,18 @@ fn set_list(frontmatter: &mut Frontmatter, key: &str, items: &[String]) -> Resul
 }
 
 /// Rejeita âncora vazia/só espaços — limpar usa `--clear-anchors`, nunca `--anchor ""`.
+/// Também rejeita caminhos sensíveis da lista fixa (D226).
 pub(crate) fn validate_anchors(anchors: &[String]) -> Result<()> {
     if anchors.iter().any(|anchor| anchor.trim().is_empty()) {
         return Err(Error::invalid_input(
             "âncora vazia: use `--clear-anchors` para limpar as âncoras",
         ));
+    }
+    if let Some(anchor) = anchors.iter().find(|anchor| is_denied(anchor)) {
+        return Err(Error::invalid_input(format!(
+            "âncora negada '{anchor}': padrões fixos {}",
+            DENIED_PATTERNS.join(", ")
+        )));
     }
     Ok(())
 }

@@ -8,6 +8,7 @@ use std::collections::BTreeSet;
 
 use knudge_core::handoff::ManifestItem;
 use knudge_core::maintenance::{LearnKind, LearnProposal};
+use knudge_core::store::is_denied;
 use knudge_core::write::Candidate;
 
 /// Cap default de hints por gatilho.
@@ -147,13 +148,16 @@ impl HintEngine {
     /// Hints do gatilho pré-edição (contexto do working set).
     pub fn pre_edit(&mut self, items: &[ManifestItem]) -> Vec<Hint> {
         let observed = self.is_observing();
-        let hints = items.iter().map(|item| Hint {
-            kind: HintKind::Context,
-            ids: vec![item.id.clone()],
-            score: item.score,
-            why: format!("contexto para {}", item.id),
-            observed,
-        });
+        let hints = items
+            .iter()
+            .filter(|item| !item.anchors.iter().any(|anchor| is_denied(anchor)))
+            .map(|item| Hint {
+                kind: HintKind::Context,
+                ids: vec![item.id.clone()],
+                score: item.score,
+                why: format!("contexto para {}", item.id),
+                observed,
+            });
         self.collect(hints)
     }
 

@@ -39,6 +39,9 @@ pub struct WriteArgs {
     /// Atualiza a nota existente.
     #[arg(long, value_name = "ID")]
     pub update: Option<String>,
+    /// Guarda de retry em `--update`: exige que o `body_hash` atual seja igual ao informado (D228).
+    #[arg(long, value_name = "HEX8", requires = "update")]
+    pub expect_body_hash: Option<String>,
     /// Cria aresta `FROM:ARESTA:TO`.
     #[arg(long, value_name = "FROM:ARESTA:TO")]
     pub link: Option<String>,

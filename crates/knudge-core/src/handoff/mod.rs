@@ -9,6 +9,7 @@ pub mod budget;
 pub mod context;
 pub mod manifest;
 pub mod next;
+pub mod refs;
 pub mod scope;
 
 #[cfg(test)]
@@ -20,6 +21,10 @@ pub use manifest::{
     ManifestItem, TrustTier, manifest_text, rank, rank_with, render_item, tier_of, trust_score,
 };
 pub use next::{NextTask, manifest_at, next_tasks};
+pub use refs::{
+    ANCHOR_LINE_PREFIX, RefFinding, RefKind, RefStatus, annotate_refs, parse_ref, render_ref,
+    verify_refs,
+};
 pub use scope::{FLIP_CONTAINERS, FLIP_NOTES, detect_scope, should_flip};
 
 use std::collections::{BTreeMap, BTreeSet};

@@ -5,6 +5,7 @@
 
 pub mod extra;
 pub mod proposals;
+pub mod prune;
 
 use knudge_core::Result;
 
@@ -47,7 +48,7 @@ pub fn run(session: &Session, command: &MaintenanceCommand) -> Result<Output> {
             },
         ),
         MaintenanceCommand::Prune { scope, corpus, .. } => {
-            extra::prune(session, scope.as_deref(), corpus)
+            prune::prune(session, scope.as_deref(), corpus)
         }
     }
 }

@@ -10,6 +10,7 @@ use std::path::Path;
 use crate::config::Config;
 use crate::ports::Fs;
 use crate::retrieval::anchor::glob_match;
+use crate::store::paths::is_denied;
 
 /// Profundidade máxima da varredura de projeto.
 pub const MAX_WALK_DEPTH: usize = 32;
@@ -194,7 +195,11 @@ impl Walker<'_> {
                 }
                 self.visit(&path, depth.saturating_add(1));
             } else if let Ok(relative) = path.strip_prefix(self.root) {
-                self.out.push(relative.to_string_lossy().replace('\\', "/"));
+                let relative = relative.to_string_lossy().replace('\\', "/");
+                if is_denied(&relative) {
+                    continue;
+                }
+                self.out.push(relative);
             }
         }
     }

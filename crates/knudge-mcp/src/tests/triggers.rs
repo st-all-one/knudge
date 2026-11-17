@@ -21,6 +21,7 @@ fn item(id: &str, score: f64) -> ManifestItem {
         tier: TrustTier::Tactical,
         score,
         created_ms: 0,
+        anchors: Vec::new(),
     }
 }
 
@@ -88,4 +89,23 @@ fn session_end_maps_learn_kinds() {
     assert!(hints.iter().any(|hint| hint.kind == HintKind::WriteGap));
     assert!(hints.iter().any(|hint| hint.kind == HintKind::Merge));
     assert!(hints.iter().any(|hint| hint.kind == HintKind::MissingLink));
+}
+
+#[test]
+fn pre_edit_skips_denied_anchors() {
+    let mut engine = HintEngine::new(3, 0);
+    let mut denied = item("secret", 1.0);
+    denied.anchors = vec![".env".to_string()];
+    let mut allowed = item("fact_1", 0.9);
+    allowed.anchors = vec!["src/main.rs".to_string()];
+
+    let hints = engine.pre_edit(&[denied, allowed]);
+    assert_eq!(hints.len(), 1);
+    assert_eq!(
+        hints
+            .first()
+            .and_then(|hint| hint.ids.first())
+            .map(String::as_str),
+        Some("fact_1")
+    );
 }

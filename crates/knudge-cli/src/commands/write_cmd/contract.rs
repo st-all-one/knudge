@@ -33,16 +33,21 @@ pub(super) fn dry_run_note(session: &Session, draft: &Draft, missing: &[&str]) -
     Ok(Output::new(text, data))
 }
 
-/// Anexa o aviso soft do data contract quando faltam slots (D191).
-pub(super) fn with_slot_warnings(output: Output, note_type: NoteType, missing: &[&str]) -> Output {
-    if missing.is_empty() {
-        output
-    } else {
-        output.with_warnings(vec![format!(
+/// Anexa os avisos soft do contrato de dados (D191) e das âncoras (D230).
+pub(super) fn with_slot_warnings(
+    output: Output,
+    note_type: NoteType,
+    missing: &[&str],
+    extra: Vec<String>,
+) -> Output {
+    let mut warnings = extra;
+    if !missing.is_empty() {
+        warnings.push(format!(
             "data contract de `{note_type}`: slots ausentes: {}",
             missing.join(", ")
-        )])
+        ));
     }
+    output.with_warnings(warnings)
 }
 
 /// Slots mínimos ausentes no rascunho (E19-T03/D191) — aviso soft, erro só sob `strict`.
@@ -53,4 +58,23 @@ pub(super) fn draft_missing(draft: &Draft) -> Vec<&'static str> {
         draft.anchors.len(),
         draft.edges.len(),
     )
+}
+
+/// Avisa sobre âncoras literais que não existem na árvore do projeto (D230).
+///
+/// Globs são ignorados: casá-los exigiria a varredura que o `prune` já faz off-path. A checagem
+/// usa a porta `Fs`, mantendo o domínio puro; `strict` promove o aviso a erro na chamada.
+pub(super) fn anchor_existence_warnings(session: &Session, anchors: &[String]) -> Vec<String> {
+    let mut warnings = Vec::new();
+    let root = session.project_root();
+    for anchor in anchors {
+        if anchor.chars().any(|ch| matches!(ch, '*' | '?' | '[')) {
+            continue;
+        }
+        let path = root.join(anchor);
+        if !session.fs_dyn().exists(&path) || session.fs_dyn().is_dir(&path) {
+            warnings.push(format!("âncora inexistente: {anchor}"));
+        }
+    }
+    warnings
 }

@@ -8,6 +8,7 @@ mod decay;
 mod drift;
 mod from_tasks;
 mod plan;
+mod proposals;
 mod retention;
 mod retire;
 mod semantic;

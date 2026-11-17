@@ -4252,3 +4252,215 @@ fn claim_conflict_is_reported_by_doctor_integrity() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn write_infers_observational_and_warns_about_missing_anchors() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+
+    let out = run_in(
+        &dir,
+        &[
+            "--json",
+            "write",
+            "--summary",
+            "bug sem causa registrada",
+            "--type",
+            "error",
+            "--anchor",
+            "src/inexistente.rs",
+            "## Causa\nnão investigada",
+        ],
+    )?;
+    assert!(out.status.success(), "write falhou: {:?}", out.stderr);
+    let value = json(&out)?;
+    let warnings = value
+        .get("warnings")
+        .and_then(serde_json::Value::as_array)
+        .ok_or("envelope sem warnings")?;
+    assert!(
+        warnings.iter().any(|item| item
+            .as_str()
+            .is_some_and(|text| text.contains("âncora inexistente"))),
+        "esperado aviso de âncora: {warnings:?}"
+    );
+    let id = value
+        .get("data")
+        .and_then(|data| data.get("id"))
+        .and_then(serde_json::Value::as_str)
+        .ok_or("write sem id")?;
+    let text = std::fs::read_to_string(note_path(&dir, id))?;
+    assert!(
+        text.contains("classification: observational"),
+        "tipo efêmero devia inferir observacional: {text}"
+    );
+
+    let strict = config_set(&dir, "behavior.strict", "true")?;
+    assert!(
+        strict.status.success(),
+        "config falhou: {:?}",
+        strict.stderr
+    );
+    let strict_out = run_in(
+        &dir,
+        &[
+            "--json",
+            "write",
+            "--summary",
+            "outro bug",
+            "--type",
+            "error",
+            "--anchor",
+            "src/inexistente.rs",
+        ],
+    )?;
+    assert_eq!(strict_out.status.code(), Some(2), "strict devia ser exit 2");
+    Ok(())
+}
+
+#[test]
+fn doctor_and_rewind_expose_freshness_and_pending_proposals() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    let path = dir.join("src").join("ancora.rs");
+    std::fs::create_dir_all(path.parent().ok_or("sem diretório")?)?;
+    let _ignored = std::fs::write(path, b"fn ancora() {}\n");
+    let _ignored = write_anchored(&dir, "código ancorado", "src/ancora.rs")?;
+    let _ignored = write_aged_observational(&dir, "fato vencido")?;
+
+    let prune = run_in(&dir, &["--json", "maintenance", "prune", "--universe"])?;
+    assert!(prune.status.success(), "prune falhou: {:?}", prune.stderr);
+    let proposals = json(&prune)?
+        .get("data")
+        .and_then(|data| data.get("proposals"))
+        .and_then(serde_json::Value::as_array)
+        .ok_or("prune sem proposals")?
+        .clone();
+    assert!(
+        proposals.iter().any(|item| {
+            item.get("action").and_then(serde_json::Value::as_str) == Some("forget")
+        }),
+        "nota vencida devia gerar forget: {proposals:?}"
+    );
+
+    let doctor = run_in(&dir, &["--json", "doctor"])?;
+    let doctor_value = json(&doctor)?;
+    let freshness = doctor_value
+        .get("data")
+        .and_then(|data| data.get("freshness"))
+        .ok_or("doctor sem freshness")?;
+    assert!(freshness.get("stale").is_some(), "freshness sem stale");
+    assert!(
+        freshness.get("expiring").is_some(),
+        "freshness sem expiring"
+    );
+
+    let rewind = run_in(&dir, &["--json", "rewind"])?;
+    let rewind_value = json(&rewind)?;
+    let data = rewind_value.get("data").ok_or("rewind sem data")?;
+    assert!(data.get("freshness").is_some(), "rewind sem freshness");
+    assert_eq!(
+        data.get("pending_proposals")
+            .and_then(serde_json::Value::as_u64),
+        Some(u64::try_from(proposals.len())?),
+        "contagem de propostas divergente"
+    );
+    Ok(())
+}
+
+#[test]
+fn prune_without_project_tree_does_not_propose_anchor_decay() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    let id = write_anchored(&dir, "nota antiga com âncora", "src/fantasma.rs")?;
+    let path = note_path(&dir, &id);
+    let aged = std::fs::read_to_string(&path)?
+        .lines()
+        .map(|line| {
+            if line.starts_with("created_at:") {
+                "created_at: 2000-01-01T00:00:00.000Z".to_string()
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let _ignored = std::fs::write(&path, aged);
+
+    let out = run_in(&dir, &["--json", "maintenance", "prune", "--universe"])?;
+    assert!(out.status.success(), "prune falhou: {:?}", out.stderr);
+    let value = json(&out)?;
+    let data = value.get("data").ok_or("prune sem data")?;
+    let ratio = data
+        .get("anchor_coverage")
+        .and_then(|coverage| coverage.get("ratio"))
+        .and_then(serde_json::Value::as_f64)
+        .ok_or("sem cobertura de âncoras")?;
+    assert_eq!(ratio, 0.0, "sem árvore, cobertura devia ser zero");
+    let warnings = value
+        .get("warnings")
+        .and_then(serde_json::Value::as_array)
+        .ok_or("sem warnings")?;
+    assert!(
+        warnings.iter().any(|item| item
+            .as_str()
+            .is_some_and(|text| text.contains("cobertura de âncoras"))),
+        "esperado aviso de cobertura: {warnings:?}"
+    );
+    let proposals = data
+        .get("proposals")
+        .and_then(serde_json::Value::as_array)
+        .ok_or("sem proposals")?;
+    assert!(
+        proposals.iter().all(|item| {
+            item.get("reason").and_then(serde_json::Value::as_str) != Some("anchor_decay")
+        }),
+        "sem cobertura não pode propor âncora quebrada: {proposals:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn drift_is_proposed_as_review_not_forget() -> TestResult {
+    let dir = temp_project();
+    let init = run_in(&dir, &["init", "--no-prompt"])?;
+    assert!(init.status.success(), "init falhou: {:?}", init.stderr);
+    let path = dir.join("src").join("topico.rs");
+    std::fs::create_dir_all(path.parent().ok_or("sem diretório")?)?;
+    let _ignored = std::fs::write(path, b"// topico\n");
+    for statement in [
+        "cache lru antigo",
+        "cache lru expira",
+        "vetor hnsw antigo",
+        "vetor hnsw recall",
+    ] {
+        let _ignored = write_anchored(&dir, statement, "src/topico.rs")?;
+    }
+
+    let out = run_in(&dir, &["--json", "maintenance", "prune", "--universe"])?;
+    assert!(out.status.success(), "prune falhou: {:?}", out.stderr);
+    let proposals = json(&out)?
+        .get("data")
+        .and_then(|data| data.get("proposals"))
+        .and_then(serde_json::Value::as_array)
+        .ok_or("sem proposals")?
+        .clone();
+    assert!(
+        proposals.iter().any(|item| {
+            item.get("reason").and_then(serde_json::Value::as_str) == Some("drifted")
+                && item.get("action").and_then(serde_json::Value::as_str) == Some("review")
+        }),
+        "drift devia virar revisão: {proposals:?}"
+    );
+    assert!(
+        proposals.iter().all(|item| {
+            item.get("reason").and_then(serde_json::Value::as_str) != Some("drifted")
+                || item.get("action").and_then(serde_json::Value::as_str) == Some("review")
+        }),
+        "drift nunca deve ser forget: {proposals:?}"
+    );
+    Ok(())
+}

@@ -64,6 +64,18 @@ impl UpdateOutcome {
 /// Propaga erros de leitura, validação e escrita; retorna `ErrorKind::Schema` para patch inválido.
 pub fn update(ctx: &WriteContext<'_>, id: &str, patch: &Patch) -> Result<UpdateOutcome> {
     let mut note = ctx.store().read(id)?;
+    if let Some(expected) = &patch.expected_body_hash {
+        let current = note
+            .frontmatter
+            .get("body_hash")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if current != expected {
+            return Err(Error::conflict(format!(
+                "body_hash divergente: esperado {expected}, atual {current}"
+            )));
+        }
+    }
     let original_type = note.frontmatter.note_type()?;
     let original_statement = note.frontmatter.statement()?.to_string();
     // Id que a nota **teria** se fosse derivada hoje; diferente de `id` = id histórico/legado

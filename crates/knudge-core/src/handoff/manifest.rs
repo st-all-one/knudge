@@ -85,6 +85,8 @@ pub struct ManifestItem {
     pub score: f64,
     /// `created_at` em ms.
     pub created_ms: i64,
+    /// Âncoras declaradas na nota (D226).
+    pub anchors: Vec<String>,
 }
 
 /// Ranqueia as notas do modo (escopo ou working set).
@@ -135,6 +137,7 @@ pub fn rank_with(
                     tier_of(&doc.meta)
                 },
                 score: trust_score(&doc.meta) + if confirmed { 100.0 } else { 0.0 },
+                anchors: doc.meta.anchors.clone(),
                 created_ms: doc.meta.created_ms,
             }
         })

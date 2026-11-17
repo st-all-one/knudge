@@ -3,6 +3,43 @@
 Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ## [Não publicado]
+### Corrigido
+- Render de achado de ref (D227) não duplica mais o separador: `id@hash`, não `id@@hash`.
+  Teste de regressão compara a string exata.
+
+### Verificado
+- Confronto da 0.6.6 com corpus real (cópia isolada de `maxima/v7/public-v7/.knudge`, 1.535
+  notas): deny-list, refs e guarda de retry funcionam; `doctor --fix` recupera 1.460 itens
+  derivados; custo por resposta no pipe tem razão 1,037–1,741 em 5 consultas (regime de corpos
+  longos), registrado em `bench/custo.md` e D229/D226.
+
+## [0.6.6] - 2026-11-17
+
+### Adicionado
+- **Deny-list fixa de segredos em âncoras/hints (D226).** `is_denied` pura, casada por basename;
+  `.env*`, chaves, keystores, `id_*`, `secrets.*`, `*.tfstate*` nunca viram âncora, caminho varrido
+  ou hint de `pre_edit`. R22 cobre log; esta decisão cobre o caminho. Lista não configurável para
+  menos.
+- **Refs versionadas no handoff (D227).** `kd rewind --with-refs` (opt-in) emite `id@body_hash` e
+  linhas `anchor|path@content_hash`; `kd doctor --refs <id>` e
+  `kd rewind --resume <id> --check-refs` verificam e reportam em stderr `changed`/`superseded`/
+  `retired`/`dangling`. Default permanece byte-idêntico (D88).
+- **Guarda de retry em `write --update` (D228).** `--expect-body-hash <hex8>` (ou
+  `expect_body_hash` em `--params`) falha com `conflict` (4) e os dois hashes quando o corpo mudou;
+  sem flag, nada muda. `revision` continua não-CAS (D48).
+- **Custo por resposta na bancada (D229).** `bench/custo.rs` + `bench/custo.md` medem
+  `bytes_out`/`bytes_counterfactual`/razão sem tocar no runtime, em config ou em `.knudge/`. Razão
+  ~0,82 no corpus sintético: a tese de economia de bytes não se sustenta naquele corpus — registrado
+  sem maquiagem.
+- **Prevenção do decaimento ruidoso (D230).** `doctor`/`rewind` expõem `freshness` e propostas
+  pendentes no JSON; `prune` informa cobertura de âncoras, não propõe `anchor_decay` sem árvore e
+  separa `review` (drift/contradição/derrota) de `forget` (evidência estrutural corroborada). O plano
+  vive em `.idx/proposals.jsonl`; `write` infere `observational` para tipos efêmeros e avisa âncoras
+  inexistentes (erro sob `strict`). Bordas #126–#130.
+- **Bordas #122–#130** em `wiki/specs/DIVERGENCES.md`, com os testes que as travam.
+- **Documentação gerada e bancada (D230).** `prime` (goldens), bloco `AGENTS.md` v5, skill gerada
+  v7, `SKILL.md` e `llms.txt` descrevem o plano de manutenção; `bench/ULTIMO.*` mede `freshness`,
+  cobertura de âncoras, `ProposalStore` e a checagem de âncora no `write`.
 
 ## [0.6.5] - 2026-11-13
 

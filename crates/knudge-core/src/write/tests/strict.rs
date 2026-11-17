@@ -1,8 +1,9 @@
 //! Escrita estrita e omissão de opcionais (E07-T05).
 
+use crate::ErrorKind;
 use crate::Result;
 use crate::schema::{Classification, Frontmatter, NoteType, Scope, Value};
-use crate::write::Draft;
+use crate::write::{Draft, validate_anchors};
 
 use super::NOW;
 
@@ -81,6 +82,34 @@ fn empty_anchor_is_rejected() {
         ..Draft::new(NoteType::Fact, "alpha")
     };
     assert!(blank.to_note(NOW).is_err());
+}
+
+#[test]
+fn denied_anchor_is_rejected() {
+    let error = validate_anchors(&[".env".to_string()]).err();
+    assert!(error.is_some());
+    let Some(error) = error else {
+        return;
+    };
+    assert_eq!(error.kind(), ErrorKind::InvalidInput);
+    let message = error.to_string();
+    assert!(
+        message.contains(".env"),
+        "mensagem deve citar a âncora: {message}"
+    );
+    assert!(
+        message.contains("*.pem"),
+        "mensagem deve citar a lista fixa: {message}"
+    );
+
+    let glob = validate_anchors(&["**/*.pem".to_string()]).err();
+    assert!(glob.is_some());
+}
+
+#[test]
+fn ordinary_anchors_stay_valid() {
+    let anchors = vec!["src/main.rs".to_string(), "identity/".to_string()];
+    assert!(validate_anchors(&anchors).is_ok());
 }
 
 #[test]

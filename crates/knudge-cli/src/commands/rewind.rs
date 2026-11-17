@@ -1,14 +1,18 @@
 //! `kd rewind` — estado/handoff ponto-no-tempo (E12-T01, D57/D88).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use knudge_core::Result;
 use knudge_core::graph::Graph;
 use knudge_core::handoff::{
-    ContextStore, CorpusScope as HandoffScope, DEFAULT_BUDGET, RewindInput, RewindMode,
-    RewindRequest, rewind,
+    ContextStore, CorpusScope as HandoffScope, DEFAULT_BUDGET, RefFinding, RewindInput, RewindMode,
+    RewindRequest, annotate_refs, derive_id, rewind, verify_refs,
 };
-use knudge_core::lifecycle::{DEFAULT_TASK_CONFIRMATION, ShelfLife, UsageStore, freshness_with};
+use knudge_core::health::{AnchorStore, hash_file};
+use knudge_core::lifecycle::{
+    DEFAULT_TASK_CONFIRMATION, ProposalStore, ShelfLife, UsageStore, freshness_with,
+};
+use knudge_core::schema::Value;
 use knudge_core::store::{Event, Note};
 use knudge_core::task::{critical_path, durations_from_flows, task_flows, throughput};
 use knudge_core::time::Timestamp;
@@ -72,10 +76,30 @@ pub fn run(session: &Session, args: &RewindArgs) -> Result<Output> {
             .unwrap_or(DEFAULT_TASK_CONFIRMATION),
         now_ms: session.now_ms(),
     };
-    let out = rewind(&input, &request, &contexts)?;
+    let mut out = rewind(&input, &request, &contexts)?;
     warnings.extend(out.warnings.iter().cloned());
     let ids: Vec<String> = out.items.iter().map(|item| item.id.clone()).collect();
     warnings.extend(record_usage(session, &policy, &ids));
+    let mut refs_json: Option<Vec<serde_json::Value>> = None;
+    if args.with_refs && args.resume.is_none() {
+        let cited: BTreeSet<String> = out.items.iter().map(|item| item.id.clone()).collect();
+        let (body_hashes, anchor_hashes) = refs_maps(session, notes, &cited);
+        out.text = annotate_refs(&out.text, &body_hashes, &anchor_hashes);
+        out.context_id = derive_id(&out.text);
+        contexts.save(&out.context_id, &out.text)?;
+    }
+    if args.check_refs {
+        let anchors = AnchorStore::new(session.fs_dyn(), session.knowledge_dir());
+        let findings = verify_refs(
+            &session.store(),
+            &anchors,
+            session.fs_dyn(),
+            session.project_root(),
+            &out.text,
+        )?;
+        refs_json = Some(findings.iter().map(ref_json).collect());
+        warnings.extend(findings.iter().map(RefFinding::render));
+    }
     // Atividade de IA (opt-in)
     let mut activity_text = String::new();
     let mut activity_json: Option<serde_json::Value> = None;
@@ -111,9 +135,17 @@ pub fn run(session: &Session, args: &RewindArgs) -> Result<Output> {
     } else {
         format!("{}{activity_text}", out.text)
     };
-    let data = json!({
+    let pending_proposals =
+        ProposalStore::new(session.fs_dyn(), session.knowledge_dir()).count()?;
+    let mut data = json!({
         "context_id": out.context_id,
         "text": text,
+        "freshness": json!({
+            "stale": fresh.stale,
+            "expiring": fresh.expiring,
+            "pending": fresh.pending,
+        }),
+        "pending_proposals": pending_proposals,
         "items": out.items.iter().map(|item| json!({
             "id": item.id,
             "statement": item.statement,
@@ -126,7 +158,56 @@ pub fn run(session: &Session, args: &RewindArgs) -> Result<Output> {
         "flow": flow_json(&events, graph, session.now_ms()),
         "activity": activity_json,
     });
+    if let Some(findings) = refs_json
+        && let Some(map) = data.as_object_mut()
+    {
+        map.insert("refs".to_string(), json!(findings));
+    }
     Ok(Output::new(text, data).with_warnings(warnings))
+}
+
+/// Mapas de hashes ostentados pelo handoff com refs (D227).
+type RefsMaps = (BTreeMap<String, String>, BTreeMap<String, String>);
+/// Hashes das notas citadas e das suas âncoras, para `rewind --with-refs` (D227).
+fn refs_maps(session: &Session, notes: &[Note], cited: &BTreeSet<String>) -> RefsMaps {
+    let mut bodies = BTreeMap::new();
+    let mut anchors = BTreeMap::new();
+    for note in notes {
+        let Some(id) = note.frontmatter.get("id").and_then(Value::as_str) else {
+            continue;
+        };
+        if !cited.contains(id) {
+            continue;
+        }
+        if let Some(hash) = note.frontmatter.get("body_hash").and_then(Value::as_str) {
+            bodies.insert(id.to_string(), hash.to_string());
+        }
+        let Some(list) = note.frontmatter.get("anchors") else {
+            continue;
+        };
+        for anchor in list.as_list().into_iter().flatten() {
+            let Some(path) = anchor.as_str() else {
+                continue;
+            };
+            if let Ok(Some(hash)) = hash_file(session.fs_dyn(), &session.project_root().join(path))
+            {
+                anchors.insert(path.to_string(), hash);
+            }
+        }
+    }
+    (bodies, anchors)
+}
+
+/// Representação JSON de um achado de ref (aditiva no envelope do `rewind`).
+fn ref_json(finding: &RefFinding) -> serde_json::Value {
+    json!({
+        "kind": finding.kind.as_str(),
+        "name": finding.name,
+        "old_hash": finding.old_hash,
+        "new_hash": finding.new_hash,
+        "status": finding.status.as_str(),
+        "detail": finding.detail,
+    })
 }
 
 /// Bloco `flow` aditivo do `rewind --json` (E19/T11/D205): throughput + caminho crítico.

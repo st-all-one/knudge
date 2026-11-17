@@ -4,6 +4,7 @@ mod budget;
 mod context;
 mod manifest;
 mod next;
+mod refs;
 mod rewind;
 mod scope;
 

@@ -33,14 +33,14 @@ Fonte da verdade: [`plan/implementation/16_cli_surface.md`](../../plan/implement
 |---|---|---|
 | `init` | funda `.knudge/` e emite o prompt inicial (D57/D60/D165). | `commands/init.rs` |
 | `prime` | protocolo estático, byte-idêntico por versão (D57). | `commands/prime.rs` |
-| `rewind` | estado/handoff ponto-no-tempo (D57/D88). | `commands/rewind.rs` |
+| `rewind` | estado/handoff ponto-no-tempo (D57/D88); `--with-refs`/`--check-refs` (D227). | `commands/rewind.rs` |
 | `ask` | **toda** pesquisa: recall, `--id`, `--around`, `--rank`, `--tags`, `--suggest`; filtros de proveniência `--agent`/`--activity` (D218). | `commands/ask/{mod,params,query,render}.rs` |
 | `ai` | memória de um **agente**: consulta **read-only** de shards NDJSON (`.knudge/ai/<area>/<agent_id>.jsonl`), identidade e ordem temporal (D220–D222). | `commands/ai/` |
-| `write` | **toda** escrita: create, `--update`, `--link`, `--batch`. | `commands/write_cmd/`, `write_batch.rs` |
+| `write` | **toda** escrita: create, `--update` (com `--expect-body-hash`, D228), `--link`, `--batch`; classes efêmeras e aviso de âncora (D230). | `commands/write_cmd/`, `write_batch.rs` |
 | `task` | hierarquia `epic ⊃ {issue ⊃ task \| task}`. | `commands/task/` |
 | `map` | mapa de conhecimento (clusters + comunidades GraphRAG, D193). | `commands/knowledge/map.rs` |
-| `maintenance` | `compact`, `learn`, `prune`. | `commands/maintenance/` |
-| `doctor` | diagnóstico + `--fix`/`--explain` (D163). | `commands/doctor/` |
+| `maintenance` | `compact`, `learn`, `prune` com `review`/`forget` e cobertura de âncoras (D230). | `commands/maintenance/` |
+| `doctor` | diagnóstico + `--fix`/`--explain` (D163) e `--refs <context_id>` (D227). | `commands/doctor/` |
 | `drain` | fila de embeddings + worker de auto-drain (D170/D186). | `commands/drain/` |
 | `config` | get/set/unset/list + `promote` (D61/D157). | `commands/config_cmd.rs`, `knowledge/promote.rs` |
 | `forget` | soft/restore/purge (D48/D84). | `commands/forget_sync.rs` |
@@ -86,10 +86,10 @@ mais (D209): `ask --rank|--tags|--suggest`, `map`, `config promote`.
 |---|---|
 | Núcleo | `prime.rs`, `init.rs`, `rewind.rs` |
 | Busca | `ask/{mod,params,query,render}.rs`, `corpus.rs` (escopo compartilhado D143/D144), `ai.rs` (fonte JSONL de um agente, D218) |
-| Escrita | `write_cmd/{mod,contract}.rs` (data contract soft D191), `write_batch.rs`, `input.rs` (posicional/stdin) |
+| Escrita | `write_cmd/{mod,args,contract}.rs` (data contract soft D191, inferência e âncoras D230), `write_batch.rs`, `input.rs` (posicional/stdin) |
 | Tarefas | `task/{mod,create,mutate,query,show,render,graph,plan,flow,batch}.rs` |
 | Conhecimento | `knowledge/{mod,map,clusters,community,hub,rank,tags,suggest,promote}.rs` |
-| Manutenção | `maintenance/{mod,extra,proposals}.rs` |
+| Manutenção | `maintenance/{mod,extra,prune,proposals}.rs` |
 | Saúde | `doctor/{mod,render,explain}.rs`, `validators.rs`, `gate.rs`, `hooks.rs` |
 | Fila/embeddings | `drain/{mod,service}.rs`, `embedder.rs`, `idle.rs` |
 | Config/self | `config_cmd.rs`, `self_cmd/{mod,upgrade}.rs` |

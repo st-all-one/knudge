@@ -180,12 +180,23 @@ fn parse_items(arguments: &Value) -> Result<Vec<ManifestItem>, String> {
             .unwrap_or(id)
             .to_string();
         let score = raw.get("score").and_then(Value::as_f64).unwrap_or(0.0);
+        let anchors = raw
+            .get("anchors")
+            .and_then(Value::as_array)
+            .map_or_default(|array| {
+                array
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_string)
+                    .collect()
+            });
         out.push(ManifestItem {
             id: id.to_string(),
             statement,
             tier: TrustTier::Observational,
             score,
             created_ms: 0,
+            anchors,
         });
     }
     Ok(out)

@@ -15,7 +15,7 @@ pub const MARKER_END: &str = "<!-- knudge:end -->";
 /// Prefixo do version marker.
 pub const VERSION_PREFIX: &str = "<!-- knudge:version:";
 /// Versão atual do protocolo embutido no `AGENTS.md`.
-pub const VERSION: u32 = 4;
+pub const VERSION: u32 = 5;
 /// Nome do arquivo.
 pub const FILE: &str = "AGENTS.md";
 
@@ -43,6 +43,9 @@ pub fn protocol_block_with_layout(layout: &str) -> String {
            `--kind task|error|question|risk|decision`; `kd task list --ready`; close with `--outcome`.\n\
          - `kd write --type task` is rejected; `ask` excludes work unless `--with-task`.\n\
          - Health: `kd doctor` (`--fix`); `kd maintenance learn|compact|prune` propose only.\n\
+         - Health: `kd doctor --json` and `kd rewind --json` expose `freshness`; `rewind --json` also reports `pending_proposals`.\n\
+         - `kd maintenance prune --json` reports `anchor_coverage`: `anchor_decay` is suppressed below 0.5 coverage or on a truncated walk. The plan (`review` for drift, evidence-gated `forget`) is derived in `.idx/proposals.jsonl`.\n\
+         - `kd write` warns on nonexistent literal anchors (`strict` turns it into an error); `error`/`question`/`snippet` infer `observational` unless `--class` is given.\n\
          - Embeddings are derived: `kd drain --status` / `--digest`.\n\
          - Agent memory shards: `kd ai --memory|--session \"<q>\"` (read-only NDJSON,\n\
            `.knudge/ai/<area>/<agent_id>.jsonl`); `--sort time`, `--agent-id/--agent-role`,\n\

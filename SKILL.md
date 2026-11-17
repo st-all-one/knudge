@@ -31,9 +31,11 @@ project knowledge.
    (`decision`/`error`/`risk`): `Why:` / `Evidence:` / `Consequence:` (2–4 lines).
 4. **Anchor code.** Any note/task about a file gets `--anchor PATH` (globs: `src/**`).
    `kd ask --anchor PATH` finds by file.
+   A nonexistent literal anchor warns on write; `strict` turns the warning into an error.
 5. **Evidence ≠ body.** Task completion uses `--outcome`; facts/decisions get anchors.
 6. **Nothing changes without acceptance.** `doctor`/`learn`/`compact`/`prune` only **propose**;
    apply via `write`/`write --link`/`forget`.
+   `prune --json` reports `anchor_coverage` and a `review`/`forget` plan; `forget` needs evidence.
 7. **stdout = data, stderr = logs.** In `--json`, stdout is only the envelope. EPIPE → exit 0.
 
 ## Cycle
@@ -78,16 +80,24 @@ Top-level: `init prime rewind ask ai write task map maintenance doctor drain con
 | WBS tree | `kd task graph [--root ID\|--program plan/<slug>.md]` |
 | Flow / critical path | `kd task flow [--window-days N]` |
 | Plan | `kd task plan <slug> [--prompt\|--submit] [--template <feature\|bug\|refactor>] [--step S] [--from ID]` |
-| Handoff | `kd rewind [--scope C] [--files P...] [--budget N] [--resume <context_id>]` |
+| Handoff | `kd rewind [--scope C] [--files P...] [--budget N] [--resume <context_id>] [--json]` (JSON: `freshness`, `pending_proposals`) |
 | Map | `kd map [--axis <anchor\|type\|classification\|scope>] [--semantic] [--communities] [--members] [--write]` |
-| Health | `kd doctor [--fix] [--explain]` |
-| Propose maintenance | `kd maintenance <learn\|compact\|prune> [--universe] [--verify] [--dry-run]` |
+| Health | `kd doctor [--fix] [--explain] [--json]` (JSON: `freshness`) |
+| Propose maintenance | `kd maintenance <learn\|compact\|prune> [--universe] [--verify] [--dry-run] [--json]` (`prune --json`: `anchor_coverage`, `review` ≠ `forget`) |
 | Forget (soft) | `kd forget --id <ID> [--restore \| --purge [--force]]` |
 | Embeddings queue | `kd drain [--status \| --digest [--force]]` |
 | Worker | `kd drain service [--install\|--status\|--subscribe\|--unsubscribe\|--reconcile\|--uninstall] [--every 1h] [--port 8889]` |
 | Config | `kd config <get\|set\|unset\|list\|promote> [--key K] [--value V] [--global]` |
 | Install / integrate | `kd init` · `kd self <version\|setup <client>\|completions <shell>\|upgrade>` |
 | Commit | `kd sync [--message M]` |
+
+## Maintenance plan (D230)
+
+`kd maintenance prune --json` reports `anchor_coverage` and persists a derived plan in
+`.idx/proposals.jsonl` (purged with the note). Drift/contradiction/defeat are `review`; `forget`
+requires expired/decayed anchors, derived confidence < 0.5 and non-`foundational`. Below 0.5
+coverage or a truncated walk, `anchor_decay` is suppressed with a warning. `kd rewind --json`
+exposes `freshness` and `pending_proposals`; `kd doctor --json` exposes `freshness`.
 
 ## Closed sets (D212)
 

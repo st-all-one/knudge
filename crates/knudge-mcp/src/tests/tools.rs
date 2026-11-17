@@ -35,6 +35,26 @@ fn pre_write_defaults_statement_to_id() {
 }
 
 #[test]
+fn pre_edit_ignores_denied_anchors() {
+    let mut engine = HintEngine::new(3, 0);
+    let result = tools::call(
+        &mut engine,
+        tools::PRE_EDIT,
+        &json!({ "items": [
+            { "id": "secret", "anchors": [".env"] },
+            { "id": "fact_1", "anchors": ["src/main.rs"] }
+        ] }),
+    );
+    assert_eq!(len_of(&result, "/structuredContent/hints"), Some(1));
+    assert_eq!(
+        result
+            .pointer("/structuredContent/hints/0/ids/0")
+            .and_then(Value::as_str),
+        Some("fact_1")
+    );
+}
+
+#[test]
 fn session_end_advances_session() {
     let mut engine = HintEngine::new(3, 0);
     let _ignored = tools::call(

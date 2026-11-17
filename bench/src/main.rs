@@ -8,6 +8,7 @@
 
 #![allow(dead_code)]
 
+mod custo;
 mod e2e;
 mod fixture;
 mod harness;
@@ -38,7 +39,7 @@ fn main() {
             args.get(*index).cloned().unwrap_or_default()
         };
         match arg {
-            "micro" | "e2e" | "all" | "quality" | "sweep" => mode = arg.to_string(),
+            "micro" | "e2e" | "all" | "quality" | "sweep" | "custo" => mode = arg.to_string(),
             "--sizes" => sizes = next(&mut index),
             "--samples" => samples = next(&mut index).parse().unwrap_or(samples),
             "--kd" => kd = next(&mut index),
@@ -53,7 +54,7 @@ fn main() {
             }
             "--help" | "-h" => {
                 println!(
-                    "uso: knudge-bench [micro|e2e|quality|sweep|all] [--sizes 200,1000] [--samples 8] [--kd PATH] [--json out.json] [--out report.md] [--quality-out bench/qualidade.md] [--quality-json bench/qualidade.json] [--quick]"
+                    "uso: knudge-bench [micro|e2e|quality|sweep|custo|all] [--sizes 200,1000] [--samples 8] [--kd PATH] [--json out.json] [--out report.md] [--quality-out bench/qualidade.md] [--quality-json bench/qualidade.json] [--quick]"
                 );
                 return;
             }
@@ -80,18 +81,22 @@ fn main() {
         eprintln!("== micromb (sizes={sizes:?}) ==");
         micro::run(&mut harness, &sizes);
     }
+    let kd_path = PathBuf::from(&kd);
+    let absolute = if kd_path.is_absolute() {
+        kd_path
+    } else {
+        std::env::current_dir().unwrap_or_default().join(kd_path)
+    };
     if mode == "e2e" || mode == "all" {
-        let kd = PathBuf::from(&kd);
-        let absolute = if kd.is_absolute() {
-            kd
-        } else {
-            std::env::current_dir().unwrap_or_default().join(kd)
-        };
         eprintln!(
             "== ponta-a-ponta (kd={}, sizes={sizes:?}) ==",
             absolute.display()
         );
         e2e::run(&mut harness, &absolute, &sizes, samples, no_idle);
+    }
+    if mode == "custo" || mode == "all" {
+        eprintln!("== custo por resposta (kd={}) ==", absolute.display());
+        custo::run(&absolute);
     }
     if mode == "quality" || mode == "all" {
         eprintln!("== qualidade de retrieval ==");

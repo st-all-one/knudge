@@ -4,6 +4,7 @@ use clap::Args;
 
 /// Argumentos de `kd rewind`.
 #[derive(Debug, Args)]
+#[allow(clippy::struct_excessive_bools, reason = "flags de CLI (D227)")]
 pub struct RewindArgs {
     /// Épico/domínio de escopo (id ou nível).
     #[arg(long, value_name = "ESCOPO")]
@@ -23,6 +24,12 @@ pub struct RewindArgs {
     /// Retoma um contexto por id (handoff 1:1).
     #[arg(long, value_name = "CONTEXT_ID")]
     pub resume: Option<String>,
+    /// Anexa refs `id@body_hash` e `anchor@content_hash` ao handoff (D227).
+    #[arg(long)]
+    pub with_refs: bool,
+    /// Verifica as refs do contexto e reporta divergências em stderr (D227).
+    #[arg(long, requires = "resume")]
+    pub check_refs: bool,
     /// Filtro por tipo (repetível; aceita lista com vírgula: `--type a,b`) — D143.
     #[arg(long = "type", value_name = "TIPO", value_delimiter = ',')]
     pub types: Vec<String>,

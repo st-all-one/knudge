@@ -5,6 +5,7 @@ mod events;
 mod layout;
 mod lock;
 mod note;
+mod paths;
 mod purge;
 mod rebuild;
 mod sweep;

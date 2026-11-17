@@ -12,6 +12,9 @@ pub struct DoctorArgs {
     /// Detalha cada achado (`esperado` × `encontrado` × `ação`).
     #[arg(long)]
     pub explain: bool,
+    /// Verifica as refs de um contexto de handoff; achados vão para stderr (D227).
+    #[arg(long, value_name = "CTX", conflicts_with_all = ["fix", "explain"])]
+    pub refs: Option<String>,
 }
 
 /// Argumentos de `kd drain`.

@@ -63,7 +63,7 @@ determinístico padrão dos testes do core.
 | `maintenance` | `diff`, `learn`, `compact` (só propõem). | `diff`, `learn`, `propose_compact` |
 | `task` | Hierarquia `epic ⊃ {issue ⊃ task \| task}` e fluxo. | `submit`, `TaskSpec`, `context_of`, `critical_path` |
 | `health` | Validators, `doctor [--fix]`, `audit`, evidência, leitura tolerante. | `doctor`, `doctor_fix`, `accept`, `audit` |
-| `lifecycle` | Shelf-life, retenção, confiança, decay, purga, clusters. | `demotion_candidates`, `posterior_mean`, `DriftStore` |
+| `lifecycle` | Shelf-life, retenção, confiança, decay, purga, clusters, propostas derivadas. | `demotion_candidates`, `posterior_mean`, `DriftStore`, `ProposalStore` |
 | `embeddings` | Provedor plugável, cache, fila lazy, ranking/sugestão. | `drain`, `rank_query`, `suggest`, `EmbeddingIndex` |
 | `knowledge` | Promoção de conhecimento a regras no `AGENTS.md`. | `recommend`, `render_block` |
 | `ports` | Traits determinísticas + fakes. | `Clock`…`Embedder`, `fakes::*` |
@@ -155,6 +155,7 @@ externa — usado no log de eventos e nos derivados `.idx/`.
 | `purge.rs` | `purge_derived` em toda remoção (D84). |
 | `detach.rs` | Limpeza referencial ao remover nota (D46/D84). |
 | `sweep.rs` | Varredura de resíduos na inicialização (`*.tmp`/`*.stale`, nunca `*.lock`; D160). |
+| `paths.rs` | Deny-list **fixa** de paths sensíveis: `is_denied` pura, casada por basename (D226). |
 
 ### `corpus` — leitura única de uma fonte
 
@@ -256,6 +257,7 @@ Idempotente por conteúdo (D01). Duas fases: `recall` ranqueia; decisão calibra
 | `scope.rs` | Auto-context-scope e auto-flip (D41). |
 | `budget.rs` | Orçamento de tokens sem tokenizer. |
 | `context.rs` | `context_id` endereçável e handoff 1:1. |
+| `refs.rs` | Refs `id@body_hash`/`anchor@content_hash` opt-in: `annotate_refs`, `verify_refs` (D227). |
 
 ### `maintenance` — passado e consolidação
 
@@ -313,6 +315,7 @@ retenção.
 | `drift.rs` | Drift de âncoras persistido (`.idx/drift.jsonl`, D203). |
 | `term_drift.rs` | Drift de termos KL/JS (D208). |
 | `plan.rs` | `demotion_candidates` — shelf-life × decay × proteção × contradição × TMS × drift. |
+| `proposals.rs` | Plano derivado de `prune` (`.idx/proposals.jsonl`, D230) — `review` ≠ `forget`, purgável (D84). |
 | `retire.rs` / `supersession.rs` | Purga de inativos com histórico (D48); supersessão com proteção de ciclos (D45). |
 | `clusters.rs` / `semantic.rs` | Clusters fase 1 (estruturais, D47) e fase 2 (semânticos, off-path, D42). |
 | `communities.rs` | GraphRAG sobre arestas + âncoras (D193). |

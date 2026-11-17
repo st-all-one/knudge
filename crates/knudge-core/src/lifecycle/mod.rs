@@ -10,6 +10,7 @@ pub mod confidence;
 pub mod decay;
 pub mod drift;
 pub mod plan;
+pub mod proposals;
 pub mod retention;
 pub mod retire;
 pub mod semantic;
@@ -34,11 +35,16 @@ pub use confidence::{
     drift_factor, from_tasks, from_tasks_with, is_success_task,
 };
 pub use decay::{
-    AnchorValidity, DecayPolicy, compute_anchor_validity, compute_anchor_validity_cached,
-    compute_anchor_validity_with, has_glob, should_demote, walk_paths, walk_paths_ignoring,
+    AnchorValidity, DecayPolicy, MAX_WALK_ENTRIES, compute_anchor_validity,
+    compute_anchor_validity_cached, compute_anchor_validity_with, has_glob, should_demote,
+    walk_paths, walk_paths_ignoring,
 };
 pub use drift::{DriftEntry, DriftIndex, DriftStore, entries_from_validity};
-pub use plan::{DemotionCandidate, DemotionInput, DemotionReason, demotion_candidates};
+pub use plan::{
+    DemotionAction, DemotionCandidate, DemotionInput, DemotionReason, FORGET_CONFIDENCE_MAX,
+    demotion_candidates,
+};
+pub use proposals::{ProposalEntry, ProposalStore};
 pub use retention::{
     DEFAULT_GROWTH_PERCENT, DEFAULT_REVIEW_THRESHOLD, retention, retention_for, stability_days,
 };

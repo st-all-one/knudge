@@ -115,6 +115,7 @@ kd write --summary <TXT> [<BODY>|-]
   --agent <NOME>          # agente da proveniência PROV-lite (D207)
   --activity <NOME>       # atividade da proveniência PROV-lite (D207)
   --update <ID>           # modo update (patch versionado); aceita [--params '<JSON>']
+  --expect-body-hash <HEX8>  # guarda de retry com --update (D228); chave JSON `expect_body_hash`
   --clear-anchors         # com --update, limpa as âncoras (não combina com --anchor)
   --link <ARESTA:ID>      # cria aresta (substitui o antigo `link`)
   --outcome <S> --id <ID> # anexa evidência a qualquer nota (D103); com [--note <TXT>]
@@ -153,6 +154,8 @@ kd rewind
   --budget <N>            # default 4000 (ceil(len/4), D40/D82)
   --since <TS> / --until <TS>
   --resume <CONTEXT_ID>   # handoff 1:1 (D88)
+  --with-refs             # anota id@body_hash e anchor@content_hash (opt-in, D227)
+  --check-refs            # com --resume: verifica e reporta em stderr (D227)
   --tag <T>... / --anchor <PATH>... / --type <T>... / --class <C>...  # escopo de conhecimento (D143)
   --around <ID> [--depth <N>]                                          # vizinhança de uma nota
   --json
@@ -160,7 +163,8 @@ kd rewind
 
 O manifest (default) ganha `next:` (tarefas `ready` abertas por impacto) e `fresh:`
 (`stale`/`expiring`/`pending`) — D106. `K` deriva do orçamento; o excedente vira `dropped`.
-Os filtros de corpus restringem o que entra no handoff (D143).
+Os filtros de corpus restringem o que entra no handoff (D143). `--with-refs` é **opt-in**: o
+texto padrão permanece byte-idêntico (D88) e a variante ganha `context_id` próprio (D227).
 
 ## 7. `kd task` — epic/issue/task (D93)
 
@@ -262,6 +266,7 @@ kd ask --tags [--limit <N>]
 ```
 kd doctor [--fix] [--explain]             # 13 checks + auditoria; --fix corrige o reversível
                                           # --explain detalha cada achado (esperado/encontrado/ação)
+kd doctor --refs <CONTEXT_ID>             # verifica refs do handoff em stderr (D227)
 kd maintenance compact [--scope <C>] [--tag ...|--anchor ...|--type ...|--class ...|--around ...|--universe]
                                           # propõe merge/supersede (nunca em silêncio; escopo obrigatório — D144)
 kd maintenance learn [--scope <C>] [--tag ...|--anchor ...|--type ...|--class ...|--around ...|--universe]

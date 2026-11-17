@@ -34,6 +34,8 @@ pub struct Patch {
     pub claims: Option<Vec<Claim>>,
     /// Nova proveniência — D207.
     pub provenance: Option<Provenance>,
+    /// Guarda de retry: `body_hash` esperado (D228); não altera a nota.
+    pub expected_body_hash: Option<String>,
 }
 
 impl Patch {
@@ -140,12 +142,15 @@ impl Patch {
         if let Some(provenance) = map.get("provenance") {
             patch.provenance = Some(provenance_from_value(Some(provenance))?);
         }
+        if let Some(hash) = map.get("expect_body_hash").and_then(Value::as_str) {
+            patch.expected_body_hash = Some(hash.to_string());
+        }
         Ok(patch)
     }
 }
 
 /// Chaves aceitas num patch JSON (`--update --params`, D147).
-const PATCH_KEYS: [&str; 10] = [
+const PATCH_KEYS: [&str; 11] = [
     "type",
     "statement",
     "body",
@@ -156,6 +161,7 @@ const PATCH_KEYS: [&str; 10] = [
     "scope",
     "claims",
     "provenance",
+    "expect_body_hash",
 ];
 
 fn string_list(value: &Value) -> Result<Vec<String>> {

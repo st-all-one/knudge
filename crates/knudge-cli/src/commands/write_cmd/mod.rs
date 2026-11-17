@@ -3,10 +3,9 @@
 use knudge_core::Error;
 use knudge_core::Result;
 use knudge_core::jsonl;
-use knudge_core::schema::{NoteType, Provenance};
 use knudge_core::write::{
-    BatchMode, DedupDecision, Draft, OutcomeStatus, Patch, UpdateOutcome, WriteAction,
-    WriteProposal, link, outcome, update, write,
+    BatchMode, DedupDecision, OutcomeStatus, Patch, UpdateOutcome, WriteAction, WriteProposal,
+    link, outcome, update, write,
 };
 use serde_json::json;
 
@@ -19,8 +18,10 @@ use super::gate;
 use super::hooks::{self, HookEvent};
 use super::input;
 
+mod args;
 mod contract;
-use contract::{draft_missing, dry_run_note, with_slot_warnings};
+use args::{draft_of, patch_of};
+use contract::{anchor_existence_warnings, draft_missing, dry_run_note, with_slot_warnings};
 
 /// Executa `kd write` no modo adequado (link > update > create).
 ///
@@ -101,6 +102,10 @@ fn link_edge(session: &Session, spec: &str) -> Result<Output> {
     Ok(Output::new(text, data))
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "valida hooks, contrato de dados, âncoras e portão antes de gravar (D230)"
+)]
 fn create_note(session: &Session, args: &WriteArgs) -> Result<Output> {
     let mut draft = draft_of(args)?;
     let payload = json!({
@@ -118,9 +123,16 @@ fn create_note(session: &Session, args: &WriteArgs) -> Result<Output> {
         )));
     }
     hooks::apply_to_draft(&mut draft, &hook.payload);
+    let anchor_warnings = anchor_existence_warnings(session, &draft.anchors);
     let missing = draft_missing(&draft);
     if args.dry_run {
-        return dry_run_note(session, &draft, &missing);
+        return Ok(dry_run_note(session, &draft, &missing)?.with_warnings(anchor_warnings));
+    }
+    if !anchor_warnings.is_empty() && session.config().strict() {
+        return Err(Error::invalid_input(format!(
+            "âncora inexistente: {}",
+            anchor_warnings.join(", ")
+        )));
     }
     if !missing.is_empty() && session.config().strict() {
         return Err(Error::invalid_input(format!(
@@ -157,11 +169,12 @@ fn create_note(session: &Session, args: &WriteArgs) -> Result<Output> {
         outcome_output(outcome.action, &outcome.id, outcome.revision),
         draft.note_type,
         &missing,
+        anchor_warnings,
     ))
 }
 
 fn update_note(session: &Session, id: &str, args: &WriteArgs) -> Result<Output> {
-    let patch = match &args.params {
+    let mut patch = match &args.params {
         Some(params) => {
             let text = if params == "-" {
                 input::read_stdin()?
@@ -173,17 +186,29 @@ fn update_note(session: &Session, id: &str, args: &WriteArgs) -> Result<Output> 
         }
         None => patch_of(args)?,
     };
+    if let Some(expected) = &args.expect_body_hash {
+        patch.expected_body_hash = Some(expected.clone());
+    }
+    let anchor_warnings = patch
+        .anchors
+        .as_deref()
+        .map_or_default(|anchors| anchor_existence_warnings(session, anchors));
+    if !anchor_warnings.is_empty() && session.config().strict() {
+        return Err(Error::invalid_input(format!(
+            "âncora inexistente: {}",
+            anchor_warnings.join(", ")
+        )));
+    }
     let ctx = session.write_context()?;
     let outcome = update(&ctx, id, &patch)?;
     let action = match outcome {
         UpdateOutcome::Revised { .. } => WriteAction::Updated,
         UpdateOutcome::Superseded { .. } => WriteAction::Created,
     };
-    Ok(outcome_output(
-        action,
-        outcome.id(),
-        Some(outcome.revision()),
-    ))
+    Ok(
+        outcome_output(action, outcome.id(), Some(outcome.revision()))
+            .with_warnings(anchor_warnings),
+    )
 }
 
 fn outcome_output(action: WriteAction, id: &str, revision: Option<u32>) -> Output {
@@ -197,77 +222,6 @@ fn outcome_output(action: WriteAction, id: &str, revision: Option<u32>) -> Outpu
         "revision": revision,
     });
     Output::new(text, data)
-}
-
-fn draft_of(args: &WriteArgs) -> Result<Draft> {
-    if args.clear_anchors {
-        return Err(Error::invalid_input(
-            "`--clear-anchors` só vale com `--update`",
-        ));
-    }
-    let note_type: NoteType = match &args.note_type {
-        Some(value) => value.parse()?,
-        None => NoteType::Fact,
-    };
-    let summary = args
-        .summary
-        .clone()
-        .ok_or_else(|| Error::invalid_input("`kd write` exige `--summary`"))?;
-    let mut draft = Draft::new(note_type, summary);
-    draft.body = input::content(&args.body)?;
-    draft.tags.clone_from(&args.tags);
-    draft.anchors.clone_from(&args.anchors);
-    if let Some(class) = &args.class {
-        draft.classification = Some(class.parse()?);
-    }
-    if let Some(status) = &args.status {
-        draft.status = Some(status.parse()?);
-    }
-    draft.edges = args
-        .edge
-        .iter()
-        .map(|spec| parse::edge(spec))
-        .collect::<Result<Vec<_>>>()?;
-    draft.claims = args
-        .claim
-        .iter()
-        .map(|spec| parse::claim(spec))
-        .collect::<Result<Vec<_>>>()?;
-    draft.provenance = Provenance {
-        entity: None,
-        activity: args.activity.clone(),
-        agent: args.agent.clone(),
-        ..Provenance::default()
-    };
-    Ok(draft)
-}
-
-fn patch_of(args: &WriteArgs) -> Result<Patch> {
-    let mut patch = Patch::default();
-    if let Some(value) = &args.note_type {
-        patch.note_type = Some(value.parse()?);
-    }
-    if let Some(summary) = &args.summary {
-        patch.statement = Some(summary.clone());
-    }
-    if !args.body.is_empty() {
-        patch.body = Some(input::content(&args.body)?);
-    }
-    if !args.tags.is_empty() {
-        patch.tags = Some(args.tags.clone());
-    }
-    if args.clear_anchors {
-        patch.anchors = Some(Vec::new());
-    } else if !args.anchors.is_empty() {
-        patch.anchors = Some(args.anchors.clone());
-    }
-    if let Some(class) = &args.class {
-        patch.classification = Some(class.parse()?);
-    }
-    if let Some(status) = &args.status {
-        patch.status = Some(status.parse()?);
-    }
-    Ok(patch)
 }
 
 pub(super) fn decision_label(proposal: &WriteProposal) -> &'static str {

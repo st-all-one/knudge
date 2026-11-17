@@ -13,7 +13,7 @@ pub const DIR: &str = ".agents/skills/kd";
 /// Arquivo da skill.
 pub const FILE: &str = "SKILL.md";
 /// Versão atual do conteúdo.
-pub const VERSION: u32 = 6;
+pub const VERSION: u32 = 7;
 /// Prefixo do version marker gerenciado.
 pub const MARKER: &str = "<!-- knudge:skill:version:";
 
@@ -97,10 +97,12 @@ kd ask → kd write → kd task → kd sync
    `kd ask` shows the body: 1st hit full, 2–5 truncated; read with `--id`/`--full-content`.
 4. **Anchor code.** Every note/task about a file gets `--anchor PATH` (glob `src/**` matches
    subtrees). `kd ask --anchor PATH` finds by file.
+   A nonexistent literal anchor warns on write; `strict` promotes the warning to an error.
 5. **Evidence ≠ body.** Task completion uses `--outcome`; facts/decisions get anchors. Body never
    replaces evidence.
 6. **Nothing changes without acceptance.** `doctor`/`learn`/`compact`/`prune` only propose; apply
    via `write`/`write --link`/`forget`.
+   `prune --json` reports `anchor_coverage` and a `review`/`forget` plan; `forget` needs structural evidence.
 7. **stdout = data, stderr = logs.** In `--json`, stdout is only the envelope. EPIPE → exit 0.
 
 ## Essential commands
@@ -123,10 +125,10 @@ kd task list --ready [--sort impact]       # or --blocked [--explain]
 kd task show --id <ID> [--history]         # body/checks/outcomes + epic rollup
 kd task close --id <ID> --outcome S        # only declares with evidence
 kd task flow                               # cycle/lead/throughput + critical path
-kd rewind [--budget N] [--files P...]      # resume context between sessions
-kd doctor [--fix] [--explain]              # base health
-kd map [--axis A] [--communities]          # knowledge map
-kd maintenance <learn|compact|prune>       # proposes only (read-only)
+kd rewind [--budget N] [--files P...] [--json]  # + freshness/pending_proposals in JSON
+kd doctor [--fix] [--explain] [--json]         # JSON: freshness
+kd map [--axis A] [--communities]               # knowledge map
+kd maintenance <learn|compact|prune> [--json]   # proposes only; prune: anchor_coverage
 kd drain [--status | --digest [--force]]   # embedding queue: state / process
 kd ai --memory|--session ["<q>"]  # another agent's memory/log (read-only JSONL)
 kd sync [--message M]                      # commit notas/ + eventos/
@@ -193,6 +195,15 @@ List flags accept repetition or comma: `--tag a --tag b` ≡ `--tag a,b`. The sp
 
 - **Anchor** (`--anchor PATH`): ties the note to a file/glob — the only link to code.
 - **Edge** (`--link`): ties the note to another note, with a type (12, closed).
+
+## Maintenance plan (D230)
+
+`kd maintenance prune --json` reports `anchor_coverage` and persists a derived plan in
+`.idx/proposals.jsonl` (purged with the note). Drift/contradiction/defeat become `review`;
+`forget` requires expired/decayed anchors, derived confidence < 0.5 and non-`foundational`.
+Below 0.5 coverage or a truncated walk, `anchor_decay` is suppressed with a warning.
+`kd rewind --json` counts pending proposals; `kd doctor --json` and `kd rewind --json` expose
+`freshness`.
 
 ## Output
 

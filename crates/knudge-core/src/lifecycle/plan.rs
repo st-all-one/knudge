@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::Result;
 use crate::graph::{Graph, defeated_by_replacement, defeated_dependents, retracted};
-use crate::schema::{EdgeKind, outcome_stats};
+use crate::schema::{Classification, EdgeKind, outcome_stats};
 use crate::store::Note;
 
 use super::confidence::{ConfidenceInput, confidence_score};
@@ -15,6 +15,26 @@ use super::decay::{AnchorValidity, DecayPolicy, should_demote};
 use super::shelf_life::{ShelfLife, age_days, is_expired_with};
 use super::term_drift::topic_drift;
 use super::usage::UsageIndex;
+
+/// Ação proposta: remoção (evidência estrutural) ou revisão (sinal semântico).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum DemotionAction {
+    /// Aplicável por `kd forget` — prazo vencido ou âncora quebrada corroborada.
+    Forget,
+    /// Sinal suspeito: pede revisão/consolidação, nunca apagamento direto (D230).
+    Review,
+}
+
+impl DemotionAction {
+    /// Rótulo canônico.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Forget => "forget",
+            Self::Review => "review",
+        }
+    }
+}
 
 /// Motivo da demolição proposta.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -52,7 +72,12 @@ pub struct DemotionCandidate {
     pub id: String,
     /// Motivo.
     pub reason: DemotionReason,
+    /// Ação: `forget` só com evidência estrutural corroborada; o resto é `review` (D230).
+    pub action: DemotionAction,
 }
+
+/// Confiança derivada máxima para uma nota ser esquecida por âncora quebrada (D230).
+pub const FORGET_CONFIDENCE_MAX: f64 = 0.5;
 
 /// Limiar de JS acima do qual um tópico é considerado **driftado** (D208).
 pub const DRIFT_THRESHOLD: f64 = 0.5;
@@ -95,6 +120,7 @@ pub fn demotion_candidates(
         if protected.contains(&id) {
             continue;
         }
+        let foundational = note.frontmatter.classification()? == Classification::Foundational;
         let reason = if is_expired_with(
             note,
             input.now_ms,
@@ -102,8 +128,10 @@ pub fn demotion_candidates(
             input.usage.and_then(|usage| usage.last_seen(&id)),
         )? {
             Some(DemotionReason::Expired)
-        } else if let Some(validity) = input.validity.get(&id)
+        } else if !foundational
+            && let Some(validity) = input.validity.get(&id)
             && should_demote(validity, input.decay, age_days(note, input.now_ms))
+            && derived_confidence(note, input.now_ms) < FORGET_CONFIDENCE_MAX
         {
             Some(DemotionReason::AnchorDecay)
         } else if contradicted.contains(&id) {
@@ -115,9 +143,16 @@ pub fn demotion_candidates(
         } else {
             None
         };
-        if let Some(reason) = reason {
-            candidates.push(DemotionCandidate { id, reason });
-        }
+        let Some(reason) = reason else {
+            continue;
+        };
+        let action = match reason {
+            DemotionReason::Expired | DemotionReason::AnchorDecay => DemotionAction::Forget,
+            DemotionReason::Contradicted | DemotionReason::Defeated | DemotionReason::Drifted => {
+                DemotionAction::Review
+            }
+        };
+        candidates.push(DemotionCandidate { id, reason, action });
     }
     candidates
         .sort_unstable_by(|left, right| (&left.id, left.reason).cmp(&(&right.id, right.reason)));

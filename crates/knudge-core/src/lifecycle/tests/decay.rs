@@ -6,7 +6,7 @@ use crate::Result;
 use crate::config::Config;
 use crate::lifecycle::decay::{
     AnchorValidity, DecayPolicy, compute_anchor_validity, compute_anchor_validity_cached,
-    compute_anchor_validity_with, should_demote, walk_paths,
+    compute_anchor_validity_with, should_demote, walk_paths, walk_paths_ignoring,
 };
 use crate::ports::Fs;
 use crate::ports::fakes::MemFs;
@@ -43,6 +43,15 @@ fn walk_paths_finds_files_and_skips_ignored_dirs() {
     assert!(paths.contains(&"README.md".to_string()));
     assert!(!paths.iter().any(|path| path.starts_with(".git/")));
     assert!(!paths.iter().any(|path| path.starts_with("target/")));
+}
+
+#[test]
+fn walk_paths_skips_denied_files() {
+    let fs = MemFs::new();
+    fs.insert("/p/.env", "SEGREDO");
+    fs.insert("/p/src/main.rs", "fn main() {}");
+    let paths = walk_paths_ignoring(&fs, Path::new(PROJECT), &[]);
+    assert_eq!(paths, vec!["src/main.rs".to_string()]);
 }
 
 #[test]

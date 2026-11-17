@@ -443,6 +443,32 @@ fn measure_mutations(
             ]))
             .0
     });
+
+    // D230: checagem de existência de âncoras literais no `write --dry-run`.
+    let anchor_dir = runner.root.join("bench-anchors");
+    fs::create_dir_all(&anchor_dir).expect("cria diretório de âncoras");
+    let mut anchors = Vec::with_capacity(120);
+    for index in 0..120 {
+        let name = format!("f{index}.rs");
+        write_file(&anchor_dir.join(&name), "// âncora da bancada\n");
+        anchors.push(format!("bench-anchors/{name}"));
+    }
+    let anchor_list = anchors.join(",");
+    harness.measure_cmd(group, "write --dry-run (120 âncoras)", samples, || {
+        runner
+            .timed(&args(&[
+                "write",
+                "--dry-run",
+                "--quiet",
+                "--type",
+                "fact",
+                "--summary",
+                "medicao de checagem de ancoras da bancada",
+                "--anchor",
+                &anchor_list,
+            ]))
+            .0
+    });
     harness.measure_cmd(group, "config set (projeto)", samples, || {
         runner
             .timed(&args(&[

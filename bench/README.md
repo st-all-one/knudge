@@ -31,6 +31,7 @@ cargo run --release --manifest-path bench/Cargo.toml -- micro --sizes 1000
 cargo run --release --manifest-path bench/Cargo.toml -- e2e --sizes 1000 --samples 10
 cargo run --release --manifest-path bench/Cargo.toml -- quality
 cargo run --release --manifest-path bench/Cargo.toml -- sweep
+cargo run --release --manifest-path bench/Cargo.toml -- custo --kd target/release/kd
 
 # A/B do auto-drain ocioso (KNUDGE_NO_IDLE=1) — ver RELATORIO.md
 cargo run --release --manifest-path bench/Cargo.toml -- e2e --sizes 1000 --no-idle
@@ -38,7 +39,8 @@ cargo run --release --manifest-path bench/Cargo.toml -- e2e --sizes 1000 --no-id
 
 Flags: `--sizes A,B`, `--samples N`, `--kd PATH`, `--out rel.md`, `--json out.json`,
 `--quality-out bench/qualidade.md`, `--quality-json bench/qualidade.json`, `--no-idle`,
-`--quick`. Os comandos `kd` rodam com `HOME`/`XDG_CONFIG_HOME` dentro do projeto temporário,
+`--quick`. O `--kd` também vale para `custo`; o padrão é `target/release/kd` (ou `KD_BIN`).
+Os comandos `kd` rodam com `HOME`/`XDG_CONFIG_HOME` dentro do projeto temporário,
 `NO_COLOR=1` e `GIT_CONFIG_NOSYSTEM=1`. `KNUDGE_BENCH_KEEP=1` preserva o projeto.
 
 ## Saída
@@ -51,22 +53,32 @@ A **memória de agentes v2** tem uma seção própria na micromb (`micro/ai` e `
 `parse_jsonl` com `BTreeMap` vs o `upsert` linear anterior, em shards de 1k/10k/100k. O recorte
 versionado está em [`ai-memory-v2.md`](ai-memory-v2.md) / [`ai-memory-v2.json`](ai-memory-v2.json).
 
+O **D230** tem quatro recortes versionados: `lifecycle::freshness_with`, cobertura de âncoras
+(`compute_anchor_validity_cached`), `ProposalStore` (`persist`/`count`/`load`) e, no e2e,
+`write --dry-run` com 120 âncoras literais. O caso de cobertura é um pior caso sintético
+(600 globs × 2000 paths); o custo em corpus real aparece no `prune --universe` do e2e.
+
 A **qualidade** de retrieval (E16/T01) sai em `bench/qualidade.md`/`bench/qualidade.json`:
 Recall@k/MRR/nDCG@k sobre um corpus PT-BR sintético e rotulado (tópicos × consultas). É a régua
 para D172/D173/D179 e para a fusão — o baseline fica versionado no repositório. O recorte da
 calibração da fusão (E16/T09/D179) fica em [`t09_fusao.md`](t09_fusao.md) e o do stemming
 (E16/T11/D206) em [`t11_stemming.md`](t11_stemming.md).
 
+O **custo por resposta** (D229) sai na forma de TSV (`familia\tbytes_out\tbytes_counterfactual\trazao`),
+com o contra-factual definido contra o baseline D161 (1 corpo cheio + 4 truncados + linhas pipe).
+É medição estática, fora do runtime: nada é escrito em config nem no envelope. Ver [`custo.md`](custo.md).
+
 ## Estrutura
 
 | Arquivo | Papel |
 |---|---|
-| `src/main.rs` | CLI da bancada (modos `micro`/`e2e`/`quality`/`sweep`/`all`) |
+| `src/main.rs` | CLI da bancada (modos `micro`/`e2e`/`quality`/`sweep`/`custo`/`all`) |
 | `src/harness.rs` | medição, percentis, tabela Markdown e JSON |
 | `src/fixture.rs` | geração determinística de notas e lotes JSONL |
 | `src/micro.rs` | micromb dos componentes puros e escala por `N` |
 | `src/e2e.rs` | benchmark das ações ponta-a-ponta (spawn do `kd`) |
 | `src/quality.rs` | avaliação de qualidade de retrieval (Recall@k/MRR/nDCG@k) |
+| `src/custo.rs` | custo por resposta fora do runtime (D229): TSV por família |
 
 ## A/B de modelo de embedding (`ab-embeddinggemma2/`)
 

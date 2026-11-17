@@ -10,8 +10,9 @@ WHEN (use / don't):
   kd ask <QUERY>     recall before acting (read-only); --anchor/--type/--agent/--activity/--limit/--brief/--full-content.
   kd write <...>     record fact/decision/error/risk/question; anchor code with --anchor PATH.
   kd task new <...>  plan/execute work (epic ⊃ {issue ⊃ task | task}); NOT for knowledge.
-  kd rewind [--with-activity]  rebuild session context/handoff (token budget); --with-activity adds recent agent activity.
-  kd doctor          corpus health: 13 checks + audit (--fix repairs; --explain details).
+  kd rewind [--with-activity]  rebuild session context/handoff (token budget); --json: freshness + pending_proposals.
+  kd doctor          corpus health: 13 checks + audit (--fix repairs; --json: freshness).
+  kd maintenance ..  cleanup (compact/learn/prune; only PROPOSE; prune --json: anchor_coverage, review≠forget).
   kd drain           embedding queue: --status | --digest [--force]; service = worker.
   kd ai --memory|--session [<QUERY>]  agent memory shards: read-only .knudge/ai/<area>/<agent_id>.jsonl; --sort/--agent-id.
   kd forget --id <ID> soft-delete (--restore; --purge [--force] after retention).
@@ -22,7 +23,8 @@ ESSENTIAL:
   kd ask "<QUERY>" [--anchor PATH...] [--type T...] [--limit N] [--brief] [--full-content]
   kd write --summary "<statement>" [<body>|-] --type <fact|decision|error|risk|question> [--tag T...] [--anchor PATH...]
   kd task new --summary "<...>" --scope <epic|issue|task> [--kind error|question|risk|decision] [--parent ID] [--anchor PATH...]
-  ANCHORS: --anchor PATH ties note/task to code (repeatable/comma; glob `src/**`).
+  ANCHORS: --anchor PATH ties note/task to code (repeatable/comma; glob `src/**`); missing literal path warns (strict → error).
+  CLASS: error/question/snippet infer `observational` unless --class is given.
   BODY: write when the statement alone can't drive action (Why / Evidence / Consequence).
 
 ID: <type>_<base36(8)> = hash(type + U+001F + normalize(statement)); reclassifying never rewrites the id.

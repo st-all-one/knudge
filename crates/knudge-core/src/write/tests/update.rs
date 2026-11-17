@@ -1,5 +1,6 @@
 //! `update` versionado e supersede caminhável (E07-T03).
 
+use crate::ErrorKind;
 use crate::Result;
 use crate::ports::fakes::MemFs;
 use crate::schema::{NoteType, Status, Value};
@@ -135,5 +136,55 @@ fn legacy_id_statement_change_still_supersedes() -> Result<()> {
         ctx.store().read("fact_00000001")?.frontmatter.status()?,
         Status::Superseded
     );
+    Ok(())
+}
+
+#[test]
+fn expect_body_hash_guard_applies_only_on_match() -> Result<()> {
+    let fs = MemFs::new();
+    let original = note(NoteType::Fact, "alpha", "corpo")?;
+    let id = original.id()?.to_string();
+    let current = original
+        .frontmatter
+        .get("body_hash")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    assert!(!current.is_empty(), "nota sem body_hash");
+    let ctx = seeded(&fs, &[original])?;
+
+    let stale = Patch {
+        body: Some("corpo novo".to_string()),
+        expected_body_hash: Some("00000000".to_string()),
+        ..Patch::default()
+    };
+    let result = update(&ctx, &id, &stale);
+    assert!(
+        matches!(&result, Err(err) if err.kind() == ErrorKind::Conflict),
+        "esperava Conflict, obtido {result:?}"
+    );
+    let message = match result {
+        Err(err) => err.to_string(),
+        Ok(_) => String::new(),
+    };
+    assert!(
+        message.contains("00000000"),
+        "mensagem sem esperado: {message}"
+    );
+    assert!(message.contains(&current), "mensagem sem atual: {message}");
+    assert_eq!(
+        ctx.store().read(&id)?.body,
+        "corpo",
+        "guarda alterou a nota"
+    );
+
+    let matching = Patch {
+        body: Some("corpo novo".to_string()),
+        expected_body_hash: Some(current),
+        ..Patch::default()
+    };
+    let outcome = update(&ctx, &id, &matching)?;
+    assert!(matches!(outcome, UpdateOutcome::Revised { .. }));
+    assert_eq!(ctx.store().read(&id)?.body, "corpo novo");
     Ok(())
 }

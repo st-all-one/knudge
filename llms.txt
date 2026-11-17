@@ -5,7 +5,7 @@
 > âncoras + embeddings opcional via RRF). Sem servidor, sem banco, sem daemon. O binário
 > `knudge-mcp` expõe os gatilhos de memória por MCP (JSON-RPC 2.0 sobre stdio). Ciclo:
 > `ask → write → task → sync`. Fonte de verdade técnica: `wiki/specs/`; uso: `wiki/usage/`;
-> decisões: `wiki/specs/adrs/` (D01–D218) e `plan/03_decisoes-fechadas.md`.
+> decisões: `wiki/specs/adrs/` (D01–D230) e `plan/03_decisoes-fechadas.md`.
 
 ## Regras de ouro
 
@@ -18,10 +18,12 @@
   reclassificar `type` **não** reescreve o id (D01/D02/D95).
 - **Âncoras (`--anchor PATH`) ligam a nota ao código** — única grafia (D168), repetível/vírgula,
   glob `src/**`; `kd ask --anchor PATH` busca sem query; `doctor` lista âncoras quebradas.
+  `write` avisa âncora literal inexistente; `strict` promove a erro (D230).
 - **stdout = dados; stderr = logs.** `--json` = `{success, command, data?, error?, warnings?}`;
   nenhum log vaza. Busca vazia → `[no_results]` (exit 0); EPIPE → exit 0 (D73).
 - **Nada sem aceite:** `doctor`/`learn`/`compact`/`prune` só **propõem**; aplica-se via
   `write`/`write --link`/`forget`.
+  `prune --json` expõe `anchor_coverage` e um plano `review`/`forget`; `forget` exige evidência (D230).
 - **`kd write` rejeita `--type task`/`epic`** (use `kd task`); arestas têm via única
   (`kd write --link <FROM:ARESTA:TO>`, D126). `strict` é config de projeto, não flag (D94).
 - `forgotten`/`superseded` ficam **fora** do `ask`/`rank`/`map`/`rewind`/`maintenance` por padrão
@@ -234,11 +236,12 @@
   `Manifest` (~30 tokens), `Scope(escopo/épico)`, `Files(working set)`, `Auto`. `next:` (tarefas
   `ready` abertas por impacto) e `fresh:` (stale/expiring/pending); anexa corpo de
   `foundational`/`decision`.
+  `--json` expõe `freshness` (`stale`/`expiring`/`pending`) e `pending_proposals` sem mudar texto/`context_id` (D230).
 - **Orçamento** `ceil(len/4)` tokens, `DEFAULT_BUDGET=4000`, `MIN_TAIL=100`; item a item.
 - **`context_id`** (`ctx_<base36>`, `.idx/contexts/`): `--resume` devolve bytes idênticos 1:1.
 - **`diff`** lê a auditoria de eventos (nunca o git); **`learn`** propõe `create_note`/`merge`/
   `supersede`/`link` (inclui tarefa fechada sem nota); **`compact`** propõe `concat`/`keep_latest`/
-  `merge_outcomes` (aplica só após aceite); **`prune`** propõe `forget|id|motivo`.
+  `merge_outcomes` (aplica só após aceite); **`prune`** propõe `review`/`forget` com cobertura de âncoras (D230).
 - **Portão de evidência (D156):** `learn`/`compact --verify` anexam `gate=passed|failed`
   (read-only); `proposals.enforce=true` faz o `pre-record` bloquear com `conflict` (4).
 
@@ -250,6 +253,7 @@
   advisórios → `degraded`. `--fix` corrige `body_hash`, âncoras quebradas, locks stale,
   duplicatas, `type: epic`, layout plano (idempotente). `--json` expõe `duplicate_pairs`,
   `broken_anchor_details`, `missing_edge_details`, `stale_lock_details`, `integrity_issues`.
+  `--json` também expõe `freshness` (D230).
 - **Evidência:** `close_task` roda validators e infere `outcome`; sem evidência não fecha.
   Confirmação é **derivada** (nunca armazenada).
 - **Leitura tolerante (D16–D18):** chave desconhecida → warning; tipo desconhecido/nota malformada
@@ -315,7 +319,7 @@
 - **`task`:** `new/list/show/update/close/graph/plan/flow` (flags em `tarefas.md`).
 - **`map`:** `--axis anchor|type|classification|scope`, `--semantic`, `--communities`, `--members`,
   `--write` (materializa `notas/MAP.md` + hubs).
-- **`maintenance`:** `compact|learn|prune` (só propõem; `--verify`/`--dry-run`/`--universe`).
+- **`maintenance`:** `compact|learn|prune` (só propõem; `--verify`/`--dry-run`/`--universe`; `prune --json`: `anchor_coverage` e plano derivado em `.idx/proposals.jsonl`, D230).
 - **`doctor`:** `--fix`/`--explain`. **`drain`:** `--status|--digest [--force]`; `service`
   `--install|--status|--subscribe|--unsubscribe|--reconcile|--uninstall` (`--every`/`--port`).
 - **`config`:** `get|set|unset|list|promote`. **`forget`:** `--restore|--purge [--force]`.

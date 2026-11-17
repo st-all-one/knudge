@@ -186,6 +186,7 @@ volatilidade, não CAS (D48).
 | Orçamento | `ceil(chars/4)`, default 4000; trunca o último item e ignora sobra < 100 tokens (D40/D82). |
 | Auto-scope/flip | deriva o container dos arquivos tocados; vira manifest quando `>100 notas` ou `>5 containers` (D41). |
 | `context_id` | id derivado do texto, guardado em `.idx/contexts/`; `--resume` devolve **bytes idênticos** (D88). |
+| Refs no handoff | `rewind --with-refs` (opt-in) anota `id@body_hash` e `anchor|path@content_hash`; `doctor --refs`/`--check-refs` comparam advisorymente (`changed`/`superseded`/`retired`/`dangling`), stdout intacto (D227). |
 | `diff` | lê a auditoria de eventos por intervalo/escopo — nunca o git global (D33). |
 | `learn` | propõe `create_note`/`merge`/`supersede`/`link` de eventos + âncoras; nunca escreve (D33/D47). |
 | `compact` | propõe `concat`/`keep_latest`/`merge_outcomes`; só aplica sob aceite (D47). |
@@ -203,6 +204,8 @@ volatilidade, não CAS (D48).
 | `doctor --fix` | 13 checks (inclui integridade semântica de claims/ciclo — D207 — e o tamanho do índice vetorial/cache — E11); corrige `body_hash`, âncoras quebradas, locks stale e índice divergente; **idempotente** (D19/D84). |
 | Leitura tolerante | Chave desconhecida → warning; `type` desconhecido/nota malformada → **skip + orientação**, sem derrubar o comando (D16–D18). |
 | Âncoras | `path` na nota, `content_hash` em `.idx/anchors.jsonl`; `cited` invalida, `context` não; stale **sinaliza**, não apaga (D86). |
+| Deny-list de paths | `is_denied` fixa (`.env*`, `*.pem`, `id_*`, …) bloqueia âncora, varredura de decay e hint de `pre_edit`; extensão de R22/D91, não configurável para menos (D226). |
+| Verificação de refs | `doctor --refs` e `rewind --resume --check-refs` leem o contexto derivado e reportam divergência em **stderr**; `--fix` nunca reescreve conhecimento (D19/D227). |
 | Confiança derivada | Posterior **Beta-Bernoulli** (`sim`, evidência, `drift`, idade) com limite inferior conservador — sempre `[0,1]`, calculada no `recall`/`rank` (D87/D189/D203). |
 
 ## 12. Ciclo de vida, decay e clusters (E10)
@@ -234,6 +237,10 @@ volatilidade, não CAS (D48).
 | Conceito | Regra |
 |---|---|
 | Superfície | **14 verbos** (`16_cli_surface.md`, superfície v3 — D209): `kd`(=prime), `init`, `prime`, `rewind`, `ask` (inclui `--rank`/`--tags`/`--suggest`), `write`, `task`, `map`, `doctor`, `drain`, `maintenance`, `config` (inclui `promote`), `forget`, `sync`, `self`. Domínio (8): `ask`/`write`/`task`/`rewind`/`map`/`doctor`/`drain`/`forget`. |
+| Superfície (0.6.6) | `rewind --with-refs`/`--check-refs`, `doctor --refs` e `write --update --expect-body-hash` (D227/D228); ver `16_cli_surface.md`. |
+| Guarda de retry | `--expect-body-hash` compara sob o lock antes do patch; divergência = `conflict` (4), sem novo `ErrorKind`; `revision` segue não-CAS (D48/D228). |
+| Custo por resposta | Medido em `bench/custo.md` (D229), sem ledger/verbo/config no runtime; R45 #1/#7 permanecem. |
+| Prevenção do decaimento | `freshness`/cobertura de âncoras no envelope (D230); `prune` separa `review` de `forget` e persiste o plano derivado. |
 | Sessão | `knudge-cli::session::Session` resolve o projeto, carrega a config efetiva e monta store/eventos/índice/grafo sob demanda. É a única borda que toca adaptadores reais. |
 | Saída | **stdout = dados, stderr = logs** (R20); `--json` emite o envelope `{success, command, data?, error{code,message,retryable}, warnings?}` (D71/R31). EPIPE → exit 0 (D73). |
 | `strict` | Config de projeto (`behavior.strict`, D94) promove `warnings[]` a erro; **não** existe flag `--strict`. |
@@ -279,9 +286,9 @@ O gate local é `make check` (fmt + clippy + test + linhas); `make ci` soma os a
 ## 18. Referências
 
 - Visão: `plan/00_panorama.md`
-- Decisões: `plan/03_decisoes-fechadas.md` (D01–D209)
+- Decisões: `plan/03_decisoes-fechadas.md` (D01–D230)
 - Contrato de bytes: `TOON.md`
-- Políticas de engenharia: `plan/implementation/14_revisao_tecnica.md` (R01–R44)
+- Políticas de engenharia: `plan/implementation/14_revisao_tecnica.md` (R01–R45)
 - Superfície CLI: `plan/implementation/16_cli_surface.md`
 - Matriz de aceite: `plan/implementation/17_matriz_aceitacao.md`
 - Bordas: `DIVERGENCES.md`

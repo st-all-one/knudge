@@ -8,6 +8,7 @@ use std::hint::black_box;
 
 use knudge_core::Graph;
 use knudge_core::config::Config;
+use knudge_core::corpus::parse_jsonl;
 use knudge_core::embeddings::lightweight::embed;
 use knudge_core::embeddings::vector::cosine;
 use knudge_core::graph::pagerank;
@@ -27,11 +28,18 @@ use knudge_core::retrieval::{
     rank as composite_rank, recall,
 };
 use knudge_core::schema::{NoteType, body, hash, id};
-use knudge_core::corpus::parse_jsonl;
 use knudge_core::store::Note;
 use knudge_core::task::{impact, impacts};
 use knudge_core::toon;
 use knudge_core::write::{DedupThresholds, Draft, propose_merges};
+use std::path::Path;
+
+use knudge_core::lifecycle::{
+    DemotionAction, DemotionReason, ProposalEntry, ProposalStore, ShelfLife, UsageIndex,
+    compute_anchor_validity_cached, freshness_with,
+};
+use knudge_core::ports::Fs;
+use knudge_core::ports::fakes::MemFs;
 
 use crate::fixture;
 use crate::harness::Harness;
@@ -49,6 +57,7 @@ pub fn run(harness: &mut Harness, sizes: &[usize]) {
     fixed(harness);
     scaling(harness, sizes);
     agent_memory(harness);
+    d230(harness);
 }
 
 /// Memória de agentes v2 (D219/D223): `parse_jsonl` com `BTreeMap` vs o `upsert` linear antigo.
@@ -98,7 +107,10 @@ fn legacy_upsert(lines: &[&str]) {
             continue;
         };
         let id = note.id().unwrap_or_default().to_string();
-        if let Some(slot) = notes.iter_mut().find(|item| item.id().unwrap_or_default() == id) {
+        if let Some(slot) = notes
+            .iter_mut()
+            .find(|item| item.id().unwrap_or_default() == id)
+        {
             *slot = note;
         } else {
             notes.push(note);
@@ -356,6 +368,71 @@ fn fixed(harness: &mut Harness) {
             let _ = black_box(cosine(black_box(&vector_a), black_box(&vector_b)));
         },
     );
+}
+
+/// Instrumentação do D230 (freshness, cobertura de âncoras e store de propostas).
+fn d230(harness: &mut Harness) {
+    let notes = fixture::generate_notes(500);
+    let policy = ShelfLife::from_config(&Config::default());
+    let usage = UsageIndex::default();
+    let now_ms = 1_700_400_000_000_i64;
+    harness.measure(
+        "micro/fixo",
+        "lifecycle::freshness_with (N=500)",
+        15,
+        100,
+        || {
+            let _ = black_box(freshness_with(
+                black_box(&notes),
+                now_ms,
+                &policy,
+                0,
+                &usage,
+            ));
+        },
+    );
+
+    let paths: Vec<String> = (0..2_000)
+        .map(|index| format!("src/mod{index}/file{index}.rs"))
+        .collect();
+    let anchors: Vec<String> = (0..600)
+        .map(|index| format!("src/mod{index}/**/*.rs"))
+        .collect();
+    let coverage_fs = MemFs::default();
+    harness.measure(
+        "micro/fixo",
+        "lifecycle::anchor_coverage (600 globs / 2000 paths)",
+        15,
+        1,
+        || {
+            let _ = black_box(compute_anchor_validity_cached(
+                &coverage_fs,
+                Path::new("/bench"),
+                black_box(&paths),
+                black_box(&anchors),
+            ));
+        },
+    );
+
+    let entries: Vec<ProposalEntry> = (0..1_000)
+        .map(|index| ProposalEntry {
+            id: format!("fact_{index:08}"),
+            reason: DemotionReason::Drifted,
+            action: DemotionAction::Review,
+        })
+        .collect();
+    let store_fs = MemFs::default();
+    let store = ProposalStore::new(&store_fs, "/bench");
+    harness.measure("micro/fixo", "ProposalStore::persist (N=1000)", 15, 20, || {
+        let _ = black_box(store.persist(black_box(&entries)));
+    });
+    let _ = store.persist(&entries);
+    harness.measure("micro/fixo", "ProposalStore::count (N=1000)", 15, 500, || {
+        let _ = black_box(store.count());
+    });
+    harness.measure("micro/fixo", "ProposalStore::load (N=1000)", 15, 100, || {
+        let _ = black_box(store.load());
+    });
 }
 
 fn scaling(harness: &mut Harness, sizes: &[usize]) {

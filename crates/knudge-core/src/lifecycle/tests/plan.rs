@@ -6,7 +6,7 @@ use std::path::Path;
 use crate::Result;
 use crate::graph::Graph;
 use crate::lifecycle::decay::{AnchorValidity, DecayPolicy, compute_anchor_validity};
-use crate::lifecycle::plan::{DemotionInput, DemotionReason, demotion_candidates};
+use crate::lifecycle::plan::{DemotionAction, DemotionInput, DemotionReason, demotion_candidates};
 use crate::lifecycle::shelf_life::{DAY_MS, ShelfLife};
 use crate::lifecycle::supersession::demote;
 use crate::ports::fakes::MemFs;
@@ -54,10 +54,14 @@ fn plans_expired_and_decayed_but_not_healthy() -> Result<()> {
         usage: None,
     };
     let candidates = demotion_candidates(&notes, &input, &graph)?;
-    assert_eq!(candidates.len(), 2);
-    let reasons: Vec<DemotionReason> = candidates.iter().map(|c| c.reason).collect();
-    assert!(reasons.contains(&DemotionReason::Expired));
-    assert!(reasons.contains(&DemotionReason::AnchorDecay));
+    assert_eq!(
+        candidates
+            .iter()
+            .map(|candidate| candidate.action)
+            .collect::<Vec<_>>(),
+        vec![DemotionAction::Forget, DemotionAction::Forget],
+        "expiração e âncora quebrada são esquecimento"
+    );
     assert!(candidates.iter().all(|c| c.id != healthy_id));
     Ok(())
 }
@@ -93,6 +97,12 @@ fn contradiction_proposes_the_losing_side() -> Result<()> {
         .map(|candidate| candidate.id.as_str())
         .collect();
     assert_eq!(contradicted, vec![weak_id.as_str()]);
+    assert!(
+        candidates
+            .iter()
+            .all(|candidate| candidate.action == DemotionAction::Review),
+        "contradição pede revisão, não apagamento: {candidates:?}"
+    );
     Ok(())
 }
 
@@ -241,6 +251,47 @@ fn a_topic_whose_vocabulary_changed_is_proposed_as_drifted() -> Result<()> {
             .iter()
             .all(|candidate| candidate.reason == DemotionReason::Drifted),
         "todos deviam ser drifted: {candidates:?}"
+    );
+    assert!(
+        candidates
+            .iter()
+            .all(|candidate| candidate.action == DemotionAction::Review),
+        "drift pede revisão, não apagamento: {candidates:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn foundational_notes_are_never_forgotten_for_broken_anchors() -> Result<()> {
+    let mut draft = Draft::new(NoteType::Fact, "fundacional com âncora quebrada");
+    draft.classification = Some(Classification::Foundational);
+    draft.anchors = vec!["gone/a.rs".to_string(), "gone/b.rs".to_string()];
+    let note = draft.to_note(NOW.saturating_sub(days(40)))?;
+    let id = note.id()?.to_string();
+    let notes = vec![note];
+    let graph = Graph::from_notes(notes.clone())?;
+    let mut validity = BTreeMap::new();
+    let _ignored = validity.insert(
+        id,
+        AnchorValidity {
+            total: 2,
+            valid: 0,
+            broken: 2,
+        },
+    );
+    let shelf_life = ShelfLife::default();
+    let decay = DecayPolicy::default();
+    let input = DemotionInput {
+        now_ms: NOW,
+        shelf_life: &shelf_life,
+        decay: &decay,
+        validity: &validity,
+        usage: None,
+    };
+    let candidates = demotion_candidates(&notes, &input, &graph)?;
+    assert!(
+        candidates.is_empty(),
+        "fundacional não entra nem como revisão por decaimento: {candidates:?}"
     );
     Ok(())
 }

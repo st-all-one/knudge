@@ -27,8 +27,9 @@ WHEN (use / don't):
   kd ask <QUERY>     recall before acting (read-only); --anchor/--type/--agent/--activity/--limit/--brief/--full-content.
   kd write <...>     record fact/decision/error/risk/question; anchor code with --anchor PATH.
   kd task new <...>  plan/execute work (epic ⊃ {issue ⊃ task | task}); NOT for knowledge.
-  kd rewind [--with-activity]  rebuild session context/handoff (token budget); --with-activity adds recent agent activity.
-  kd doctor          corpus health: 13 checks + audit (--fix repairs; --explain details).
+  kd rewind [--with-activity]  rebuild session context/handoff (token budget); --json: freshness + pending_proposals.
+  kd doctor          corpus health: 13 checks + audit (--fix repairs; --json: freshness).
+  kd maintenance ..  cleanup (compact/learn/prune; only PROPOSE; prune --json: anchor_coverage, review≠forget).
   kd drain           embedding queue: --status | --digest [--force]; service = worker.
   kd ai --memory|--session [<QUERY>]  agent memory shards: read-only .knudge/ai/<area>/<agent_id>.jsonl; --sort/--agent-id.
   kd forget --id <ID> soft-delete (--restore; --purge [--force] after retention).
@@ -39,7 +40,8 @@ ESSENTIAL:
   kd ask \"<QUERY>\" [--anchor PATH...] [--type T...] [--limit N] [--brief] [--full-content]
   kd write --summary \"<statement>\" [<body>|-] --type <fact|decision|error|risk|question> [--tag T...] [--anchor PATH...]
   kd task new --summary \"<...>\" --scope <epic|issue|task> [--kind error|question|risk|decision] [--parent ID] [--anchor PATH...]
-  ANCHORS: --anchor PATH ties note/task to code (repeatable/comma; glob `src/**`).
+  ANCHORS: --anchor PATH ties note/task to code (repeatable/comma; glob `src/**`); missing literal path warns (strict → error).
+  CLASS: error/question/snippet infer `observational` unless --class is given.
   BODY: write when the statement alone can't drive action (Why / Evidence / Consequence).
 
 ID: <type>_<base36(8)> = hash(type + U+001F + normalize(statement)); reclassifying never rewrites the id.
@@ -83,7 +85,7 @@ ANCHORS (--anchor PATH) — ties memory to code (high value):
     kd task new --summary \"Migrate cache\" --scope task --anchor plan/016.md
   Repeatable; comma ok (`--anchor a,b --anchor c`). Glob (`src/**`) matches subtrees.
   `kd ask --anchor PATH` finds anchored notes even without a text query (anchor channel).
-  Don't use: global concept with no file, or a path that doesn't exist yet.
+  Don't use: global concept with no file, nonexistent literal path (warns; `strict` → error).
   Maintenance: `kd doctor` lists broken anchors (file removed).
 
 KNOWLEDGE (kd write — facts, decisions, errors, risks, questions):
@@ -97,6 +99,7 @@ KNOWLEDGE (kd write — facts, decisions, errors, risks, questions):
   kd write --batch - [--dry-run]          # JSONL draft batch (D110)
   kd write --params '<json>' [--dry-run]  # single item (D147)
   --type task is rejected: use kd task.
+  error/question/snippet default to `observational`; use --class to override.
 
 BODY (when and why) — the \"why\" the statement can't carry:
   Write a body when the statement alone can't drive action. Template (2–4 lines):
@@ -140,15 +143,16 @@ WORK (kd task — epic ⊃ { issue ⊃ task | task }; epic is the root, anchor i
   kd task graph [--program plan/<slug>.md|--root ID]   # id|kind|status|statement (done/total) (D139)
   kd task plan <ID> --prompt [--template T] | --submit --from -   # TOON plan (D105)
 
-STATE/HANDOFF: kd rewind [--scope SCOPE] [--files PATH...] [--budget N] [--resume ID]
+STATE/HANDOFF: kd rewind [--scope SCOPE] [--files PATH...] [--budget N] [--resume ID] [--json]
+  --json adds freshness (stale/expiring/pending) and pending_proposals; text/context_id unchanged (D230).
   Corpus filters: --tag/--anchor/--type/--class/--around ID (D143).
   Budget ceil(len/4) tokens (default 4000); resumable context_id 1:1; next:/fresh: (D106).
 MAP/RANK: kd map ...  ·  kd ask --rank|--tags ...  (map/rank need scope or --universe; D143/D146)
   kd map [--axis anchor|type|classification|scope] [--scope C] [--semantic] [--members] [--write]
   kd drain --status|--digest  (embedding queue: rich state and digest; --force reindexes all)
   kd drain service ..  (auto-drain worker: install/subscribe/unsubscribe/status/uninstall)
-HEALTH: kd doctor [--fix] [--explain]  (13 checks + audit; reversible repair; --explain details each finding)
-MAINTENANCE: kd maintenance compact|learn|prune  (propose only; need scope or --universe)
+HEALTH: kd doctor [--fix] [--explain] [--json]  (13 checks + audit; --json adds freshness; --fix repairs; --explain details each finding)
+MAINTENANCE: kd maintenance compact|learn|prune [--json]  (propose only; scope or --universe; prune --json adds anchor_coverage and a derived review/forget plan)
 LIFECYCLE: kd forget --id <ID>  (soft; --restore; --purge [--force] after retention)
 CONFIG: kd config get --key K | set --key K --value V | unset --key K | list [--global]  (strict is config, not a flag)
 INIT/SYNC: kd init  (create .knudge/ + AGENTS.md)  ·  kd sync  (commit notas/ + eventos/)
