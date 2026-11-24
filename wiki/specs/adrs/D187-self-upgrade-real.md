@@ -11,6 +11,8 @@ Bloco **0.5.0 (E16–E19)**.
 
 **`self upgrade` real (script).** `kd self upgrade` deixa de ser stub: evoca o `kd-upgrade.sh` (embutido; `--script`/`--url`+`--sha256` sobrescrevem), que baixa o `install.sh` oficial (release + checksum) e o executa com `VERSION`; `--dry-run` mostra o plano. Sem lógica de install em Rust. Fecha E18-T05.
 
+**Extensão (detecção de libc).** O `install.sh` escolhe `*-unknown-linux-gnu` em hosts glibc e `*-unknown-linux-musl` apenas em Alpine/musl confirmado; o release publica ambos para x86_64 e aarch64. `--target TRIPLE` no `kd self upgrade` (ou `KD_TARGET` no instalador) força o artefato.
+
 ## Impacto
 
 - Fecha E18-T05.

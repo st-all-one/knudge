@@ -16,7 +16,7 @@
 #
 # Uso:
 #   curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/st-all-one/knudge/main/install.sh | bash
-#   curl ... | VERSION=v0.6.6 bash
+#   curl ... | VERSION=v0.6.7 bash
 #   curl ... | INSTALL_DIR=/usr/local/bin bash
 #   ./install.sh --from-source
 #   ./install.sh --uninstall
@@ -114,10 +114,30 @@ if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "${BASH_SOURCE[0]}" ]; then
     fi
 fi
 
-# ── detecção de OS/arquitetura → target triple ──────────────────────────────
+# ── detecção de OS/arquitetura/libc → target triple ─────────────────────────
+
+detect_libc() {
+    # glibc é o default: os artefatos *-gnu são publicados para todas as arquiteturas
+    # suportadas. musl só é selecionado em host musl confirmado (Alpine/ldd/loader).
+    if [ -f /etc/alpine-release ]; then
+        echo "musl"
+        return
+    fi
+    if command -v ldd >/dev/null 2>&1 && ldd --version 2>&1 | grep -qi musl; then
+        echo "musl"
+        return
+    fi
+    for loader in /lib/ld-musl-*.so.1 /lib64/ld-musl-*.so.1; do
+        if [ -e "$loader" ]; then
+            echo "musl"
+            return
+        fi
+    done
+    echo "gnu"
+}
 
 detect_target() {
-    local os arch
+    local os arch libc
     os="$(uname -s)"
     arch="$(uname -m)"
 
@@ -134,9 +154,18 @@ detect_target() {
         *) err "Arquitetura não suportada: $arch" ;;
     esac
 
+    if [ "$os" = "linux" ]; then
+        libc="$(detect_libc)"
+        case "$arch-$libc" in
+            x86_64-gnu)  echo "x86_64-unknown-linux-gnu" ;;
+            x86_64-musl) echo "x86_64-unknown-linux-musl" ;;
+            aarch64-gnu)  echo "aarch64-unknown-linux-gnu" ;;
+            aarch64-musl) echo "aarch64-unknown-linux-musl" ;;
+        esac
+        return
+    fi
+
     case "$os-$arch" in
-        linux-x86_64)   echo "x86_64-unknown-linux-musl" ;;
-        linux-aarch64)  echo "aarch64-unknown-linux-musl" ;;
         darwin-aarch64) echo "aarch64-apple-darwin" ;;
         darwin-x86_64)  echo "x86_64-apple-darwin" ;;
         windows-x86_64) echo "x86_64-pc-windows-msvc" ;;

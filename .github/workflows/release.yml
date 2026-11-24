@@ -67,28 +67,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Linux — musl estático (roda em qualquer distro, glibc ou não).
+          # Linux — glibc (default em distros como Fedora/Ubuntu/Debian) e musl
+          # estático (Alpine). Ambos publicados para x86_64 e aarch64.
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive: tar.gz
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
             archive: tar.gz
           - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            archive: tar.gz
+          - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-musl
             archive: tar.gz
-          # macOS — Apple Silicon nativo + Intel por cross-compile (mesmo SDK).
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            archive: tar.gz
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            archive: tar.gz
-          # Windows — MSVC x86_64 nativo + ARM64 por cross-compile (toolchain MSVC ARM64).
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            archive: zip
-          - os: windows-latest
-            target: aarch64-pc-windows-msvc
-            archive: zip
-            msvc_arch: arm64
 
     steps:
       - uses: actions/checkout@v4

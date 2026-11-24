@@ -32,6 +32,10 @@ pub(super) fn run(session: &Session, args: &UpgradeArgs) -> Result<Output> {
         worker.push("--version".to_string());
         worker.push(version.clone());
     }
+    if let Some(target) = &args.target {
+        worker.push("--target".to_string());
+        worker.push(target.clone());
+    }
 
     if args.dry_run {
         let mut planned = worker.clone();

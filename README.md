@@ -29,8 +29,12 @@ curl --proto '=https' \
   | sh
 ```
 
-Versão fixa: `... | VERSION=v0.6.6 bash`. Outro destino: `... | INSTALL_DIR=/usr/local/bin bash`.
+Versão fixa: `... | VERSION=v0.6.7 bash`. Outro destino: `... | INSTALL_DIR=/usr/local/bin bash`.
 A partir do código-fonte: `make install`.
+
+No Linux o instalador escolhe `*-unknown-linux-gnu` em hosts glibc (Fedora, Ubuntu, Debian…) e
+`*-unknown-linux-musl` somente em Alpine/musl. Para forçar outro artefato publicado, use
+`KD_TARGET=x86_64-unknown-linux-gnu` ou `kd self upgrade --target x86_64-unknown-linux-gnu`.
 
 Embeddings são opcionais e recomendados; um comando baixa o `llama.cpp` e o modelo GGUF e deixa o
 servidor persistente e o worker de auto-drain em execução:

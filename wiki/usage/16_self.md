@@ -19,11 +19,10 @@ completions de shell, atualizar o binário e mostrar a versão.
 - **Use `version`** em scripts que precisam da versão.
 
 ## Sintaxe
-
 ```
 kd self setup <CLIENTE>
 kd self completions <SHELL>
-kd self upgrade [--version TAG] [--dry-run] [--script PATH | --url URL --sha256 HEX]
+kd self upgrade [--version TAG] [--target TRIPLE] [--dry-run] [--script PATH | --url URL --sha256 HEX]
 kd self version
 ```
 
@@ -82,11 +81,16 @@ kd self upgrade
 # 2. fixar uma versão
 kd self upgrade --version v0.5.0
 
-# 3. só ver o plano
+# 3. forçar o artefato publicado (ex.: musl em host glibc)
+kd self upgrade --target x86_64-unknown-linux-musl
+
+# 4. só ver o plano
 kd self upgrade --dry-run
 ```
 
-O `upgrade` usa o instalador oficial e verifica o checksum do release antes de instalar. No Windows
+O `upgrade` usa o instalador oficial e verifica o checksum do release antes de instalar. Em Linux,
+a detecção automática escolhe `*-unknown-linux-gnu` em hosts glibc e `*-unknown-linux-musl` apenas
+em Alpine/musl; `--target` (ou `KD_TARGET` no instalador) força outro artefato publicado. No Windows
 nativo, rode via Git Bash/WSL ou baixe o release manualmente.
 
 ## Flags
@@ -95,7 +99,7 @@ nativo, rode via Git Bash/WSL ou baixe o release manualmente.
 |---|---|
 | `setup` | `<CLIENTE>`: `claude`/`cursor`/`codex`/`pi` |
 | `completions` | `<SHELL>`: `bash`/`zsh`/`fish` |
-| `upgrade` | `--version <TAG>`, `--dry-run`, `--script <PATH>`, `--url <URL>`, `--sha256 <HEX>` |
+| `upgrade` | `--version <TAG>`, `--target <TRIPLE>`, `--dry-run`, `--script <PATH>`, `--url <URL>`, `--sha256 <HEX>` |
 | `version` | — |
 
 ## Resultado esperado

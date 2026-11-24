@@ -123,12 +123,14 @@ E08, E09.
 ## Distribuição e CI/CD (E12-T05)
 
 O release é **100% GitHub Actions**, **sem Docker**: `.github/workflows/release.yml` dispara em
-`push` de tag `v*` (ou `workflow_dispatch`) e publica 6 alvos otimizados.
+`push` de tag `v*` (ou `workflow_dispatch`) e publica 8 alvos otimizados.
 
 | Alvo | Runner | Como |
 |---|---|---|
-| `x86_64-unknown-linux-musl` | `ubuntu-latest` | nativo + `musl-tools` |
-| `aarch64-unknown-linux-musl` | `ubuntu-24.04-arm` | nativo (ARM64) |
+| `x86_64-unknown-linux-gnu` | `ubuntu-latest` | nativo (glibc; default em Fedora/Ubuntu/Debian) |
+| `x86_64-unknown-linux-musl` | `ubuntu-latest` | nativo + `musl-tools` (Alpine) |
+| `aarch64-unknown-linux-gnu` | `ubuntu-24.04-arm` | nativo (ARM64, glibc) |
+| `aarch64-unknown-linux-musl` | `ubuntu-24.04-arm` | nativo + `musl-tools` (ARM64, Alpine) |
 | `aarch64-apple-darwin` | `macos-latest` | nativo |
 | `x86_64-apple-darwin` | `macos-latest` | cross (mesmo SDK) |
 | `x86_64-pc-windows-msvc` | `windows-latest` | nativo |
@@ -141,6 +143,8 @@ O release é **100% GitHub Actions**, **sem Docker**: `.github/workflows/release
 - **Release:** `sha256sums.txt` + artefatos anexados (`softprops/action-gh-release`).
 - **Local:** `make dist` reproduz o mesmo pacote da plataforma atual (`scripts/package.sh`).
 
-O `install.sh` (modo release) detecta o triple, baixa `knudge-<v>-<triple>.{tar.gz,zip}` e o
-`sha256sums.txt`, verifica o SHA-256 e instala `kd` + `knudge-mcp` em `~/.local/bin`. O CI
+O `install.sh` (modo release) detecta o triple — em Linux, glibc → `*-unknown-linux-gnu` e
+Alpine/musl → `*-unknown-linux-musl` (override com `KD_TARGET`) —, baixa
+`knudge-<v>-<triple>.{tar.gz,zip}` e o `sha256sums.txt`, verifica o SHA-256 e instala `kd` +
+`knudge-mcp` em `~/.local/bin`. O CI
 (`.github/workflows/ci.yml`) valida o perfil otimizado em Linux/macOS/Windows a cada push/PR.

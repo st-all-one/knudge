@@ -3,9 +3,23 @@
 Todas as mudanças relevantes do knudge. Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ## [Não publicado]
+
+## [0.6.7] - 2026-11-23
+
+Release de correção da distribuição: versão do workspace, goldens de `prime`/`version`, exemplos
+do instalador e documentação de superfície passam a apontar para `0.6.7`.
+
 ### Corrigido
+- **Instalador escolhe libc correta no Linux (D187).** Em hosts glibc (Fedora, Ubuntu, Debian…)
+  o `install.sh` agora baixa `*-unknown-linux-gnu`; `*-unknown-linux-musl` só em Alpine/musl
+  confirmado. Antes todo Linux recebia o binário musl. O release passa a publicar os quatro
+  targets Linux (gnu/musl × x86_64/aarch64).
 - Render de achado de ref (D227) não duplica mais o separador: `id@hash`, não `id@@hash`.
   Teste de regressão compara a string exata.
+
+### Adicionado
+- **`kd self upgrade --target TRIPLE`** força o artefato publicado (equivalente a `KD_TARGET` no
+  instalador); o `kd-upgrade.sh` repassa o valor como variável de ambiente.
 
 ### Verificado
 - Confronto da 0.6.6 com corpus real (cópia isolada de `maxima/v7/public-v7/.knudge`, 1.535

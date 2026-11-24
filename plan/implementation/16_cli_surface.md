@@ -362,7 +362,7 @@ kd init [--force] [--no-prompt] [--git-excluded | --git-tracked]   # estrutura c
 
 kd self setup <claude|cursor|codex|pi>
 kd self completions <shell>
-kd self upgrade [--version TAG] [--dry-run] [--script <PATH> | --url <URL> --sha256 <HEX>]
+kd self upgrade [--version TAG] [--target TRIPLE] [--dry-run] [--script <PATH> | --url <URL> --sha256 <HEX>]
 kd self version
 ```
 
@@ -372,7 +372,8 @@ kd self version
   aponta o help; `self setup` lista o próximo passo; `self completions` mantém o **script puro**
   no stdout (resumo só em stderr); `self upgrade` evoca o **`kd-upgrade.sh`** (wrapper fino;
   D187), que chama o `install.sh` oficial (release + checksum) — `--dry-run` mostra o plano,
-  `--version` fixa a tag e `--url` remoto exige `--sha256` (D184).
+  `--version` fixa a tag, `--target` força o artefato publicado (`KD_TARGET` no instalador) e
+  `--url` remoto exige `--sha256` (D184).
 
 ## 12. `strict` como config (D94)
 

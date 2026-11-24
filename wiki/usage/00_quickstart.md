@@ -67,10 +67,12 @@ curl --proto '=https' --tlsv1.2 --show-error --fail \
 
 O instalador:
 
-1. baixa o release pré-compilado e **confere o SHA-256** antes de instalar;
-2. instala `kd` e `knudge-mcp` em `~/.local/bin`;
-3. adiciona `~/.local/bin` ao PATH (`~/.profile`, `~/.bashrc`, `~/.zshrc`);
-4. instala completions de `bash`, `zsh` e `fish`.
+1. detecta o triple da plataforma — em Linux, glibc (Fedora, Ubuntu, Debian…) recebe
+   `*-unknown-linux-gnu` e somente Alpine/musl recebe `*-unknown-linux-musl`;
+2. baixa o release pré-compilado e **confere o SHA-256** antes de instalar;
+3. instala `kd` e `knudge-mcp` em `~/.local/bin`;
+4. adiciona `~/.local/bin` ao PATH (`~/.profile`, `~/.bashrc`, `~/.zshrc`);
+5. instala completions de `bash`, `zsh` e `fish`.
 
 ### Variações úteis
 
@@ -83,6 +85,11 @@ curl ... | INSTALL_DIR=/usr/local/bin bash
 
 # Compilar do source (precisa de Rust 1.99+)
 ./install.sh --from-source
+
+# Forçar um artefato publicado (ex.: musl em host glibc)
+curl ... | KD_TARGET=x86_64-unknown-linux-musl bash
+# ou, depois de instalado:
+kd self upgrade --target x86_64-unknown-linux-musl
 ```
 
 ### Windows

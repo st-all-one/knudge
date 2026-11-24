@@ -7,7 +7,7 @@
 # embutido é Unix — D185); no Windows nativo, baixe o release manualmente (wiki/usage/16_self.md).
 #
 # Uso:
-#   kd-upgrade [upgrade] [--version TAG] [--dry-run]
+#   kd-upgrade [upgrade] [--version TAG] [--target TRIPLE] [--dry-run]
 #
 # Variáveis:
 #   KNUDGE_INSTALL_URL     URL do install.sh (default: raw.githubusercontent do repositório)
@@ -18,6 +18,7 @@ PROG="kd-upgrade"
 INSTALL_URL="${KNUDGE_INSTALL_URL:-https://raw.githubusercontent.com/st-all-one/knudge/main/install.sh}"
 INSTALL_SHA256="${KNUDGE_INSTALL_SHA256:-}"
 VERSION=""
+TARGET=""
 DRY_RUN=""
 XDG_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}"
 TRASH="$XDG_CACHE/knudge/trash"
@@ -66,9 +67,10 @@ usage() {
     cat <<'EOF'
 kd-upgrade — atualiza o `kd` pelo instalador oficial (release + checksum; D187).
 
-  kd-upgrade [upgrade] [--version TAG] [--dry-run]
+  kd-upgrade [upgrade] [--version TAG] [--target TRIPLE] [--dry-run]
 
   --version TAG   versão/tag alvo (default: latest)
+  --target TRIPLE força o artefato publicado (ex.: x86_64-unknown-linux-gnu)
   --dry-run       mostra o plano sem baixar nem executar
 EOF
 }
@@ -90,6 +92,10 @@ while [ "$#" -gt 0 ]; do
             VERSION="${2:?--version exige uma tag}"
             shift 2
             ;;
+        --target)
+            TARGET="${2:?--target exige um triple}"
+            shift 2
+            ;;
         --dry-run)
             DRY_RUN=1
             shift
@@ -106,8 +112,10 @@ if [ -n "$DRY_RUN" ]; then
     printf 'kd-upgrade (dry-run)\n'
     printf '  instalador: %s\n' "$INSTALL_URL"
     printf '  versão: %s\n' "${VERSION:-latest}"
+    [ -n "$TARGET" ] && printf '  target: %s\n' "$TARGET"
     [ -n "$INSTALL_SHA256" ] && printf '  sha256 do instalador: %s\n' "$INSTALL_SHA256"
-    printf '  comando: VERSION=%s bash <instalador>\n' "${VERSION:-latest}"
+    printf '  comando: VERSION=%s%s bash <instalador>\n' "${VERSION:-latest}" \
+        "$([ -n "$TARGET" ] && printf ' KD_TARGET=%s' "$TARGET")"
     exit 0
 fi
 
@@ -123,8 +131,12 @@ if [ -n "$INSTALL_SHA256" ]; then
     fi
     log "checksum do instalador confere"
 fi
-log "executando instalador (versão ${VERSION:-latest})..."
-VERSION="${VERSION:-latest}" bash "$tmp"
+log "executando instalador (versão ${VERSION:-latest}${TARGET:+, target $TARGET})..."
+if [ -n "$TARGET" ]; then
+    VERSION="${VERSION:-latest}" KD_TARGET="$TARGET" bash "$tmp"
+else
+    VERSION="${VERSION:-latest}" bash "$tmp"
+fi
 rc=$?
 trash "$tmp"
 exit "$rc"

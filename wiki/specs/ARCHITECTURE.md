@@ -237,7 +237,7 @@ volatilidade, não CAS (D48).
 | Conceito | Regra |
 |---|---|
 | Superfície | **14 verbos** (`16_cli_surface.md`, superfície v3 — D209): `kd`(=prime), `init`, `prime`, `rewind`, `ask` (inclui `--rank`/`--tags`/`--suggest`), `write`, `task`, `map`, `doctor`, `drain`, `maintenance`, `config` (inclui `promote`), `forget`, `sync`, `self`. Domínio (8): `ask`/`write`/`task`/`rewind`/`map`/`doctor`/`drain`/`forget`. |
-| Superfície (0.6.6) | `rewind --with-refs`/`--check-refs`, `doctor --refs` e `write --update --expect-body-hash` (D227/D228); ver `16_cli_surface.md`. |
+| Superfície (0.6.7) | `rewind --with-refs`/`--check-refs`, `doctor --refs`, `write --update --expect-body-hash` (D227/D228) e `self upgrade --target TRIPLE` (D187); ver `16_cli_surface.md`. |
 | Guarda de retry | `--expect-body-hash` compara sob o lock antes do patch; divergência = `conflict` (4), sem novo `ErrorKind`; `revision` segue não-CAS (D48/D228). |
 | Custo por resposta | Medido em `bench/custo.md` (D229), sem ledger/verbo/config no runtime; R45 #1/#7 permanecem. |
 | Prevenção do decaimento | `freshness`/cobertura de âncoras no envelope (D230); `prune` separa `review` de `forget` e persiste o plano derivado. |

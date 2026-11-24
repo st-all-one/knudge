@@ -154,6 +154,9 @@ pub struct UpgradeArgs {
     /// Versão/tag alvo (default: `latest`).
     #[arg(long, value_name = "TAG")]
     pub version: Option<String>,
+    /// Target triple do release (default: detectado pelo instalador).
+    #[arg(long, value_name = "TRIPLE")]
+    pub target: Option<String>,
     /// Usa um script local em vez do embutido (offline/testes).
     #[arg(long, value_name = "PATH")]
     pub script: Option<String>,

@@ -178,6 +178,35 @@ fn self_upgrade_invokes_script() -> TestResult {
     assert!(stdout.contains("upgrade fake"), "stdout: {stdout}");
     Ok(())
 }
+#[test]
+fn self_upgrade_forwards_target_to_installer_script() -> TestResult {
+    let dir = temp_project();
+    let script = dir.join("fake-upgrade.sh");
+    std::fs::write(
+        &script,
+        "#!/usr/bin/env bash\nfor arg in \"$@\"; do echo \"$arg\"; done\n",
+    )?;
+    let script_s = script.to_string_lossy().into_owned();
+    let out = run_in(
+        &dir,
+        &[
+            "self",
+            "upgrade",
+            "--script",
+            script_s.as_str(),
+            "--target",
+            "x86_64-unknown-linux-gnu",
+        ],
+    )?;
+    assert!(out.status.success(), "stderr: {:?}", out.stderr);
+    let stdout = String::from_utf8(out.stdout)?;
+    assert!(stdout.contains("--target"), "stdout: {stdout}");
+    assert!(
+        stdout.contains("x86_64-unknown-linux-gnu"),
+        "stdout: {stdout}"
+    );
+    Ok(())
+}
 
 #[test]
 fn self_upgrade_dry_run_shows_plan() -> TestResult {

@@ -1,0 +1,4 @@
+# Política de supply chain (Cargo 1.100): não resolver versões publicadas há menos de 7 dias.
+# Vale só para resolução de registry; o Cargo.lock fixado continua autoritativo.
+[registries.crates-io]
+min-publish-age = "7 days"
